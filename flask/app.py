@@ -3,7 +3,8 @@ import psycopg2 # type: ignore
 from psycopg2 import sql    # type: ignore
 import os
 
-app = Flask(__name__, static_folder='flask/static', template_folder='flask/templates')
+# app = Flask(__name__, static_url_path='/flask')
+app = Flask(__name__)
 
 # Database configuration
 DB_HOST = os.getenv('DB_HOST')

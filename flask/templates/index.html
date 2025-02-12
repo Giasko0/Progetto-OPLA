@@ -8,7 +8,7 @@
 
 {% block body %}
 <div class="container">
-    <div id="calendar" style="width: 80%; margin: 0 auto; height: 30%"></div>
+    <div id="calendar" style="width: 80%; margin: 0 auto;"></div>
 
     {% if request.cookies.get('username') %}
         <p style="text-align: center;">Esami inseriti: {{ total_exams }}/10</p>
