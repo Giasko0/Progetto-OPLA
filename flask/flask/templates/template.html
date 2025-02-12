@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='imgs/favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style/styles.css') }}">
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+  <div class="navbar">
+    <a href="/flask"><img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="Logo" class="logo"></a>
+  
+    <div class="navlinks">
+      <a href="/flask">Home</a>
+      <a href="/flask/elencoEsami">Elenco Esami</a>
+      {% if request.cookies.get('username') %}
+        <a href="/flask/logout">{{ request.cookies.get('username') }} &#x21E6;</a>
+      {% else %}
+        <a href="/flask/login">Login &#x21E8;</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% block body %}{% endblock %}
+</body>

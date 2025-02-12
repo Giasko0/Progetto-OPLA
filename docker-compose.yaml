@@ -1,0 +1,36 @@
+services:
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - flask_app
+
+  flask_app:
+    build: ./flask
+    volumes:
+      - ./flask:/app  # Monta la cartella locale ./flask nel container
+    depends_on:
+      - postgres
+
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile.postgres
+    volumes:
+      - type: bind
+        source: postgres_data
+        target: /var/lib/postgresql/data
+
+  pgadmin:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile.pgadmin
+    ports:
+      - "4400:80"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    driver: local

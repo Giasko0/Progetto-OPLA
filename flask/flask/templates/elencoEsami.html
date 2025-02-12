@@ -1,0 +1,58 @@
+{% extends "template.html" %}
+
+{% block head %}
+<title>Elenco Esami</title>
+<style>
+
+
+  table {
+    width: clamp(500px, 50vw, 1000px);
+    border-collapse: collapse;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #bbb;
+    background-color: white;
+  }
+
+  thead th {
+    background-color: #27348B;
+    color: white;
+    font-weight: bold;
+  }
+
+  th,
+  td {
+    padding: 12px;
+    border: 1px solid #bbb;
+  }
+
+  tbody tr:hover td {
+    background-color: #f1f1f1;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="containerZz">
+  <h1>Elenco Esami</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Aula</th>
+        <th>Data</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for esame in esami %}
+      <tr>
+        <td>{{ esame.title }}</td>
+        <td>{{ esame.aula }}</td>
+        <td>{{ esame.start }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
