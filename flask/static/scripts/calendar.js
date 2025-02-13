@@ -7,7 +7,6 @@ document.addEventListener("DOMContentLoaded", function () {
     initialView: "dayGridMonth",
     selectable: true,
     events: "/flask/api/ottieniEsami",
-    eventbackgroundColor: 'white',
     // Configurazione dei mesi/giorni disponibili
     validRange: {
       start: '2025-01-01', // Primo mese disponibile

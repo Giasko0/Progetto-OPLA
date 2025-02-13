@@ -63,6 +63,9 @@ def inserisciEsame():
     try:
         # Estrazione e validazione dei dati dalla richiesta
         data = request.form
+        docente = data.get('docente')
+        insegnamento = data.get('insegnamento')
+        annoAccademico = data.get('annoAccademico')
         titolo = data.get('titolo')
         aula = data.get('aula')
         dataora = data.get('dataora')
@@ -78,6 +81,9 @@ def inserisciEsame():
         create_table_query = sql.SQL("""
             CREATE TABLE IF NOT EXISTS esami (
                 id SERIAL PRIMARY KEY,
+                docente VARCHAR(50) NOT NULL,
+                insegnamento VARCHAR(50) NOT NULL,
+                annoAccademico INT NOT NULL,
                 titolo VARCHAR(100) NOT NULL,
                 aula VARCHAR(50) NOT NULL,
                 dataora DATE NOT NULL
@@ -100,8 +106,8 @@ def inserisciEsame():
             return jsonify({'status': 'error', 'message': 'Esame già presente in questa aula'}), 400
 
         # Inserimento dati usando query parametrizzata
-        query = sql.SQL("INSERT INTO esami (titolo, aula, dataora) VALUES (%s, %s, %s)")
-        cursor.execute(query, (titolo, aula, dataora))
+        query = sql.SQL("INSERT INTO esami (docente, insegnamento, annoAccademico, titolo, aula, dataora) VALUES (%s, %s, %s, %s, %s, %s)")
+        cursor.execute(query, (docente, insegnamento, annoAccademico, titolo, aula, dataora))
         conn.commit()
 
         return redirect('/flask')
@@ -119,7 +125,7 @@ def ottieniEsami():
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT titolo, aula, dataora
+            SELECT docente, insegnamento, annoAccademico, titolo, aula, dataora
             FROM esami
             ORDER BY dataora
         """)
@@ -127,9 +133,12 @@ def ottieniEsami():
         esami = []
         for row in cursor.fetchall():
             esami.append({
-                'title': row[0],
-                'aula': row[1],
-                'start': row[2].isoformat()  # Formato ISO per FullCalendar
+                'docente': row[0],
+                'insegnamento': row[1],
+                'annoAccademico': row[2],
+                'title': row[3],
+                'aula': row[4],
+                'start': row[5].isoformat()  # Formato ISO per FullCalendar
             })
         
         return jsonify(esami)

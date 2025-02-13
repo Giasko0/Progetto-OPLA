@@ -17,6 +17,7 @@
       background-color: #27348b;
       color: white;
       font-weight: bold;
+      cursor: pointer;
     }
 
     th,
@@ -29,21 +30,61 @@
       background-color: #f1f1f1;
     }
   </style>
+  <script>
+    function sortTable(colIndex) {
+      const table = document.getElementById("tabella");
+      let switching = true;
+      let dir = "asc";
+      let switchcount = 0;
+      while (switching) {
+        switching = false;
+        let rows = table.tBodies[0].rows;
+        for (let i = 0; i < rows.length - 1; i++) {
+          let shouldSwitch = false;
+          let x = rows[i].getElementsByTagName("TD")[colIndex];
+          let y = rows[i + 1].getElementsByTagName("TD")[colIndex];
+          let xText = x.textContent.trim().toLowerCase();
+          let yText = y.textContent.trim().toLowerCase();
+          if (dir === "asc" && xText > yText) {
+            shouldSwitch = true;
+          } else if (dir === "desc" && xText < yText) {
+            shouldSwitch = true;
+          }
+          if (shouldSwitch) {
+            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+            switching = true;
+            switchcount++;
+            break;
+          }
+        }
+        if (switchcount === 0 && dir === "asc") {
+          dir = "desc";
+          switching = true;
+        }
+      }
+    }
+  </script>
 {% endblock %}
 
 {% block body %}
   <h1>Elenco Esami</h1>
-  <table>
+  <table id="tabella">
     <thead>
       <tr>
-        <th>Insegnamento</th>
-        <th>Aula</th>
-        <th>Data</th>
+        <th onclick="sortTable(0)">Docente</th>
+        <th onclick="sortTable(1)">Insegnamento</th>
+        <th onclick="sortTable(2)">Anno Accademico</th>
+        <th onclick="sortTable(3)">Titolo</th>
+        <th onclick="sortTable(4)">Aula</th>
+        <th onclick="sortTable(5)">Data</th>
       </tr>
     </thead>
     <tbody>
       {% for esame in esami %}
       <tr>
+        <td>{{ esame.docente }}</td>
+        <td>{{ esame.insegnamento }}</td>
+        <td>{{ esame.annoAccademico }}</td>
         <td>{{ esame.title }}</td>
         <td>{{ esame.aula }}</td>
         <td>{{ esame.start }}</td>
