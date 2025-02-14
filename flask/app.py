@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect
-import psycopg2 # type: ignore
-from psycopg2 import sql    # type: ignore
+import psycopg2
+from psycopg2 import sql
 import os
 
 # app = Flask(__name__, static_url_path='/flask')
@@ -23,11 +23,8 @@ def get_db_connection():
 
 @app.route('/flask')
 def home():
-    if 'username' not in request.cookies:
-        return render_template("index.html", total_exams=0)
-    esami = ottieniEsami().get_json()
-    numero_esami = len(esami)
-    return render_template("index.html", total_exams=numero_esami)
+    return render_template("index.html")
+
 
 @app.route('/flask/elencoEsami')
 def elencoEsami():
@@ -51,12 +48,17 @@ def api_login():
     username = data.get('username')
     password = data.get('password')
 
-    if username == 'Amedeo' and password == 'amedeo':
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM docenti WHERE matricola = %s AND nome = %s", (username, password))
+    if cursor.fetchone():
         response = redirect('/flask')
-        response.set_cookie('username', 'Amedeo')
+        response.set_cookie('username', username)
         return response
     else:
         return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
+    cursor.close()
+    conn.close()
 
 @app.route('/flask/api/inserisciEsame', methods=['POST'])
 def inserisciEsame():
@@ -65,12 +67,10 @@ def inserisciEsame():
         data = request.form
         docente = data.get('docente')
         insegnamento = data.get('insegnamento')
-        annoAccademico = data.get('annoAccademico')
-        titolo = data.get('titolo')
         aula = data.get('aula')
         dataora = data.get('dataora')
 
-        if not titolo or not aula or not dataora:
+        if not docente or not insegnamento or not aula or not dataora:
             return jsonify({'status': 'error', 'message': 'Dati incompleti'}), 400
 
         # Connessione al database
@@ -81,10 +81,8 @@ def inserisciEsame():
         create_table_query = sql.SQL("""
             CREATE TABLE IF NOT EXISTS esami (
                 id SERIAL PRIMARY KEY,
-                docente VARCHAR(50) NOT NULL,
-                insegnamento VARCHAR(50) NOT NULL,
-                annoAccademico INT NOT NULL,
-                titolo VARCHAR(100) NOT NULL,
+                docente VARCHAR(50) NOT NULL REFERENCES docenti(matricola),
+                insegnamento VARCHAR(50) NOT NULL REFERENCES insegnamenti(titolo),
                 aula VARCHAR(50) NOT NULL,
                 dataora DATE NOT NULL
             )
@@ -106,8 +104,8 @@ def inserisciEsame():
             return jsonify({'status': 'error', 'message': 'Esame già presente in questa aula'}), 400
 
         # Inserimento dati usando query parametrizzata
-        query = sql.SQL("INSERT INTO esami (docente, insegnamento, annoAccademico, titolo, aula, dataora) VALUES (%s, %s, %s, %s, %s, %s)")
-        cursor.execute(query, (docente, insegnamento, annoAccademico, titolo, aula, dataora))
+        query = sql.SQL("INSERT INTO esami (docente, insegnamento, aula, dataora) VALUES (%s, %s, %s, %s)")
+        cursor.execute(query, (docente, insegnamento, aula, dataora))
         conn.commit()
 
         return redirect('/flask')
@@ -125,7 +123,7 @@ def ottieniEsami():
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT docente, insegnamento, annoAccademico, titolo, aula, dataora
+            SELECT docente, insegnamento, aula, dataora
             FROM esami
             ORDER BY dataora
         """)
@@ -134,11 +132,9 @@ def ottieniEsami():
         for row in cursor.fetchall():
             esami.append({
                 'docente': row[0],
-                'insegnamento': row[1],
-                'annoAccademico': row[2],
-                'title': row[3],
-                'aula': row[4],
-                'start': row[5].isoformat()  # Formato ISO per FullCalendar
+                'title': row[1],
+                'aula': row[2],
+                'start': row[3].isoformat()  # Formato ISO per FullCalendar
             })
         
         return jsonify(esami)

@@ -4,10 +4,11 @@
 <h2>Inserisci un esame</h2>
 <form action="/flask/api/inserisciEsame" method="POST">
   <input type="text" id="docente" name="docente" hidden value="{{ request.cookies.get('username') }}">
-  <input type="text" id="insegnamento" name="insegnamento" hidden value="Ingegneria del Software">
-  <input type="text" id="annoAccademico" name="annoAccademico" hidden value="1">
-  <label for="titolo">Titolo</label>
-  <input type="text" id="titolo" name="titolo" required>
+  
+  <!-- TODO: fetch degli insegnamenti direttamente dal db -->
+  <input type="text" id="insegnamento" name="insegnamento" placeholder="Insegnamento" >
+  
+  <input type="text" id="annoAccademico" name="annoAccademico" hidden>
 
   <label for="aula">Aula</label>
   <select id="aula" name="aula" required>

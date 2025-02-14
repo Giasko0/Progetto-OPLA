@@ -7,11 +7,66 @@
 {% endblock %}
 
 {% block body %}
-  <div id="calendar" style="width: 80%; margin: 0 auto;margin-top: 11vh;"></div>
+  <div class="settings">
+    <div class="dropdown" style="position: relative; display: inline-block;">
+      <button id="dropdownButton" onclick="toggleDropdown()">Seleziona Anno del Corso</button>
+      <div id="dropdownMenu" class="dropdown-menu" style="display: none; position: absolute; background: #fff; border: 1px solid #ccc; padding: 10px; z-index: 1000;">
+        <style>
+          .dropdown-item {
+        display: flex;
+        align-items: center;
+        padding: 5px;
+        cursor: pointer;
+          }
+          .dropdown-item input {
+        margin-right: 5px;
+          }
+          .dropdown-menu {
+            width: 100%;
+            box-sizing: border-box;
+          }
+        </style>
+        <form id="filterForm" method="GET" action="/filter_exams">
+          <div class="dropdown-item" onclick="toggleCheckbox('year1')">
+        <input type="checkbox" id="year1" name="academicYear" value="1" onclick="event.stopPropagation();">
+        <span>1</span>
+          </div>
+          <div class="dropdown-item" onclick="toggleCheckbox('year2')">
+        <input type="checkbox" id="year2" name="academicYear" value="2" onclick="event.stopPropagation();">
+        <span>2</span>
+          </div>
+          <div class="dropdown-item" onclick="toggleCheckbox('year3')">
+        <input type="checkbox" id="year3" name="academicYear" value="3" onclick="event.stopPropagation();">
+        <span>3</span>
+          </div>
+          <button type="submit">Filtra</button>
+        </form>
+      </div>
+        </div>
 
-  {% if request.cookies.get('username') %}
-    <p style="text-align: center;">Esami inseriti: {{ total_exams }}/10</p>
-  {% endif %}
+        <script>
+      function toggleDropdown() {
+        var menu = document.getElementById("dropdownMenu");
+        menu.style.display = (menu.style.display === "none" || menu.style.display === "") ? "block" : "none";
+      }
+
+      function toggleCheckbox(id) {
+        var checkbox = document.getElementById(id);
+        checkbox.checked = !checkbox.checked;
+      }
+
+      // Close dropdown only when clicking outside the dropdown button and menu
+      window.onclick = function(event) {
+        var dropdownButton = document.getElementById("dropdownButton");
+        var dropdownMenu = document.getElementById("dropdownMenu");
+        if (!dropdownButton.contains(event.target) && !dropdownMenu.contains(event.target)) {
+          dropdownMenu.style.display = "none";
+        }
+      }
+        </script>
+  </div>
+
+  <div id="calendar"></div>
 
   {% include 'formAule.html' %}
 {% endblock %}
