@@ -25,12 +25,9 @@ def get_db_connection():
 def home():
     return render_template("index.html")
 
-
 @app.route('/flask/elencoEsami')
 def elencoEsami():
-    response = ottieniEsami()
-    esami = response.get_json() # devo trasformare la risposta in un oggetto JSON
-    return render_template("elencoEsami.html", esami=esami)
+    return render_template("elencoEsami.html")
 
 @app.route('/flask/login')
 def login():
@@ -141,6 +138,58 @@ def ottieniEsami():
     
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if conn:
+            cursor.close()
+            conn.close()
+
+@app.route('/flask/api/ottieniInsegnamenti', methods=['GET'])
+def ottieniInsegnamenti():
+    username = request.args.get('username')
+    if not username:
+        return jsonify({'status': 'error', 'message': 'Missing username parameter'}), 400
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Assumendo che la tabella insegnamenti abbia una colonna "docente" che memorizza la matricola
+        cursor.execute("SELECT titolo FROM insegnamenti WHERE docente = %s", (username,))
+        insegnamenti = [row[0] for row in cursor.fetchall()]
+        return jsonify(insegnamenti)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        if conn:
+            cursor.close()
+            conn.close()
+
+@app.route('/flask/api/filtraEsami', methods=['GET'])
+def filtraEsami():
+    academicYears = request.args.getlist('academicYear')
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if academicYears:
+            query = """
+                SELECT e.docente, e.insegnamento, e.aula, e.dataora 
+                FROM esami e
+                JOIN insegnamenti i ON e.insegnamento = i.titolo
+                WHERE i.annoAccademico = ANY(%s)
+                ORDER BY e.dataora
+            """
+            cursor.execute(query, (academicYears,))
+        else:
+            cursor.execute("SELECT docente, insegnamento, aula, dataora FROM esami ORDER BY dataora")
+        exams = []
+        for row in cursor.fetchall():
+            exams.append({
+                'docente': row[0],
+                'title': row[1],
+                'aula': row[2],
+                'start': row[3].isoformat()
+            })
+        return jsonify(exams)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         if conn:
             cursor.close()

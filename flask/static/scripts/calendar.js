@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", function () {
     locale: "it",
     initialView: "dayGridMonth",
     selectable: true,
-    events: "/flask/api/ottieniEsami",
     // Configurazione dei mesi/giorni disponibili
     validRange: {
       start: '2025-01-01', // Primo mese disponibile
@@ -61,4 +60,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   calendar.render();
+  
+  // Esponi globalmente l'istanza del calendario
+  window.calendar = calendar;
 });

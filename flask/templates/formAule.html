@@ -5,8 +5,9 @@
 <form action="/flask/api/inserisciEsame" method="POST">
   <input type="text" id="docente" name="docente" hidden value="{{ request.cookies.get('username') }}">
   
-  <!-- TODO: fetch degli insegnamenti direttamente dal db -->
-  <input type="text" id="insegnamento" name="insegnamento" placeholder="Insegnamento" >
+  <select id="insegnamento" name="insegnamento">
+    <option value="" disabled selected hidden>Scegli l'insegnamento</option>
+  </select>
   
   <input type="text" id="annoAccademico" name="annoAccademico" hidden>
 
