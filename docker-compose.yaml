@@ -12,6 +12,8 @@ services:
       - ./flask:/app  # Monta la cartella locale ./flask nel container
     depends_on:
       - postgres
+    env_file:
+      - .env
 
   postgres:
     build:
@@ -21,6 +23,8 @@ services:
       - type: bind
         source: postgres_data
         target: /var/lib/postgresql/data
+    env_file:
+      - .env
 
   pgadmin:
     build:
@@ -30,6 +34,8 @@ services:
       - "4400:80"
     depends_on:
       - postgres
+    env_file:
+      - .env
 
 volumes:
   postgres_data:
