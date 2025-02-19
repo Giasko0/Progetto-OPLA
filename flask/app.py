@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect
+from flask import Flask, render_template, request, jsonify, redirect, make_response
 import psycopg2
 from psycopg2 import sql
 import os
@@ -87,17 +87,15 @@ def inserisciEsame():
         cursor.execute(create_table_query)
         conn.commit()
 
-        # Verifica se ci sono già due esami con la stessa data
+        # Verifica se ci sono già due esami nella stessa data
         cursor.execute("SELECT COUNT(*) FROM esami WHERE dataora = %s", (dataora,))
         count = cursor.fetchone()[0]
         if count >= 2:
-            #return render_template("genericPopup.html", content="<h1>Errore</h1><p>Non è possibile inserire più di due esami lo stesso giorno</p>")
             return jsonify({'status': 'error', 'message': 'Non è possibile inserire più di due esami lo stesso giorno'}), 400
 
-        # Verifica se esiste già un esame con la stessa data e stessa aula
+        # Verifica se esiste già un esame con la stessa data e aula
         cursor.execute("SELECT 1 FROM esami WHERE dataora = %s AND aula = %s", (dataora, aula))
         if cursor.fetchone():
-            #return render_template("genericPopup.html", content="<h1>Errore</h1><p>Esame già presente in questa aula</p>")
             return jsonify({'status': 'error', 'message': 'Esame già presente in questa aula'}), 400
 
         # Inserimento dati usando query parametrizzata
@@ -105,7 +103,8 @@ def inserisciEsame():
         cursor.execute(query, (docente, insegnamento, aula, dataora))
         conn.commit()
 
-        return redirect('/flask')
+        # Ritorna una risposta JSON di successo
+        return jsonify({'status': 'success'}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:

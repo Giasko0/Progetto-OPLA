@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", function () {
     dateClick: function (info) {
       if (document.cookie.split(';').some(cookie => cookie.trim().startsWith('username='))) {
         document.getElementById('dataora').value = info.dateStr;
-        document.getElementById('overlay').style.display = 'block'; // Mostra il form
+        document.getElementById('popupOverlay').style.display = 'flex'; // Mostra il form
       } else {
         alert("Devi essere loggato per inserire un esame.");
       }

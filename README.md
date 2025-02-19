@@ -1,44 +1,55 @@
-# Progetto di tirocinio: Inserimento automatico date appelli
-### Obiettivo
-Creare una piattaforma che consenta ai docenti di inserire e gestire le date degli esami in modo rapido e centralizzato, con la possibilità di esportare i dati in un formato compatibile con il sistema SOL dell’ateneo.
+# Inserimento Automatico Date Appelli
 
-### Funzionalità Principali
+Benvenuti in **OPLÀ**! Questo progetto offre un modo semplice e diretto per permettere ai docenti di gestire e inserire le date degli esami in maniera centralizzata. Permette di verificare eventuali conflitti, prenotare aule e di esportare i dati nel formato richiesto dal sistema SOL dell’ateneo.
 
-1. **Inserimento Esami**
-   - Il docente accede al sistema e visualizza solo gli esami di cui è responsabile.
-   - Per ogni esame, inserisce data, periodo (mattina/pomeriggio) e aula preferita.
-   - Il sistema verifica eventuali conflitti con altri esami dello stesso anno.
-   - In caso di conflitto, suggerisce aule alternative disponibili.
+## Requisiti
 
-2. **Gestione degli Spazi**
-   - Se l’aula preferita è libera, viene automaticamente prenotata.
-   - Se occupata, vengono proposte altre opzioni di aule disponibili.
+- Docker e Docker Compose installati.
+- Credenziali per il login (utilizzate in ambiente demo).
 
-3. **Esportazione Dati**
-   - Al termine dell’inserimento, i dati vengono esportati in un file Excel compatibile con il formato di importazione del sistema SOL.
-   - Questa esportazione consente di caricare tutte le informazioni in un’unica operazione.
+## Installazione e Avvio
 
-4. **Gestione Docente**
-   - Autenticazione per permettere ai docenti di accedere solo agli esami di propria competenza.
-   - Salvataggio automatico delle date e dei dettagli di ciascun esame nel database.
-	- Per l'autenticazione usare le credenziali di ateneo. Parlare con Francesco Sportolari.
+1. Clona il repository.
+2. Dal terminale, esegui:
+```docker-compose up --build -d```
+   Questo comando avvia:
+   - Il server Flask su porta 5000 (accessibile tramite Nginx sulla porta 80).
+   - PostgreSQL su porta 5432.
+   - pgAdmin disponibile su [http://localhost:4400](http://localhost:4400).
 
-### Configurazione da parte dell'Amministratore
+3. Accedi all’applicazione tramite `http://localhost/flask`.
+4. Ferma i container con ``` docker-compose down ```
 
-L’amministratore configura il sistema con i seguenti dati:
+## Uso dell'Applicazione
 
-   - **Sessioni d'esame**: definisce le finestre temporali (sessioni) e il numero di appelli per ogni docente.
-   - **Informazioni sugli insegnamenti**: idealmente importate da u-gov (inclusi codice esame, nome, semestre, anno, corso di laurea e curriculum).
+- **Autenticazione:**  
+  Il login è gestito tramite l'API in [app.py](http://_vscodecontentref_/0) e la pagina login.html.
 
-### Flusso di lavoro dell’Utente Docente
+- **Inserimento Esami:**  
+  Usa il calendario in index.html. Cliccando su un giorno, apparirà il form per inserire un esame (template in flask/templates/formAule.html).
 
-1. **Selezione Esami**: Il sistema mostra l'elenco degli esami assegnati al docente.
-2. **Inserimento Dati**: Per ogni esame, il docente indica data, ora e aula.
-3. **Salvataggio e Conferma**: Una volta confermati i dettagli, il sistema prenota l’aula e memorizza le informazioni nel database.
+- **Visualizzazione Esami:**  
+  La pagina elencoEsami.html mostra l’elenco degli esami, con funzioni di ordinamento e filtraggio supportate dagli script elencoEsami.js e filtraEsami.js.
 
-## Componenti dello sviluppo
-1. **Autenticazione**: Parlare con Francesco Sportolari per ottenere informazioni sui docenti e relativi insegnamenti e gestire gli accessi.
-2. **Dati di input**: Da u-gov prelevare informazioni sull'offerta formativa dell'anno corrente, forse ridondante se si usa il punto 1.
-3. **Inserimento dei dati**: I docenti, rispettando i vincoli forniti dall'amministratore, inseriscono i dati tramite il calendario.
-4. (opzionale) **Modifiche dei dati**: Se un docente cambia data, viene salvata la modifica in un database esterno (trovare soluzione alternativa).
-5. **Esportare il database**: Dump del database in un file Excel che verrà caricato sul server, questo file dovrebbe essere strutturato similmente al [PDF con le date degli appelli](https://www.dmi.unipg.it/files/informatica/doc-triennale/calendario-esami/2024_2025_cal_esami_triennale_02.pdf)
+## API Principali
+
+- **Login:** `POST /flask/api/login`  
+  Autentica il docente e imposta il cookie `username`.
+
+- **Inserisci Esame:** `POST /flask/api/inserisciEsame`  
+  Inserisce un nuovo esame nel database, verificando conflitti di data e prenotando aule disponibili.
+
+- **Ottieni Esami:** `GET /flask/api/ottieniEsami`  
+  Restituisce la lista degli esami in formato JSON per il calendario.
+
+- **Ottieni Insegnamenti:** `GET /flask/api/ottieniInsegnamenti`  
+  Recupera gli insegnamenti associati al docente.
+
+- **Filtra Esami:** `GET /flask/api/filtraEsami`  
+  Permette il filtraggio degli esami in base all’anno accademico.
+
+## Note
+
+- La validazione dei dati e la gestione dei conflitti (massimo due esami per giorno e controllo delle aule) sono implementate nella funzione inserisciEsame.
+- I file statici e i template sono organizzati per facilitare la manutenzione e garantire un’esperienza utente ottimale.
+- Le configurazioni Docker e Nginx assicurano un deployment semplice in ambiente containerizzato.

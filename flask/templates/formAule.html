@@ -1,36 +1,64 @@
-{% extends "genericPopup.html" %}
+<div id="popupOverlay" class="popup-overlay">
+  <div class="popup">
+    <div class="popup-header">
+      <h2>Inserisci un esame</h2>
+      <span id="closeOverlay" class="popup-close">&times;</span>
+    </div>
 
-{% block content %}
-<h2>Inserisci un esame</h2>
-<form action="/flask/api/inserisciEsame" method="POST">
-  <input type="text" id="docente" name="docente" hidden value="{{ request.cookies.get('username') }}">
-  
-  <select id="insegnamento" name="insegnamento">
-    <option value="" disabled selected hidden>Scegli l'insegnamento</option>
-  </select>
-  
-  <input type="text" id="annoAccademico" name="annoAccademico" hidden>
+    <div class="popup-content">
+      <form id="formAule" method="POST">
+        <input type="text" id="docente" name="docente" hidden value="{{ request.cookies.get('username') }}">
 
-  <label for="aula">Aula</label>
-  <select id="aula" name="aula" required>
-    <option value="" disabled selected hidden>Scegli l'aula</option>
-    <option value="A0">A0</option>
-    <option value="A2">A2</option>
-    <option value="A3">A3</option>
-    <option value="B1">B1</option>
-    <option value="B3">B3</option>
-    <option value="C2">C2</option>
-    <option value="C3">C3</option>
-    <option value="Aula verde">Aula verde</option>
-    <option value="Aula gialla">Aula gialla</option>
-    <option value="I1">I1</option>
-    <option value="I2">I2</option>
-    <option value="Aula riunioni">Aula riunioni</option>
-  </select>
+        <label for="insegnamento">Insegnamento</label>
+        <select id="insegnamento" name="insegnamento">
+          <option value="" disabled selected hidden>Scegli l'insegnamento</option>
+        </select>
 
-  <label for="dataora">Data</label>
-  <input type="date" id="dataora" name="dataora" readonly>
+        <input type="text" id="annoAccademico" name="annoAccademico" hidden>
 
-  <button class="invia" type="submit">Invia</button>
-</form>
-{% endblock %}
+        <label for="aula">Aula</label>
+        <select id="aula" name="aula" required>
+          <option value="" disabled selected hidden>Scegli l'aula</option>
+          <option value="A0">A0</option>
+          <option value="A2">A2</option>
+          <option value="A3">A3</option>
+          <option value="B1">B1</option>
+          <option value="B3">B3</option>
+          <option value="C2">C2</option>
+          <option value="C3">C3</option>
+          <option value="Aula verde">Aula verde</option>
+          <option value="Aula gialla">Aula gialla</option>
+          <option value="I1">I1</option>
+          <option value="I2">I2</option>
+          <option value="Aula riunioni">Aula riunioni</option>
+        </select>
+
+        <label for="dataora">Data</label>
+        <input type="date" id="dataora" name="dataora" readonly>
+
+        <label for="periodo">Periodo</label>
+        <select id="periodo" name="periodo" required>
+          <option value="" disabled selected hidden>Scegli il periodo</option>
+          <option value="0">Mattina</option>
+          <option value="1">Pomeriggio</option>
+        </select>
+
+        <button class="invia" type="submit">Invia</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Chiude l'overlay al click della X
+  document.getElementById('closeOverlay').addEventListener('click', function () {
+    document.getElementById('popupOverlay').style.display = 'none';
+  });
+
+  // Chiude l'overlay se clicchi fuori dal form
+  window.addEventListener('click', function (event) {
+    if (event.target === document.getElementById('popupOverlay')) {
+      document.getElementById('popupOverlay').style.display = 'none';
+    }
+  });
+</script>
