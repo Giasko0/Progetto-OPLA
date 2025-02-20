@@ -13,7 +13,10 @@ function showPopup(message, title = "Errore") {
       </div>
     </div>
   `;
+  
   document.body.appendChild(overlay);
+  // Mostra l'overlay impostando display: flex
+  overlay.style.display = "flex";
 
   // Gestione chiusura al click sulla X o sull'overlay
   overlay.querySelector(".popup-close").addEventListener("click", () => {

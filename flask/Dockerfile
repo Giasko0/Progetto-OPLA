@@ -13,4 +13,5 @@ ENV FLASK_APP=app.py
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV FLASK_DEBUG=1
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+# CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"] for production
+CMD ["flask", "run", "--host=0.0.0.0", "--reload"]
