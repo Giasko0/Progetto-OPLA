@@ -1,25 +1,11 @@
 from flask import Flask, render_template, request, jsonify, redirect, make_response
-import psycopg2
 from psycopg2 import sql
-import os
+from admin import admin_bp
+from db import get_db_connection
 
 # app = Flask(__name__, static_url_path='/flask')
 app = Flask(__name__)
-
-# Database configuration
-DB_HOST = os.getenv('DB_HOST')
-DB_NAME = os.getenv('DB_NAME')
-DB_USER = os.getenv('DB_USER')
-DB_PASS = os.getenv('DB_PASSWORD')
-
-def get_db_connection():
-    db = psycopg2.connect(
-        host=DB_HOST,
-        database=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS
-    )
-    return db
+app.register_blueprint(admin_bp)
 
 @app.route('/flask')
 def home():
