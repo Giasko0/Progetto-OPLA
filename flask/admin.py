@@ -56,7 +56,7 @@ def download_csv():
         output = io.StringIO()
         writer = csv.writer(output)
 
-        # Scrivi l'intestazione CSV con i 23 valori richiesti
+        # Header CSV
         writer.writerow([
             'Tipo appello', 'Anno', 'CDS', 'AD', 'Des. Appello', 'Data Appello (gg/mm/yyyy)',
             'Data inizio iscr. (gg/mm/yyyy)', 'Data Fine iscr. (gg/mm/yyyy)', 'Ora appello (hh:mm)',
@@ -65,6 +65,7 @@ def download_csv():
             'Note Appello', 'Posti', 'Codice Turno'
         ])
 
+        # Dati esami
         for esame in esami:
             writer.writerow(esame)
 

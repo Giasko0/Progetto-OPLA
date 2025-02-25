@@ -1,69 +1,64 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // Funzioni per la gestione del dropdown
-  window.toggleDropdown = function () {
-    var menu = document.getElementById("dropdownMenu");
-    menu.style.display =
-      menu.style.display === "none" || menu.style.display === ""
-        ? "block"
-        : "none";
-  };
-
-  window.toggleCheckbox = function (id) {
-    var checkbox = document.getElementById(id);
-    checkbox.checked = !checkbox.checked;
-  };
-
   // Carica tutti gli esami al caricamento della pagina
   fetch("/flask/api/filtraEsami")
     .then((response) => response.json())
-    .then((events) => {
-      if (window.calendar) {
-        window.calendar.removeAllEvents();
-        events.forEach((ev) => {
-          window.calendar.addEvent(ev);
-        });
-      }
-    })
+    .then(renderCalendarEvents)
     .catch((error) => {
       console.error("Errore nel caricamento degli esami:", error);
     });
 
+  // Funzione che viene richiamata per aggiornare il calendario con gli eventi ricevuti
+  function renderCalendarEvents(events) {
+    if (window.calendar) {
+      window.calendar.removeAllEvents();
+      events.forEach((ev) => window.calendar.addEvent(ev));
+    }
+  }
+
+  // Funzione per aggiornare il calendario in base ai filtri
+  function updateCalendar() {
+    const formData = new FormData(document.getElementById("filterForm"));
+    const params = new URLSearchParams();
+    for (let pair of formData.entries()) {
+      params.append(pair[0], pair[1]);
+    }
+    const insegnamentoSelect = document.getElementById("insegnamento");
+    if (insegnamentoSelect && insegnamentoSelect.value) {
+      params.append("insegnamento", insegnamentoSelect.value);
+    }
+
+    fetch("/flask/api/filtraEsami?" + params.toString())
+      .then((response) => response.json())
+      .then(renderCalendarEvents)
+      .catch((error) => {
+        console.error("Errore nel filtrare esami:", error);
+      });
+  }
+
+  // Funzione per il toggle dei checkbox che aggiorna immediatamente il calendario
+  window.toggleCheckbox = function (id) {
+    const checkbox = document.getElementById(id);
+    checkbox.checked = !checkbox.checked;
+    updateCalendar();
+  };
+
   // Gestione del submit del form per il filtraggio
-  var filterForm = document.getElementById("filterForm");
+  const filterForm = document.getElementById("filterForm");
   if (filterForm) {
-    filterForm.addEventListener("submit", function (e) {
+    filterForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      var formData = new FormData(this);
-      var params = new URLSearchParams();
-      for (let pair of formData.entries()) {
-        params.append(pair[0], pair[1]);
-      }
-      var url = "/flask/api/filtraEsami?" + params.toString();
-      fetch(url)
-        .then((response) => response.json())
-        .then((events) => {
-          if (window.calendar) {
-            window.calendar.removeAllEvents();
-            events.forEach((ev) => {
-              window.calendar.addEvent(ev);
-            });
-          }
-        })
-        .catch((error) => {
-          console.error("Errore nel filtrare esami:", error);
-        });
+      updateCalendar();
     });
   }
 
-  // Chiude il dropdown quando si clicca fuori
-  window.addEventListener("click", (event) => {
-    var dropdownButton = document.getElementById("dropdownButton");
-    var dropdownMenu = document.getElementById("dropdownMenu");
-    if (
-      !dropdownButton.contains(event.target) &&
-      !dropdownMenu.contains(event.target)
-    ) {
-      dropdownMenu.style.display = "none";
-    }
+  // Aggiungi listener per i cambiamenti dei checkbox
+  document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+    checkbox.addEventListener("change", updateCalendar);
   });
+
+  // Aggiungi listener al cambiamento del select insegnamento
+  const insegnamentoSelect = document.getElementById("insegnamento");
+  if (insegnamentoSelect) {
+    insegnamentoSelect.addEventListener("change", updateCalendar);
+  }
 });

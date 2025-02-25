@@ -4,31 +4,33 @@
   <title>Inserimento Appelli UniPG</title>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
   <script src="{{ url_for('static', filename='scripts/calendar.js') }}"></script> <!-- Carica il calendario -->
-  <script src="{{ url_for('static', filename='scripts/elencoInsegnamenti.js') }}"></script>
-  <script src="{{ url_for('static', filename='scripts/filtraEsami.js') }}"></script>
-  <script src="{{ url_for('static', filename='scripts/formAule.js') }}"></script>
-  <script src="{{ url_for('static', filename='scripts/popup.js') }}"></script>
+  <script src="{{ url_for('static', filename='scripts/elencoInsegnamenti.js') }}"></script> <!-- Script per fetchare l'elenco degli insegnamenti del docente -->
+  <script src="{{ url_for('static', filename='scripts/filtraEsami.js') }}"></script> <!-- Script per filtrare gli esami -->
+  <script src="{{ url_for('static', filename='scripts/formAule.js') }}"></script> <!-- Script per gestire la form di inserimento esami -->
+  <script src="{{ url_for('static', filename='scripts/popup.js') }}"></script> <!-- Script per la gestione dei popup -->
 {% endblock %}
 
 {% block body %}
   <div class="settings">
-    <div class="dropdown">
-      <button id="dropdownButton" onclick="toggleDropdown()">Seleziona Anno del Corso</button>
-      <div id="dropdownMenu" class="dropdown-menu">
+    <div class="selezione-insegnamento">
+      <!-- Eventualmente inserire qui lo switch insegnamenti -->
+    </div>
+    <div class="selezione-anno">
+      <button id="selezioneAnnoButton">Seleziona Anno del Corso</button>
+      <div id="selezioneAnnoMenu" class="selezione-anno-menu">
         <form id="filterForm" method="GET" action="/flask/api/filtraEsami">
-          <div class="dropdown-item" onclick="toggleCheckbox('year1')">
-            <input type="checkbox" id="year1" name="academicYear" value="1" onclick="event.stopPropagation();">
-            <span>1</span>
+          <div class="selezione-anno-item" onclick="toggleCheckbox('year1')">
+            <input type="checkbox" id="year1" name="academicYear" value="1">
+            <span>Primo anno</span>
           </div>
-          <div class="dropdown-item" onclick="toggleCheckbox('year2')">
-            <input type="checkbox" id="year2" name="academicYear" value="2" onclick="event.stopPropagation();">
-            <span>2</span>
+          <div class="selezione-anno-item" onclick="toggleCheckbox('year2')">
+            <input type="checkbox" id="year2" name="academicYear" value="2">
+            <span>Secondo anno</span>
           </div>
-          <div class="dropdown-item" onclick="toggleCheckbox('year3')">
-            <input type="checkbox" id="year3" name="academicYear" value="3" onclick="event.stopPropagation();">
-            <span>3</span>
+          <div class="selezione-anno-item" onclick="toggleCheckbox('year3')">
+            <input type="checkbox" id="year3" name="academicYear" value="3">
+            <span>Terzo anno</span>
           </div>
-          <button type="submit">Filtra</button>
         </form>
       </div>
     </div>

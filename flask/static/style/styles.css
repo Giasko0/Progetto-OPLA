@@ -11,6 +11,7 @@
   --page-height: 100dvh;
   --nav-height: 10dvh;
   --body-height: calc(var(--page-height) - var(--nav-height)); /* Calcolo escludendo la navbar */
+  --body-width: clamp(300px, 80vw, 2000px);
   --radius: 8px;
 }
 
@@ -30,7 +31,7 @@ body {
 }
 
 .content {
-  width: 100%;
+  width: var(--body-width);
   height: var(--body-height);
   justify-content: center;
   align-items: center;
@@ -82,7 +83,7 @@ h1 {
 
 /*---------CALENDARIO---------*/
 #calendar {
-  width: clamp(300px, 80vw, 2000px);
+  width: 100%;
   height: clamp(300px, 80vh, 2000px);
 }
 
@@ -99,15 +100,26 @@ h1 {
 .settings {
   display: flex;
   justify-content: space-between;
+  width: 100%; /* Assicura che i div si posizionino ai lati opposti */
+}
+
+/*---------SELEZIONE-INSEGNAMENTO---------*/
+.selezione-insegnamento {
+  position: relative;
+  display: flex;
 }
 
 /*---------DROPDOWN-ANNO---------*/
-.dropdown {
+.selezione-anno {
   position: relative;
   display: inline-block;
 }
 
-#dropdownButton {
+.selezione-anno:hover .selezione-anno-menu {
+  display: block;
+}
+
+#selezioneAnnoButton {
   padding: 10px;
   background-color: var(--color-primary-light);
   color: white;
@@ -116,7 +128,7 @@ h1 {
   cursor: pointer;
 }
 
-.dropdown-menu {
+.selezione-anno-menu {
   width: 100%;
   box-sizing: border-box;
   display: none;
@@ -127,14 +139,14 @@ h1 {
   z-index: 1000;
 }
 
-.dropdown-item {
+.selezione-anno-item {
   display: flex;
   align-items: center;
   padding: 5px;
   cursor: pointer;
 }
 
-.dropdown-item input {
+.selezione-anno-item input {
   margin-right: 5px;
 }
 
