@@ -51,7 +51,6 @@ h1 {
 .navbar {
   width: 100vw;
   height: var(--nav-height);
-  overflow: hidden;
   background-color: var(--color-light-gray);
   display: flex;
   align-items: center;
@@ -87,12 +86,12 @@ h1 {
   height: clamp(300px, 80vh, 2000px);
 }
 
-.fc-col-header-cell {
+.fc-header-cell {
   background-color: var(--color-primary);
   color: white;
 }
 
-.fc-daygrid-day-frame {
+.fc-daygrid-day {
   background-color: white;
 }
 
@@ -213,4 +212,77 @@ select {
   cursor: pointer;
   margin: 0 auto;
   display: block;
+}
+
+/*---------USER-DROPDOWN---------*/
+.user-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.user-dropdown-content {
+  display: none;
+  position: absolute;
+  right: 1vw;
+  background-color: var(--color-white);
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+  border-radius: var(--radius);
+}
+
+.user-dropdown-content a {
+  color: var(--color-primary);
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  border-radius: var(--radius);
+  margin: 0 !important;
+}
+
+.user-dropdown-content a:hover {
+  background-color: var(--color-secondary);
+}
+
+.user-dropdown:hover .user-dropdown-content {
+  display: block;
+}
+
+/*---------PROFILO---------*/
+.profile-container {
+    width: 100%;
+    max-width: 1200px;
+    padding: 20px;
+}
+
+.profile-section {
+    background: white;
+    padding: 20px;
+    border-radius: var(--radius);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.sessions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.session-card {
+    background: var(--color-secondary);
+    padding: 15px;
+    border-radius: var(--radius);
+    text-align: center;
+}
+
+.session-card h4 {
+    color: var(--color-primary);
+    margin: 0 0 10px 0;
+}
+
+.session-card p {
+    font-size: 1.2em;
+    margin: 0;
 }

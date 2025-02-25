@@ -2,7 +2,7 @@
 
 {% block head %}
   <title>Inserimento Appelli UniPG</title>
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <script src="{{ url_for('static', filename='fullcalendar7/dist/index.global.min.js') }}"></script>
   <script src="{{ url_for('static', filename='scripts/calendar.js') }}"></script> <!-- Carica il calendario -->
   <script src="{{ url_for('static', filename='scripts/elencoInsegnamenti.js') }}"></script> <!-- Script per fetchare l'elenco degli insegnamenti del docente -->
   <script src="{{ url_for('static', filename='scripts/filtraEsami.js') }}"></script> <!-- Script per filtrare gli esami -->

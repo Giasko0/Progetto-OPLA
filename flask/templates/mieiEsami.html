@@ -1,0 +1,107 @@
+{% extends "template.html" %}
+
+{% block head %}
+<title>I Miei Esami</title>
+<script src="{{ url_for('static', filename='scripts/profilo.js') }}"></script>
+<style>
+  table {
+    width: clamp(500px, 50vw, 1000px);
+    border-collapse: collapse;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #bbb;
+    background-color: white;
+  }
+
+  thead th {
+    background-color: #27348b;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  th,
+  td {
+    padding: 12px;
+    border: 1px solid #bbb;
+  }
+
+  tbody tr:hover td {
+    background-color: #f1f1f1;
+  }
+
+  .section {
+    margin-bottom: 40px;
+  }
+
+  .filter-controls {
+    margin-bottom: 20px;
+  }
+
+  .selezione-anno {
+    position: relative;
+    display: inline-block;
+  }
+
+  .selezione-anno-menu {
+    display: none;
+    position: absolute;
+    background-color: white;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+    border-radius: 4px;
+  }
+
+  .selezione-anno-item {
+    padding: 12px 16px;
+    cursor: pointer;
+  }
+
+  .selezione-anno-item:hover {
+    background-color: #f1f1f1;
+  }
+</style>
+<script src="{{ url_for('static', filename='scripts/elencoEsami.js') }}"></script>
+{% endblock %}
+
+{% block body %}
+<h1>I Miei Esami</h1>
+<table id="tabellaPersonale">
+  <thead>
+    <tr>
+      <th onclick="sortTable('tabellaPersonale', 0)">Docente</th>
+      <th onclick="sortTable('tabellaPersonale', 1)">Insegnamento</th>
+      <th onclick="sortTable('tabellaPersonale', 2)">Aula</th>
+      <th onclick="sortTable('tabellaPersonale', 3)">Data</th>
+    </tr>
+  </thead>
+  <tbody id="corpoTabellaPersonale"></tbody>
+</table>
+
+<div class="profile-container">
+  
+  <div class="profile-section">
+      <h3>Esami per Sessione:</h3>
+      <div class="sessions-grid">
+          <div class="session-card">
+              <h4>Sessione Invernale (Gen/Feb)</h4>
+              <p id="session-invernale"></p>
+          </div>
+          <div class="session-card">
+              <h4>Sessione Straordinaria (Apr)</h4>
+              <p id="session-straordinaria"></p>
+          </div>
+          <div class="session-card">
+              <h4>Sessione Estiva (Giu/Lug)</h4>
+              <p id="session-estiva"></p>
+          </div>
+          <div class="session-card">
+              <h4>Pausa Didattica (Nov)</h4>
+              <p id="session-pausa"></p>
+          </div>
+      </div>
+  </div>
+</div>
+{% endblock %}
