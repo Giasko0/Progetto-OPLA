@@ -62,46 +62,32 @@
   .selezione-anno-item:hover {
     background-color: #f1f1f1;
   }
+
+  .titolo {
+    margin: 20px 0 30px 20px;
+    text-align: left;
+  }
+  
+  .titolo h1 {
+    margin: 0;
+    color: #27348b;
+    font-size: 2em;
+  }
 </style>
 <script src="{{ url_for('static', filename='scripts/elencoEsami.js') }}"></script>
 {% endblock %}
 
 {% block body %}
-<h1>I Miei Esami</h1>
-<table id="tabellaPersonale">
-  <thead>
-    <tr>
-      <th onclick="sortTable('tabellaPersonale', 0)">Docente</th>
-      <th onclick="sortTable('tabellaPersonale', 1)">Insegnamento</th>
-      <th onclick="sortTable('tabellaPersonale', 2)">Aula</th>
-      <th onclick="sortTable('tabellaPersonale', 3)">Data</th>
-    </tr>
-  </thead>
-  <tbody id="corpoTabellaPersonale"></tbody>
-</table>
-
-<div class="profile-container">
-  
-  <div class="profile-section">
-      <h3>Esami per Sessione:</h3>
-      <div class="sessions-grid">
-          <div class="session-card">
-              <h4>Sessione Invernale (Gen/Feb)</h4>
-              <p id="session-invernale"></p>
-          </div>
-          <div class="session-card">
-              <h4>Sessione Straordinaria (Apr)</h4>
-              <p id="session-straordinaria"></p>
-          </div>
-          <div class="session-card">
-              <h4>Sessione Estiva (Giu/Lug)</h4>
-              <p id="session-estiva"></p>
-          </div>
-          <div class="session-card">
-              <h4>Pausa Didattica (Nov)</h4>
-              <p id="session-pausa"></p>
-          </div>
-      </div>
-  </div>
+<div class="titolo">
+  <h1>I Miei Esami</h1>
 </div>
+
+<div id="tabelleInsegnamenti">
+  <!-- Le tabelle verranno generate dinamicamente qui -->
+</div>
+
+<div class="profile-container sessions-container">
+    <!-- Le sezioni delle sessioni verranno generate dinamicamente qui -->
+</div>
+
 {% endblock %}

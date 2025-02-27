@@ -281,38 +281,43 @@ def api_profilo_info():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Conteggio totale esami
-        cursor.execute("SELECT COUNT(*) FROM esami WHERE docente = %s", (username,))
-        num_esami = cursor.fetchone()[0]
         
-        # Conteggio esami per sessione
-        cursor.execute("""
-            SELECT 
-                CASE 
-                    WHEN EXTRACT(MONTH FROM dataora) IN (1, 2) THEN 'Invernale'
-                    WHEN EXTRACT(MONTH FROM dataora) = 4 THEN 'Straordinaria'
-                    WHEN EXTRACT(MONTH FROM dataora) IN (6, 7) THEN 'Estiva'
-                    WHEN EXTRACT(MONTH FROM dataora) = 11 THEN 'Pausa didattica'
-                END as sessione,
-                COUNT(*) as conteggio
-            FROM esami 
-            WHERE docente = %s
-            GROUP BY sessione
-        """, (username,))
+        # Ottieni gli insegnamenti del docente
+        cursor.execute("SELECT titolo FROM insegnamenti WHERE docente = %s", (username,))
+        insegnamenti = [row[0] for row in cursor.fetchall()]
         
-        sessioni = {
-            'Invernale': 0,
-            'Straordinaria': 0,
-            'Estiva': 0,
-            'Pausa didattica': 0
-        }
-        for row in cursor.fetchall():
-            if row[0]:
-                sessioni[row[0]] = row[1]
+        result = {'insegnamenti': {}}
         
-        return jsonify({
-            'sessioni': sessioni
-        }), 200
+        # Per ogni insegnamento, calcola le statistiche per sessione
+        for insegnamento in insegnamenti:
+            cursor.execute("""
+                SELECT 
+                    CASE 
+                        WHEN EXTRACT(MONTH FROM dataora) IN (1, 2) THEN 'Invernale'
+                        WHEN EXTRACT(MONTH FROM dataora) = 4 THEN 'Straordinaria'
+                        WHEN EXTRACT(MONTH FROM dataora) IN (6, 7) THEN 'Estiva'
+                        WHEN EXTRACT(MONTH FROM dataora) = 11 THEN 'Pausa didattica'
+                    END as sessione,
+                    COUNT(*) as conteggio
+                FROM esami 
+                WHERE docente = %s AND insegnamento = %s
+                GROUP BY sessione
+            """, (username, insegnamento))
+            
+            sessioni = {
+                'Invernale': 0,
+                'Straordinaria': 0,
+                'Estiva': 0,
+                'Pausa didattica': 0
+            }
+            
+            for row in cursor.fetchall():
+                if row[0]:  # skip None values
+                    sessioni[row[0]] = row[1]
+            
+            result['insegnamenti'][insegnamento] = sessioni
+        
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:

@@ -53,13 +53,17 @@ function caricaEsamiPersonali() {
     const username = getCookie('username');
     if (!username) return;
 
-    fetch(`${API_ENDPOINT}?docente=${username}`)
-        .then(response => {
-            if (!response.ok) throw new Error('Risposta del server non valida');
-            return response.json();
-        })
-        .then(data => {
-            popolaTabella(data, "corpoTabellaPersonale");
+    // Prima ottieni gli insegnamenti del docente
+    fetch(`/flask/api/ottieniInsegnamenti?username=${username}`)
+        .then(response => response.json())
+        .then(insegnamenti => {
+            // Poi ottieni gli esami
+            fetch(`${API_ENDPOINT}?docente=${username}`)
+                .then(response => response.json())
+                .then(esami => {
+                    creaTabelleSeparate(esami, insegnamenti);
+                })
+                .catch(gestisciErroreAPI);
         })
         .catch(gestisciErroreAPI);
 }
@@ -115,6 +119,56 @@ function popolaTabella(esami, idTabella) {
         celle[1].innerHTML = esame.title;
         celle[2].innerHTML = esame.aula;
         celle[3].innerHTML = esame.start;
+    });
+}
+
+function creaTabelleSeparate(esami, insegnamenti) {
+    const container = document.getElementById('tabelleInsegnamenti');
+    container.innerHTML = ''; // Pulisci il contenitore
+
+    insegnamenti.forEach(insegnamento => {
+        const esamiInsegnamento = esami.filter(esame => esame.title === insegnamento);
+        
+        if (esamiInsegnamento.length > 0) {
+            // Crea sezione per l'insegnamento
+            const section = document.createElement('div');
+            section.className = 'section';
+            
+            // Aggiungi titolo insegnamento
+            const title = document.createElement('h3');
+            title.textContent = insegnamento;
+            section.appendChild(title);
+            
+            // Crea tabella
+            const table = document.createElement('table');
+            table.id = `tabella-${insegnamento.replace(/\s+/g, '-')}`;
+            
+            // Aggiungi intestazione
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('${table.id}', 0)">Docente</th>
+                        <th onclick="sortTable('${table.id}', 1)">Insegnamento</th>
+                        <th onclick="sortTable('${table.id}', 2)">Aula</th>
+                        <th onclick="sortTable('${table.id}', 3)">Data</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+            
+            // Popola tabella
+            const tbody = table.querySelector('tbody');
+            esamiInsegnamento.forEach(esame => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = esame.docente;
+                row.insertCell(1).textContent = esame.title;
+                row.insertCell(2).textContent = esame.aula;
+                row.insertCell(3).textContent = esame.start;
+            });
+            
+            section.appendChild(table);
+            container.appendChild(section);
+        }
     });
 }
 
