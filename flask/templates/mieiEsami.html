@@ -2,7 +2,7 @@
 
 {% block head %}
 <title>I Miei Esami</title>
-<script src="{{ url_for('static', filename='scripts/profilo.js') }}"></script>
+<script src="{{ url_for('static', filename='scripts/mieiEsami.js') }}"></script>
 <style>
   table {
     width: clamp(500px, 50vw, 1000px);
@@ -67,11 +67,49 @@
     margin: 20px 0 30px 20px;
     text-align: left;
   }
-  
+
   .titolo h1 {
     margin: 0;
     color: #27348b;
     font-size: 2em;
+  }
+
+  .exam-container {
+    width: 100%;
+    padding: 20px;
+    justify-content: center;
+  }
+
+  .exam-section {
+    background: white;
+    padding: 20px;
+    border-radius: var(--radius);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+  }
+
+  .sessions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+  }
+
+  .session-card {
+    background: var(--color-secondary);
+    padding: 15px;
+    border-radius: var(--radius);
+    text-align: center;
+  }
+
+  .session-card h4 {
+    color: var(--color-primary);
+    margin: 0 0 10px 0;
+  }
+
+  .session-card p {
+    font-size: 1.2em;
+    margin: 0;
   }
 </style>
 <script src="{{ url_for('static', filename='scripts/elencoEsami.js') }}"></script>
@@ -86,8 +124,8 @@
   <!-- Le tabelle verranno generate dinamicamente qui -->
 </div>
 
-<div class="profile-container sessions-container">
-    <!-- Le sezioni delle sessioni verranno generate dinamicamente qui -->
+<div class="exam-container sessions-container">
+  <!-- Le sezioni delle sessioni verranno generate dinamicamente qui -->
 </div>
 
 {% endblock %}

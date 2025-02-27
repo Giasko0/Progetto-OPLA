@@ -102,6 +102,11 @@ function aggiornaEsami() {
 /**
  * Funzioni di popolazione tabella
  */
+function formatDateForDisplay(isoDate) {
+    const date = new Date(isoDate);
+    return date.toLocaleDateString('it-IT');
+}
+
 function popolaTabella(esami, idTabella) {
     const tabella = document.getElementById(idTabella);
     tabella.innerHTML = '';
@@ -118,7 +123,7 @@ function popolaTabella(esami, idTabella) {
         celle[0].innerHTML = esame.docente;
         celle[1].innerHTML = esame.title;
         celle[2].innerHTML = esame.aula;
-        celle[3].innerHTML = esame.start;
+        celle[3].innerHTML = formatDateForDisplay(esame.start);
     });
 }
 
@@ -163,7 +168,7 @@ function creaTabelleSeparate(esami, insegnamenti) {
                 row.insertCell(0).textContent = esame.docente;
                 row.insertCell(1).textContent = esame.title;
                 row.insertCell(2).textContent = esame.aula;
-                row.insertCell(3).textContent = esame.start;
+                row.insertCell(3).textContent = formatDateForDisplay(esame.start);
             });
             
             section.appendChild(table);

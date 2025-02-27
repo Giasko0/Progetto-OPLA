@@ -1,4 +1,26 @@
 document.addEventListener("DOMContentLoaded", function () {
+  // Determina il range di date valido in base al periodo dell'anno
+  function getValidDateRange() {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1; // 1-12
+
+    // Se siamo tra gennaio e agosto, si possono modificare solo gli esami dell'anno corrente
+    // Se siamo tra settembre e dicembre, si possono inserire gli esami per l'anno successivo
+    if (currentMonth >= 9) { // Da settembre a dicembre
+      return {
+        start: `${currentYear + 1}-01-01`,
+        end: `${currentYear + 2}-04-30`
+      };
+    } else { // Da gennaio ad agosto
+      return {
+        start: `${currentYear}-01-01`,
+        end: `${currentYear + 1}-04-30`
+      };
+    }
+  }
+
+  const dateRange = getValidDateRange();
   var calendarEl = document.getElementById("calendar");
 
   var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -6,31 +28,40 @@ document.addEventListener("DOMContentLoaded", function () {
     locale: "it",
     initialView: "dayGridMonth",
     selectable: true,
-    // Configurazione dei mesi/giorni disponibili
-    validRange: {
-      start: '2025-01-01', // Primo mese disponibile
-      end: '2025-09-30'    // Ultimo mese disponibile
-    },
-    weekends: false, // Disabilita sabato e domenica
+    validRange: dateRange,
+    weekends: false,
 
     // Cambia titolo in base al mese
     datesSet: function (info) {
       const currentDate = info.view.currentStart;
-      const month = currentDate.getMonth() + 1; // Gennaio = 1
+      const month = currentDate.getMonth() + 1;
+      const year = currentDate.getFullYear();
+      const today = new Date();
+      const planningYear = today.getMonth() >= 8 ? today.getFullYear() + 1 : today.getFullYear();
 
       // Mappa i mesi alle sessioni
       const sessioni = {
-        1: '- Sessione invernale',
-        2: '- Sessione invernale',
-        4: '- Sessione straordinaria',
-        6: '- Sessione estiva',
-        7: '- Sessione estiva',
-        9: '- Sessione autunnale'
+        [planningYear]: {
+          1: '- Sessione Anticipata',
+          2: '- Sessione Anticipata',
+          3: '- Pausa Didattica Primavera',
+          4: '- Pausa Didattica Primavera',
+          6: '- Sessione Estiva',
+          7: '- Sessione Estiva',
+          9: '- Sessione Autunnale',
+          11: '- Pausa Didattica Autunno'
+        },
+        [planningYear + 1]: {
+          1: '- Sessione Invernale',
+          2: '- Sessione Invernale',
+          3: '- Pausa Didattica Primavera',
+          4: '- Pausa Didattica Primavera'
+        }
       };
 
       // Formatta il titolo
       const monthName = currentDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' });
-      const session = sessioni[month] || '';
+      const session = sessioni[year] && sessioni[year][month] ? sessioni[year][month] : '';
       const title = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${session}`;
 
       // Aggiorna il titolo
