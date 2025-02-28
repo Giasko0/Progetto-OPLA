@@ -1,7 +1,11 @@
+* {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
 .admin-container {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 2rem auto;
-    padding: 0 1rem;
+    padding: 0 2rem;
 }
 
 .admin-panel {
@@ -12,9 +16,8 @@
 }
 
 .admin-title {
-    font-family: Arial, Helvetica, sans-serif;
+    width: 100%;
     text-align: center;
-    color: #333;
     margin-bottom: 2rem;
 }
 
@@ -63,4 +66,75 @@
 .logout-section {
     text-align: center;
     margin-top: 2rem;
+}
+
+/* Contenitore principale delle sezioni */
+.sections-container {
+    display: flex;
+    gap: 2rem;
+    justify-content: space-between;
+}
+
+/* Modifiche alla sezione per il layout orizzontale */
+.section {
+    flex: 1;
+    margin-bottom: 0;
+    padding: 1.5rem;
+    background: #f5f5f5;
+    border-radius: 8px;
+    min-width: 400px;
+}
+
+.section-title {
+    color: #333;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #ddd;
+}
+
+.subsection {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.subsection h4 {
+    color: #444;
+    margin-bottom: 1rem;
+}
+
+.settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.setting-item label {
+    min-width: 150px;
+    font-weight: 500;
+}
+
+.setting-item input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+@media (max-width: 968px) {
+    .sections-container {
+        flex-direction: column;
+    }
+    
+    .section {
+        min-width: 100%;
+    }
 }
