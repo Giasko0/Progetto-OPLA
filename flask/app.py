@@ -64,55 +64,6 @@ def elencoEsami():
     """Pagina che mostra l'elenco degli esami"""
     return render_template("elencoEsami.html")
 
-@app.route('/flask/profilo')
-def profilo():
-    """Pagina del profilo docente con statistiche"""
-    username = request.cookies.get('username')
-    if not username:
-        return redirect('/flask/login')
-    
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM esami WHERE docente = %s", (username,))
-        num_esami = cursor.fetchone()[0]
-        
-        # Conteggio esami per sessione
-        cursor.execute("""
-            SELECT 
-                CASE 
-                    WHEN EXTRACT(MONTH FROM dataora) IN (1, 2) THEN 'Invernale'
-                    WHEN EXTRACT(MONTH FROM dataora) = 4 THEN 'Straordinaria'
-                    WHEN EXTRACT(MONTH FROM dataora) IN (6, 7) THEN 'Estiva'
-                    WHEN EXTRACT(MONTH FROM dataora) = 11 THEN 'Pausa didattica'
-                END as sessione,
-                COUNT(*) as conteggio
-            FROM esami 
-            WHERE docente = %s
-            GROUP BY sessione
-        """, (username,))
-        
-        sessioni = {
-            'Invernale': 0,
-            'Straordinaria': 0,
-            'Estiva': 0,
-            'Pausa didattica': 0
-        }
-        for row in cursor.fetchall():
-            if row[0]:  # skip None values
-                sessioni[row[0]] = row[1]
-        
-        return render_template("profilo.html", 
-                             username=username, 
-                             num_esami=num_esami,
-                             sessioni=sessioni)
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        if conn:
-            cursor.close()
-            conn.close()
-
 # ===== Autenticazione =====
 @app.route('/flask/login')
 def login():
@@ -174,33 +125,6 @@ def inserisciEsame():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verifica vincoli
-        cursor.execute("SELECT COUNT(*) FROM esami WHERE dataora = %s", (dataora,))
-        if cursor.fetchone()[0] >= 2:
-            return jsonify({'status': 'error', 'message': 'Massimo due esami per giorno'}), 400
-
-        cursor.execute("SELECT 1 FROM esami WHERE dataora = %s AND aula = %s", (dataora, aula))
-        if cursor.fetchone():
-            return jsonify({'status': 'error', 'message': 'Aula già occupata'}), 400
-
-        # Verifica vincolo dei 14 giorni
-        data_esame = datetime.fromisoformat(dataora)
-        data_min = data_esame - timedelta(days=14)
-        data_max = data_esame + timedelta(days=14)
-        
-        cursor.execute("""
-            SELECT dataora FROM esami 
-            WHERE insegnamento = %s AND dataora BETWEEN %s AND %s
-        """, (insegnamento, data_min, data_max))
-        
-        esami_vicini = cursor.fetchall()
-        if esami_vicini:
-            date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
-            return jsonify({
-                'status': 'error', 
-                'message': f'Non puoi inserire esami a meno di 14 giorni di distanza. Hai già esami nelle date: {", ".join(date_esami)}'
-            }), 400
-
         # Verifica limite esami per sessione
         sessione_info = get_session_for_date(data_esame)
         if sessione_info:
@@ -230,6 +154,33 @@ def inserisciEsame():
                     'status': 'error', 
                     'message': f'Limite di {limite_max} esami per la sessione {sessione} raggiunto'
                 }), 400
+
+        # Verifica aule/giorni
+        cursor.execute("SELECT COUNT(*) FROM esami WHERE dataora = %s", (dataora,))
+        if cursor.fetchone()[0] >= 2:
+            return jsonify({'status': 'error', 'message': 'Massimo due esami per giorno'}), 400
+
+        cursor.execute("SELECT 1 FROM esami WHERE dataora = %s AND aula = %s", (dataora, aula))
+        if cursor.fetchone():
+            return jsonify({'status': 'error', 'message': 'Aula già occupata'}), 400
+
+        # Verifica vincolo dei 14 giorni
+        data_esame = datetime.fromisoformat(dataora)
+        data_min = data_esame - timedelta(days=14)
+        data_max = data_esame + timedelta(days=14)
+        
+        cursor.execute("""
+            SELECT dataora FROM esami 
+            WHERE insegnamento = %s AND dataora BETWEEN %s AND %s
+        """, (insegnamento, data_min, data_max))
+        
+        esami_vicini = cursor.fetchall()
+        if esami_vicini:
+            date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
+            return jsonify({
+                'status': 'error', 
+                'message': f'Non puoi inserire esami a meno di 14 giorni di distanza. Hai già esami nelle date: {", ".join(date_esami)}'
+            }), 400
 
         # Inserimento
         cursor.execute(

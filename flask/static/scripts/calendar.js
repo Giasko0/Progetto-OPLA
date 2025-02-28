@@ -1,25 +1,6 @@
+import { getValidDateRange, stringToColor } from './calendarProps.js';
+
 document.addEventListener("DOMContentLoaded", function () {
-  // Determina il range di date valido in base al periodo dell'anno
-  function getValidDateRange() {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth() + 1; // 1-12
-
-    // Se siamo tra gennaio e agosto, si possono modificare solo gli esami dell'anno corrente
-    // Se siamo tra settembre e dicembre, si possono inserire gli esami per l'anno successivo
-    if (currentMonth >= 9) { // Da settembre a dicembre
-      return {
-        start: `${currentYear + 1}-01-01`,
-        end: `${currentYear + 2}-04-30`
-      };
-    } else { // Da gennaio ad agosto
-      return {
-        start: `${currentYear}-01-01`,
-        end: `${currentYear + 1}-04-30`
-      };
-    }
-  }
-
   const dateRange = getValidDateRange();
   var calendarEl = document.getElementById("calendar");
 
@@ -88,10 +69,17 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       alert('Titolo: ' + info.event.title + '\n' + 'Data: ' + dataEvento + '\n' + 'Aula: ' + info.event.extendedProps.aula);
     },
+
+    eventDidMount: function(info) {
+      // Imposta il colore dell'evento basato sul nome dell'insegnamento
+      const eventColor = stringToColor(info.event.title);
+      info.el.style.backgroundColor = eventColor;
+      info.el.style.borderColor = eventColor;
+    },
   });
 
   calendar.render();
-  
+
   // Esponi globalmente l'istanza del calendario
   window.calendar = calendar;
 });
