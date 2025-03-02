@@ -100,18 +100,59 @@
     font-size: 1.2em;
     margin: 0;
   }
+
+  .tabs-container {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .tabs-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+  }
+
+  .tab-button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    border: none;
+    background: var(--color-secondary);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+
+  .tab-button:hover {
+    background: #27348b;
+    color: white;
+  }
+
+  .tab-button.active {
+    background: #27348b;
+    color: white;
+  }
+
+  .tab-content {
+    display: none;
+  }
+
+  .tab-content.active {
+    display: block;
+  }
 </style>
 {% endblock %}
 
 {% block body %}
 <h1 class="titolo">I miei esami</h1>
 
-<div id="tabelleInsegnamenti">
-  <!-- Le tabelle verranno generate dinamicamente qui -->
+<div class="tabs-container">
+  <div class="tabs-header" id="tabsHeader">
+    <!-- I pulsanti dei tabs verranno generati qui -->
+  </div>
 </div>
 
-<div class="exam-container sessions-container">
-  <!-- Le sezioni delle sessioni verranno generate dinamicamente qui -->
+<div id="contenitoreEsami">
+  <!-- Il contenuto dei tabs verrà generato qui -->
 </div>
-
 {% endblock %}

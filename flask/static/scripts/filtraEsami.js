@@ -22,10 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
     for (let pair of formData.entries()) {
       params.append(pair[0], pair[1]);
     }
-    const insegnamentoSelect = document.getElementById("insegnamento");
-    if (insegnamentoSelect && insegnamentoSelect.value) {
-      params.append("insegnamento", insegnamentoSelect.value);
-    }
 
     fetch("/flask/api/filtraEsami?" + params.toString())
       .then((response) => response.json())

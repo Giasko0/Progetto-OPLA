@@ -24,26 +24,22 @@ body {
   background-color: #f0f0f0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  height: var(--page-height);
   margin: 0;
 }
 
 .content {
   width: var(--body-width);
-  height: var(--body-height);
-  justify-content: center;
-  align-items: center;
-  text-align: left;
-  margin: 0 auto;
+  margin-top: var(--nav-height);
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: left;
 }
 
 .titolo {
-  position: fixed;
-  top: var(--nav-height);
+  position: relative;
+  margin-bottom: 1em;
   font-size: clamp(1rem, 4vh, 2.5rem);
   align-self: flex-start;
   color: var(--color-dark-gray);
@@ -51,6 +47,7 @@ body {
 
 /*---------NAVBAR---------*/
 .navbar {
+  position: fixed;
   width: 100vw;
   height: var(--nav-height);
   background-color: var(--color-light-gray);

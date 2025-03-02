@@ -35,17 +35,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Funzione per inviare al server i dati del form
-  const form = document.getElementById("formAule");
+  const form = document.getElementById("formEsame");
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-
-    // Combina data e ora in un unico campo datetime
-    const data = document.getElementById("dataora").value;
-    const ora = document.getElementById("ora").value;
-    const dataOraCompleta = data + "T" + (ora || "09:00"); // usa 09:00 come default se non specificata
-
     const formData = new FormData(this);
-    formData.set("dataora", dataOraCompleta); // sostituisci il campo dataora con il valore completo
 
     fetch("/flask/api/inserisciEsame", {
       method: "POST",
@@ -53,15 +46,10 @@ document.addEventListener("DOMContentLoaded", () => {
     })
       .then((response) => response.json())
       .then((data) => {
-        if (data.status === "success") {
-          alert("Esame inserito con successo!");
-          document.getElementById("popupOverlay").style.display = "none";
-          // Ricarica gli eventi del calendario se necessario
-          if (typeof calendar !== "undefined") {
-            calendar.refetchEvents();
-          }
-        } else {
+        if (data.status === "error") {
           showPopup(data.message);
+        } else {
+          window.location.reload();
         }
       })
       .catch((error) => {

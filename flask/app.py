@@ -217,35 +217,27 @@ def ottieniInsegnamenti():
       cursor.close()
       conn.close()
 
-# API per ottenere gli esami filtrati per anno accademico e/o docente
+# API per ottenere gli esami filtrati per anno di corso
 @app.route('/flask/api/filtraEsami', methods=['GET'])
 def filtraEsami():
-  """API per filtrare gli esami per anno accademico e/o docente"""
-  academicYears = request.args.getlist('academicYear')
-  docente = request.args.get('docente')
-  
+  anniCorso = request.args.getlist('annoCorso')
+
   try:
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    conditions = []
-    params = []
-    
-    if academicYears:
-      conditions.append("i.annocorso = ANY(%s)")
-      params.append(academicYears)
-    
-    if docente:
-      conditions.append("e.docente = %s")
-      params.append(docente)
     
     query = """
       SELECT e.docente, e.insegnamento, e.aula, e.dataora 
       FROM esami e
       JOIN insegnamenti i ON e.insegnamento = i.titolo
-      {where}
-      ORDER BY e.dataora
-    """.format(where=f"WHERE {' AND '.join(conditions)}" if conditions else "")
+    """
+    
+    params = []
+    if anniCorso:  # Se sono stati specificati anni di corso
+      query += " WHERE i.annocorso = ANY(%s)"
+      params.append(anniCorso)
+    
+    query += " ORDER BY e.dataora"
     
     cursor.execute(query, tuple(params))
     

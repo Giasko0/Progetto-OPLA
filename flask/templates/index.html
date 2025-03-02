@@ -20,16 +20,16 @@
       <button id="selezioneAnnoButton">Seleziona Anno del Corso</button>
       <div id="selezioneAnnoMenu" class="selezione-anno-menu">
         <form id="filterForm" method="GET" action="/flask/api/filtraEsami">
-          <div class="selezione-anno-item" onclick="toggleCheckbox('year1')">
-            <input type="checkbox" id="year1" name="academicYear" value="1">
+          <div class="selezione-anno-item" onclick="toggleCheckbox('anno1')">
+            <input type="checkbox" id="anno1" name="annoCorso" value="1">
             <span>Primo anno</span>
           </div>
-          <div class="selezione-anno-item" onclick="toggleCheckbox('year2')">
-            <input type="checkbox" id="year2" name="academicYear" value="2">
+          <div class="selezione-anno-item" onclick="toggleCheckbox('anno2')">
+            <input type="checkbox" id="anno2" name="annoCorso" value="2">
             <span>Secondo anno</span>
           </div>
-          <div class="selezione-anno-item" onclick="toggleCheckbox('year3')">
-            <input type="checkbox" id="year3" name="academicYear" value="3">
+          <div class="selezione-anno-item" onclick="toggleCheckbox('anno3')">
+            <input type="checkbox" id="anno3" name="annoCorso" value="3">
             <span>Terzo anno</span>
           </div>
         </form>
