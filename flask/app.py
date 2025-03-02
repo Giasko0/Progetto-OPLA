@@ -197,9 +197,9 @@ def inserisciEsame():
             cursor.close()
             conn.close()
 
+# API per ottenere gli insegnamenti di un docente. Usato per l'elenco insegnamenti del form
 @app.route('/flask/api/ottieniInsegnamenti', methods=['GET'])
 def ottieniInsegnamenti():
-    """API per ottenere gli insegnamenti di un docente"""
     username = request.args.get('username')
     if not username:
         return jsonify({'status': 'error', 'message': 'Username mancante'}), 400
@@ -217,6 +217,7 @@ def ottieniInsegnamenti():
             cursor.close()
             conn.close()
 
+# API per ottenere gli esami filtrati per anno accademico e/o docente
 @app.route('/flask/api/filtraEsami', methods=['GET'])
 def filtraEsami():
     """API per filtrare gli esami per anno accademico e/o docente"""
@@ -231,7 +232,7 @@ def filtraEsami():
         params = []
         
         if academicYears:
-            conditions.append("i.annoAccademico = ANY(%s)")
+            conditions.append("i.annocorso = ANY(%s)")
             params.append(academicYears)
         
         if docente:
@@ -263,76 +264,94 @@ def filtraEsami():
             cursor.close()
             conn.close()
 
+# API per ottenere gli esami di un docente
 @app.route('/flask/api/mieiEsami', methods=['GET'])
 def api_miei_esami():
-    """Endpoint per ottenere le info degli esami del docente in formato JSON"""
-    username = request.cookies.get('username')
-    if not username:
+    # Usa il parametro 'docente' se presente, altrimenti il cookie
+    docente = request.args.get('docente') or request.cookies.get('username')
+    if not docente:
         return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        # Recupera tutti gli esami del docente
+        cursor.execute("""
+            SELECT docente, insegnamento, aula, dataora 
+            FROM esami 
+            WHERE docente = %s
+            ORDER BY dataora
+        """, (docente,))
         
-        # Ottieni gli anni validi
+        rows = cursor.fetchall()
+        esami = []
+        insegnamenti = {}
+        
+        # Ricava gli anni validi per determinare la sessione
         anno_valido_inizio, anno_valido_fine = get_valid_years()
+        session_labels = [
+            'Anticipata', 'Pausa Didattica Primavera',
+            'Estiva', 'Autunnale', 'Pausa Didattica Autunno',
+            'Invernale'
+        ]
         
-        # Ottieni gli insegnamenti del docente
-        cursor.execute("SELECT titolo FROM insegnamenti WHERE docente = %s", (username,))
-        insegnamenti = [row[0] for row in cursor.fetchall()]
-        
-        esami_docente = {'insegnamenti': {}}
-        
-        # Per ogni insegnamento, calcola le statistiche per sessione
-        for insegnamento in insegnamenti:
-            cursor.execute("""
-                SELECT 
-                    CASE 
-                        WHEN EXTRACT(YEAR FROM dataora) = %s THEN
-                            CASE
-                                WHEN EXTRACT(MONTH FROM dataora) IN (1, 2) THEN 'Anticipata'
-                                WHEN EXTRACT(MONTH FROM dataora) IN (3, 4) THEN 'Pausa Didattica Primavera'
-                                WHEN EXTRACT(MONTH FROM dataora) IN (6, 7) THEN 'Estiva'
-                                WHEN EXTRACT(MONTH FROM dataora) = 9 THEN 'Autunnale'
-                                WHEN EXTRACT(MONTH FROM dataora) = 11 THEN 'Pausa Didattica Autunno'
-                            END
-                        WHEN EXTRACT(YEAR FROM dataora) = %s THEN
-                            CASE
-                                WHEN EXTRACT(MONTH FROM dataora) IN (1, 2) THEN 'Invernale'
-                                WHEN EXTRACT(MONTH FROM dataora) IN (3, 4) THEN 'Pausa Didattica Primavera'
-                            END
-                    END as sessione,
-                    COUNT(*) as conteggio
-                FROM esami 
-                WHERE docente = %s 
-                AND insegnamento = %s 
-                AND EXTRACT(YEAR FROM dataora) BETWEEN %s AND %s
-                GROUP BY sessione
-            """, (anno_valido_inizio, anno_valido_fine, username, insegnamento, 
-                  anno_valido_inizio, anno_valido_fine))
-            
-            sessioni = {
-                'Anticipata': 0,
-                'Pausa Didattica Primavera': 0,
-                'Estiva': 0,
-                'Autunnale': 0,
-                'Pausa Didattica Autunno': 0,
-                'Invernale': 0
+        for row in rows:
+            exam = {
+                'docente': row[0],
+                'insegnamento': row[1],
+                'aula': row[2],
+                'dataora': row[3].isoformat()
             }
+            esami.append(exam)
             
-            for row in cursor.fetchall():
-                if row[0]:  # skip None values
-                    sessioni[row[0]] = row[1]
+            # Calcola la sessione per l'esame
+            dt = row[3]
+            sessione = None
+            if dt.year == anno_valido_inizio:
+                if dt.month in [1, 2]:
+                    sessione = 'Anticipata'
+                elif dt.month in [3, 4]:
+                    sessione = 'Pausa Didattica Primavera'
+                elif dt.month in [6, 7]:
+                    sessione = 'Estiva'
+                elif dt.month == 9:
+                    sessione = 'Autunnale'
+                elif dt.month == 11:
+                    sessione = 'Pausa Didattica Autunno'
+            elif dt.year == anno_valido_fine:
+                if dt.month in [1, 2]:
+                    sessione = 'Invernale'
+                elif dt.month in [3, 4]:
+                    sessione = 'Pausa Didattica Primavera'
             
-            esami_docente['insegnamenti'][insegnamento] = sessioni
+            # Inizializza il raggruppamento per insegnamento se necessario
+            ins = row[1]
+            if ins not in insegnamenti:
+                insegnamenti[ins] = {label: 0 for label in session_labels}
+            if sessione in insegnamenti[ins]:
+                insegnamenti[ins][sessione] += 1
         
-        return jsonify(esami_docente), 200
+        return jsonify({'esami': esami, 'insegnamenti': insegnamenti}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         if conn:
             cursor.close()
             conn.close()
+
+@app.route('/flask/api/ottieniAule', methods=['GET'])
+def ottieniAule():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT nome FROM aule")
+        aule = [row[0] for row in cursor.fetchall()]
+        return jsonify(aule)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 # ===== Main =====
 if __name__ == '__main__':

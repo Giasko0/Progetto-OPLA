@@ -67,7 +67,7 @@ def download_csv():
 
         # Dati esami
         for esame in esami:
-            writer.writerow(esame)
+            writer.writerow(["PF", esame])
 
         # Prepara la risposta
         output.seek(0)

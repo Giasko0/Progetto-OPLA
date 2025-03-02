@@ -63,17 +63,6 @@
     background-color: #f1f1f1;
   }
 
-  .titolo {
-    margin: 20px 0 30px 20px;
-    text-align: left;
-  }
-
-  .titolo h1 {
-    margin: 0;
-    color: #27348b;
-    font-size: 2em;
-  }
-
   .exam-container {
     width: 100%;
     padding: 20px;
@@ -112,13 +101,10 @@
     margin: 0;
   }
 </style>
-<script src="{{ url_for('static', filename='scripts/elencoEsami.js') }}"></script>
 {% endblock %}
 
 {% block body %}
-<div class="titolo">
-  <h1>I Miei Esami</h1>
-</div>
+<h1 class="titolo">I miei esami</h1>
 
 <div id="tabelleInsegnamenti">
   <!-- Le tabelle verranno generate dinamicamente qui -->

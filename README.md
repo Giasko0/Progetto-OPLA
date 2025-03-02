@@ -26,7 +26,7 @@ Benvenuti in **OPLÀ**! Questo progetto offre un modo semplice e diretto per per
   Il login è gestito tramite l'API in [app.py](http://_vscodecontentref_/0) e la pagina login.html.
 
 - **Inserimento Esami:**  
-  Usa il calendario in index.html. Cliccando su un giorno, apparirà il form per inserire un esame (template in flask/templates/formAule.html).
+  Usa il calendario in index.html. Cliccando su un giorno, apparirà il form per inserire un esame (template in flask/templates/formEsame.html).
 
 - **Visualizzazione Esami:**  
   La pagina elencoEsami.html mostra l’elenco degli esami, con funzioni di ordinamento e filtraggio supportate dagli script elencoEsami.js e filtraEsami.js.
