@@ -121,15 +121,26 @@
         <label class="formEsame-label" for="dataora">Data*</label>
         <input type="date" id="dataora" name="dataora" readonly>
 
-        <label class="formEsame-label" for="ora">Ora</label>
+        <label class="formEsame-label" for="ora" required>Ora*</label>
         <input type="time" id="ora" name="ora">
+        
+        <div>
+          <label class="formEsame-label" for="verbalizzazione">Verbalizzazione*</label>
+          <select id="verbalizzazione" name="verbalizzazione">
+            <option value="STD" selected>Standard</option>
+            <option value="FWP">Firma doppia</option>
+            <option value="FSS">Firma singola</option>
+            <option value="PAR">Prova parziale</option>
+            <option value="PPP">Prova parziale pubblica</option>
+          </select>  
+        </div>
 
-        <label class="formEsame-label" for="periodo">Periodo</label>
+        <!--<label class="formEsame-label" for="periodo">Periodo</label>
         <select id="periodo" name="periodo" required>
           <option value="" disabled selected hidden>Scegli il periodo</option>
           <option value="0">Mattina</option>
           <option value="1">Pomeriggio</option>
-        </select>
+        </select>-->
 
         <span id="buttonOpzioniAvanzate">Opzioni avanzate &#x25BA;</span>
 
@@ -152,17 +163,6 @@
               <option value="1">Scritto</option>
               <option value="2">Orale</option>
               <option value="3">Scritto e orale</option>
-            </select>  
-          </div>
-          
-          <div>
-            <label class="formEsame-label" for="verbalizzazione">Verbalizzazione*</label>
-            <select id="verbalizzazione" name="verbalizzazione">
-              <option value="STD" selected>Standard</option>
-              <option value="FWP">Firma doppia</option>
-              <option value="FSS">Firma singola</option>
-              <option value="PAR">Prova parziale</option>
-              <option value="PPP">Prova parziale pubblica</option>
             </select>  
           </div>
 

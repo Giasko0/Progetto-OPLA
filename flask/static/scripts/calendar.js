@@ -71,10 +71,15 @@ document.addEventListener("DOMContentLoaded", function () {
     },
 
     eventDidMount: function(info) {
-      // Imposta il colore dell'evento basato sul nome dell'insegnamento
+      // Calcola il colore basato sul nome dell'insegnamento
       const eventColor = stringToColor(info.event.title);
-      info.el.style.backgroundColor = eventColor;
-      info.el.style.borderColor = eventColor;
+      
+      // Trova il pallino dell'evento e cambia il suo colore
+      const dot = info.el.querySelector('.fc-daygrid-event-dot');
+      if (dot) {
+        dot.style.backgroundColor = eventColor;
+        dot.style.borderColor = eventColor;
+      }
     },
   });
 

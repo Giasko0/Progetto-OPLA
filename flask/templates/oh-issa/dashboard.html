@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Dashboard OH-ISSA</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style/admin.css') }}">
+  <script src="{{ url_for('static', filename='scripts/oh-issa/dashboard.js') }}"></script>
+</head>
+
+<body>
+  <div class="admin-container">
+    <div class="admin-panel">
+      <h2 class="admin-title">Pannello di Amministrazione</h2>
+
+      <div class="sections-container">
+        <!-- Sezione Input -->
+        <div class="section">
+          <h3 class="section-title">Input</h3>
+
+          <!-- Sottosezione Carica File -->
+          <div class="subsection">
+            <h4>Carica File</h4>
+            <div class="button-group">
+              <button class="admin-button primary" id="uploadTeachings">Carica file insegnamenti</button>
+              <button class="admin-button primary" id="uploadTeachers">Carica file docenti</button>
+            </div>
+            <!-- Form nascosti per l'upload dei file -->
+            <form id="uploadTeachingsForm" style="display:none;">
+              <input type="file" id="teachingsFileInput" accept=".csv,.tsv,.txt">
+            </form>
+            <form id="uploadTeachersForm" style="display:none;">
+              <input type="file" id="teachersFileInput" accept=".csv,.tsv,.txt">
+            </form>
+          </div>
+
+          <!-- Sottosezione Modifica Impostazioni -->
+          <div class="subsection">
+            <h4>Modifica Impostazioni</h4>
+            <form id="settingsForm">
+              <div class="settings-group">
+                <div class="setting-item">
+                  <label>Data inizio calendario:</label>
+                  <input type="date" name="calendarStart">
+                </div>
+                <div class="setting-item">
+                  <label>Data fine calendario:</label>
+                  <input type="date" name="calendarEnd">
+                </div>
+                <div class="setting-item">
+                  <label>Date sessioni:</label>
+                  <button class="admin-button info" id="editSessions">Modifica sessioni</button>
+                </div>
+              </div>
+              <button type="submit" class="admin-button success">Salva impostazioni</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Sezione Output -->
+        <div class="section">
+          <h3 class="section-title">Output</h3>
+
+          <!-- Sottosezione Download -->
+          <div class="subsection">
+            <h4>Download</h4>
+            <div class="button-group">
+              <button class="admin-button success" id="downloadCalendar">Scarica calendario</button>
+              <button class="admin-button info" id="downloadCsv">Scarica elenco esami (ESSE3)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nuova sezione per gestione DB -->
+      <div class="section-full">
+        <h3 class="section-title">Gestione Database</h3>
+
+        <div class="subsection">
+          <h4>Svuota Tabelle</h4>
+          <p class="warning-text">Attenzione: queste operazioni eliminano tutti i dati della tabella selezionata!</p>
+          <div class="button-group horizontal">
+            <button class="admin-button danger truncate-btn" data-table="insegnamenti">Svuota Insegnamenti</button>
+            <button class="admin-button danger truncate-btn" data-table="docenti">Svuota Docenti</button>
+            <button class="admin-button danger truncate-btn" data-table="esami">Svuota Esami</button>
+            <button class="admin-button danger truncate-btn" data-table="sessioni">Svuota Sessioni</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="logout-section">
+        <a href="/flask/admin/logout" class="admin-button danger">Logout</a>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

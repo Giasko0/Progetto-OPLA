@@ -91,7 +91,7 @@ function displayTabelleEsami(data, insegnamento, container) {
       row.insertCell(0).textContent = esame.docente;
       row.insertCell(1).textContent = esame.insegnamento;
       row.insertCell(2).textContent = esame.aula;
-      row.insertCell(3).textContent = esame.dataora;
+      row.insertCell(3).textContent = formatDateTime(esame.dataora);
     });
 
     section.appendChild(table);
@@ -174,6 +174,32 @@ function sortTable(tableId, colIndex) {
 
   // Ricostruisce la tabella con le righe ordinate
   rows.forEach((row) => tbody.appendChild(row));
+}
+
+// Funzione per formattare data e ora
+function formatDateTime(dateTimeStr) {
+  if (!dateTimeStr) return "Data non disponibile";
+  
+  try {
+    const date = new Date(dateTimeStr);
+    
+    if (isNaN(date.getTime())) {
+      // Gestione fallback per formati di data non standard
+      return dateTimeStr;
+    }
+    
+    // Formattazione in stile italiano: DD/MM/YYYY, HH:MM
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // +1 perché i mesi sono 0-based
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${day}/${month}/${year}, ${hours}:${minutes}`;
+  } catch (error) {
+    console.error("Errore nella formattazione della data:", error);
+    return dateTimeStr; // Restituisci la stringa originale in caso di errore
+  }
 }
 
 // Espone funzioni necessarie per l'HTML

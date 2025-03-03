@@ -51,10 +51,4 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
     checkbox.addEventListener("change", updateCalendar);
   });
-
-  // Aggiungi listener al cambiamento del select insegnamento
-  const insegnamentoSelect = document.getElementById("insegnamento");
-  if (insegnamentoSelect) {
-    insegnamentoSelect.addEventListener("change", updateCalendar);
-  }
 });

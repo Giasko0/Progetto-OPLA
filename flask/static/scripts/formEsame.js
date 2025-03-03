@@ -19,7 +19,34 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("Errore nel recupero delle aule:", error)
       );
   }
+  
+  // Funzione per popolare il selettore degli insegnamenti con titolo visibile e codice come value
+  function popolaInsegnamenti() {
+    const username = document.getElementById('docente').value;
+    if (username) {
+      fetch('/flask/api/ottieniInsegnamenti?username=' + username)
+        .then(response => response.json())
+        .then(data => {
+          const select = document.getElementById('insegnamento');
+          // Mantieni solo l'opzione placeholder
+          while (select.options.length > 1) {
+            select.remove(1);
+          }
+          // Aggiungi le opzioni degli insegnamenti
+          data.forEach(ins => {
+            const option = document.createElement('option');
+            option.value = ins.codice; // Usa il codice come valore
+            option.textContent = ins.titolo; // Mostra il titolo come testo
+            select.appendChild(option);
+          });
+        })
+        .catch(error => console.error('Errore nel caricamento degli insegnamenti:', error));
+    }
+  }
+  
+  // Esegui funzioni di popolamento
   popolaAule();
+  popolaInsegnamenti();
 
   // Funzione per gestire le opzioni avanzate
   const pulsanteAdv = document.getElementById("buttonOpzioniAvanzate");

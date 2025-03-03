@@ -102,18 +102,52 @@ def api_login():
 @app.route('/flask/api/inserisciEsame', methods=['POST'])
 def inserisciEsame():
   """API per inserire un nuovo esame"""
+  conn = None
   try:
+    # Raccogli i dati dal form
     data = request.form
     docente = data.get('docente')
     insegnamento = data.get('insegnamento')
     aula = data.get('aula')
-    dataora = data.get('dataora')
-
-    if not all([docente, insegnamento, aula, dataora]):
+    data_appello = data.get('dataora')
+    ora_appello = data.get('ora')
+    inizio_iscrizione = data.get('inizioIscrizione')
+    fine_iscrizione = data.get('fineIscrizione')
+    tipo_esame = data.get('tipoEsame')
+    verbalizzazione = data.get('verbalizzazione', 'STD')  # Default: Standard
+    note_appello = data.get('note')
+    posti = data.get('posti')
+    
+    # Valori standard per i campi mancanti
+    tipo_appello = 'PF'
+    definizione_appello = 'STD'
+    gestione_prenotazione = 'STD'
+    riservato = False  # 0 in SQL
+    tipo_iscrizione = 'STD'
+    
+    # Campi obbligatori
+    if not all([docente, insegnamento, aula, data_appello]):
       return jsonify({'status': 'error', 'message': 'Dati incompleti'}), 400
 
+    # Gestione ora_appello - Se è vuota impostiamo NULL
+    if not ora_appello or ora_appello.strip() == '':
+      ora_appello = None
+    
+    # Gestione tipo_esame - Se è vuoto impostiamo NULL
+    if not tipo_esame or tipo_esame.strip() == '':
+      tipo_esame = None
+    
+    # Converti posti in intero se presente
+    if posti:
+      try:
+        posti = int(posti)
+      except ValueError:
+        posti = None
+    else:
+      posti = None
+
     # Verifica che l'anno sia valido
-    data_esame = datetime.fromisoformat(dataora)
+    data_esame = datetime.fromisoformat(data_appello)
     anno_valido_inizio, anno_valido_fine = get_valid_years()
     
     if not (anno_valido_inizio <= data_esame.year <= anno_valido_fine):
@@ -121,6 +155,12 @@ def inserisciEsame():
         'status': 'error',
         'message': f'È possibile inserire esami solo per gli anni {anno_valido_inizio}-{anno_valido_fine}'
       }), 400
+
+    # Imposta valori predefiniti per i campi obbligatori
+    if not inizio_iscrizione:
+      inizio_iscrizione = data_esame - timedelta(days=30)
+    if not fine_iscrizione:
+      fine_iscrizione = data_esame - timedelta(days=1)
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -133,18 +173,18 @@ def inserisciEsame():
         SELECT COUNT(*) FROM esami 
         WHERE docente = %s AND 
         CASE 
-          WHEN EXTRACT(YEAR FROM dataora) = EXTRACT(YEAR FROM CURRENT_DATE) + 1 THEN
+          WHEN EXTRACT(YEAR FROM data_appello) = EXTRACT(YEAR FROM CURRENT_DATE) + 1 THEN
             CASE
-              WHEN EXTRACT(MONTH FROM dataora) IN (1, 2) THEN 'Anticipata'
-              WHEN EXTRACT(MONTH FROM dataora) IN (3, 4) THEN 'Pausa Didattica Primavera'
-              WHEN EXTRACT(MONTH FROM dataora) IN (6, 7) THEN 'Estiva'
-              WHEN EXTRACT(MONTH FROM dataora) = 9 THEN 'Autunnale'
-              WHEN EXTRACT(MONTH FROM dataora) = 11 THEN 'Pausa Didattica Autunno'
+              WHEN EXTRACT(MONTH FROM data_appello) IN (1, 2) THEN 'Anticipata'
+              WHEN EXTRACT(MONTH FROM data_appello) IN (3, 4) THEN 'Pausa Didattica Primavera'
+              WHEN EXTRACT(MONTH FROM data_appello) IN (6, 7) THEN 'Estiva'
+              WHEN EXTRACT(MONTH FROM data_appello) = 9 THEN 'Autunnale'
+              WHEN EXTRACT(MONTH FROM data_appello) = 11 THEN 'Pausa Didattica Autunno'
             END
-          WHEN EXTRACT(YEAR FROM dataora) = EXTRACT(YEAR FROM CURRENT_DATE) + 2 THEN
+          WHEN EXTRACT(YEAR FROM data_appello) = EXTRACT(YEAR FROM CURRENT_DATE) + 2 THEN
             CASE
-              WHEN EXTRACT(MONTH FROM dataora) IN (1, 2) THEN 'Invernale'
-              WHEN EXTRACT(MONTH FROM dataora) IN (3, 4) THEN 'Pausa Didattica Primavera'
+              WHEN EXTRACT(MONTH FROM data_appello) IN (1, 2) THEN 'Invernale'
+              WHEN EXTRACT(MONTH FROM data_appello) IN (3, 4) THEN 'Pausa Didattica Primavera'
             END
         END = %s
       """, (docente, sessione))
@@ -156,22 +196,21 @@ def inserisciEsame():
         }), 400
 
     # Verifica aule/giorni
-    cursor.execute("SELECT COUNT(*) FROM esami WHERE dataora = %s", (dataora,))
+    cursor.execute("SELECT COUNT(*) FROM esami WHERE data_appello = %s", (data_appello,))
     if cursor.fetchone()[0] >= 2:
       return jsonify({'status': 'error', 'message': 'Massimo due esami per giorno'}), 400
 
-    cursor.execute("SELECT 1 FROM esami WHERE dataora = %s AND aula = %s", (dataora, aula))
+    cursor.execute("SELECT 1 FROM esami WHERE data_appello = %s AND aula = %s", (data_appello, aula))
     if cursor.fetchone():
       return jsonify({'status': 'error', 'message': 'Aula già occupata'}), 400
 
     # Verifica vincolo dei 14 giorni
-    data_esame = datetime.fromisoformat(dataora)
     data_min = data_esame - timedelta(days=14)
     data_max = data_esame + timedelta(days=14)
     
     cursor.execute("""
-      SELECT dataora FROM esami 
-      WHERE insegnamento = %s AND dataora BETWEEN %s AND %s
+      SELECT data_appello FROM esami 
+      WHERE insegnamento = %s AND data_appello BETWEEN %s AND %s
     """, (insegnamento, data_min, data_max))
     
     esami_vicini = cursor.fetchall()
@@ -182,10 +221,20 @@ def inserisciEsame():
         'message': f'Non puoi inserire esami a meno di 14 giorni di distanza. Hai già esami nelle date: {", ".join(date_esami)}'
       }), 400
 
-    # Inserimento
+    # Inserimento con tutti i campi del database
     cursor.execute(
-      "INSERT INTO esami (docente, insegnamento, aula, dataora) VALUES (%s, %s, %s, %s)",
-      (docente, insegnamento, aula, dataora)
+      """INSERT INTO esami 
+         (docente, insegnamento, aula, data_appello, ora_appello, 
+          data_inizio_iscrizione, data_fine_iscrizione, 
+          tipo_esame, verbalizzazione, note_appello, posti,
+          tipo_appello, definizione_appello, gestione_prenotazione, 
+          riservato, tipo_iscrizione)
+         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+      (docente, insegnamento, aula, data_appello, ora_appello, 
+       inizio_iscrizione, fine_iscrizione, 
+       tipo_esame, verbalizzazione, note_appello, posti,
+       tipo_appello, definizione_appello, gestione_prenotazione,
+       riservato, tipo_iscrizione)
     )
     conn.commit()
     return jsonify({'status': 'success'}), 200
@@ -207,8 +256,8 @@ def ottieniInsegnamenti():
   try:
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT titolo FROM insegnamenti WHERE docente = %s", (username,))
-    insegnamenti = [row[0] for row in cursor.fetchall()]
+    cursor.execute("SELECT codice, titolo FROM insegnamenti WHERE docente = %s", (username,))
+    insegnamenti = [{'codice': row[0], 'titolo': row[1]} for row in cursor.fetchall()]
     return jsonify(insegnamenti)
   except Exception as e:
     return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -227,9 +276,9 @@ def filtraEsami():
     cursor = conn.cursor()
     
     query = """
-      SELECT e.docente, e.insegnamento, e.aula, e.dataora 
+      SELECT e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello 
       FROM esami e
-      JOIN insegnamenti i ON e.insegnamento = i.titolo
+      JOIN insegnamenti i ON e.insegnamento = i.codice
     """
     
     params = []
@@ -237,15 +286,15 @@ def filtraEsami():
       query += " WHERE i.annocorso = ANY(%s)"
       params.append(anniCorso)
     
-    query += " ORDER BY e.dataora"
+    query += " ORDER BY e.data_appello"
     
     cursor.execute(query, tuple(params))
     
     exams = [{
       'docente': row[0],
-      'title': row[1],
+      'title': row[1],  # Titolo dell'insegnamento come titolo dell'evento
       'aula': row[2],
-      'start': row[3].isoformat()
+      'start': f"{row[3].isoformat()}T{row[4]}" if row[4] else row[3].isoformat()
     } for row in cursor.fetchall()]
     
     return jsonify(exams)
@@ -258,7 +307,7 @@ def filtraEsami():
 
 # API per ottenere gli esami di un docente
 @app.route('/flask/api/mieiEsami', methods=['GET'])
-def api_miei_esami():
+def miei_esami():
   # Usa il parametro 'docente' se presente, altrimenti il cookie
   docente = request.args.get('docente') or request.cookies.get('username')
   if not docente:
@@ -267,12 +316,13 @@ def api_miei_esami():
   try:
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Recupera tutti gli esami del docente
+    # Recupera tutti gli esami del docente con il titolo dell'insegnamento
     cursor.execute("""
-      SELECT docente, insegnamento, aula, dataora 
-      FROM esami 
-      WHERE docente = %s
-      ORDER BY dataora
+      SELECT e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello 
+      FROM esami e
+      JOIN insegnamenti i ON e.insegnamento = i.codice
+      WHERE e.docente = %s
+      ORDER BY e.data_appello
     """, (docente,))
     
     rows = cursor.fetchall()
@@ -288,16 +338,26 @@ def api_miei_esami():
     ]
     
     for row in rows:
+      # Gestisci correttamente la data e l'ora
+      data_appello = row[3]
+      ora_appello = row[4] if row[4] else "00:00:00"
+      
+      # Formattazione migliorata per data e ora
+      data_formattata = data_appello.strftime("%d/%m/%Y")
+      ora_formattata = ora_appello if isinstance(ora_appello, str) else ora_appello.strftime("%H:%M")
+      
       exam = {
         'docente': row[0],
-        'insegnamento': row[1],
+        'insegnamento': row[1],  # Ora contiene il titolo dell'insegnamento
         'aula': row[2],
-        'dataora': row[3].isoformat()
+        'data': data_formattata,
+        'ora': ora_formattata,
+        'dataora': f"{data_appello.isoformat()}T{ora_appello}"  # Manteniamo questo formato per compatibilità
       }
       esami.append(exam)
       
       # Calcola la sessione per l'esame
-      dt = row[3]
+      dt = data_appello
       sessione = None
       if dt.year == anno_valido_inizio:
         if dt.month in [1, 2]:
@@ -317,7 +377,7 @@ def api_miei_esami():
           sessione = 'Pausa Didattica Primavera'
       
       # Inizializza il raggruppamento per insegnamento se necessario
-      ins = row[1]
+      ins = row[1]  # Ora usiamo il titolo dell'insegnamento
       if ins not in insegnamenti:
         insegnamenti[ins] = {label: 0 for label in session_labels}
       if sessione in insegnamenti[ins]:
