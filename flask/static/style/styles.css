@@ -82,7 +82,7 @@ body {
 /*---------CALENDARIO---------*/
 #calendar {
   width: 100%;
-  height: clamp(300px, 80vh, 2000px);
+  /*height: clamp(300px, 80vh, 2000px);*/
 }
 
 .fc-header-cell {

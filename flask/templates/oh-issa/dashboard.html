@@ -3,8 +3,38 @@
 
 <head>
   <title>Dashboard OH-ISSA</title>
+
   <link rel="stylesheet" href="{{ url_for('static', filename='style/admin.css') }}">
   <script src="{{ url_for('static', filename='scripts/oh-issa/dashboard.js') }}"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    .tooltip {
+      position: relative;
+      display: inline-block;
+    }
+
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 300px;
+      background-color: #555;
+      color: #fff;
+      text-align: left;
+      border-radius: 6px;
+      padding: 10px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
 </head>
 
 <body>
@@ -21,8 +51,36 @@
           <div class="subsection">
             <h4>Carica File</h4>
             <div class="button-group">
-              <button class="admin-button primary" id="uploadTeachings">Carica file insegnamenti</button>
-              <button class="admin-button primary" id="uploadTeachers">Carica file docenti</button>
+              <button class="admin-button primary" id="uploadTeachings">
+                Carica file insegnamenti 
+                <span class="tooltip">
+                  <span class="material-symbols-outlined">help</span>
+                  <span class="tooltiptext">
+                    Il file deve essere in formato CSV/TSV con i seguenti campi:<br>
+                    - Codice insegnamento<br>
+                    - Nome insegnamento<br>
+                    - Corso di studio<br>
+                    - Anno accademico<br>
+                    - Anno di corso<br>
+                    - Semestre<br>
+                    - Docente (matricola u-gov)
+                  </span>
+                </span>
+              </button>
+              <button class="admin-button primary" id="uploadTeachers">
+                Carica file docenti
+                <span class="tooltip">
+                  <span class="material-symbols-outlined">help</span>
+                  <span class="tooltiptext">
+                    Il file deve essere in formato CSV/TSV con i seguenti campi:<br>
+                    - Codice fiscale<br>
+                    - Matricola u-gov<br>
+                    - Email<br>
+                    - Nome<br>
+                    - Cognome
+                  </span>
+                </span>
+              </button>
             </div>
             <!-- Form nascosti per l'upload dei file -->
             <form id="uploadTeachingsForm" style="display:none;">
