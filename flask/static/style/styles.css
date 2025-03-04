@@ -53,6 +53,7 @@ body {
   background-color: var(--color-light-gray);
   display: flex;
   align-items: center;
+  z-index: 10;
 }
 
 .navbar .logo {
@@ -92,6 +93,15 @@ body {
 
 .fc-daygrid-day {
   background-color: white;
+}
+
+/* Stile per i giorni disabilitati e pause didattiche nel calendario */
+/* Usato anche per le celle vuote del calendario */
+.fc-disabled-day, .fc-day-disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  background-color: var(--color-light-gray) !important;
+  cursor: not-allowed !important;
 }
 
 /*---------PULSANTI-SOPRA-CALENDARIO---------*/

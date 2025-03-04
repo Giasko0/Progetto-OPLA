@@ -1,27 +1,22 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const currentDate = new Date();
+  const planningYear = currentDate.getMonth() >= 8 ? currentDate.getFullYear() + 1 : currentDate.getFullYear();
+  
   // Carica tutti gli esami al caricamento della pagina
-  fetch("/flask/api/filtraEsami")
-    .then((response) => response.json())
-    .then(renderCalendarEvents)
-    .catch((error) => {
-      console.error("Errore nel caricamento degli esami:", error);
-    });
+  updateCalendar();
 
   // Funzione che viene richiamata per aggiornare il calendario con gli eventi ricevuti
   function renderCalendarEvents(events) {
     if (window.calendar) {
       window.calendar.removeAllEvents();
-      events.forEach((ev) => window.calendar.addEvent(ev));
+      window.calendar.addEventSource(events);
     }
   }
 
   // Funzione per aggiornare il calendario in base ai filtri
   function updateCalendar() {
     const formData = new FormData(document.getElementById("filterForm"));
-    const params = new URLSearchParams();
-    for (let pair of formData.entries()) {
-      params.append(pair[0], pair[1]);
-    }
+    const params = new URLSearchParams(formData);
 
     fetch("/flask/api/filtraEsami?" + params.toString())
       .then((response) => response.json())

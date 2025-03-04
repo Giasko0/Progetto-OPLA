@@ -1,4 +1,12 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // Calcola l'anno accademico corrente
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1; // getMonth() returns 0-11
+  const anno_accademico = currentMonth >= 9 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
+  
+  // Imposta l'anno accademico nel campo hidden
+  document.getElementById('anno_accademico').value = anno_accademico;
+
   // Funzione per popolare la select con le aule
   function popolaAule() {
     fetch("/flask/api/ottieniAule")

@@ -1,0 +1,222 @@
+INSERT INTO aule (nome, sede, edificio, posti) VALUES
+  ('Studio docente DMI', '', '', NULL),
+  ('A0', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 120),
+  ('A2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 80),
+  ('A3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 30),
+  ('B1', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 20),
+  ('B3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 20),
+  ('C2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 15),
+  ('C3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 20),
+  ('Aula verde', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 30),
+  ('Aula gialla', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 40),
+  ('I1', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 120),
+  ('I2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 80),
+  ('Aula riunioni', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 25);
+
+-- Inserimento docenti (i permessi sono cumulativi)
+INSERT INTO docenti (username, matricola, email, nome, cognome, permessi_visitatore, permessi_docente, permessi_admin) VALUES
+    ('ad020022', '011876', 'amedeo@gmail.com', 'Amedeo', 'Di Biase', true, true, true),  -- Admin: ha permessi docente, visitatore e admin
+    ('av790001', '011875', 'av@gmail.com', 'Anna', 'Verdi', true, true, false),          -- Docente: ha permessi docente e visitatore
+    ('gn900001', '011874', 'gn@gmail.com', 'Giulia', 'Neri', true, true, false),         -- Docente: ha permessi docente e visitatore
+    ('lb750001', '011873', 'lb@gmail.com', 'Luigi', 'Bianchi', true, true, false),       -- Docente: ha permessi docente e visitatore
+    ('mr800001', '011872', 'mr@gmail.com', 'Mario', 'Rossi', true, true, false),         -- Docente: ha permessi docente e visitatore
+    ('pg950001', '011871', 'pg@gmail.com', 'Paolo', 'Gialli', true, true, false);        -- Docente: ha permessi docente e visitatore
+
+-- Inserimento CDS con date complete
+INSERT INTO cds (
+    codice, anno_accademico, nome_corso, durata,
+    inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
+    inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre,
+    pausa_didattica_primo_inizio, pausa_didattica_primo_fine,
+    pausa_didattica_secondo_inizio, pausa_didattica_secondo_fine,
+    inizio_sessione_anticipata, fine_sessione_anticipata,
+    inizio_sessione_estiva, fine_sessione_estiva,
+    inizio_sessione_autunnale, fine_sessione_autunnale,
+    inizio_sessione_invernale, fine_sessione_invernale
+) VALUES (
+    'L062', 2025, 'Informatica Triennale', 3,
+    '2025-09-25', '2025-12-22',                    -- Primo semestre
+    '2026-02-24', '2026-05-31',                    -- Secondo semestre
+    '2025-11-01', '2025-11-03',                    -- Pausa primo semestre
+    '2026-04-09', '2026-04-14',                    -- Pausa secondo semestre
+    '2026-01-07', '2026-02-21',                    -- Sessione anticipata
+    '2026-06-03', '2026-07-31',                    -- Sessione estiva
+    '2026-09-01', '2026-09-30',                    -- Sessione autunnale
+    '2027-01-07', '2027-02-21'                     -- Sessione invernale
+),
+(
+    'L062', 2024, 'Informatica Triennale', 3,
+    '2024-09-25', '2024-12-22',                    -- Primo semestre
+    '2025-02-24', '2025-05-31',                    -- Secondo semestre
+    '2024-11-01', '2024-11-03',                    -- Pausa primo semestre
+    '2025-04-09', '2025-04-14',                    -- Pausa secondo semestre
+    '2025-01-07', '2025-02-21',                    -- Sessione anticipata
+    '2025-06-03', '2025-07-31',                    -- Sessione estiva
+    '2025-09-01', '2025-09-30',                    -- Sessione autunnale
+    '2026-01-07', '2026-02-21'                     -- Sessione invernale
+);
+
+-- Inserimento insegnamenti (ora solo codice e titolo)
+INSERT INTO insegnamenti (codice, titolo) VALUES
+('A000392', 'Reti di Calcolatori'),
+('A000390', 'Algoritmi e Strutture Dati'),
+('A000406', 'Sistemi Distribuiti'),
+('A000394', 'Basi di Dati'),
+('A000403', 'Ingegneria del Software'),
+('A000401', 'Intelligenza Artificiale'),
+('A000407', 'Machine Learning'),
+('A000408', 'Computer Vision'),
+('A000385', 'Programmazione I'),
+('A000391', 'Sistemi Operativi'),
+('A000389', 'Programmazione II');
+
+-- Inserimento configurazione insegnamenti per anno 2024
+INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da) VALUES
+('A000392', 2024, 'L062', 3, 2, NULL),  -- RC
+('A000390', 2024, 'L062', 2, 1, NULL),  -- ASD
+('A000406', 2024, 'L062', 3, 1, NULL),  -- SD
+('A000394', 2024, 'L062', 3, 1, NULL),  -- BD
+('A000403', 2024, 'L062', 2, 1, NULL),  -- IS
+('A000401', 2024, 'L062', 3, 2, NULL),  -- IA
+('A000407', 2024, 'L062', 3, 2, NULL),  -- ML
+('A000408', 2024, 'L062', 2, 1, NULL),  -- CV
+('A000385', 2024, 'L062', 1, 1, NULL),  -- PI
+('A000391', 2024, 'L062', 2, 1, NULL),  -- SO
+('A000389', 2024, 'L062', 1, 2, NULL);  -- PII
+
+-- Esempio di cambio semestre/anno per alcuni insegnamenti nel 2025
+INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da) VALUES
+('A000392', 2025, 'L062', 3, 1, NULL),  -- RC spostato al primo semestre
+('A000390', 2025, 'L062', 1, 2, NULL),  -- ASD spostato al primo anno, secondo semestre
+('A000406', 2025, 'L062', 3, 1, NULL),  -- SD invariato
+('A000394', 2025, 'L062', 3, 1, NULL),  -- BD invariato
+('A000403', 2025, 'L062', 2, 1, NULL),  -- IS invariato
+('A000401', 2025, 'L062', 3, 2, NULL),  -- IA invariato
+('A000407', 2025, 'L062', 3, 2, NULL),  -- ML invariato
+('A000408', 2025, 'L062', 2, 1, NULL),  -- CV invariato
+('A000385', 2025, 'L062', 1, 1, NULL),  -- PI invariato
+('A000391', 2025, 'L062', 2, 1, NULL),  -- SO invariato
+('A000389', 2025, 'L062', 1, 2, NULL);  -- PII invariato
+
+-- Inserimento relazioni insegnamento-docente per entrambi gli anni
+INSERT INTO insegna (insegnamento, docente, annoaccademico) VALUES
+-- Anno 2024
+('A000392', 'gn900001', 2024),
+('A000390', 'av790001', 2024),
+('A000406', 'av790001', 2024),
+('A000394', 'lb750001', 2024),
+('A000403', 'lb750001', 2024),
+('A000401', 'pg950001', 2024),
+('A000407', 'pg950001', 2024),
+('A000408', 'pg950001', 2024),
+('A000385', 'mr800001', 2024),
+('A000391', 'mr800001', 2024),
+('A000389', 'mr800001', 2024),
+-- Anno 2025
+('A000392', 'gn900001', 2025),
+('A000390', 'av790001', 2025),
+('A000406', 'av790001', 2025),
+('A000394', 'lb750001', 2025),
+('A000403', 'lb750001', 2025),
+('A000401', 'pg950001', 2025),
+('A000407', 'pg950001', 2025),
+('A000408', 'pg950001', 2025),
+('A000385', 'mr800001', 2025),
+('A000391', 'mr800001', 2025),
+('A000389', 'mr800001', 2025);
+
+-- Inserimento esami di esempio
+INSERT INTO esami (
+    tipo_appello, docente, insegnamento, aula, 
+    data_appello, data_inizio_iscrizione, data_fine_iscrizione, 
+    ora_appello, verbalizzazione, tipo_esame, posti,
+    definizione_appello, gestione_prenotazione, tipo_iscrizione,
+    partizionamento, partizione, codice_turno, riservato,
+    note_appello, condizione_sql
+) VALUES
+-- Esami primo semestre
+    ('Primo appello', 'av790001', 'A000390', 'A2',         -- ASD
+    '2026-01-15', '2025-12-15', '2026-01-13', 
+    '09:00', 'FIRMA DIGITALE', 'Scritto e Orale', 80,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+    
+    ('Primo appello', 'lb750001', 'A000394', 'A0',         -- BD
+    '2026-01-20', '2025-12-20', '2026-01-18', 
+    '14:30', 'FIRMA DIGITALE', 'Scritto', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+    
+    ('Secondo appello', 'mr800001', 'A000385', 'I1',       -- PI
+    '2026-02-10', '2026-01-10', '2026-02-08', 
+    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+
+-- Esami secondo semestre
+    ('Primo appello', 'pg950001', 'A000401', 'A2',         -- IA
+    '2026-06-10', '2026-05-10', '2026-06-08', 
+    '09:00', 'FIRMA DIGITALE', 'Orale', 80,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+    
+    ('Primo appello', 'gn900001', 'A000392', 'I1',         -- RC
+    '2026-06-15', '2026-05-15', '2026-06-13', 
+    '14:30', 'FIRMA DIGITALE', 'Scritto e Orale', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+    
+    ('Secondo appello', 'mr800001', 'A000389', 'A0',       -- PO
+    '2026-07-10', '2026-06-10', '2026-07-08', 
+    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+    
+    ('Primo appello', 'av790001', 'A000390', 'A2',         -- ASD
+    '2025-01-15', '2024-12-15', '2025-01-13', 
+    '09:00', 'FIRMA DIGITALE', 'Scritto e Orale', 80,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+    
+    ('Primo appello', 'lb750001', 'A000394', 'A0',         -- BD
+    '2025-01-20', '2024-12-20', '2025-01-18', 
+    '14:30', 'FIRMA DIGITALE', 'Scritto', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+    
+    ('Secondo appello', 'mr800001', 'A000385', 'I1',       -- PI
+    '2025-02-10', '2025-01-10', '2025-02-08', 
+    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+
+-- Esami secondo semestre
+    ('Primo appello', 'pg950001', 'A000401', 'A2',         -- IA
+    '2025-06-10', '2025-05-10', '2025-06-08', 
+    '09:00', 'FIRMA DIGITALE', 'Orale', 80,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+    
+    ('Primo appello', 'gn900001', 'A000392', 'I1',         -- RC
+    '2025-06-15', '2025-05-15', '2025-06-13', 
+    '14:30', 'FIRMA DIGITALE', 'Scritto e Orale', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL),
+    
+    ('Secondo appello', 'mr800001', 'A000389', 'A0',       -- PO
+    '2025-07-10', '2025-06-10', '2025-07-08', 
+    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL);
