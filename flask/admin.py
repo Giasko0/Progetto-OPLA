@@ -35,7 +35,7 @@ def admin_logout():
     response.delete_cookie('admin')
     return response
 
-@admin_bp.route('/downloadCsv')
+@admin_bp.route('/downloadFileESSE3')
 def download_csv():
     if 'admin' not in request.cookies:
         return redirect('/flask/admin')
@@ -44,19 +44,39 @@ def download_csv():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Query aggiornata con i campi corretti dal database
         cursor.execute("""
             SELECT 
-                e.tipo_appello, e.docente, e.insegnamento, e.aula, 
-                e.data_appello, e.data_inizio_iscrizione, e.data_fine_iscrizione, 
-                e.ora_appello, e.verbalizzazione, e.definizione_appello, 
-                e.gestione_prenotazione, e.riservato, e.tipo_iscrizione, 
-                e.tipo_esame, e.note_appello, e.posti, e.codice_turno,
-                i.anno, i.cds, i.codice, i.titolo,
-                a.edificio, a.sede
+                e.tipo_appello,             -- Tipo appello
+                ic.anno_accademico,         -- Anno
+                ic.cds,                     -- CDS
+                i.codice,                   -- AD
+                i.titolo,                   -- Des. Appello
+                e.data_appello,             -- Data Appello
+                e.data_inizio_iscrizione,   -- Data inizio iscrizione
+                e.data_fine_iscrizione,     -- Data fine iscrizione
+                e.ora_appello,              -- Ora appello
+                e.verbalizzazione,          -- Verbalizzazione
+                e.definizione_appello,      -- Def. App.
+                e.gestione_prenotazione,    -- Gest. Pren.
+                e.riservato,                -- Riservato
+                e.tipo_iscrizione,          -- Tipo Iscr.
+                e.tipo_esame,               -- Tipo Esa.
+                a.edificio,                 -- Edificio
+                e.aula,                     -- Aula
+                d.matricola,                -- Matricola Docente
+                a.sede,                     -- Sede
+                e.condizione_sql,           -- Condizione SQL
+                e.partizionamento,          -- Partizionamento
+                e.partizione,               -- Partizione
+                e.note_appello,             -- Note Appello
+                e.posti,                    -- Posti
+                e.codice_turno              -- Codice Turno
             FROM esami e
             LEFT JOIN insegnamenti i ON e.insegnamento = i.codice
+            LEFT JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
+                AND EXTRACT(YEAR FROM e.data_appello) = ic.anno_accademico
             LEFT JOIN aule a ON e.aula = a.nome
+            LEFT JOIN docenti d ON e.docente = d.username
             ORDER BY e.data_appello, e.insegnamento
         """)
         esami = cursor.fetchall()
@@ -65,53 +85,72 @@ def download_csv():
         output = io.StringIO()
         writer = csv.writer(output)
 
-        # Header CSV rimane lo stesso
+        # Prima riga del CSV
         writer.writerow([
-            'Tipo appello', 'Anno', 'CDS', 'AD', 'Des. Appello', 'Data Appello (gg/mm/yyyy)',
-            'Data inizio iscr. (gg/mm/yyyy)', 'Data Fine iscr. (gg/mm/yyyy)', 'Ora appello (hh:mm)',
-            'Verb.', 'Def. App.', 'Gest. Pren.', 'Riservato', 'Tipo Iscr.', 'Tipo Esa.', 'Edificio',
-            'Aula', 'Matricola Docente', 'Sede', 'Condizione SQL', 'Partizionamento', 'Partizione',
-            'Note Appello', 'Posti', 'Codice Turno'
+            'Tipo appello',
+            'Anno',
+            'CDS',
+            'AD',
+            'Des. Appello',
+            'Data Appello (gg/mm/yyyy)',
+            'Data inizio iscr. (gg/mm/yyyy)',
+            'Data Fine iscr. (gg/mm/yyyy)',
+            'Ora appello (hh:mm)',
+            'Verb.',
+            'Def. App.',
+            'Gest. Pren.',
+            'Riservato',
+            'Tipo Iscr.',
+            'Tipo Esa.',
+            'Edificio',
+            'Aula',
+            'Matricola Docente',
+            'Sede',
+            'Condizione SQL',
+            'Partizionamento',
+            'Partizione',
+            'Note Appello',
+            'Posti',
+            'Codice Turno'
         ])
 
         # Dati esami con mappatura corretta dal database
         for esame in esami:
-            (tipo_appello, docente, insegnamento, aula, 
-             data_appello, data_inizio_iscr, data_fine_iscr, 
-             ora_appello, verbalizzazione, def_appello, 
-             gest_prenotazione, riservato, tipo_iscr, 
-             tipo_esame, note_appello, posti, codice_turno,
-             anno, cds, codice, titolo,
-             edificio, sede) = esame
-                         
-            row = [
-                tipo_appello,              # Tipo appello dal db o default "PF"
-                anno or "",                # Anno
-                cds or "",                 # CDS
-                codice or "",              # AD (codice insegnamento)
-                titolo or "",              # Des. Appello
-                data_appello,              # Data Appello
-                data_inizio_iscr,          # Data inizio iscrizione
-                data_fine_iscr,            # Data fine iscrizione
-                ora_appello,               # Ora appello
-                verbalizzazione,           # Verbalizzazione
-                def_appello,               # Def. App.
-                gest_prenotazione,         # Gest. Pren.
-                "1" if riservato else "0", # Riservato
-                tipo_iscr,                 # Tipo Iscr.
-                tipo_esame,                # Tipo Esa.
-                edificio,                  # Edificio
-                aula,                      # Aula
-                docente,                   # Matricola Docente
-                sede,                      # Sede
-                "",                        # Condizione SQL
-                "",                        # Partizionamento
-                "",                        # Partizione
-                note_appello,              # Note Appello
-                posti,                     # Posti
-                codice_turno               # Codice Turno
-            ]
+            (tipo_appello, anno_corso, cds, codice, titolo,
+             data_appello, data_inizio_iscr, data_fine_iscr,
+             ora_appello, verbalizzazione, def_appello,
+             gest_prenotazione, riservato, tipo_iscr,
+             tipo_esame, edificio, aula, matricola,
+             sede, condizione_sql, partizionamento,
+             partizione, note_appello, posti, codice_turno) = esame
             
+            row = [
+                tipo_appello or "",            # Tipo appello
+                anno_corso or "",              # Anno
+                cds or "",                     # CDS
+                codice or "",                  # AD
+                titolo or "",                  # Des. Appello
+                data_appello,                  # Data Appello
+                data_inizio_iscr,             # Data inizio iscrizione
+                data_fine_iscr,               # Data fine iscrizione
+                ora_appello,                  # Ora appello
+                verbalizzazione or "",         # Verbalizzazione
+                def_appello or "",            # Def. App.
+                gest_prenotazione or "",      # Gest. Pren.
+                "1" if riservato else "0",    # Riservato
+                tipo_iscr or "",              # Tipo Iscr.
+                tipo_esame or "",             # Tipo Esa.
+                edificio or "",               # Edificio
+                aula or "",                   # Aula
+                matricola or "",              # Matricola Docente
+                sede or "",                   # Sede
+                condizione_sql or "",         # Condizione SQL
+                partizionamento or "",        # Partizionamento
+                partizione or "",             # Partizione
+                note_appello or "",           # Note Appello
+                posti or "",                  # Posti
+                codice_turno or ""            # Codice Turno
+            ]
             writer.writerow(row)
 
         # Prepara la risposta

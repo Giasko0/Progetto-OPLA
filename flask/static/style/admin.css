@@ -166,3 +166,65 @@
     margin-bottom: 1rem;
     text-align: center;
 }
+
+.date-group {
+    border: 1px solid #ddd;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+}
+
+h5 {
+    margin: 1.5rem 0 0.5rem 0;
+    color: #495057;
+    font-size: 1.1rem;
+}
+
+.setting-item input[type="date"],
+.setting-item input[type="number"],
+.setting-item input[type="text"] {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 200px;
+}
+
+.two-columns {
+    display: flex;
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.column {
+    flex: 1;
+    min-width: 0;
+}
+
+.info-group {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #ddd;
+}
+
+.pause-group {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.pause-item {
+    margin-bottom: 0;
+}
+
+.submit-button {
+    width: 100%;
+    margin-top: 2rem;
+}
+
+@media (max-width: 968px) {
+    .two-columns {
+        flex-direction: column;
+    }
+}

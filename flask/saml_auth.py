@@ -17,8 +17,13 @@ saml_bp.config = {
 def require_auth(f):
   @wraps(f)
   def decorated(*args, **kwargs):
-    if not session.get('saml_authenticated'):
-      return redirect(url_for('saml.login'))
+    # Rimuovere l'if una volta configurato il SAML
+    if not current_app.config.get('SAML_ENABLED'):
+      if request.cookies.get('username') is None:
+        return redirect('/flask/login')
+    else:
+      if not session.get('saml_authenticated'):
+        return redirect(url_for('saml.login'))
     return f(*args, **kwargs)
   return decorated
 
@@ -59,9 +64,6 @@ def metadata():
 
 @saml_bp.route('/flask/saml/login')
 def login():
-  # Rimuovere l'if una volta configurato il SAML
-  if not current_app.config.get('SAML_ENABLED'):
-    return redirect('/flask/login')
   req = prepare_flask_request(request)
   auth = init_saml_auth(req)
   return redirect(auth.login())
