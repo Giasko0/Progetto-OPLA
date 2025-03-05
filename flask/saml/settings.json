@@ -1,0 +1,61 @@
+{
+  "strict": true,
+  "debug": true,
+  "sp": {
+      "entityId": "https://opla.dmi.unipg.it/",
+      "assertionConsumerService": {
+          "url": "https://opla.dmi.unipg.it/flask/acs",
+          "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+      },
+      "singleLogoutService": {
+          "url": "https://opla.dmi.unipg.it/flask/sls",
+          "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+      },
+      "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified",
+      "x509cert": "",
+      "privateKey": ""
+  },
+  "idp": {
+      "entityId": "https://identity.unipg.it/idp/",
+      "singleSignOnService": {
+          "url": "https://identity.unipg.it/idp/profile/SAML2/Redirect/SSO",
+          "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+      },
+      "singleLogoutService": {
+          "url": "https://identity.unipg.it/idp/profile/SAML2/Redirect/SLO",
+          "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+      },
+      "x509cert": "MIIDJeJzC6JCCAj4wDQYJKoZIhvcNAQELBQAwgacxCzAJBgNVBAYTAklUMQ8wDQYDVQQIDAZJdGFseS4xDjAMBgNVBAcMBVVuaVBHMRwwGgYDVQQKDBNVbml2ZXJzaXR5IG9mIFBlcnVnaWExHTAbBgNVBAsMFFVuaVBHIElkZW50aXR5IE9mZmljZTEWMBQGA1UEAwwNaWRwLnVuaXBnLml0MSIwIAYJKoZIhvcNAQkBFhNhZG1pbkBpZHAudW5pcGcuaXQwHhcNMTgwNzI0MTQyOTI5WhcNMjgwNzIxMTQyOTI5WjCBpzELMAkGA1UEBhMCSVQxDzANBgNVBAgMBkl0YWx5LjEOMAwGA1UEBwwFVW5pUEcxHDAaBgNVBAoME1VuaXZlcnNpdHkgb2YgUGVydWdpYTEdMBsGA1UECwwUVW5pUEcgSWRlbnRpdHkgT2ZmaWNlMRYwFAYDVQQDDA1pZHAudW5pcGcuaXQxIjAgBgkqhkiG9w0BCQEWE2FkbWluQGlkcC51bmlwZy5pdDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAvJQqzMeCJk/LSCt6o5PzQfGvL4BUbBzYYPgm4RvTQ0jY4qyM8FSl7JYo6KrVfFGRh5sZ9a9KJ8XpCzOGv1D4I0PzKRYzF7TXxv6I6yBi1G1UUpHvzQyVxb5zxkBiy/vynesH5fYYJ0WWEbHZtHQI9RKQ0nf8nzHr+l0Yv8D6f3UCAwEAAaNTMFEwHQYDVR0OBBYEFMId77NrDnevpu+kdk2q/szFVXSbMB8GA1UdIwQYMBaAFMId77NrDnevpu+kdk2q/szFVXSbMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADgYEAJQVJ8buQ8RHx5KUU4rVHJYpyJ7IYcEm3TxzGWW5zz5LwJ5U5TIwwQxJpxYK0Yh/YYkLKGvCb1J5BjCdV6qHzKJGJBxY1xQ8KH7M5CxQjN5F5ZK3Z8JWKxRxnZBZX1yqQ4X9HzO+xJ7W3M0xKOBeR6EpoJqm9z7M3WxJ7tKhXZJ4="
+  },
+  "security": {
+      "authnRequestsSigned": false,
+      "wantMessagesSigned": false,
+      "wantAssertionsSigned": false,
+      "wantNameIdEncrypted": false,
+      "requestedAuthnContext": false,
+      "signatureAlgorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      "digestAlgorithm": "http://www.w3.org/2001/04/xmlenc#sha256"
+  },
+  "contactPerson": {
+      "technical": {
+          "givenName": "Admin",
+          "emailAddress": "opla@dmi.unipg.it"
+      },
+      "support": {
+          "givenName": "Support",
+          "emailAddress": "opla@dmi.unipg.it"
+      }
+  },
+  "organization": {
+      "en-US": {
+          "name": "OPLA",
+          "displayname": "OPLA - Exam Schedule Manager",
+          "url": "https://opla.dmi.unipg.it"
+      },
+      "it-IT": {
+          "name": "OPLA",
+          "displayname": "OPLA - Gestione Appelli d'Esame",
+          "url": "https://opla.dmi.unipg.it"
+      }
+  }
+}

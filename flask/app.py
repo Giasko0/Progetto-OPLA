@@ -1,22 +1,44 @@
 # ===== Imports e configurazione =====
-from flask import Flask, render_template, request, jsonify, redirect, make_response
+from flask import Flask, render_template, request, jsonify, redirect, make_response, session
 from psycopg2 import sql
 from datetime import datetime, timedelta
+import os
 # Config DB
 from db import get_db_connection
 # Funzioni per la gestione delle date/sessioni
 from utils.sessions import get_session_for_date, get_valid_years
-# File di routing
-from routes import routes_bp
+# Auth stupida e SAML
 from auth import auth_bp
+from saml_auth import saml_bp, require_auth
 # Backend OH-ISSA
 from admin import admin_bp
 
 # app = Flask(__name__, static_url_path='/flask')
 app = Flask(__name__)
-app.register_blueprint(routes_bp)
+# Chiave super segreta per SAML, TODO: Capire perché
+app.config['SECRET_KEY'] = os.urandom(24)
 app.register_blueprint(auth_bp)
+app.register_blueprint(saml_bp)
 app.register_blueprint(admin_bp)
+
+# Metodo popo rozzo pe non usa saml
+app.config['SAML_ENABLED'] = False
+
+# ===== Routes =====
+@app.route('/flask')
+def home():
+  return render_template("index.html")
+
+@app.route('/flask/mieiEsami')
+@require_auth
+def mieiEsami():
+    if app.config['SAML_ENABLED']:
+        username = session.get('saml_nameid')
+    else:
+        username = request.cookies.get('username')
+    if not username:
+        return redirect('/flask/login')
+    return render_template("mieiEsami.html")
 
 # ===== API Gestione Esami =====
 @app.route('/flask/api/inserisciEsame', methods=['POST'])
@@ -363,7 +385,12 @@ def getAllExams():
 # API per ottenere gli esami di un docente. Usato in mieiEsami.html
 @app.route('/flask/api/mieiEsami', methods=['GET'])
 def miei_esami():
-  docente = request.args.get('docente') or request.cookies.get('username')
+  # Check SAML-non-SAML
+  if app.config['SAML_ENABLED']:
+    docente = session.get('saml_nameid')
+  else:
+    docente = request.cookies.get('username')
+
   if not docente:
     return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
 
