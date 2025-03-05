@@ -67,8 +67,7 @@ body {
   margin-left: auto;
 }
 
-.navlinks a {
-  min-width: 2em;
+.navlinks a, #darkModeButton {
   font-size: clamp(1rem, 2vw, 1.5rem);
   color: var(--color-primary);
   text-decoration: none;
@@ -78,6 +77,11 @@ body {
 .navlinks a:hover {
   /*background-color: #aaa;*/
   color: var(--color-primary-light);
+}
+
+#darkModeButton {
+  font-size: 2rem;
+  cursor: pointer;
 }
 
 /*---------CALENDARIO---------*/
@@ -104,56 +108,33 @@ body {
   cursor: not-allowed !important;
 }
 
-/*---------PULSANTI-SOPRA-CALENDARIO---------*/
-.settings {
-  display: flex;
-  justify-content: space-between;
-  width: 100%; /* Assicura che i div si posizionino ai lati opposti */
+.calendar-dropdown {
+  position: absolute;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 1000;
+  display: none;
+  padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
-/*---------SELEZIONE-INSEGNAMENTO---------*/
-.selezione-insegnamento {
-  position: relative;
-  display: flex;
-}
-
-/*---------DROPDOWN-ANNO---------*/
-.selezione-anno {
-  position: relative;
-  display: inline-block;
-}
-
-.selezione-anno:hover .selezione-anno-menu {
+.calendar-dropdown.show {
   display: block;
 }
 
-#selezioneAnnoButton {
-  padding: 10px;
-  background-color: var(--color-primary-light);
-  color: white;
-  border: none;
-  border-radius: var(--radius);
+.dropdown-item {
+  padding: 8px 12px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.selezione-anno-menu {
-  width: 100%;
-  box-sizing: border-box;
-  display: none;
-  position: absolute;
-  background: #fff;
-  border: 1px solid #ccc;
-  padding: 10px;
-  z-index: 1000;
+.dropdown-item:hover {
+  background-color: #f5f5f5;
 }
 
-.selezione-anno-item {
-  display: flex;
-  align-items: center;
-  padding: 5px;
-  cursor: pointer;
-}
-
-.selezione-anno-item input {
-  margin-right: 5px;
+.dropdown-item input[type="checkbox"] {
+  margin-right: 8px;
 }

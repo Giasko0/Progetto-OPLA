@@ -1,133 +1,22 @@
 # ===== Imports e configurazione =====
 from flask import Flask, render_template, request, jsonify, redirect, make_response
 from psycopg2 import sql
-from admin import admin_bp
-from db import get_db_connection
 from datetime import datetime, timedelta
+# Config DB
+from db import get_db_connection
+# Funzioni per la gestione delle date/sessioni
+from utils.sessions import get_session_for_date, get_valid_years
+# File di routing
+from routes import routes_bp
+from auth import auth_bp
+# Backend OH-ISSA
+from admin import admin_bp
 
 # app = Flask(__name__, static_url_path='/flask')
 app = Flask(__name__)
+app.register_blueprint(routes_bp)
+app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
-
-def get_session_for_date(date, cds_code, anno_acc):
-  """Determina la sessione di un esame in base alla data e al CDS"""
-  try:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Prima verifica se la data ricade nella sessione anticipata
-    cursor.execute("""
-      SELECT 'Anticipata', 3 
-      FROM cds 
-      WHERE codice = %s AND anno_accademico = %s 
-      AND %s BETWEEN inizio_sessione_anticipata AND fine_sessione_anticipata
-    """, (cds_code, anno_acc, date))
-    result = cursor.fetchone()
-    if result:
-      return result
-      
-    # Verifica sessione estiva
-    cursor.execute("""
-      SELECT 'Estiva', 3 
-      FROM cds 
-      WHERE codice = %s AND anno_accademico = %s 
-      AND %s BETWEEN inizio_sessione_estiva AND fine_sessione_estiva
-    """, (cds_code, anno_acc, date))
-    result = cursor.fetchone()
-    if result:
-      return result
-      
-    # Verifica sessione autunnale
-    cursor.execute("""
-      SELECT 'Autunnale', 2 
-      FROM cds 
-      WHERE codice = %s AND anno_accademico = %s 
-      AND %s BETWEEN inizio_sessione_autunnale AND fine_sessione_autunnale
-    """, (cds_code, anno_acc, date))
-    result = cursor.fetchone()
-    if result:
-      return result
-      
-    # Verifica sessione invernale
-    cursor.execute("""
-      SELECT 'Invernale', 3 
-      FROM cds 
-      WHERE codice = %s AND anno_accademico = %s 
-      AND %s BETWEEN inizio_sessione_invernale AND fine_sessione_invernale
-    """, (cds_code, anno_acc, date))
-    result = cursor.fetchone()
-    if result:
-      return result
-      
-  finally:
-    cursor.close()
-    conn.close()
-  return None
-
-def get_valid_years():
-  """Determina gli anni validi per l'inserimento degli esami"""
-  current_date = datetime.now()
-  current_year = current_date.year
-  current_month = current_date.month
-
-  if current_month >= 9:  # Da settembre a dicembre
-    return (current_year, current_year + 1)
-  else:  # Da gennaio ad agosto
-    return (current_year - 1, current_year)
-
-# ===== Route principali =====
-@app.route('/flask')
-def home():
-  """Pagina principale dell'applicazione"""
-  return render_template("index.html")
-
-@app.route('/flask/mieiEsami')
-def mieiEsami():
-  """Pagina personale del docente con i suoi esami"""
-  username = request.cookies.get('username')
-  if not username:
-    return redirect('/flask/login')
-  
-  return render_template("mieiEsami.html")
-
-@app.route('/flask/elencoEsami')
-def elencoEsami():
-  """Pagina che mostra l'elenco degli esami"""
-  return render_template("elencoEsami.html")
-
-# ===== Autenticazione =====
-@app.route('/flask/login')
-def login():
-  """Pagina di login"""
-  return render_template("login.html")
-
-@app.route('/flask/logout')
-def logout():
-  """Gestisce il logout cancellando il cookie"""
-  response = redirect('/flask')
-  response.delete_cookie('username')
-  return response
-
-@app.route('/flask/api/login', methods=['POST'])
-def api_login():
-  """API per gestire il login"""
-  data = request.form
-  username = data.get('username')
-  password = data.get('password')
-
-  conn = get_db_connection()
-  cursor = conn.cursor()
-  try:
-    cursor.execute("SELECT 1 FROM docenti WHERE username = %s AND nome = %s", (username, password))
-    if cursor.fetchone():
-      response = redirect('/flask')
-      response.set_cookie('username', username)
-      return response
-    else:
-      return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
-  finally:
-    cursor.close()
-    conn.close()
 
 # ===== API Gestione Esami =====
 @app.route('/flask/api/inserisciEsame', methods=['POST'])
@@ -149,24 +38,21 @@ def inserisciEsame():
     note_appello = data.get('note')
     posti = data.get('posti')
     anno_accademico = data.get('anno_accademico')  # Nuovo campo
-    periodo = data.get('periodo')
-    if not periodo:
-      return jsonify({'status': 'error', 'message': 'Periodo mancante'}), 400
-    
+    periodo = 1 if ora_appello > 13 else 0
+    # Se l'aula è 'Studio docente DMI' lo scrivo nelle note, perché non è un'aula
+    #if aula == 'Studio docente DMI':
+    #  note_appello = "L'esame si svolgerà nello studio del docente. " + (note_appello or '')
+
+    # Campi obbligatori
+    if not all([docente, insegnamento, aula, data_appello, ora_appello]):
+      return jsonify({'status': 'error', 'message': 'Dati incompleti'}), 400
+
     # Valori standard per i campi mancanti
     tipo_appello = 'PF'
     definizione_appello = 'STD'
     gestione_prenotazione = 'STD'
     riservato = False  # 0 in SQL
     tipo_iscrizione = 'STD'
-    
-    # Campi obbligatori
-    if not all([docente, insegnamento, aula, data_appello]):
-      return jsonify({'status': 'error', 'message': 'Dati incompleti'}), 400
-
-    # Gestione ora_appello - Se è vuota impostiamo NULL
-    if not ora_appello or ora_appello.strip() == '':
-      ora_appello = None
     
     # Gestione tipo_esame - Se è vuoto impostiamo NULL
     if not tipo_esame or tipo_esame.strip() == '':
@@ -190,12 +76,6 @@ def inserisciEsame():
         'status': 'error',
         'message': f'È possibile inserire esami solo per gli anni {anno_valido_inizio}-{anno_valido_fine}'
       }), 400
-
-    # Imposta valori predefiniti per i campi obbligatori
-    if not inizio_iscrizione:
-      inizio_iscrizione = data_esame - timedelta(days=30)
-    if not fine_iscrizione:
-      fine_iscrizione = data_esame - timedelta(days=1)
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -225,8 +105,14 @@ def inserisciEsame():
         'message': 'La data selezionata non rientra in nessuna sessione d\'esame valida'
       }), 400
 
-    sessione, limite_max = sessione_info
-    
+    sessione, limite_max, data_inizio_sessione = sessione_info
+
+    # Imposta valori predefiniti per i campi obbligatori
+    if not inizio_iscrizione:
+      inizio_iscrizione = data_inizio_sessione - timedelta(days=20)
+    if not fine_iscrizione:
+      fine_iscrizione = data_esame - timedelta(days=1)
+
     # Conta esami nella stessa sessione
     cursor.execute("""
       SELECT COUNT(*) 
@@ -301,7 +187,7 @@ def inserisciEsame():
       cursor.close()
       conn.close()
 
-# API per ottenere gli insegnamenti di un docente. Usato per l'elenco insegnamenti del form
+# API per ottenere gli insegnamenti di un docente. Usato in formEsame.html
 @app.route('/flask/api/ottieniInsegnamenti', methods=['GET'])
 def ottieniInsegnamenti():
   username = request.args.get('username')
@@ -331,59 +217,147 @@ def ottieniInsegnamenti():
     cursor.close()
     conn.close()
 
-# API per ottenere gli esami filtrati per anno di corso
-@app.route('/flask/api/filtraEsami', methods=['GET'])
-def filtraEsami():
-  anniCorso = request.args.getlist('annoCorso')
-  current_date = datetime.now()
-  anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
-
+# API per ottenere le aule disponibili. Usato in formEsame.html
+@app.route('/flask/api/ottieniAule', methods=['GET'])
+def ottieniAule():
   try:
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    query = """
-      SELECT d.username, d.nome, d.cognome, i.titolo, e.aula, e.data_appello, e.ora_appello,
-             e.tipo_esame, ic.anno_corso, e.periodo
-      FROM esami e
-      JOIN insegnamenti i ON e.insegnamento = i.codice
-      JOIN docenti d ON e.docente = d.username
-      JOIN insegna ins ON e.insegnamento = ins.insegnamento 
-        AND e.docente = ins.docente
-        AND ins.annoaccademico = %s
-      JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
-        AND ic.anno_accademico = ins.annoaccademico
-      WHERE ic.anno_accademico = %s
-    """
-    
-    params = [anno_accademico, anno_accademico]
-    if anniCorso:
-      query += " AND ic.anno_corso = ANY(%s)"
-      params.append(anniCorso)
-    
-    query += " ORDER BY e.data_appello, e.ora_appello"
-    
-    cursor.execute(query, tuple(params))
-    
-    exams = [{
-      'id': idx,
-      'title': f"{row[3]} - {row[1]}",  # Titolo insegnamento - Nome docente
-      'aula': row[4],
-      'start': f"{row[5].isoformat()}T{row[6]}" if row[6] else row[5].isoformat(),
-      'description': f"Tipo: {row[7] or 'Non specificato'}\nAula: {row[4]}\nAnno: {row[8]}\nPeriodo: {'Mattina' if row[9] == '0' else 'Pomeriggio'}",
-      'allDay': False,
-      'docente': row[0],
-      'periodo': row[9]
-    } for idx, row in enumerate(cursor.fetchall())]
-    
-    return jsonify(exams)
+    cursor.execute("SELECT nome FROM aule")
+    aule = [row[0] for row in cursor.fetchall()]
+    return jsonify(aule)
   except Exception as e:
     return jsonify({'status': 'error', 'message': str(e)}), 500
   finally:
     cursor.close()
     conn.close()
 
-# API per ottenere gli esami di un docente
+# API per ottenere tutti gli esami. Usato per gli eventi del calendario
+@app.route('/flask/api/getEsami', methods=['GET'])
+def getEsami():
+    anno = request.args.get('anno')
+    insegnamenti = request.args.get('insegnamenti', '').split(',')
+    docente = request.args.get('docente')
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            WITH date_sessioni AS (
+                SELECT c.anno_accademico,
+                       c.inizio_sessione_anticipata, c.fine_sessione_anticipata,
+                       c.inizio_sessione_estiva, c.fine_sessione_estiva,
+                       c.inizio_sessione_autunnale, c.fine_sessione_autunnale,
+                       c.inizio_sessione_invernale, c.fine_sessione_invernale
+                FROM cds c 
+                WHERE c.codice = 'L062'
+            )
+            SELECT DISTINCT d.username, d.nome, d.cognome, i.titolo, e.aula, 
+                   e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
+                   e.periodo, ic.semestre, 
+                   CASE 
+                       WHEN e.data_appello BETWEEN ds.inizio_sessione_anticipata AND ds.fine_sessione_anticipata THEN ds.anno_accademico
+                       ELSE ds.anno_accademico - 1
+                   END as anno_effettivo
+            FROM esami e
+            JOIN date_sessioni ds ON (
+                e.data_appello BETWEEN ds.inizio_sessione_anticipata AND ds.fine_sessione_anticipata OR
+                e.data_appello BETWEEN ds.inizio_sessione_estiva AND ds.fine_sessione_estiva OR
+                e.data_appello BETWEEN ds.inizio_sessione_autunnale AND ds.fine_sessione_autunnale OR
+                e.data_appello BETWEEN ds.inizio_sessione_invernale AND ds.fine_sessione_invernale
+            )
+            JOIN insegnamenti i ON e.insegnamento = i.codice
+            JOIN docenti d ON e.docente = d.username
+            JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
+            JOIN insegna ins ON e.insegnamento = ins.insegnamento 
+                AND e.docente = ins.docente
+            WHERE 1=1
+        """
+        
+        params = []
+        
+        if anno:
+            query += " AND ins.annoaccademico = %s"
+            params.append(int(anno))
+
+        # Mostra solo gli esami del docente loggato se non sono stati selezionati insegnamenti
+        if not insegnamenti[0]:
+            query += " AND e.docente = %s"
+            params.append(docente)
+        else:
+            # Se sono selezionati insegnamenti specifici, mostra tutti gli esami di quegli insegnamenti
+            placeholders = ','.join(['%s'] * len(insegnamenti))
+            query += f" AND e.insegnamento IN ({placeholders})"
+            params.extend(insegnamenti)
+            
+        query += " ORDER BY e.data_appello, e.ora_appello"
+        
+        cursor.execute(query, tuple(params))
+        
+        exams = [{
+            'id': idx,
+            'title': f"{row[3]} - {row[2]}",  # Titolo insegnamento - Nome docente
+            'aula': row[4],
+            'start': f"{row[5].isoformat()}T{row[6]}" if row[6] else row[5].isoformat(),
+            'description': f"Tipo: {row[7] or 'Non specificato'}\nAula: {row[4]}\nAnno: {row[8]}\nPeriodo: {'Mattina' if row[9] == 0 else 'Pomeriggio'}",
+            'allDay': False,
+            'docente': row[0],
+            'periodo': row[9],
+            'annoCorso': row[8],
+            'semestre': row[10],
+            'annoAccademico': row[11]
+        } for idx, row in enumerate(cursor.fetchall())]
+        
+        return jsonify(exams)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# Funzione di debug per stampare tutti gli esami
+@app.route('/flask/api/getAllExams', methods=['GET'])
+def getAllExams():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT DISTINCT d.username, d.nome, d.cognome, i.titolo, e.aula, 
+                   e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
+                   e.periodo, ic.semestre, ic.anno_accademico
+            FROM esami e
+            JOIN insegnamenti i ON e.insegnamento = i.codice
+            JOIN docenti d ON e.docente = d.username
+            JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
+            ORDER BY e.data_appello, e.ora_appello
+        """
+        
+        cursor.execute(query)
+        
+        exams = [{
+            'id': idx,
+            'title': f"{row[3]} - {row[2]} ({row[11]}/{row[11]+1})",  # Aggiungo anno accademico nel titolo
+            'aula': row[4],
+            'start': f"{row[5].isoformat()}T{row[6]}" if row[6] else row[5].isoformat(),
+            'description': f"Tipo: {row[7] or 'Non specificato'}\nAula: {row[4]}\nAnno: {row[8]}\nPeriodo: {'Mattina' if row[9] == 0 else 'Pomeriggio'}",
+            'allDay': False,
+            'docente': row[0],
+            'periodo': row[9],
+            'annoCorso': row[8],
+            'semestre': row[10],
+            'annoAccademico': row[11]
+        } for idx, row in enumerate(cursor.fetchall())]
+        
+        return jsonify(exams)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# API per ottenere gli esami di un docente. Usato in mieiEsami.html
 @app.route('/flask/api/mieiEsami', methods=['GET'])
 def miei_esami():
   docente = request.args.get('docente') or request.cookies.get('username')
@@ -465,20 +439,7 @@ def miei_esami():
     cursor.close()
     conn.close()
 
-@app.route('/flask/api/ottieniAule', methods=['GET'])
-def ottieniAule():
-  try:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT nome FROM aule")
-    aule = [row[0] for row in cursor.fetchall()]
-    return jsonify(aule)
-  except Exception as e:
-    return jsonify({'status': 'error', 'message': str(e)}), 500
-  finally:
-    cursor.close()
-    conn.close()
-
+# API per ottenere le date delle sessioni d'esame
 @app.route('/flask/api/ottieniSessioni', methods=['GET'])
 def ottieniSessioni():
     try:
@@ -518,7 +479,50 @@ def ottieniSessioni():
         cursor.close()
         conn.close()
 
+@app.route('/flask/api/getAnniAccademici', methods=['GET'])
+def getAnniAccademici():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT anno_accademico FROM cds ORDER BY anno_accademico DESC")
+        anni = [row[0] for row in cursor.fetchall()]
+        return jsonify(anni)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/flask/api/getInsegnamentiDocente', methods=['GET'])
+def getInsegnamentiDocente():
+    anno = request.args.get('anno')
+    docente = request.args.get('docente')
+    if not anno or not docente:
+        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT i.codice, i.titolo, ic.semestre
+            FROM insegnamenti i
+            JOIN insegna ins ON i.codice = ins.insegnamento
+            JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
+            WHERE ins.docente = %s 
+            AND ins.annoaccademico = %s
+            AND ic.anno_accademico = %s
+        """, (docente, anno, anno))
+        
+        insegnamenti = [{'codice': row[0], 'titolo': row[1], 'semestre': row[2]} 
+                       for row in cursor.fetchall()]
+        return jsonify(insegnamenti)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 # ===== Main =====
 if __name__ == '__main__':
-  app.config['DEBUG'] = True
-  app.run(host='0.0.0.0')
+    app.config['DEBUG'] = True 
+    app.run(host='0.0.0.0')

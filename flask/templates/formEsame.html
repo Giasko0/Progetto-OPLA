@@ -135,13 +135,6 @@
           </select>  
         </div>
 
-        <label class="formEsame-label" for="periodo">Periodo*</label>
-        <select id="periodo" name="periodo" required>
-          <option value="" disabled selected hidden>Scegli il periodo</option>
-          <option value="0">Mattina (8:00-13:00)</option>
-          <option value="1">Pomeriggio (14:00-19:00)</option>
-        </select>
-
         <span id="buttonOpzioniAvanzate">Opzioni avanzate &#x25BA;</span>
 
         <!-- Opzioni avanzate -->
@@ -175,6 +168,8 @@
             <label class="formEsame-label" for="note">Note</label>
             <textarea id="note" name="note" rows="2"></textarea>
           </div>
+
+          <span> Se non si inseriscono date inizio/fine iscrizione, il sistema le imposterà automaticamente a 20 giorni dall'inizio sessione fino al giorno prima dell'esame</span>
 
           <!--<div>
             <label class="formEsame-label" for="tipoAppello">Tipo appello</label>

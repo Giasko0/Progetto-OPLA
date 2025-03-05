@@ -1,5 +1,5 @@
 INSERT INTO aule (nome, sede, edificio, posti) VALUES
-  ('Studio docente DMI', '', '', NULL),
+  ('Studio docente DMI', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', NULL),
   ('A0', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 120),
   ('A2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 80),
   ('A3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 30),
@@ -72,58 +72,59 @@ INSERT INTO insegnamenti (codice, titolo) VALUES
 
 -- Inserimento configurazione insegnamenti per anno 2024
 INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da) VALUES
-('A000392', 2024, 'L062', 3, 2, NULL),  -- RC
-('A000390', 2024, 'L062', 2, 1, NULL),  -- ASD
-('A000406', 2024, 'L062', 3, 1, NULL),  -- SD
-('A000394', 2024, 'L062', 3, 1, NULL),  -- BD
-('A000403', 2024, 'L062', 2, 1, NULL),  -- IS
-('A000401', 2024, 'L062', 3, 2, NULL),  -- IA
-('A000407', 2024, 'L062', 3, 2, NULL),  -- ML
-('A000408', 2024, 'L062', 2, 1, NULL),  -- CV
-('A000385', 2024, 'L062', 1, 1, NULL),  -- PI
-('A000391', 2024, 'L062', 2, 1, NULL),  -- SO
-('A000389', 2024, 'L062', 1, 2, NULL);  -- PII
+('A000392', 2024, 'L062', 3, 2, NULL),  -- Reti di Calcolatori
+('A000390', 2024, 'L062', 2, 1, NULL),  -- Algoritmi e Strutture Dati
+('A000406', 2024, 'L062', 3, 1, NULL),  -- Sistemi Distribuiti
+('A000394', 2024, 'L062', 3, 1, NULL),  -- Basi di Dati
+('A000403', 2024, 'L062', 2, 1, NULL),  -- Ingegneria del Software
+('A000401', 2024, 'L062', 3, 2, NULL),  -- Intelligenza Artificiale
+('A000407', 2024, 'L062', 3, 2, NULL),  -- Machine Learning
+('A000408', 2024, 'L062', 2, 1, NULL),  -- Computer Vision
+('A000385', 2024, 'L062', 1, 1, NULL),  -- Programmazione I
+('A000391', 2024, 'L062', 2, 1, NULL),  -- Sistemi Operativi
+('A000389', 2024, 'L062', 1, 2, NULL);  -- Programmazione II
 
 -- Esempio di cambio semestre/anno per alcuni insegnamenti nel 2025
 INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da) VALUES
-('A000392', 2025, 'L062', 3, 1, NULL),  -- RC spostato al primo semestre
-('A000390', 2025, 'L062', 1, 2, NULL),  -- ASD spostato al primo anno, secondo semestre
-('A000406', 2025, 'L062', 3, 1, NULL),  -- SD invariato
-('A000394', 2025, 'L062', 3, 1, NULL),  -- BD invariato
-('A000403', 2025, 'L062', 2, 1, NULL),  -- IS invariato
-('A000401', 2025, 'L062', 3, 2, NULL),  -- IA invariato
-('A000407', 2025, 'L062', 3, 2, NULL),  -- ML invariato
-('A000408', 2025, 'L062', 2, 1, NULL),  -- CV invariato
-('A000385', 2025, 'L062', 1, 1, NULL),  -- PI invariato
-('A000391', 2025, 'L062', 2, 1, NULL),  -- SO invariato
-('A000389', 2025, 'L062', 1, 2, NULL);  -- PII invariato
+('A000392', 2025, 'L062', 3, 1, NULL),  -- Reti di Calcolatori spostato al primo semestre
+('A000390', 2025, 'L062', 1, 2, NULL),  -- Algoritmi e Strutture Dati spostato al primo anno, secondo semestre
+('A000406', 2025, 'L062', 3, 1, NULL),  -- Sistemi Distribuiti invariato
+('A000394', 2025, 'L062', 3, 1, NULL),  -- Basi di Dati invariato
+('A000403', 2025, 'L062', 2, 1, NULL),  -- Ingegneria del Software invariato
+('A000401', 2025, 'L062', 3, 2, NULL),  -- Intelligenza Artificiale invariato
+('A000407', 2025, 'L062', 3, 2, NULL),  -- Machine Learning invariato
+('A000408', 2025, 'L062', 2, 1, NULL),  -- Computer Vision invariato
+('A000385', 2025, 'L062', 1, 1, NULL),  -- Programmazione I invariato
+('A000391', 2025, 'L062', 2, 1, NULL),  -- Sistemi Operativi invariato
+('A000389', 2025, 'L062', 1, 2, NULL);  -- Programmazione II invariato
 
--- Inserimento relazioni insegnamento-docente per entrambi gli anni
+-- Inserimento relazioni insegnamento-docente iniziali e con cambi docente per il 2025
 INSERT INTO insegna (insegnamento, docente, annoaccademico) VALUES
--- Anno 2024
-('A000392', 'gn900001', 2024),
-('A000390', 'av790001', 2024),
-('A000406', 'av790001', 2024),
-('A000394', 'lb750001', 2024),
-('A000403', 'lb750001', 2024),
-('A000401', 'pg950001', 2024),
-('A000407', 'pg950001', 2024),
-('A000408', 'pg950001', 2024),
-('A000385', 'mr800001', 2024),
-('A000391', 'mr800001', 2024),
-('A000389', 'mr800001', 2024),
--- Anno 2025
-('A000392', 'gn900001', 2025),
-('A000390', 'av790001', 2025),
-('A000406', 'av790001', 2025),
-('A000394', 'lb750001', 2025),
-('A000403', 'lb750001', 2025),
-('A000401', 'pg950001', 2025),
-('A000407', 'pg950001', 2025),
-('A000408', 'pg950001', 2025),
-('A000385', 'mr800001', 2025),
-('A000391', 'mr800001', 2025),
-('A000389', 'mr800001', 2025);
+-- Anno 2024 (assegnazioni iniziali)
+('A000392', 'gn900001', 2024),  -- Reti di Calcolatori: gn900001
+('A000390', 'av790001', 2024),  -- Algoritmi e Strutture Dati: av790001
+('A000406', 'av790001', 2024),  -- Sistemi Distribuiti: av790001
+('A000394', 'lb750001', 2024),  -- Basi di Dati: lb750001
+('A000403', 'lb750001', 2024),  -- Ingegneria del Software: lb750001
+('A000401', 'pg950001', 2024),  -- Intelligenza Artificiale: pg950001
+('A000407', 'pg950001', 2024),  -- Machine Learning: pg950001
+('A000408', 'pg950001', 2024),  -- Computer Vision: pg950001
+('A000385', 'mr800001', 2024),  -- Programmazione I: mr800001
+('A000391', 'mr800001', 2024),  -- Sistemi Operativi: mr800001
+('A000389', 'mr800001', 2024),  -- Programmazione II: mr800001
+
+-- Anno 2025 (con cambi di docente)
+('A000392', 'av790001', 2025),  -- Reti di Calcolatori: cambiato da gn900001 a av790001
+('A000390', 'gn900001', 2025),  -- Algoritmi e Strutture Dati: cambiato da av790001 a gn900001
+('A000406', 'av790001', 2025),  -- Sistemi Distribuiti: invariato con av790001
+('A000394', 'lb750001', 2025),  -- Basi di Dati: invariato con lb750001
+('A000403', 'mr800001', 2025),  -- Ingegneria del Software: cambiato da lb750001 a mr800001
+('A000401', 'pg950001', 2025),  -- Intelligenza Artificiale: invariato con pg950001
+('A000407', 'lb750001', 2025),  -- Machine Learning: cambiato da pg950001 a lb750001
+('A000408', 'pg950001', 2025),  -- Computer Vision: invariato con pg950001
+('A000385', 'mr800001', 2025),  -- Programmazione I: invariato con mr800001
+('A000391', 'gn900001', 2025),  -- Sistemi Operativi: cambiato da mr800001 a gn900001
+('A000389', 'mr800001', 2025);  -- Programmazione II: invariato con mr800001
 
 -- Inserimento esami di esempio
 INSERT INTO esami (
@@ -132,91 +133,56 @@ INSERT INTO esami (
     ora_appello, verbalizzazione, tipo_esame, posti,
     definizione_appello, gestione_prenotazione, tipo_iscrizione,
     partizionamento, partizione, codice_turno, riservato,
-    note_appello, condizione_sql
+    note_appello, condizione_sql, durata_appello, periodo
 ) VALUES
--- Esami primo semestre
-    ('Primo appello', 'av790001', 'A000390', 'A2',         -- ASD
+-- Esami AA 2025/2026 (solo sessione anticipata, primo semestre)
+    ('PF', 'av790001', 'A000390', 'A2',         -- ASD
     '2026-01-15', '2025-12-15', '2026-01-13', 
     '09:00', 'FIRMA DIGITALE', 'Scritto e Orale', 80,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
-    NULL, NULL),
-    
-    ('Primo appello', 'lb750001', 'A000394', 'A0',         -- BD
-    '2026-01-20', '2025-12-20', '2026-01-18', 
-    '14:30', 'FIRMA DIGITALE', 'Scritto', 120,
-    'STD', 'STD', 'STD',
-    NULL, NULL, NULL, false,
-    NULL, NULL),
-    
-    ('Secondo appello', 'mr800001', 'A000385', 'I1',       -- PI
-    '2026-02-10', '2026-01-10', '2026-02-08', 
-    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
-    'STD', 'STD', 'STD',
-    NULL, NULL, NULL, false,
-    NULL, NULL),
+    'Portare documento identità', NULL, 2.5, 0),
 
--- Esami secondo semestre
-    ('Primo appello', 'pg950001', 'A000401', 'A2',         -- IA
-    '2026-06-10', '2026-05-10', '2026-06-08', 
-    '09:00', 'FIRMA DIGITALE', 'Orale', 80,
-    'STD', 'STD', 'STD',
-    NULL, NULL, NULL, false,
-    NULL, NULL),
-    
-    ('Primo appello', 'gn900001', 'A000392', 'I1',         -- RC
-    '2026-06-15', '2026-05-15', '2026-06-13', 
-    '14:30', 'FIRMA DIGITALE', 'Scritto e Orale', 120,
-    'STD', 'STD', 'STD',
-    NULL, NULL, NULL, false,
-    NULL, NULL),
-    
-    ('Secondo appello', 'mr800001', 'A000389', 'A0',       -- PO
-    '2026-07-10', '2026-06-10', '2026-07-08', 
-    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
-    'STD', 'STD', 'STD',
-    NULL, NULL, NULL, false,
-    NULL, NULL),
-    
-    ('Primo appello', 'av790001', 'A000390', 'A2',         -- ASD
-    '2025-01-15', '2024-12-15', '2025-01-13', 
-    '09:00', 'FIRMA DIGITALE', 'Scritto e Orale', 80,
-    'STD', 'STD', 'STD',
-    NULL, NULL, NULL, false,
-    NULL, NULL),
-    
-    ('Primo appello', 'lb750001', 'A000394', 'A0',         -- BD
-    '2025-01-20', '2024-12-20', '2025-01-18', 
-    '14:30', 'FIRMA DIGITALE', 'Scritto', 120,
-    'STD', 'STD', 'STD',
-    NULL, NULL, NULL, false,
-    NULL, NULL),
-    
-    ('Secondo appello', 'mr800001', 'A000385', 'I1',       -- PI
-    '2025-02-10', '2025-01-10', '2025-02-08', 
-    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
-    'STD', 'STD', 'STD',
-    NULL, NULL, NULL, false,
-    NULL, NULL),
-
--- Esami secondo semestre
-    ('Primo appello', 'pg950001', 'A000401', 'A2',         -- IA
-    '2025-06-10', '2025-05-10', '2025-06-08', 
-    '09:00', 'FIRMA DIGITALE', 'Orale', 80,
-    'STD', 'STD', 'STD',
-    NULL, NULL, NULL, false,
-    NULL, NULL),
-    
-    ('Primo appello', 'gn900001', 'A000392', 'I1',         -- RC
+-- Esami AA 2024/2025 (tutte le sessioni)
+    ('PF', 'lb750001', 'A000394', 'A0',         -- BD
     '2025-06-15', '2025-05-15', '2025-06-13', 
-    '14:30', 'FIRMA DIGITALE', 'Scritto e Orale', 120,
+    '14:30', 'FIRMA DIGITALE', 'Scritto', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
-    NULL, NULL),
-    
-    ('Secondo appello', 'mr800001', 'A000389', 'A0',       -- PO
+    NULL, NULL, 3.0, 1),
+
+    ('PF', 'mr800001', 'A000385', 'I1',       -- PI
     '2025-07-10', '2025-06-10', '2025-07-08', 
     '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
-    NULL, NULL);
+    NULL, NULL, 2.5, 0),
+
+    ('PF', 'pg950001', 'A000401', 'A2',         -- IA
+    '2025-06-10', '2025-05-10', '2025-06-08', 
+    '09:00', 'FIRMA DIGITALE', 'Orale', 80,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL, 2.0, 0),
+
+    ('PF', 'gn900001', 'A000392', 'I1',         -- RC
+    '2025-09-15', '2025-08-15', '2025-09-13', 
+    '14:30', 'FIRMA DIGITALE', 'Scritto e Orale', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL, 3.0, 1),
+
+    ('PF', 'mr800001', 'A000389', 'A0',       -- PII
+    '2025-02-10', '2025-01-10', '2025-02-08', 
+    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL, 2.5, 0),
+
+-- AA 2024/2025 (sessione invernale)
+    ('PF', 'lb750001', 'A000394', 'A0',         -- BD
+    '2025-01-20', '2024-12-20', '2025-01-18', 
+    '14:30', 'FIRMA DIGITALE', 'Scritto', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL, 3.0, 1);

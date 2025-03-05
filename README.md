@@ -27,10 +27,7 @@ Benvenuti in **OPLÀ**! Questo progetto offre un modo semplice e diretto per per
 
 - **Inserimento Esami:**  
   Usa il calendario in index.html. Cliccando su un giorno, apparirà il form per inserire un esame (template in flask/templates/formEsame.html).
-
-- **Visualizzazione Esami:**  
-  La pagina elencoEsami.html mostra l’elenco degli esami, con funzioni di ordinamento e filtraggio supportate dagli script elencoEsami.js e filtraEsami.js.
-
+  
 ## API Principali
 
 - **Login:** `POST /flask/api/login`  
@@ -45,8 +42,8 @@ Benvenuti in **OPLÀ**! Questo progetto offre un modo semplice e diretto per per
 - **Ottieni Insegnamenti:** `GET /flask/api/ottieniInsegnamenti`  
   Recupera gli insegnamenti associati al docente.
 
-- **Filtra Esami:** `GET /flask/api/filtraEsami`  
-  Permette il filtraggio degli esami in base all’anno accademico.
+- **Filtra Esami:** `GET /flask/api/getEsami`  
+  Ritorna tutti gli esami.
 
 ## Note
 
