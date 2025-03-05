@@ -31,6 +31,7 @@ def inserisciEsame():
     aula = data.get('aula')
     data_appello = data.get('dataora')
     ora_appello = data.get('ora')
+    durata_appello = data.get('durata')
     inizio_iscrizione = data.get('inizioIscrizione')
     fine_iscrizione = data.get('fineIscrizione')
     tipo_esame = data.get('tipoEsame')
@@ -38,7 +39,9 @@ def inserisciEsame():
     note_appello = data.get('note')
     posti = data.get('posti')
     anno_accademico = data.get('anno_accademico')  # Nuovo campo
-    periodo = 1 if ora_appello > 13 else 0
+    # Converti ora_appello in intero per il confronto
+    ora_int = int(ora_appello.split(':')[0])
+    periodo = 1 if ora_int > 13 else 0
     # Se l'aula è 'Studio docente DMI' lo scrivo nelle note, perché non è un'aula
     #if aula == 'Studio docente DMI':
     #  note_appello = "L'esame si svolgerà nello studio del docente. " + (note_appello or '')
@@ -169,13 +172,13 @@ def inserisciEsame():
           data_inizio_iscrizione, data_fine_iscrizione, 
           tipo_esame, verbalizzazione, note_appello, posti,
           tipo_appello, definizione_appello, gestione_prenotazione, 
-          riservato, tipo_iscrizione, periodo)
-         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+          riservato, tipo_iscrizione, periodo, durata_appello)
+         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
       (docente, insegnamento, aula, data_appello, ora_appello, 
        inizio_iscrizione, fine_iscrizione, 
        tipo_esame, verbalizzazione, note_appello, posti,
        tipo_appello, definizione_appello, gestione_prenotazione,
-       riservato, tipo_iscrizione, periodo)
+       riservato, tipo_iscrizione, periodo, durata_appello)
     )
     conn.commit()
     return jsonify({'status': 'success'}), 200

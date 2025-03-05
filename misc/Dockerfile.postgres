@@ -1,0 +1,7 @@
+FROM postgres:17-alpine
+
+ENV POSTGRES_USER=psqluser
+ENV POSTGRES_PASSWORD=passpostgres
+ENV POSTGRES_DB=dati
+
+EXPOSE 5432

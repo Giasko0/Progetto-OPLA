@@ -1,42 +1,41 @@
 services:
-  nginx:
-    build: ./nginx
+  opla-html:
+    build: 
+      context: ./misc
+      dockerfile: Dockerfile.nginx
+    # Deve esserci per forza la porta 80:80, altrimenti non funziona
     ports:
       - "80:80"
     depends_on:
-      - flask_app
+      - opla-flask
 
-  flask_app:
-    build: ./flask
+  opla-flask:
+    build: 
+      context: ./misc
+      dockerfile: Dockerfile.flask
     volumes:
-      - ./flask:/app  # Monta la cartella locale ./flask nel container
+      - ./flask:/app
     depends_on:
-      - postgres
-    env_file:
-      - .env
+      - opla-db
 
-  postgres:
+  opla-db:
     build:
-      context: ./postgres
+      context: ./misc
       dockerfile: Dockerfile.postgres
     volumes:
       - type: bind
-        source: postgres_data
+        source: db
         target: /var/lib/postgresql/data
-    env_file:
-      - .env
 
-  pgadmin:
+  opla-pgadmin:
     build:
-      context: ./postgres
+      context: ./misc
       dockerfile: Dockerfile.pgadmin
     ports:
       - "4400:80"
     depends_on:
-      - postgres
-    env_file:
-      - .env
+      - opla-db
 
 volumes:
-  postgres_data:
+  db:
     driver: local
