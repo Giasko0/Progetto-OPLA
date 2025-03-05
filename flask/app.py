@@ -149,6 +149,9 @@ def inserisciEsame():
     note_appello = data.get('note')
     posti = data.get('posti')
     anno_accademico = data.get('anno_accademico')  # Nuovo campo
+    periodo = data.get('periodo')
+    if not periodo:
+      return jsonify({'status': 'error', 'message': 'Periodo mancante'}), 400
     
     # Valori standard per i campi mancanti
     tipo_appello = 'PF'
@@ -231,6 +234,7 @@ def inserisciEsame():
       JOIN insegnamenti i ON e.insegnamento = i.codice
       JOIN cds c ON c.codice = %s AND c.anno_accademico = %s
       WHERE e.docente = %s 
+      AND e.insegnamento = %s
       AND (
         CASE %s
           WHEN 'Anticipata' THEN e.data_appello BETWEEN c.inizio_sessione_anticipata AND c.fine_sessione_anticipata
@@ -239,22 +243,21 @@ def inserisciEsame():
           WHEN 'Invernale' THEN e.data_appello BETWEEN c.inizio_sessione_invernale AND c.fine_sessione_invernale
         END
       )
-    """, (cds_code, anno_acc, docente, sessione))
+    """, (cds_code, anno_acc, docente, insegnamento, sessione))
 
     if cursor.fetchone()[0] >= limite_max:
       return jsonify({
         'status': 'error', 
-        'message': f'Limite di {limite_max} esami per la sessione {sessione} raggiunto'
+        'message': f'Limite di {limite_max} esami per l\'insegnamento nella sessione {sessione} raggiunto'
       }), 400
 
-    # Verifica aule/giorni
-    cursor.execute("SELECT COUNT(*) FROM esami WHERE data_appello = %s", (data_appello,))
-    if cursor.fetchone()[0] >= 2:
-      return jsonify({'status': 'error', 'message': 'Massimo due esami per giorno'}), 400
-
-    cursor.execute("SELECT 1 FROM esami WHERE data_appello = %s AND aula = %s", (data_appello, aula))
-    if cursor.fetchone():
-      return jsonify({'status': 'error', 'message': 'Aula già occupata'}), 400
+    # Verifica aule/giorni/periodo
+    cursor.execute("""
+      SELECT COUNT(*) FROM esami 
+      WHERE data_appello = %s AND aula = %s AND periodo = %s
+    """, (data_appello, aula, periodo))
+    if cursor.fetchone()[0] > 0:
+      return jsonify({'status': 'error', 'message': 'Aula già occupata in questo periodo'}), 400
 
     # Verifica vincolo dei 14 giorni
     data_min = data_esame - timedelta(days=14)
@@ -280,13 +283,13 @@ def inserisciEsame():
           data_inizio_iscrizione, data_fine_iscrizione, 
           tipo_esame, verbalizzazione, note_appello, posti,
           tipo_appello, definizione_appello, gestione_prenotazione, 
-          riservato, tipo_iscrizione)
-         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+          riservato, tipo_iscrizione, periodo)
+         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
       (docente, insegnamento, aula, data_appello, ora_appello, 
        inizio_iscrizione, fine_iscrizione, 
        tipo_esame, verbalizzazione, note_appello, posti,
        tipo_appello, definizione_appello, gestione_prenotazione,
-       riservato, tipo_iscrizione)
+       riservato, tipo_iscrizione, periodo)
     )
     conn.commit()
     return jsonify({'status': 'success'}), 200
@@ -341,7 +344,7 @@ def filtraEsami():
     
     query = """
       SELECT d.username, d.nome, d.cognome, i.titolo, e.aula, e.data_appello, e.ora_appello,
-             e.tipo_esame, ic.anno_corso 
+             e.tipo_esame, ic.anno_corso, e.periodo
       FROM esami e
       JOIN insegnamenti i ON e.insegnamento = i.codice
       JOIN docenti d ON e.docente = d.username
@@ -367,9 +370,10 @@ def filtraEsami():
       'title': f"{row[3]} - {row[1]}",  # Titolo insegnamento - Nome docente
       'aula': row[4],
       'start': f"{row[5].isoformat()}T{row[6]}" if row[6] else row[5].isoformat(),
-      'description': f"Tipo: {row[7] or 'Non specificato'}\nAula: {row[4]}\nAnno: {row[8]}",
+      'description': f"Tipo: {row[7] or 'Non specificato'}\nAula: {row[4]}\nAnno: {row[8]}\nPeriodo: {'Mattina' if row[9] == '0' else 'Pomeriggio'}",
       'allDay': False,
-      'docente': row[0]  # Passa l'username del docente invece del nome
+      'docente': row[0],
+      'periodo': row[9]
     } for idx, row in enumerate(cursor.fetchall())]
     
     return jsonify(exams)

@@ -43,6 +43,13 @@ document.addEventListener("DOMContentLoaded", function () {
         },
         showNonCurrentDates: false,  // Nasconde i giorni degli altri mesi
         fixedWeekCount: false,       // Permette al calendario di adattarsi al numero di settimane del mese
+        slotMinTime: '08:00:00',
+        slotMaxTime: '19:00:00',
+        allDaySlot: false,
+        slotDuration: '05:00:00',
+        slotLabelContent: function(arg) {
+          return arg.date.getHours() < 12 ? 'Mattina' : 'Pomeriggio';
+        },
 
         // Cambia titolo in base al mese
         datesSet: function (info) {
@@ -74,6 +81,9 @@ document.addEventListener("DOMContentLoaded", function () {
         // Inserimento esame cliccando su un giorno
         dateClick: function (info) {
           const dataClick = new Date(info.dateStr);
+          const periodo = info.view.type === 'timeGrid' ? 
+            (info.date.getHours() < 14 ? '0' : '1') : 
+            null;
           
           const dataValida = dateValide.some(([start, end]) => {
               const startDate = new Date(start);
@@ -89,7 +99,12 @@ document.addEventListener("DOMContentLoaded", function () {
           }
 
           if (document.cookie.split(';').some(cookie => cookie.trim().startsWith('username='))) {
-            document.getElementById('dataora').value = dataClick;
+            // Formatta la data nel formato YYYY-MM-DD per l'input type="date"
+            const formattedDate = dataClick.toISOString().split('T')[0];
+            document.getElementById('dataora').value = formattedDate;
+            if (periodo !== null) {
+              document.getElementById('periodo').value = periodo;
+            }
             document.getElementById('popupOverlay').style.display = 'flex';
           } else {
             alert("Devi essere loggato per inserire un esame.");
