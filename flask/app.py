@@ -261,15 +261,19 @@ def ottieniAule():
 @app.route('/flask/api/getEsami', methods=['GET'])
 def getEsami():
     anno = request.args.get('anno')
-    insegnamenti = request.args.get('insegnamenti', '').split(',')
+    insegnamenti = request.args.get('insegnamenti', '').split(',') if request.args.get('insegnamenti') else []
+    anni_corso = request.args.get('anni_corso', '').split(',') if request.args.get('anni_corso') else []
+    semestri = request.args.get('semestri', '').split(',') if request.args.get('semestri') else []
     docente = request.args.get('docente')
     
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # DISTINCT ON per ottenere un solo esame per ogni docente
         query = """
-            WITH date_sessioni AS (
+            WITH RECURSIVE 
+            date_sessioni AS (
                 SELECT c.anno_accademico,
                        c.inizio_sessione_anticipata, c.fine_sessione_anticipata,
                        c.inizio_sessione_estiva, c.fine_sessione_estiva,
@@ -277,27 +281,29 @@ def getEsami():
                        c.inizio_sessione_invernale, c.fine_sessione_invernale
                 FROM cds c 
                 WHERE c.codice = 'L062'
-            )
-            SELECT DISTINCT d.username, d.nome, d.cognome, i.titolo, e.aula, 
-                   e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
-                   e.periodo, ic.semestre, 
-                   CASE 
-                       WHEN e.data_appello BETWEEN ds.inizio_sessione_anticipata AND ds.fine_sessione_anticipata THEN ds.anno_accademico
-                       ELSE ds.anno_accademico - 1
-                   END as anno_effettivo
-            FROM esami e
-            JOIN date_sessioni ds ON (
-                e.data_appello BETWEEN ds.inizio_sessione_anticipata AND ds.fine_sessione_anticipata OR
-                e.data_appello BETWEEN ds.inizio_sessione_estiva AND ds.fine_sessione_estiva OR
-                e.data_appello BETWEEN ds.inizio_sessione_autunnale AND ds.fine_sessione_autunnale OR
-                e.data_appello BETWEEN ds.inizio_sessione_invernale AND ds.fine_sessione_invernale
-            )
-            JOIN insegnamenti i ON e.insegnamento = i.codice
-            JOIN docenti d ON e.docente = d.username
-            JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
-            JOIN insegna ins ON e.insegnamento = ins.insegnamento 
-                AND e.docente = ins.docente
-            WHERE 1=1
+            ),
+            esami_filtrati AS (
+                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
+                       d.username, d.nome, d.cognome, i.titolo, e.aula, 
+                       e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
+                       e.periodo, ic.semestre, 
+                       CASE 
+                           WHEN e.data_appello BETWEEN ds.inizio_sessione_anticipata AND ds.fine_sessione_anticipata THEN ds.anno_accademico
+                           ELSE ds.anno_accademico - 1
+                       END as anno_effettivo
+                FROM esami e
+                JOIN date_sessioni ds ON (
+                    e.data_appello BETWEEN ds.inizio_sessione_anticipata AND ds.fine_sessione_anticipata OR
+                    e.data_appello BETWEEN ds.inizio_sessione_estiva AND ds.fine_sessione_estiva OR
+                    e.data_appello BETWEEN ds.inizio_sessione_autunnale AND ds.fine_sessione_autunnale OR
+                    e.data_appello BETWEEN ds.inizio_sessione_invernale AND ds.fine_sessione_invernale
+                )
+                JOIN insegnamenti i ON e.insegnamento = i.codice
+                JOIN docenti d ON e.docente = d.username
+                JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
+                JOIN insegna ins ON e.insegnamento = ins.insegnamento 
+                    AND e.docente = ins.docente
+                WHERE 1=1
         """
         
         params = []
@@ -306,17 +312,37 @@ def getEsami():
             query += " AND ins.annoaccademico = %s"
             params.append(int(anno))
 
-        # Mostra solo gli esami del docente loggato se non sono stati selezionati insegnamenti
-        if not insegnamenti[0]:
+        # Gestione insegnamenti selezionati
+        if insegnamenti and insegnamenti[0]:
+            valid_insegnamenti = [ins for ins in insegnamenti if ins]
+            if valid_insegnamenti:
+                query += " AND ("
+                
+                # Insegnamenti direttamente selezionati
+                placeholders = ','.join(['%s'] * len(valid_insegnamenti))
+                query += f"e.insegnamento IN ({placeholders})"
+                params.extend(valid_insegnamenti)
+                
+                # Condizioni per anno di corso e semestre
+                if anni_corso and anni_corso[0] and semestri and semestri[0]:
+                    valid_anni = [int(anno) for anno in anni_corso if anno]
+                    valid_semestri = [int(sem) for sem in semestri if sem]
+                    if valid_anni and valid_semestri:
+                        query += f" OR (ic.anno_corso IN ({','.join(['%s'] * len(valid_anni))}) "
+                        query += f"AND ic.semestre IN ({','.join(['%s'] * len(valid_semestri))})) "
+                        params.extend(valid_anni)
+                        params.extend(valid_semestri)
+                
+                query += ")"
+        else:
             query += " AND e.docente = %s"
             params.append(docente)
-        else:
-            # Se sono selezionati insegnamenti specifici, mostra tutti gli esami di quegli insegnamenti
-            placeholders = ','.join(['%s'] * len(insegnamenti))
-            query += f" AND e.insegnamento IN ({placeholders})"
-            params.extend(insegnamenti)
-            
-        query += " ORDER BY e.data_appello, e.ora_appello"
+
+        query += """
+            )
+            SELECT * FROM esami_filtrati
+            ORDER BY data_appello, ora_appello
+        """
         
         cursor.execute(query, tuple(params))
         
@@ -348,18 +374,45 @@ def getAllExams():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        current_date = datetime.now()
+        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+        
         query = """
-            SELECT DISTINCT d.username, d.nome, d.cognome, i.titolo, e.aula, 
-                   e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
-                   e.periodo, ic.semestre, ic.anno_accademico
-            FROM esami e
-            JOIN insegnamenti i ON e.insegnamento = i.codice
-            JOIN docenti d ON e.docente = d.username
-            JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
-            ORDER BY e.data_appello, e.ora_appello
+            WITH esami_base AS (
+                -- Seleziona prima tutti i dati base degli esami
+                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo, e.docente)
+                    e.docente,
+                    e.insegnamento,
+                    e.aula,
+                    e.data_appello,
+                    e.ora_appello,
+                    e.tipo_esame,
+                    e.periodo
+                FROM esami e
+                ORDER BY e.insegnamento, e.data_appello, e.periodo, e.docente
+            )
+            SELECT DISTINCT ON (eb.insegnamento, eb.data_appello, eb.periodo)
+                eb.docente,
+                d.nome,
+                d.cognome,
+                i.titolo,
+                eb.aula,
+                eb.data_appello,
+                eb.ora_appello,
+                eb.tipo_esame,
+                ic.anno_corso,
+                eb.periodo,
+                ic.semestre,
+                ic.anno_accademico
+            FROM esami_base eb
+            JOIN docenti d ON eb.docente = d.username
+            JOIN insegnamenti i ON eb.insegnamento = i.codice
+            JOIN insegnamenti_cds ic ON eb.insegnamento = ic.insegnamento
+            WHERE ic.anno_accademico = %s
+            ORDER BY eb.insegnamento, eb.data_appello, eb.periodo, eb.data_appello
         """
         
-        cursor.execute(query)
+        cursor.execute(query, (planning_year,))
         
         exams = [{
             'id': idx,
@@ -402,8 +455,9 @@ def miei_esami():
     planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
 
     cursor.execute("""
-      WITH esami_docente AS (
-        SELECT DISTINCT e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
+      WITH esami_unici AS (
+        SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
+               e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
                c.inizio_sessione_anticipata, c.fine_sessione_anticipata,
                c.inizio_sessione_estiva, c.fine_sessione_estiva,
                c.inizio_sessione_autunnale, c.fine_sessione_autunnale,
@@ -414,8 +468,9 @@ def miei_esami():
         JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico
         WHERE e.docente = %s 
         AND ic.anno_accademico = %s
+        ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello
       )
-      SELECT * FROM esami_docente
+      SELECT * FROM esami_unici
       ORDER BY data_appello
     """, (docente, planning_year))
     
@@ -534,16 +589,22 @@ def getInsegnamentiDocente():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT DISTINCT i.codice, i.titolo, ic.semestre
-            FROM insegnamenti i
-            JOIN insegna ins ON i.codice = ins.insegnamento
-            JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
-            WHERE ins.docente = %s 
-            AND ins.annoaccademico = %s
-            AND ic.anno_accademico = %s
+            WITH insegnamenti_unici AS (
+                SELECT DISTINCT ON (i.codice)
+                       i.codice, i.titolo, ic.semestre, ic.anno_corso
+                FROM insegnamenti i
+                JOIN insegna ins ON i.codice = ins.insegnamento
+                JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
+                WHERE ins.docente = %s 
+                AND ins.annoaccademico = %s
+                AND ic.anno_accademico = %s
+                ORDER BY i.codice, ic.anno_accademico DESC
+            )
+            SELECT * FROM insegnamenti_unici
+            ORDER BY titolo
         """, (docente, anno, anno))
         
-        insegnamenti = [{'codice': row[0], 'titolo': row[1], 'semestre': row[2]} 
+        insegnamenti = [{'codice': row[0], 'titolo': row[1], 'semestre': row[2], 'anno_corso': row[3]} 
                        for row in cursor.fetchall()]
         return jsonify(insegnamenti)
     except Exception as e:

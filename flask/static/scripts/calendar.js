@@ -20,19 +20,51 @@ document.addEventListener("DOMContentLoaded", function () {
         [sessioni.pausa_secondo.start, sessioni.pausa_secondo.end, 'Pausa Didattica']
       ];
 
-      const dropdownAA = document.createElement('div');
-      dropdownAA.className = 'calendar-dropdown';
-      document.body.appendChild(dropdownAA);
-
       const dropdownInsegnamenti = document.createElement('div');
       dropdownInsegnamenti.className = 'calendar-dropdown';
       document.body.appendChild(dropdownInsegnamenti);
 
-      let selectedYear = null;
-      let selectedInsegnamenti = new Set();
+      // Modifica: struttura dati per memorizzare i metadati degli insegnamenti selezionati
+      let selectedInsegnamenti = new Map(); // Mappa codice -> {codice, anno_corso, semestre}
 
       function updateCalendarEvents() {
-        calendar.refetchEvents();
+        // Rimuove tutti gli eventi esistenti
+        calendar.getEventSources().forEach(source => source.remove());
+        
+        // Prepara i parametri per la richiesta API
+        const params = new URLSearchParams();
+        const loggedDocente = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('username='))
+          ?.split('=')[1];
+          
+        params.append('docente', loggedDocente);
+        params.append('anno', planningYear);
+        
+        // Aggiungi gli insegnamenti selezionati con i loro metadati
+        if (selectedInsegnamenti.size > 0) {
+          const codici = Array.from(selectedInsegnamenti.keys());
+          params.append('insegnamenti', codici.join(','));
+          
+          // Raccogli anni corso e semestri
+          const anniCorso = new Set();
+          const semestri = new Set();
+          selectedInsegnamenti.forEach(ins => {
+            anniCorso.add(ins.anno_corso);
+            semestri.add(ins.semestre);
+          });
+          
+          // Aggiungi parametri per anno corso e semestre
+          params.append('anni_corso', Array.from(anniCorso).join(','));
+          params.append('semestri', Array.from(semestri).join(','));
+        }
+        
+        // Richiedi gli eventi filtrati
+        fetch('/flask/api/getEsami?' + params.toString())
+          .then(response => response.json())
+          .then(events => {
+            calendar.addEventSource(events);
+          });
       }
 
       var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -49,12 +81,23 @@ document.addEventListener("DOMContentLoaded", function () {
             ?.split('=')[1];
             
           params.append('docente', loggedDocente);
+          params.append('anno', planningYear);
           
-          if (selectedYear) {
-            params.append('anno', selectedYear);
-            if (selectedInsegnamenti.size > 0) {
-              params.append('insegnamenti', Array.from(selectedInsegnamenti).join(','));
-            }
+          // Aggiungi parametri per insegnamenti selezionati
+          if (selectedInsegnamenti.size > 0) {
+            const codici = Array.from(selectedInsegnamenti.keys());
+            params.append('insegnamenti', codici.join(','));
+            
+            // Raccogli anni corso e semestri
+            const anniCorso = new Set();
+            const semestri = new Set();
+            selectedInsegnamenti.forEach(ins => {
+              anniCorso.add(ins.anno_corso);
+              semestri.add(ins.semestre);
+            });
+            
+            params.append('anni_corso', Array.from(anniCorso).join(','));
+            params.append('semestri', Array.from(semestri).join(','));
           }
           
           fetch('/flask/api/getEsami?' + params.toString())
@@ -73,45 +116,23 @@ document.addEventListener("DOMContentLoaded", function () {
         headerToolbar: {
           left: 'title',
           center: '',
-          right: 'pulsanteAA pulsanteInsegnamenti pulsanteDebug prev,next today'  // Aggiunto pulsanteDebug
+          right: 'annoAccademico pulsanteInsegnamenti pulsanteDebug prev,next today'
         },
 
         customButtons: {
-          pulsanteAA: {
-            text: 'Anno Accademico',
-            click: function(e) {
-              // Close other dropdowns
-              dropdownInsegnamenti.classList.remove('show');
-              
-              // Position and show AA dropdown
-              const button = e.currentTarget;
-              const rect = button.getBoundingClientRect();
-              dropdownAA.style.top = `${rect.bottom}px`;
-              dropdownAA.style.left = `${rect.left}px`;
-              
-              // Get academic years from API
-              fetch('/flask/api/getAnniAccademici')
-                .then(response => response.json())
-                .then(years => {
-                  dropdownAA.innerHTML = years.map(year => 
-                    `<div class="dropdown-item" data-year="${year}">${year}/${year+1}</div>`
-                  ).join('');
-                  
-                  dropdownAA.classList.toggle('show');
-                });
-            }
+          annoAccademico: {
+            text: `A.A. ${planningYear}/${planningYear + 1}`,
+            click: function() {
+              // Disabilita il click
+              return false;
+            },
+            // Aggiunge una classe CSS personalizzata
+            className: 'fc-anno-button'
           },
           pulsanteInsegnamenti: {
             text: 'Insegnamenti',
             click: function(e) {
-              if (!selectedYear) {
-                alert('Seleziona prima l\'anno accademico');
-                return;
-              }
-              
-              // Close other dropdowns
-              dropdownAA.classList.remove('show');
-              
+
               // Position and show courses dropdown
               const button = e.currentTarget;
               const rect = button.getBoundingClientRect();
@@ -124,13 +145,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 .find(row => row.startsWith('username='))
                 ?.split('=')[1];
                 
-              fetch(`/flask/api/getInsegnamentiDocente?anno=${selectedYear}&docente=${docente}`)
+              fetch(`/flask/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`)
                 .then(response => response.json())
                 .then(insegnamenti => {
                   dropdownInsegnamenti.innerHTML = insegnamenti.map(ins => `
-                    <div class="dropdown-item">
+                    <div class="dropdown-item" data-codice="${ins.codice}" data-semestre="${ins.semestre}" data-anno-corso="${ins.anno_corso || ''}">
                       <input type="checkbox" id="ins-${ins.codice}" 
-                        value="${ins.codice}" data-semestre="${ins.semestre}"
+                        value="${ins.codice}"
                         ${selectedInsegnamenti.has(ins.codice) ? 'checked' : ''}>
                       <label for="ins-${ins.codice}">${ins.titolo}</label>
                     </div>
@@ -142,14 +163,18 @@ document.addEventListener("DOMContentLoaded", function () {
           },
           pulsanteDebug: {
             text: '(Debug) Tutti gli esami',
-            click: function() {
-              // Fetch tutti gli esami senza filtri
-              fetch('/flask/api/getAllExams')
-                .then(response => response.json())
-                .then(events => {
-                  calendar.removeAllEvents();
-                  calendar.addEventSource(events);
-                });
+            click: async function() {
+              try {
+                // Rimuovo gli eventi esistenti
+                calendar.getEventSources().forEach(source => source.remove());
+                
+                // Attendo che la fetch sia completata prima di aggiungere i nuovi eventi
+                const response = await fetch('/flask/api/getAllExams');
+                const events = await response.json();
+                calendar.addEventSource(events);
+              } catch (error) {
+                console.error('Errore nel caricamento degli esami:', error);
+              }
             }
           }
         },
@@ -303,36 +328,32 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
 
-      // Close dropdowns when clicking outside
+      // Chiudi dropdown quando clicchi fuori
       document.addEventListener('click', (e) => {
-        if (!e.target.closest('.fc-button') && !e.target.closest('.calendar-dropdown')) {
-          dropdownAA.classList.remove('show');
+        if (!e.target.closest('.fc-pulsanteInsegnamenti-button') && !e.target.closest('.calendar-dropdown')) {
           dropdownInsegnamenti.classList.remove('show');
         }
       });
 
-      // Handle academic year selection
-      dropdownAA.addEventListener('click', (e) => {
-        const yearItem = e.target.closest('.dropdown-item');
-        if (yearItem) {
-          selectedYear = yearItem.dataset.year;
-          calendar.getButton('pulsanteAA').setText(`A.A. ${selectedYear}/${parseInt(selectedYear)+1}`);
-          // Reset insegnamenti quando cambia l'anno
-          selectedInsegnamenti.clear();
-          calendar.getButton('pulsanteInsegnamenti').setText('Insegnamenti');
-          dropdownAA.classList.remove('show');
-          updateCalendarEvents();
-        }
-      });
-
-      // Handle course selection
-      dropdownInsegnamenti.addEventListener('change', (e) => {
-        const checkbox = e.target;
-        if (checkbox.type === 'checkbox') {
+      // Handler per scelta insegnamenti
+      dropdownInsegnamenti.addEventListener('click', (e) => {
+        const item = e.target.closest('.dropdown-item');
+        if (item) {
+          const checkbox = item.querySelector('input[type="checkbox"]');
+          checkbox.checked = !checkbox.checked;
+          
+          const codice = item.dataset.codice;
+          const semestre = parseInt(item.dataset.semestre);
+          const annoCorso = parseInt(item.dataset.annoCorso) || 1;
+          
           if (checkbox.checked) {
-            selectedInsegnamenti.add(checkbox.value);
+            selectedInsegnamenti.set(codice, { 
+              codice: codice, 
+              semestre: semestre, 
+              anno_corso: annoCorso 
+            });
           } else {
-            selectedInsegnamenti.delete(checkbox.value);
+            selectedInsegnamenti.delete(codice);
           }
           updateCalendarEvents();
         }
