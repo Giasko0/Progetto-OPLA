@@ -80,135 +80,6 @@
               <input type="file" id="fileInput" accept=".csv,.tsv,.txt">
             </form>
           </div>
-
-          <!-- Sottosezione Modifica Date CdS -->
-          <div class="subsection">
-            <h4>Gestione Date Corso di Studi</h4>
-            <form id="cdsSettingsForm">
-              <!-- Informazioni generali -->
-              <div class="settings-group info-group">
-                <div class="setting-item">
-                  <label>Corso di Studi:</label>
-                  <input type="text" name="codice_cds" placeholder="es. L062" required>
-                </div>
-                <div class="setting-item">
-                  <label>Anno Accademico:</label>
-                  <input type="number" name="anno_accademico" min="2000" max="2100" placeholder="es. 2024" required>
-                </div>
-                <div class="setting-item">
-                  <label>Nome Corso:</label>
-                  <input type="text" name="nome_corso" placeholder="es. Informatica Triennale" required>
-                </div>
-                <div class="setting-item">
-                  <label>Durata (anni):</label>
-                  <input type="number" name="durata" min="2" max="6" value="3" required>
-                </div>
-              </div>
-
-              <!-- Layout a due colonne -->
-              <div class="two-columns">
-                <!-- Colonna sinistra -->
-                <div class="column">
-                  <h5>Primo Semestre</h5>
-                  <div class="date-group">
-                    <div class="setting-item">
-                      <label>Inizio lezioni:</label>
-                      <input type="date" name="inizio_primo" required>
-                    </div>
-                    <div class="setting-item">
-                      <label>Fine lezioni:</label>
-                      <input type="date" name="fine_primo" required>
-                    </div>
-                  </div>
-
-                  <h5>Pause Primo Semestre</h5>
-                  <div class="pause-group">
-                    <div class="pause-item">
-                      <div class="setting-item">
-                        <label>Inizio pausa:</label>
-                        <input type="date" name="pausa_primo_inizio">
-                      </div>
-                      <div class="setting-item">
-                        <label>Fine pausa:</label>
-                        <input type="date" name="pausa_primo_fine">
-                      </div>
-                    </div>
-                  </div>
-
-                  <h5>Sessioni Primo Semestre</h5>
-                  <div class="date-group">
-                    <div class="setting-item">
-                      <label>Anticipata inizio:</label>
-                      <input type="date" name="anticipata_inizio" required>
-                    </div>
-                    <div class="setting-item">
-                      <label>Anticipata fine:</label>
-                      <input type="date" name="anticipata_fine" required>
-                    </div>
-                    <div class="setting-item">
-                      <label>Invernale inizio:</label>
-                      <input type="date" name="invernale_inizio" required>
-                    </div>
-                    <div class="setting-item">
-                      <label>Invernale fine:</label>
-                      <input type="date" name="invernale_fine" required>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Colonna destra -->
-                <div class="column">
-                  <h5>Secondo Semestre</h5>
-                  <div class="date-group">
-                    <div class="setting-item">
-                      <label>Inizio lezioni:</label>
-                      <input type="date" name="inizio_secondo" required>
-                    </div>
-                    <div class="setting-item">
-                      <label>Fine lezioni:</label>
-                      <input type="date" name="fine_secondo" required>
-                    </div>
-                  </div>
-
-                  <h5>Pause Secondo Semestre</h5>
-                  <div class="pause-group">
-                    <div class="pause-item">
-                      <div class="setting-item">
-                        <label>Inizio pausa:</label>
-                        <input type="date" name="pausa_secondo_inizio">
-                      </div>
-                      <div class="setting-item">
-                        <label>Fine pausa:</label>
-                        <input type="date" name="pausa_secondo_fine">
-                      </div>
-                    </div>
-                  </div>
-
-                  <h5>Sessioni Secondo Semestre</h5>
-                  <div class="date-group">
-                    <div class="setting-item">
-                      <label>Estiva inizio:</label>
-                      <input type="date" name="estiva_inizio" required>
-                    </div>
-                    <div class="setting-item">
-                      <label>Estiva fine:</label>
-                      <input type="date" name="estiva_fine" required>
-                    </div>
-                    <div class="setting-item">
-                      <label>Autunnale inizio:</label>
-                      <input type="date" name="autunnale_inizio" required>
-                    </div>
-                    <div class="setting-item">
-                      <label>Autunnale fine:</label>
-                      <input type="date" name="autunnale_fine" required>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <button type="submit" class="admin-button success submit-button">Salva Date CdS</button>
-            </form>
-          </div>
         </div>
 
         <!-- Sezione Output -->
@@ -222,6 +93,137 @@
               <button class="admin-button info" id="downloadFileESSE3">Scarica elenco esami (ESSE3)</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Nuova sezione separata per l'inserimento delle date del corso di studi -->
+      <div class="section-full">
+        <h3 class="section-title">Gestione Date Corso di Studi</h3>
+        <div class="subsection">
+          <form id="cdsSettingsForm">
+            <!-- Informazioni generali -->
+            <div class="settings-group info-group">
+              <div class="setting-item">
+                <label>Corso di Studi:</label>
+                <input type="text" name="codice_cds" placeholder="es. L062" required>
+              </div>
+              <div class="setting-item">
+                <label>Anno Accademico:</label>
+                <input type="number" name="anno_accademico" min="2000" max="2100" placeholder="es. 2024" required>
+              </div>
+              <div class="setting-item">
+                <label>Nome Corso:</label>
+                <input type="text" name="nome_corso" placeholder="es. Informatica Triennale" required>
+              </div>
+              <div class="setting-item">
+                <label>Durata (anni):</label>
+                <input type="number" name="durata" min="2" max="6" value="3" required>
+              </div>
+            </div>
+
+            <!-- Layout a due colonne -->
+            <div class="two-columns">
+              <!-- Colonna sinistra -->
+              <div class="column">
+                <h5>Primo Semestre</h5>
+                <div class="date-group">
+                  <div class="setting-item">
+                    <label>Inizio lezioni:</label>
+                    <input type="date" name="inizio_primo" required>
+                  </div>
+                  <div class="setting-item">
+                    <label>Fine lezioni:</label>
+                    <input type="date" name="fine_primo" required>
+                  </div>
+                </div>
+
+                <h5>Pause Primo Semestre</h5>
+                <div class="pause-group">
+                  <div class="pause-item">
+                    <div class="setting-item">
+                      <label>Inizio pausa:</label>
+                      <input type="date" name="pausa_primo_inizio">
+                    </div>
+                    <div class="setting-item">
+                      <label>Fine pausa:</label>
+                      <input type="date" name="pausa_primo_fine">
+                    </div>
+                  </div>
+                </div>
+
+                <h5>Sessioni Primo Semestre</h5>
+                <div class="date-group">
+                  <div class="setting-item">
+                    <label>Anticipata inizio:</label>
+                    <input type="date" name="anticipata_inizio" required>
+                  </div>
+                  <div class="setting-item">
+                    <label>Anticipata fine:</label>
+                    <input type="date" name="anticipata_fine" required>
+                  </div>
+                  <div class="setting-item">
+                    <label>Invernale inizio:</label>
+                    <input type="date" name="invernale_inizio" required>
+                  </div>
+                  <div class="setting-item">
+                    <label>Invernale fine:</label>
+                    <input type="date" name="invernale_fine" required>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Colonna destra -->
+              <div class="column">
+                <h5>Secondo Semestre</h5>
+                <div class="date-group">
+                  <div class="setting-item">
+                    <label>Inizio lezioni:</label>
+                    <input type="date" name="inizio_secondo" required>
+                  </div>
+                  <div class="setting-item">
+                    <label>Fine lezioni:</label>
+                    <input type="date" name="fine_secondo" required>
+                  </div>
+                </div>
+
+                <h5>Pause Secondo Semestre</h5>
+                <div class="pause-group">
+                  <div class="pause-item">
+                    <div class="setting-item">
+                      <label>Inizio pausa:</label>
+                      <input type="date" name="pausa_secondo_inizio">
+                    </div>
+                    <div class="setting-item">
+                      <label>Fine pausa:</label>
+                      <input type="date" name="pausa_secondo_fine">
+                    </div>
+                  </div>
+                </div>
+
+                <h5>Sessioni Secondo Semestre</h5>
+                <div class="date-group">
+                  <div class="setting-item">
+                    <label>Estiva inizio:</label>
+                    <input type="date" name="estiva_inizio" required>
+                  </div>
+                  <div class="setting-item">
+                    <label>Estiva fine:</label>
+                    <input type="date" name="estiva_fine" required>
+                  </div>
+                  <div class="setting-item">
+                    <label>Autunnale inizio:</label>
+                    <input type="date" name="autunnale_inizio" required>
+                  </div>
+                  <div class="setting-item">
+                    <label>Autunnale fine:</label>
+                    <input type="date" name="autunnale_fine" required>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="admin-button success submit-button">Salva Date CdS</button>
+          </form>
         </div>
       </div>
 
