@@ -178,25 +178,28 @@ document.addEventListener("DOMContentLoaded", function () {
       // let selectedInsegnamenti = new Map();
       // window.selectedInsegnamenti = selectedInsegnamenti;
 
-      // Funzione per aggiornare gli eventi del calendario in base agli insegnamenti selezionati
-      function updateCalendarEvents() {
-        // Rimuove tutti gli eventi esistenti
-        calendar.getEventSources().forEach(source => source.remove());
-        
-        // Prepara i parametri per la richiesta API
-        const params = new URLSearchParams();
+      // Sostituisci sia updateCalendarEvents che la callback events con questa funzione unificata
+      function fetchCalendarEvents(info, successCallback) {
+        // Otteniamo il docente loggato
         const loggedDocente = document.cookie
           .split('; ')
           .find(row => row.startsWith('username='))
           ?.split('=')[1];
           
+        // Prepara i parametri comuni per le richieste API
+        const params = new URLSearchParams();
         params.append('docente', loggedDocente);
         params.append('anno', planningYear);
         
-        // Aggiungi gli insegnamenti selezionati con i loro metadati
+        // Aggiungi parametri per gli insegnamenti selezionati
         if (window.InsegnamentiManager) {
           const selected = window.InsegnamentiManager.getSelected();
-          if (selected.size > 0) {
+          
+          // Se nessun insegnamento è selezionato, mostra solo gli esami del docente
+          if (selected.size === 0) {
+            params.append('solo_docente', 'true');
+          } else {
+            // Aggiungi codici insegnamenti
             const codici = Array.from(selected.keys());
             params.append('insegnamenti', codici.join(','));
             
@@ -209,22 +212,39 @@ document.addEventListener("DOMContentLoaded", function () {
             });
             
             // Aggiungi parametri per anno corso e semestre
-            params.append('anni_corso', Array.from(anniCorso).join(','));
-            params.append('semestri', Array.from(semestri).join(','));
+            if (anniCorso.size > 0) {
+              params.append('anni_corso', Array.from(anniCorso).join(','));
+            }
+            if (semestri.size > 0) {
+              params.append('semestri', Array.from(semestri).join(','));
+            }
           }
+        } else {
+          // Se InsegnamentiManager non è disponibile, mostra solo gli esami del docente
+          params.append('solo_docente', 'true');
         }
         
-        // Richiedi gli eventi filtrati
+        // Esegui richiesta API
         fetch('/flask/api/getEsami?' + params.toString())
           .then(response => response.json())
           .then(data => {
-            calendar.addEventSource(data);
+            if (successCallback) {
+              // Siamo nel callback events di FullCalendar
+              successCallback(data);
+            } else {
+              // Rimuoviamo TUTTE le fonti di eventi esistenti prima di aggiungere nuovi eventi
+              calendar.getEventSources().forEach(source => source.remove());
+              
+              // Aggiungiamo i nuovi eventi come singola fonte
+              calendar.addEventSource(data);
+            }
+          })
+          .catch(error => {
+            console.error('Errore nel caricamento degli esami:', error);
+            if (successCallback) {
+              successCallback([]);  // Invia array vuoto in caso di errore
+            }
           });
-      }
-      
-      // Registriamo la funzione di aggiornamento come listener di InsegnamentiManager
-      if (window.InsegnamentiManager) {
-        window.InsegnamentiManager.onChange(updateCalendarEvents);
       }
 
       var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -233,41 +253,7 @@ document.addEventListener("DOMContentLoaded", function () {
         initialDate: dateRange.start, // Forza la visualizzazione a partire dal 1° gennaio
         initialView: "dayGridMonth",
         selectable: true,
-        events: function(info, successCallback, failureCallback) {
-          const params = new URLSearchParams();
-          const loggedDocente = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('username='))
-            ?.split('=')[1];
-            
-          params.append('docente', loggedDocente);
-          params.append('anno', planningYear);
-          
-          // Usa InsegnamentiManager invece di selectedInsegnamenti per i parametri
-          if (window.InsegnamentiManager) {
-            const selected = window.InsegnamentiManager.getSelected();
-            if (selected.size > 0) {
-              const codici = Array.from(selected.keys());
-              params.append('insegnamenti', codici.join(','));
-              
-              // Raccogli anni corso e semestri
-              const anniCorso = new Set();
-              const semestri = new Set();
-              selected.forEach(ins => {
-                if (ins.anno_corso) anniCorso.add(ins.anno_corso);
-                if (ins.semestre) semestri.add(ins.semestre);
-              });
-              
-              params.append('anni_corso', Array.from(anniCorso).join(','));
-              params.append('semestri', Array.from(semestri).join(','));
-            }
-          }
-          
-          fetch('/flask/api/getEsami?' + params.toString())
-            .then(response => response.json())
-            .then(successCallback)
-            .catch(failureCallback);
-        },
+        events: fetchCalendarEvents,
         validRange: function(nowDate) {
           const range = getValidDateRange();
           return {
@@ -377,18 +363,19 @@ document.addEventListener("DOMContentLoaded", function () {
           },
           pulsanteDebug: {
             text: '(Debug) Tutti gli esami',
-            click: async function() {
-              try {
-                // Rimuovo gli eventi esistenti
-                calendar.getEventSources().forEach(source => source.remove());
-                
-                // Attendo che la fetch sia completata prima di aggiungere i nuovi eventi
-                const response = await fetch('/flask/api/getAllExams');
-                const events = await response.json();
-                calendar.addEventSource(events);
-              } catch (error) {
-                console.error('Errore nel caricamento degli esami:', error);
-              }
+            click: function() {
+              // Rimuoviamo correttamente tutte le fonti di eventi
+              calendar.getEventSources().forEach(source => source.remove());
+              
+              // Usa un parametro speciale per indicare che vuoi tutti gli esami
+              fetch('/flask/api/getEsami?all=true')
+                .then(response => response.json())
+                .then(data => {
+                  calendar.addEventSource(data);
+                })
+                .catch(error => {
+                  console.error('Errore nel caricamento degli esami:', error);
+                });
             }
           }
         },
@@ -681,10 +668,18 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
       
-      // Registra la funzione di aggiornamento dei checkbox come callback del manager
+      // Sostituisci la registrazione del listener per InsegnamentiManager
       if (window.InsegnamentiManager) {
-        window.InsegnamentiManager.onChange(function() {
-          updateDropdownCheckboxes();
+        // Aggiungi il listener con debounce per evitare aggiornamenti multipli troppo vicini
+        let debounceTimer;
+        window.InsegnamentiManager.onChange(() => {
+          // Cancella il timer esistente se presente
+          if (debounceTimer) clearTimeout(debounceTimer);
+          
+          // Imposta un nuovo timer - aggiorna dopo 200ms di inattività
+          debounceTimer = setTimeout(() => {
+            fetchCalendarEvents();
+          }, 100);
         });
       }
 
@@ -702,7 +697,7 @@ document.addEventListener("DOMContentLoaded", function () {
       window.preselectedInsegnamenti = [];
       
       // Rifletti le modifiche nella visualizzazione del calendario
-      updateCalendarEvents();
+      fetchCalendarEvents();
     });
   }
   
@@ -716,8 +711,21 @@ document.addEventListener("DOMContentLoaded", function () {
         window.preselectedInsegnamenti = [];
         
         // Rifletti le modifiche nella visualizzazione del calendario
-        updateCalendarEvents();
+        fetchCalendarEvents();
       }
     });
   }
+
+  // Aggiorna anche gli event listener del popup form
+  closeButton.addEventListener('click', function() {
+    window.preselectedInsegnamenti = [];
+    fetchCalendarEvents();  // Usa la funzione unificata
+  });
+
+  popupOverlay.addEventListener('click', function(event) {
+    if (event.target === popupOverlay) {
+      window.preselectedInsegnamenti = [];
+      fetchCalendarEvents();  // Usa la funzione unificata
+    }
+  });
 });

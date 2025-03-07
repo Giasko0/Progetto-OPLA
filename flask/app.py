@@ -317,163 +317,100 @@ def ottieniAule():
 # API per ottenere tutti gli esami. Usato per gli eventi del calendario
 @app.route('/flask/api/getEsami', methods=['GET'])
 def getEsami():
+    # Parametri di input
+    show_all = request.args.get('all', 'false').lower() == 'true'
     anno = request.args.get('anno')
-    insegnamenti = request.args.get('insegnamenti', '').split(',') if request.args.get('insegnamenti') else []
-    anni_corso = request.args.get('anni_corso', '').split(',') if request.args.get('anni_corso') else []
-    semestri = request.args.get('semestri', '').split(',') if request.args.get('semestri') else []
+    insegnamenti = [ins for ins in request.args.get('insegnamenti', '').split(',') if ins]
     docente = request.args.get('docente')
+    solo_docente = request.args.get('solo_docente', 'false').lower() == 'true'
     
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # DISTINCT ON per ottenere un solo esame per ogni docente
-        query = """
-            WITH RECURSIVE 
-            date_sessioni AS (
-                SELECT c.anno_accademico,
-                       c.inizio_sessione_anticipata, c.fine_sessione_anticipata,
-                       c.inizio_sessione_estiva, c.fine_sessione_estiva,
-                       c.inizio_sessione_autunnale, c.fine_sessione_autunnale,
-                       c.inizio_sessione_invernale, c.fine_sessione_invernale
-                FROM cds c 
-                WHERE c.codice = 'L062'
-            ),
-            esami_filtrati AS (
-                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
-                       d.username, d.nome, d.cognome, i.titolo, e.aula, 
-                       e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
-                       e.periodo, ic.semestre, 
-                       CASE 
-                           WHEN e.data_appello BETWEEN ds.inizio_sessione_anticipata AND ds.fine_sessione_anticipata THEN ds.anno_accademico
-                           ELSE ds.anno_accademico - 1
-                       END as anno_effettivo
-                FROM esami e
-                JOIN date_sessioni ds ON (
-                    e.data_appello BETWEEN ds.inizio_sessione_anticipata AND ds.fine_sessione_anticipata OR
-                    e.data_appello BETWEEN ds.inizio_sessione_estiva AND ds.fine_sessione_estiva OR
-                    e.data_appello BETWEEN ds.inizio_sessione_autunnale AND ds.fine_sessione_autunnale OR
-                    e.data_appello BETWEEN ds.inizio_sessione_invernale AND ds.fine_sessione_invernale
-                )
-                JOIN insegnamenti i ON e.insegnamento = i.codice
-                JOIN docenti d ON e.docente = d.username
-                JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
-                JOIN insegna ins ON e.insegnamento = ins.insegnamento 
-                    AND e.docente = ins.docente
-                WHERE 1=1
-        """
-        
-        params = []
-        
-        if anno:
-            query += " AND ins.annoaccademico = %s"
-            params.append(int(anno))
-
-        # Gestione insegnamenti selezionati
-        if insegnamenti and insegnamenti[0]:
-            valid_insegnamenti = [ins for ins in insegnamenti if ins]
-            if valid_insegnamenti:
-                query += " AND ("
-                
-                # Insegnamenti direttamente selezionati
-                placeholders = ','.join(['%s'] * len(valid_insegnamenti))
-                query += f"e.insegnamento IN ({placeholders})"
-                params.extend(valid_insegnamenti)
-                
-                # Condizioni per anno di corso e semestre
-                if anni_corso and anni_corso[0] and semestri and semestri[0]:
-                    valid_anni = [int(anno) for anno in anni_corso if anno]
-                    valid_semestri = [int(sem) for sem in semestri if sem]
-                    if valid_anni and valid_semestri:
-                        query += f" OR (ic.anno_corso IN ({','.join(['%s'] * len(valid_anni))}) "
-                        query += f"AND ic.semestre IN ({','.join(['%s'] * len(valid_semestri))})) "
-                        params.extend(valid_anni)
-                        params.extend(valid_semestri)
-                
-                query += ")"
-        else:
-            query += " AND e.docente = %s"
-            params.append(docente)
-
-        query += """
-            )
-            SELECT * FROM esami_filtrati
-            ORDER BY data_appello, ora_appello
-        """
-        
-        cursor.execute(query, tuple(params))
-        
-        exams = [{
-            'id': idx,
-            'title': f"{row[3]} - {row[2]}",  # Titolo insegnamento - Nome docente
-            'aula': row[4],
-            'start': f"{row[5].isoformat()}T{row[6]}" if row[6] else row[5].isoformat(),
-            'description': f"Tipo: {row[7] or 'Non specificato'}\nAula: {row[4]}\nAnno: {row[8]}\nPeriodo: {'Mattina' if row[9] == 0 else 'Pomeriggio'}",
-            'allDay': False,
-            'docente': row[0],
-            'periodo': row[9],
-            'annoCorso': row[8],
-            'semestre': row[10],
-            'annoAccademico': row[11]
-        } for idx, row in enumerate(cursor.fetchall())]
-        
-        return jsonify(exams)
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        cursor.close()
-        conn.close()
-
-# Funzione di debug per stampare tutti gli esami
-@app.route('/flask/api/getAllExams', methods=['GET'])
-def getAllExams():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
         current_date = datetime.now()
         planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
-        
-        query = """
-            WITH esami_base AS (
-                -- Seleziona prima tutti i dati base degli esami
-                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo, e.docente)
-                    e.docente,
-                    e.insegnamento,
-                    e.aula,
-                    e.data_appello,
-                    e.ora_appello,
-                    e.tipo_esame,
-                    e.periodo
+
+        if show_all:
+            # Query per mostrare tutti gli esami (debug mode)
+            query = """
+                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
+                    d.username, d.nome, d.cognome, i.titolo, e.aula, 
+                    e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
+                    e.periodo, ic.semestre, ic.anno_accademico
                 FROM esami e
-                ORDER BY e.insegnamento, e.data_appello, e.periodo, e.docente
-            )
-            SELECT DISTINCT ON (eb.insegnamento, eb.data_appello, eb.periodo)
-                eb.docente,
-                d.nome,
-                d.cognome,
-                i.titolo,
-                eb.aula,
-                eb.data_appello,
-                eb.ora_appello,
-                eb.tipo_esame,
-                ic.anno_corso,
-                eb.periodo,
-                ic.semestre,
-                ic.anno_accademico
-            FROM esami_base eb
-            JOIN docenti d ON eb.docente = d.username
-            JOIN insegnamenti i ON eb.insegnamento = i.codice
-            JOIN insegnamenti_cds ic ON eb.insegnamento = ic.insegnamento
-            WHERE ic.anno_accademico = %s
-            ORDER BY eb.insegnamento, eb.data_appello, eb.periodo, eb.data_appello
-        """
+                JOIN docenti d ON e.docente = d.username
+                JOIN insegnamenti i ON e.insegnamento = i.codice
+                JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
+                WHERE ic.anno_accademico = %s
+                ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello
+            """
+            cursor.execute(query, (planning_year,))
         
-        cursor.execute(query, (planning_year,))
-        
+        elif solo_docente or not insegnamenti:
+            # Query per mostrare solo gli esami del docente loggato
+            query = """
+                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
+                    d.username, d.nome, d.cognome, i.titolo, e.aula, 
+                    e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
+                    e.periodo, ic.semestre, ic.anno_accademico
+                FROM esami e
+                JOIN docenti d ON e.docente = d.username
+                JOIN insegnamenti i ON e.insegnamento = i.codice
+                JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
+                    AND ic.anno_accademico = %s
+                JOIN insegna ins ON e.insegnamento = ins.insegnamento 
+                    AND ins.annoaccademico = ic.anno_accademico
+                WHERE e.docente = %s
+            """
+            params = [planning_year, docente]
+            
+            if anno:
+                query += " AND ins.annoaccademico = %s"
+                params.append(int(anno))
+                
+            query += " ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello"
+            cursor.execute(query, tuple(params))
+            
+        else:
+            # Query per mostrare gli esami filtrati per anno/semestre degli insegnamenti selezionati
+            query = """
+                WITH anno_semestre_selezionati AS (
+                    -- Ottieni tutte le combinazioni anno_corso/semestre degli insegnamenti selezionati
+                    SELECT DISTINCT ic.anno_corso, ic.semestre
+                    FROM insegnamenti_cds ic
+                    WHERE ic.anno_accademico = %s
+                    AND ic.insegnamento IN ({})
+                )
+                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
+                    d.username, d.nome, d.cognome, i.titolo, e.aula, 
+                    e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
+                    e.periodo, ic.semestre, ic.anno_accademico
+                FROM esami e
+                JOIN docenti d ON e.docente = d.username
+                JOIN insegnamenti i ON e.insegnamento = i.codice
+                JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
+                    AND ic.anno_accademico = %s
+                -- JOIN con le combinazioni di anno/semestre degli insegnamenti selezionati
+                JOIN anno_semestre_selezionati ase ON ic.anno_corso = ase.anno_corso 
+                    AND ic.semestre = ase.semestre
+                JOIN insegna ins ON e.insegnamento = ins.insegnamento 
+                    AND ins.annoaccademico = ic.anno_accademico
+                WHERE 1=1
+            """.format(','.join(['%s'] * len(insegnamenti)))
+            
+            params = [planning_year] + insegnamenti + [planning_year]
+            
+            if anno:
+                query += " AND ins.annoaccademico = %s"
+                params.append(int(anno))
+                
+            query += " ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello"
+            cursor.execute(query, tuple(params))
+
+        # Formattazione dei risultati
         exams = [{
             'id': idx,
-            'title': f"{row[3]} - {row[2]} ({row[11]}/{row[11]+1})",  # Aggiungo anno accademico nel titolo
+            'title': f"{row[3]} - {row[2]}" + (f" ({row[11]}/{row[11]+1})" if show_all else ""),
             'aula': row[4],
             'start': f"{row[5].isoformat()}T{row[6]}" if row[6] else row[5].isoformat(),
             'description': f"Tipo: {row[7] or 'Non specificato'}\nAula: {row[4]}\nAnno: {row[8]}\nPeriodo: {'Mattina' if row[9] == 0 else 'Pomeriggio'}",
@@ -486,11 +423,18 @@ def getAllExams():
         } for idx, row in enumerate(cursor.fetchall())]
         
         return jsonify(exams)
+        
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if conn:
+            cursor.close()
+            conn.close()
+
+# Funzione di debug per stampare tutti gli esami
+# @app.route('/flask/api/getAllExams', methods=['GET'])
+# def getAllExams():
+#    ...
 
 # API per ottenere gli esami di un docente. Usato in mieiEsami.html
 @app.route('/flask/api/mieiEsami', methods=['GET'])
