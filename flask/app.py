@@ -49,7 +49,12 @@ def inserisciEsame():
     # Raccogli i dati dal form
     data = request.form
     docente = data.get('docente')
-    insegnamento = data.get('insegnamento')
+    
+    # Gestione di insegnamenti multipli
+    insegnamenti = request.form.getlist('insegnamento')
+    if not insegnamenti:
+      return jsonify({'status': 'error', 'message': 'Nessun insegnamento selezionato'}), 400
+    
     aula = data.get('aula')
     data_appello = data.get('dataora')
     ora_appello = data.get('ora')
@@ -64,13 +69,22 @@ def inserisciEsame():
     # Converti ora_appello in intero per il confronto
     ora_int = int(ora_appello.split(':')[0])
     periodo = 1 if ora_int > 13 else 0
-    # Se l'aula è 'Studio docente DMI' lo scrivo nelle note, perché non è un'aula
-    #if aula == 'Studio docente DMI':
-    #  note_appello = "L'esame si svolgerà nello studio del docente. " + (note_appello or '')
 
     # Campi obbligatori
-    if not all([docente, insegnamento, aula, data_appello, ora_appello]):
+    if not all([docente, aula, data_appello, ora_appello]):
       return jsonify({'status': 'error', 'message': 'Dati incompleti'}), 400
+
+    # Validazione ora appello
+    try:
+      ora_parts = ora_appello.split(':')
+      ora_int = int(ora_parts[0])
+      if ora_int < 8 or ora_int > 23:
+        return jsonify({'status': 'error', 'message': 'L\'ora dell\'appello deve essere compresa tra le 08:00 e le 23:00'}), 400
+    except (ValueError, IndexError):
+      return jsonify({'status': 'error', 'message': 'Formato ora non valido'}), 400
+
+    # Converti ora_appello in intero per il confronto
+    periodo = 1 if ora_int > 13 else 0
 
     # Valori standard per i campi mancanti
     tipo_appello = 'PF'
@@ -105,107 +119,131 @@ def inserisciEsame():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Ottieni le informazioni del CDS dall'insegnamento per l'anno corrente
-    cursor.execute("""
-      SELECT ic.cds, ic.anno_accademico 
-      FROM insegnamenti_cds ic
-      JOIN insegna i ON ic.insegnamento = i.insegnamento 
-        AND ic.anno_accademico = i.annoaccademico
-      WHERE ic.insegnamento = %s 
-        AND i.docente = %s 
-        AND i.annoaccademico = %s
-    """, (insegnamento, docente, anno_accademico))
-    
-    cds_info = cursor.fetchone()
-    if not cds_info:
-      return jsonify({'status': 'error', 'message': 'Insegnamento non trovato'}), 400
-    
-    cds_code, anno_acc = cds_info
+    # Lista per tenere traccia degli esami inseriti
+    esami_inseriti = []
+    errori = []
 
-    # Verifica limite esami per sessione
-    sessione_info = get_session_for_date(data_esame, cds_code, anno_acc)
-    if not sessione_info:
-      return jsonify({
-        'status': 'error', 
-        'message': 'La data selezionata non rientra in nessuna sessione d\'esame valida'
-      }), 400
+    # Ciclo su tutti gli insegnamenti selezionati
+    for insegnamento in insegnamenti:
+      try:
+        # Ottieni le informazioni del CDS dall'insegnamento per l'anno corrente
+        cursor.execute("""
+          SELECT ic.cds, ic.anno_accademico 
+          FROM insegnamenti_cds ic
+          JOIN insegna i ON ic.insegnamento = i.insegnamento 
+            AND ic.anno_accademico = i.annoaccademico
+          WHERE ic.insegnamento = %s 
+            AND i.docente = %s 
+            AND i.annoaccademico = %s
+        """, (insegnamento, docente, anno_accademico))
+        
+        cds_info = cursor.fetchone()
+        if not cds_info:
+          errori.append(f"Insegnamento {insegnamento} non trovato")
+          continue
+        
+        cds_code, anno_acc = cds_info
 
-    sessione, limite_max, data_inizio_sessione = sessione_info
+        # Verifica limite esami per sessione
+        sessione_info = get_session_for_date(data_esame, cds_code, anno_acc)
+        if not sessione_info:
+          errori.append(f"La data selezionata non rientra in nessuna sessione d'esame valida per {insegnamento}")
+          continue
 
-    # Imposta valori predefiniti per i campi obbligatori
-    if not inizio_iscrizione:
-      inizio_iscrizione = data_inizio_sessione - timedelta(days=20)
-    if not fine_iscrizione:
-      fine_iscrizione = data_esame - timedelta(days=1)
+        sessione, limite_max, data_inizio_sessione = sessione_info
 
-    # Conta esami nella stessa sessione
-    cursor.execute("""
-      SELECT COUNT(*) 
-      FROM esami e
-      JOIN insegnamenti i ON e.insegnamento = i.codice
-      JOIN cds c ON c.codice = %s AND c.anno_accademico = %s
-      WHERE e.docente = %s 
-      AND e.insegnamento = %s
-      AND (
-        CASE %s
-          WHEN 'Anticipata' THEN e.data_appello BETWEEN c.inizio_sessione_anticipata AND c.fine_sessione_anticipata
-          WHEN 'Estiva' THEN e.data_appello BETWEEN c.inizio_sessione_estiva AND c.fine_sessione_estiva
-          WHEN 'Autunnale' THEN e.data_appello BETWEEN c.inizio_sessione_autunnale AND c.fine_sessione_autunnale
-          WHEN 'Invernale' THEN e.data_appello BETWEEN c.inizio_sessione_invernale AND c.fine_sessione_invernale
-        END
-      )
-    """, (cds_code, anno_acc, docente, insegnamento, sessione))
+        # Imposta valori predefiniti per i campi obbligatori
+        if not inizio_iscrizione:
+          inizio_iscrizione = data_inizio_sessione - timedelta(days=20)
+        if not fine_iscrizione:
+          fine_iscrizione = data_esame - timedelta(days=1)
 
-    if cursor.fetchone()[0] >= limite_max:
-      return jsonify({
-        'status': 'error', 
-        'message': f'Limite di {limite_max} esami per l\'insegnamento nella sessione {sessione} raggiunto'
-      }), 400
+        # Conta esami nella stessa sessione
+        cursor.execute("""
+          SELECT COUNT(*) 
+          FROM esami e
+          JOIN insegnamenti i ON e.insegnamento = i.codice
+          JOIN cds c ON c.codice = %s AND c.anno_accademico = %s
+          WHERE e.docente = %s 
+          AND e.insegnamento = %s
+          AND (
+            CASE %s
+              WHEN 'Anticipata' THEN e.data_appello BETWEEN c.inizio_sessione_anticipata AND c.fine_sessione_anticipata
+              WHEN 'Estiva' THEN e.data_appello BETWEEN c.inizio_sessione_estiva AND c.fine_sessione_estiva
+              WHEN 'Autunnale' THEN e.data_appello BETWEEN c.inizio_sessione_autunnale AND c.fine_sessione_autunnale
+              WHEN 'Invernale' THEN e.data_appello BETWEEN c.inizio_sessione_invernale AND c.fine_sessione_invernale
+            END
+          )
+        """, (cds_code, anno_acc, docente, insegnamento, sessione))
 
-    # Verifica aule/giorni/periodo
+        if cursor.fetchone()[0] >= limite_max:
+          errori.append(f"Limite di {limite_max} esami per l'insegnamento {insegnamento} nella sessione {sessione} raggiunto")
+          continue
+
+        # Verifica vincolo dei 14 giorni
+        data_min = data_esame - timedelta(days=14)
+        data_max = data_esame + timedelta(days=14)
+        
+        cursor.execute("""
+          SELECT data_appello FROM esami 
+          WHERE insegnamento = %s AND data_appello BETWEEN %s AND %s
+        """, (insegnamento, data_min, data_max))
+        
+        esami_vicini = cursor.fetchall()
+        if esami_vicini:
+          date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
+          errori.append(f"Non puoi inserire esami a meno di 14 giorni di distanza per {insegnamento}. Hai già esami nelle date: {', '.join(date_esami)}")
+          continue
+
+        # Inserimento nel database
+        cursor.execute(
+          """INSERT INTO esami 
+             (docente, insegnamento, aula, data_appello, ora_appello, 
+              data_inizio_iscrizione, data_fine_iscrizione, 
+              tipo_esame, verbalizzazione, note_appello, posti,
+              tipo_appello, definizione_appello, gestione_prenotazione, 
+              riservato, tipo_iscrizione, periodo, durata_appello)
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+          (docente, insegnamento, aula, data_appello, ora_appello, 
+           inizio_iscrizione, fine_iscrizione, 
+           tipo_esame, verbalizzazione, note_appello, posti,
+           tipo_appello, definizione_appello, gestione_prenotazione,
+           riservato, tipo_iscrizione, periodo, durata_appello)
+        )
+        esami_inseriti.append(insegnamento)
+      except Exception as e:
+        errori.append(f"Errore nell'inserimento dell'esame per {insegnamento}: {str(e)}")
+        # Non facciamo rollback qui per consentire a altri esami di essere inseriti
+
+    # Verifica aule/giorni/periodo - facciamo questa verifica una sola volta per tutti gli esami
     cursor.execute("""
       SELECT COUNT(*) FROM esami 
       WHERE data_appello = %s AND aula = %s AND periodo = %s
     """, (data_appello, aula, periodo))
-    if cursor.fetchone()[0] > 0:
-      return jsonify({'status': 'error', 'message': 'Aula già occupata in questo periodo'}), 400
-
-    # Verifica vincolo dei 14 giorni
-    data_min = data_esame - timedelta(days=14)
-    data_max = data_esame + timedelta(days=14)
+    if cursor.fetchone()[0] > len(esami_inseriti):
+      # C'è un conflitto con altre prenotazioni (oltre quelle che abbiamo appena inserito)
+      if esami_inseriti:
+        # Se abbiamo inserito alcuni esami, facciamo rollback per liberare l'aula
+        conn.rollback()
+        return jsonify({'status': 'error', 'message': 'Aula già occupata in questo periodo'}), 400
     
-    cursor.execute("""
-      SELECT data_appello FROM esami 
-      WHERE insegnamento = %s AND data_appello BETWEEN %s AND %s
-    """, (insegnamento, data_min, data_max))
+    # Se non ci sono esami inseriti, significa che tutti gli insegnamenti hanno avuto problemi
+    if not esami_inseriti:
+      return jsonify({'status': 'error', 'message': 'Nessun esame inserito', 'errors': errori}), 400
     
-    esami_vicini = cursor.fetchall()
-    if esami_vicini:
-      date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
-      return jsonify({
-        'status': 'error', 
-        'message': f'Non puoi inserire esami a meno di 14 giorni di distanza. Hai già esami nelle date: {", ".join(date_esami)}'
-      }), 400
-
-    # Inserimento con tutti i campi del database
-    cursor.execute(
-      """INSERT INTO esami 
-         (docente, insegnamento, aula, data_appello, ora_appello, 
-          data_inizio_iscrizione, data_fine_iscrizione, 
-          tipo_esame, verbalizzazione, note_appello, posti,
-          tipo_appello, definizione_appello, gestione_prenotazione, 
-          riservato, tipo_iscrizione, periodo, durata_appello)
-         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-      (docente, insegnamento, aula, data_appello, ora_appello, 
-       inizio_iscrizione, fine_iscrizione, 
-       tipo_esame, verbalizzazione, note_appello, posti,
-       tipo_appello, definizione_appello, gestione_prenotazione,
-       riservato, tipo_iscrizione, periodo, durata_appello)
-    )
+    # Commit delle modifiche se è stato inserito almeno un esame
     conn.commit()
-    return jsonify({'status': 'success'}), 200
+    
+    # Se ci sono stati alcuni errori ma almeno un esame è stato inserito, restituisci avviso
+    if errori:
+      return jsonify({'status': 'partial', 'message': 'Alcuni esami sono stati inseriti con successo', 
+                     'inserted': esami_inseriti, 'errors': errori}), 207
+    
+    return jsonify({'status': 'success', 'message': 'Tutti gli esami sono stati inseriti con successo'}), 200
 
   except Exception as e:
+    if conn:
+      conn.rollback()
     return jsonify({'status': 'error', 'message': str(e)}), 500
   finally:
     if conn:
@@ -216,6 +254,9 @@ def inserisciEsame():
 @app.route('/flask/api/ottieniInsegnamenti', methods=['GET'])
 def ottieniInsegnamenti():
   username = request.args.get('username')
+  search = request.args.get('search')
+  codici = request.args.get('codici')
+  
   if not username:
     return jsonify({'status': 'error', 'message': 'Username mancante'}), 400
   
@@ -225,14 +266,30 @@ def ottieniInsegnamenti():
     
     current_date = datetime.now()
     planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
-
-    cursor.execute("""
+    
+    # Query base
+    query = """
       SELECT DISTINCT i.codice, i.titolo 
       FROM insegnamenti i 
       JOIN insegna ins ON i.codice = ins.insegnamento 
       WHERE ins.docente = %s 
       AND ins.annoaccademico = %s
-    """, (username, planning_year))
+    """
+    params = [username, planning_year]
+    
+    # Se è specificato un termine di ricerca, aggiungi la condizione
+    if search:
+      query += " AND i.titolo ILIKE %s"
+      params.append(f"%{search}%")
+    
+    # Se sono specificati dei codici, aggiungi la condizione
+    if codici:
+      codici_list = codici.split(',')
+      placeholders = ', '.join(['%s'] * len(codici_list))
+      query += f" AND i.codice IN ({placeholders})"
+      params.extend(codici_list)
+    
+    cursor.execute(query, params)
     
     insegnamenti = [{'codice': row[0], 'titolo': row[1]} for row in cursor.fetchall()]
     return jsonify(insegnamenti)
@@ -590,22 +647,24 @@ def getInsegnamentiDocente():
         cursor = conn.cursor()
         cursor.execute("""
             WITH insegnamenti_unici AS (
-                SELECT DISTINCT ON (i.codice)
-                       i.codice, i.titolo, ic.semestre, ic.anno_corso
+                SELECT DISTINCT ON (i.codice, ic.cds)
+                       i.codice, i.titolo, ic.semestre, ic.anno_corso, ic.cds, c.nome_corso
                 FROM insegnamenti i
                 JOIN insegna ins ON i.codice = ins.insegnamento
                 JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
+                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico
                 WHERE ins.docente = %s 
                 AND ins.annoaccademico = %s
                 AND ic.anno_accademico = %s
-                ORDER BY i.codice, ic.anno_accademico DESC
+                ORDER BY i.codice, ic.cds, ic.anno_accademico DESC
             )
             SELECT * FROM insegnamenti_unici
-            ORDER BY titolo
+            ORDER BY nome_corso, titolo
         """, (docente, anno, anno))
         
-        insegnamenti = [{'codice': row[0], 'titolo': row[1], 'semestre': row[2], 'anno_corso': row[3]} 
-                       for row in cursor.fetchall()]
+        insegnamenti = [{'codice': row[0], 'titolo': row[1], 'semestre': row[2], 'anno_corso': row[3], 
+                        'cds_codice': row[4], 'cds_nome': row[5]} 
+                        for row in cursor.fetchall()]
         return jsonify(insegnamenti)
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500

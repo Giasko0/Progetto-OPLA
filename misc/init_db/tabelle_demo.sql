@@ -138,7 +138,7 @@ INSERT INTO esami (
 -- Esami AA 2025/2026 (solo sessione anticipata, primo semestre)
     ('PF', 'av790001', 'A000390', 'A2',         -- ASD
     '2026-01-15', '2025-12-15', '2026-01-13', 
-    '09:00', 'FIRMA DIGITALE', 'Scritto e Orale', 80,
+    '09:00', 'FIRMA DIGITALE', 'SO', 80,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     'Portare documento identità', NULL, 2.5, 0),
@@ -146,35 +146,35 @@ INSERT INTO esami (
 -- Esami AA 2024/2025 (tutte le sessioni)
     ('PF', 'lb750001', 'A000394', 'A0',         -- BD
     '2025-06-15', '2025-05-15', '2025-06-13', 
-    '14:30', 'FIRMA DIGITALE', 'Scritto', 120,
+    '14:30', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 3.0, 1),
 
     ('PF', 'mr800001', 'A000385', 'I1',       -- PI
     '2025-07-10', '2025-06-10', '2025-07-08', 
-    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
+    '09:00', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 2.5, 0),
 
     ('PF', 'pg950001', 'A000401', 'A2',         -- IA
     '2025-06-10', '2025-05-10', '2025-06-08', 
-    '09:00', 'FIRMA DIGITALE', 'Orale', 80,
+    '09:00', 'FIRMA DIGITALE', 'O', 80,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 2.0, 0),
 
     ('PF', 'gn900001', 'A000392', 'I1',         -- RC
     '2025-09-15', '2025-08-15', '2025-09-13', 
-    '14:30', 'FIRMA DIGITALE', 'Scritto e Orale', 120,
+    '14:30', 'FIRMA DIGITALE', 'SO', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 3.0, 1),
 
     ('PF', 'mr800001', 'A000389', 'A0',       -- PII
     '2025-02-10', '2025-01-10', '2025-02-08', 
-    '09:00', 'FIRMA DIGITALE', 'Scritto', 120,
+    '09:00', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 2.5, 0),
@@ -182,7 +182,7 @@ INSERT INTO esami (
 -- AA 2024/2025 (sessione invernale)
     ('PF', 'lb750001', 'A000394', 'A0',         -- BD
     '2025-01-20', '2024-12-20', '2025-01-18', 
-    '14:30', 'FIRMA DIGITALE', 'Scritto', 120,
+    '14:30', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 3.0, 1);

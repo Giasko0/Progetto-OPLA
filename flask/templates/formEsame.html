@@ -93,6 +93,112 @@
   box-sizing: border-box;
 }
 
+/* Stili per la select multipla personalizzata */
+.multi-select-container {
+  width: 100%;
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.multi-select-box {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #ccc;
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.multi-select-box.active {
+  border-color: var(--color-primary);
+}
+
+.multi-select-placeholder {
+  color: #999;
+}
+
+.multi-select-tag {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--color-primary);
+  color: white;
+  border-radius: var(--radius);
+  padding: 3px 8px;
+  margin: 2px;
+  font-size: 0.9em;
+}
+
+.multi-select-tag-remove {
+  margin-left: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.multi-select-dropdown {
+  position: absolute;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 0 0 var(--radius) var(--radius);
+  z-index: 10;
+  display: none;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.multi-select-search {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-bottom: 1px solid #eee;
+  box-sizing: border-box;
+  font-size: 0.95em;
+}
+
+.multi-select-search:focus {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
+.multi-select-option {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.multi-select-option:hover {
+  background-color: #f5f5f5;
+}
+
+.multi-select-option.selected {
+  background-color: #e6f7ff;
+}
+
+.multi-select-hidden {
+  display: none;
+}
+
+.multi-select-loading,
+.multi-select-no-results,
+.multi-select-error {
+  padding: 12px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.multi-select-error {
+  color: #d9534f;
+}
+
+.multi-select-no-results {
+  color: #777;
+}
+
 </style>
 
 <div id="popupOverlay" class="popup-overlay">
@@ -111,9 +217,15 @@
         <input type="text" id="anno_accademico" name="anno_accademico" hidden>
 
         <label class="formEsame-label" for="insegnamento">Insegnamento*</label>
-        <select id="insegnamento" name="insegnamento">
-          <option value="" disabled selected hidden>Scegli l'insegnamento</option>
-        </select>
+        <div class="multi-select-container">
+          <div id="insegnamentoBox" class="multi-select-box">
+            <span class="multi-select-placeholder">Seleziona gli insegnamenti</span>
+          </div>
+          <div id="insegnamentoDropdown" class="multi-select-dropdown">
+            <div id="insegnamentoOptions"></div>
+          </div>
+          <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden" required></select>
+        </div>
 
         <label class="formEsame-label" for="aula">Aula*</label>
         <select id="aula" name="aula" required></select>
@@ -122,7 +234,7 @@
         <input type="date" id="dataora" name="dataora" readonly>
 
         <label class="formEsame-label" for="ora" required>Ora*</label>
-        <input type="time" id="ora" name="ora">
+        <input type="time" id="ora" name="ora" min="08:00" max="23:00" required>
 
         <label class="formEsame-label" for="durata">Durata*</label>
         <input type="number" id="durata" name="durata" min="1" step="0.1" required>
@@ -156,9 +268,9 @@
             <label class="formEsame-label" for="tipoEsame">Tipo esame</label>
             <select id="tipoEsame" name="tipoEsame">
               <option value="" disabled selected hidden>Scegli il tipo di esame</option>
-              <option value="1">Scritto</option>
-              <option value="2">Orale</option>
-              <option value="3">Scritto e orale</option>
+              <option value="S">Scritto</option>
+              <option value="O">Orale</option>
+              <option value="SO">Scritto e orale</option>
             </select>  
           </div>
 

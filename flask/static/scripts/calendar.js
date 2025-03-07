@@ -25,8 +25,160 @@ document.addEventListener("DOMContentLoaded", function () {
       document.body.appendChild(dropdownInsegnamenti);
 
       // Modifica: struttura dati per memorizzare i metadati degli insegnamenti selezionati
-      let selectedInsegnamenti = new Map(); // Mappa codice -> {codice, anno_corso, semestre}
+      // let selectedInsegnamenti = new Map(); // Mappa codice -> {codice, anno_corso, semestre}
+      
+      // Rendi la mappa degli insegnamenti selezionati e la funzione di aggiornamento accessibili globalmente
+      // window.selectedInsegnamenti = selectedInsegnamenti;
 
+      // Funzione per aprire il form degli esami con insegnamenti preselezionati
+      function openEsameFormWithInsegnamenti() {
+        // Usa InsegnamentiManager invece di selectedInsegnamenti
+        if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
+          // Ottieni i codici degli insegnamenti selezionati
+          const insegnamentiCodes = window.InsegnamentiManager.getSelectedCodes();
+          
+          // Apri il form degli esami con i parametri nell'URL
+          const popupOverlay = document.getElementById('popupOverlay');
+          if (popupOverlay) {
+            // Imposta direttamente gli insegnamenti preselezionati come variabile globale
+            window.preselectedInsegnamenti = insegnamentiCodes;
+            
+            // Mostra il form
+            popupOverlay.style.display = 'flex';
+            
+            // Ottieni i dati degli insegnamenti selezionati
+            const username = document.cookie
+              .split('; ')
+              .find(row => row.startsWith('username='))
+              ?.split('=')[1];
+              
+            if (username) {
+              // Carica direttamente gli insegnamenti selezionati
+              fetch(`/flask/api/ottieniInsegnamenti?username=${username}&codici=${insegnamentiCodes.join(',')}`)
+                .then(response => response.json())
+                .then(data => {
+                  if (data.length > 0) {
+                    // Rimuovi il placeholder se presente
+                    const multiSelectBox = document.getElementById('insegnamentoBox');
+                    const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
+                    if (placeholder) {
+                      placeholder.remove();
+                    }
+                    
+                    // Aggiungi i tag per gli insegnamenti
+                    data.forEach(ins => {
+                      // Verifica se esiste già un tag per questo insegnamento
+                      const existingTag = Array.from(multiSelectBox.querySelectorAll('.multi-select-tag'))
+                        .find(tag => tag.dataset.value === ins.codice);
+                      
+                      if (!existingTag) {
+                        // Se la funzione toggleOption è disponibile, usala
+                        if (window.toggleOption) {
+                          // Cerca l'opzione corrispondente
+                          const option = document.querySelector(`.multi-select-option[data-value="${ins.codice}"]`);
+                          if (option) {
+                            window.toggleOption(option);
+                          } else {
+                            // Se l'opzione non esiste, crea manualmente il tag
+                            createTag(ins.codice, ins.titolo, multiSelectBox);
+                          }
+                        } else {
+                          // Altrimenti crea manualmente il tag
+                          createTag(ins.codice, ins.titolo, multiSelectBox);
+                        }
+                      }
+                    });
+                    
+                    // Aggiorna la select nascosta
+                    if (window.updateHiddenSelect) {
+                      window.updateHiddenSelect();
+                    } else {
+                      updateHiddenSelectFallback();
+                    }
+                  }
+                })
+                .catch(error => console.error('Errore nel caricamento degli insegnamenti preselezionati:', error));
+            }
+          } else {
+            // Se il form non è presente nella pagina, reindirizza a una nuova pagina
+            window.location.href = '/flask/nuovoEsame?insegnamenti=' + insegnamentiCodes.join(',');
+          }
+        } else {
+          alert('Seleziona almeno un insegnamento prima di creare un esame.');
+        }
+      }
+      
+      // Funzione di supporto per creare un tag
+      function createTag(value, text, container) {
+        // Crea il tag
+        const tag = document.createElement('div');
+        tag.className = 'multi-select-tag';
+        tag.dataset.value = value;
+        tag.innerHTML = text + '<span class="multi-select-tag-remove">&times;</span>';
+        
+        // Aggiungi evento per rimuovere il tag
+        tag.querySelector('.multi-select-tag-remove').addEventListener('click', function(e) {
+          e.stopPropagation();
+          
+          // Rimuovi il tag
+          tag.remove();
+          
+          // Se non ci sono più tag, mostra il placeholder
+          if (container.querySelectorAll('.multi-select-tag').length === 0) {
+            const placeholder = document.createElement('span');
+            placeholder.className = 'multi-select-placeholder';
+            placeholder.textContent = 'Seleziona gli insegnamenti';
+            container.appendChild(placeholder);
+          }
+          
+          // Aggiorna la select nascosta
+          if (window.updateHiddenSelect) {
+            window.updateHiddenSelect();
+          } else {
+            updateHiddenSelectFallback();
+          }
+        });
+        
+        container.appendChild(tag);
+      }
+      
+      // Funzione di fallback per aggiornare la select nascosta
+      function updateHiddenSelectFallback() {
+        const hiddenSelect = document.getElementById('insegnamento');
+        const multiSelectBox = document.getElementById('insegnamentoBox');
+        if (hiddenSelect && multiSelectBox) {
+          // Rimuovi tutte le opzioni esistenti
+          while (hiddenSelect.options.length > 0) {
+            hiddenSelect.remove(0);
+          }
+          
+          // Aggiungi le opzioni selezionate
+          const tags = multiSelectBox.querySelectorAll('.multi-select-tag');
+          tags.forEach(tag => {
+            const option = document.createElement('option');
+            option.value = tag.dataset.value;
+            option.textContent = tag.textContent.replace('×', '').trim();
+            option.selected = true;
+            hiddenSelect.appendChild(option);
+          });
+        }
+      }
+
+      // Aggiungi pulsante per creare un esame con gli insegnamenti selezionati
+      // const createExamButton = document.createElement('button');
+      // createExamButton.textContent = 'Crea Esame';
+      // createExamButton.className = 'btn btn-primary';
+      // createExamButton.style.marginLeft = '10px';
+      // createExamButton.addEventListener('click', openEsameFormWithInsegnamenti);
+      
+      // Aggiungi il pulsante accanto al dropdown
+      // dropdownInsegnamenti.parentNode.insertBefore(createExamButton, dropdownInsegnamenti.nextSibling);
+
+      // Elimina le vecchie variabili globali, ora usiamo InsegnamentiManager
+      // let selectedInsegnamenti = new Map();
+      // window.selectedInsegnamenti = selectedInsegnamenti;
+
+      // Funzione per aggiornare gli eventi del calendario in base agli insegnamenti selezionati
       function updateCalendarEvents() {
         // Rimuove tutti gli eventi esistenti
         calendar.getEventSources().forEach(source => source.remove());
@@ -42,29 +194,37 @@ document.addEventListener("DOMContentLoaded", function () {
         params.append('anno', planningYear);
         
         // Aggiungi gli insegnamenti selezionati con i loro metadati
-        if (selectedInsegnamenti.size > 0) {
-          const codici = Array.from(selectedInsegnamenti.keys());
-          params.append('insegnamenti', codici.join(','));
-          
-          // Raccogli anni corso e semestri
-          const anniCorso = new Set();
-          const semestri = new Set();
-          selectedInsegnamenti.forEach(ins => {
-            anniCorso.add(ins.anno_corso);
-            semestri.add(ins.semestre);
-          });
-          
-          // Aggiungi parametri per anno corso e semestre
-          params.append('anni_corso', Array.from(anniCorso).join(','));
-          params.append('semestri', Array.from(semestri).join(','));
+        if (window.InsegnamentiManager) {
+          const selected = window.InsegnamentiManager.getSelected();
+          if (selected.size > 0) {
+            const codici = Array.from(selected.keys());
+            params.append('insegnamenti', codici.join(','));
+            
+            // Raccogli anni corso e semestri
+            const anniCorso = new Set();
+            const semestri = new Set();
+            selected.forEach(ins => {
+              if (ins.anno_corso) anniCorso.add(ins.anno_corso);
+              if (ins.semestre) semestri.add(ins.semestre);
+            });
+            
+            // Aggiungi parametri per anno corso e semestre
+            params.append('anni_corso', Array.from(anniCorso).join(','));
+            params.append('semestri', Array.from(semestri).join(','));
+          }
         }
         
         // Richiedi gli eventi filtrati
         fetch('/flask/api/getEsami?' + params.toString())
           .then(response => response.json())
-          .then(events => {
-            calendar.addEventSource(events);
+          .then(data => {
+            calendar.addEventSource(data);
           });
+      }
+      
+      // Registriamo la funzione di aggiornamento come listener di InsegnamentiManager
+      if (window.InsegnamentiManager) {
+        window.InsegnamentiManager.onChange(updateCalendarEvents);
       }
 
       var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -83,21 +243,24 @@ document.addEventListener("DOMContentLoaded", function () {
           params.append('docente', loggedDocente);
           params.append('anno', planningYear);
           
-          // Aggiungi parametri per insegnamenti selezionati
-          if (selectedInsegnamenti.size > 0) {
-            const codici = Array.from(selectedInsegnamenti.keys());
-            params.append('insegnamenti', codici.join(','));
-            
-            // Raccogli anni corso e semestri
-            const anniCorso = new Set();
-            const semestri = new Set();
-            selectedInsegnamenti.forEach(ins => {
-              anniCorso.add(ins.anno_corso);
-              semestri.add(ins.semestre);
-            });
-            
-            params.append('anni_corso', Array.from(anniCorso).join(','));
-            params.append('semestri', Array.from(semestri).join(','));
+          // Usa InsegnamentiManager invece di selectedInsegnamenti per i parametri
+          if (window.InsegnamentiManager) {
+            const selected = window.InsegnamentiManager.getSelected();
+            if (selected.size > 0) {
+              const codici = Array.from(selected.keys());
+              params.append('insegnamenti', codici.join(','));
+              
+              // Raccogli anni corso e semestri
+              const anniCorso = new Set();
+              const semestri = new Set();
+              selected.forEach(ins => {
+                if (ins.anno_corso) anniCorso.add(ins.anno_corso);
+                if (ins.semestre) semestri.add(ins.semestre);
+              });
+              
+              params.append('anni_corso', Array.from(anniCorso).join(','));
+              params.append('semestri', Array.from(semestri).join(','));
+            }
           }
           
           fetch('/flask/api/getEsami?' + params.toString())
@@ -148,15 +311,66 @@ document.addEventListener("DOMContentLoaded", function () {
               fetch(`/flask/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`)
                 .then(response => response.json())
                 .then(insegnamenti => {
-                  dropdownInsegnamenti.innerHTML = insegnamenti.map(ins => `
-                    <div class="dropdown-item" data-codice="${ins.codice}" data-semestre="${ins.semestre}" data-anno-corso="${ins.anno_corso || ''}">
-                      <input type="checkbox" id="ins-${ins.codice}" 
-                        value="${ins.codice}"
-                        ${selectedInsegnamenti.has(ins.codice) ? 'checked' : ''}>
-                      <label for="ins-${ins.codice}">${ins.titolo}</label>
-                    </div>
-                  `).join('');
+                  // Raggruppa gli insegnamenti per CDS
+                  const insegnamentiPerCds = {};
                   
+                  insegnamenti.forEach(ins => {
+                    if (!insegnamentiPerCds[ins.cds_codice]) {
+                      insegnamentiPerCds[ins.cds_codice] = {
+                        nome: ins.cds_nome,
+                        insegnamenti: []
+                      };
+                    }
+                    insegnamentiPerCds[ins.cds_codice].insegnamenti.push(ins);
+                  });
+                  
+                  // Costruisci l'HTML del dropdown raggruppato per CDS
+                  let dropdownHTML = '';
+                  
+                  // Per ogni CDS, crea una sezione con titolo e lista di insegnamenti
+                  Object.keys(insegnamentiPerCds).forEach(cdsCodice => {
+                    const cds = insegnamentiPerCds[cdsCodice];
+                    
+                    // Aggiungi il titolo del CDS
+                    dropdownHTML += `<div class="dropdown-cds-title">${cds.nome}</div>`;
+                    
+                    // Aggiungi gli insegnamenti del CDS con indentazione
+                    cds.insegnamenti.forEach(ins => {
+                      // Usa InsegnamentiManager per verificare se l'insegnamento è selezionato
+                      const isSelected = window.InsegnamentiManager && window.InsegnamentiManager.isSelected(ins.codice);
+                      
+                      dropdownHTML += `
+                        <div class="dropdown-item dropdown-item-indented" data-codice="${ins.codice}" data-semestre="${ins.semestre}" data-anno-corso="${ins.anno_corso || ''}" data-cds="${ins.cds_codice}">
+                          <input type="checkbox" id="ins-${ins.codice}" 
+                            value="${ins.codice}"
+                            ${isSelected ? 'checked' : ''}>
+                          <label for="ins-${ins.codice}">${ins.titolo}</label>
+                        </div>
+                      `;
+                    });
+                  });
+                  
+                  // Aggiorna il contenuto del dropdown
+                  dropdownInsegnamenti.innerHTML = dropdownHTML;
+                  
+                  // Aggiungi CSS per lo stile del dropdown
+                  const style = document.createElement('style');
+                  style.textContent = `
+                    .dropdown-cds-title {
+                      font-weight: bold;
+                      padding: 8px 12px;
+                      background-color: #f8f9fa;
+                      border-bottom: 1px solid #ddd;
+                      margin-top: 5px;
+                    }
+                    .dropdown-item-indented {
+                      margin-left: 15px;
+                      border-left: 3px solid #e9ecef;
+                    }
+                  `;
+                  document.head.appendChild(style);
+                  
+                  // Mostra il dropdown
                   dropdownInsegnamenti.classList.toggle('show');
                 });
             }
@@ -255,6 +469,99 @@ document.addEventListener("DOMContentLoaded", function () {
             if (periodo !== null) {
               document.getElementById('periodo').value = periodo;
             }
+            
+            // Usa InsegnamentiManager per pre-popolare il form
+            if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
+              const username = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('username='))
+                ?.split('=')[1];
+              
+              if (username) {
+                // Prima svuota il contenitore attuale dei tag
+                const multiSelectBox = document.getElementById('insegnamentoBox');
+                if (multiSelectBox) {
+                  // Salva il placeholder se esiste
+                  const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
+                  
+                  // Rimuovi tutti i tag esistenti (svuota il contenitore)
+                  multiSelectBox.innerHTML = '';
+                  
+                  // Ripristina il placeholder se necessario
+                  if (placeholder && window.InsegnamentiManager.getSelectedCodes().length === 0) {
+                    multiSelectBox.appendChild(placeholder.cloneNode(true));
+                  }
+                
+                  // Carica gli insegnamenti selezionati
+                  window.InsegnamentiManager.loadSelectedInsegnamenti(username, function(data) {
+                    if (data.length > 0) {
+                      // Rimuovi il placeholder se presente
+                      const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
+                      if (placeholder) {
+                        placeholder.remove();
+                      }
+                      
+                      // Aggiungi i tag per tutti gli insegnamenti selezionati
+                      data.forEach(ins => {
+                        // Se la funzione createInsegnamentoTag è disponibile, usa quella
+                        if (typeof window.createInsegnamentoTag === 'function') {
+                          window.createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
+                        } else {
+                          // Crea il tag manualmente
+                          const tag = document.createElement('div');
+                          tag.className = 'multi-select-tag';
+                          tag.dataset.value = ins.codice;
+                          tag.innerHTML = ins.titolo + '<span class="multi-select-tag-remove">&times;</span>';
+                          
+                          // Aggiungi evento per rimuovere il tag
+                          tag.querySelector('.multi-select-tag-remove').addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            
+                            // Rimuovi il tag
+                            tag.remove();
+                            
+                            // Se non ci sono più tag, mostra il placeholder
+                            if (multiSelectBox.querySelectorAll('.multi-select-tag').length === 0) {
+                              const newPlaceholder = document.createElement('span');
+                              newPlaceholder.className = 'multi-select-placeholder';
+                              newPlaceholder.textContent = 'Seleziona gli insegnamenti';
+                              multiSelectBox.appendChild(newPlaceholder);
+                            }
+                            
+                            // Deseleziona l'insegnamento nel manager
+                            if (window.InsegnamentiManager) {
+                              window.InsegnamentiManager.deselectInsegnamento(ins.codice);
+                            }
+                            
+                            // Aggiorna la select nascosta
+                            if (window.updateHiddenSelect) {
+                              window.updateHiddenSelect();
+                            }
+                          });
+                          
+                          multiSelectBox.appendChild(tag);
+                        }
+                      });
+                      
+                      // Aggiorna la select nascosta
+                      if (window.updateHiddenSelect) {
+                        window.updateHiddenSelect();
+                      }
+                      
+                      // Aggiorna anche le opzioni nel dropdown, marcandole come selezionate
+                      const options = document.querySelectorAll('#insegnamentoOptions .multi-select-option');
+                      options.forEach(option => {
+                        if (window.InsegnamentiManager.isSelected(option.dataset.value)) {
+                          option.classList.add('selected');
+                        }
+                      });
+                    }
+                  });
+                }
+              }
+            }
+            
+            // Mostra il form
             document.getElementById('popupOverlay').style.display = 'flex';
           } else {
             alert("Devi essere loggato per inserire un esame.");
@@ -345,22 +652,72 @@ document.addEventListener("DOMContentLoaded", function () {
           const codice = item.dataset.codice;
           const semestre = parseInt(item.dataset.semestre);
           const annoCorso = parseInt(item.dataset.annoCorso) || 1;
+          const cds = item.dataset.cds;
           
-          if (checkbox.checked) {
-            selectedInsegnamenti.set(codice, { 
-              codice: codice, 
-              semestre: semestre, 
-              anno_corso: annoCorso 
-            });
-          } else {
-            selectedInsegnamenti.delete(codice);
+          // Usa InsegnamentiManager invece di selezionare direttamente
+          if (window.InsegnamentiManager) {
+            if (checkbox.checked) {
+              window.InsegnamentiManager.selectInsegnamento(codice, { 
+                semestre: semestre, 
+                anno_corso: annoCorso,
+                cds: cds
+              });
+            } else {
+              window.InsegnamentiManager.deselectInsegnamento(codice);
+            }
           }
-          updateCalendarEvents();
         }
       });
+
+      // Funzione per aggiornare i checkbox nel dropdown quando lo stato cambia
+      function updateDropdownCheckboxes() {
+        if (window.InsegnamentiManager) {
+          // Trova tutti i checkbox nel dropdown
+          const checkboxes = dropdownInsegnamenti.querySelectorAll('input[type="checkbox"]');
+          checkboxes.forEach(checkbox => {
+            const code = checkbox.value;
+            checkbox.checked = window.InsegnamentiManager.isSelected(code);
+          });
+        }
+      }
+      
+      // Registra la funzione di aggiornamento dei checkbox come callback del manager
+      if (window.InsegnamentiManager) {
+        window.InsegnamentiManager.onChange(function() {
+          updateDropdownCheckboxes();
+        });
+      }
 
       calendar.render();
       window.calendar = calendar;
     })
     .catch(error => console.error('Errore nel caricamento delle sessioni:', error));
+  
+  // Aggiungi un event handler per il pulsante di chiusura del form
+  const closeButton = document.getElementById('closeOverlay');
+  if (closeButton) {
+    closeButton.addEventListener('click', function() {
+      // Quando il form viene chiuso, assicurati che al prossimo click
+      // vengano visualizzati tutti gli insegnamenti selezionati
+      window.preselectedInsegnamenti = [];
+      
+      // Rifletti le modifiche nella visualizzazione del calendario
+      updateCalendarEvents();
+    });
+  }
+  
+  // Anche quando si clicca fuori dal form per chiuderlo
+  const popupOverlay = document.getElementById('popupOverlay');
+  if (popupOverlay) {
+    popupOverlay.addEventListener('click', function(event) {
+      if (event.target === popupOverlay) {
+        // Quando il form viene chiuso, assicurati che al prossimo click
+        // vengano visualizzati tutti gli insegnamenti selezionati
+        window.preselectedInsegnamenti = [];
+        
+        // Rifletti le modifiche nella visualizzazione del calendario
+        updateCalendarEvents();
+      }
+    });
+  }
 });
