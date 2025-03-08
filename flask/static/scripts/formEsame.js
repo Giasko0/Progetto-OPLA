@@ -13,25 +13,101 @@ document.addEventListener("DOMContentLoaded", () => {
   // Controlla se ci sono insegnamenti preselezionati dal calendario
   checkPreselectedInsegnamenti();
 
-  // Funzione per popolare la select con le aule
-  function popolaAule() {
-    fetch("/flask/api/ottieniAule")
+  // Ascoltatori eventi per filtrare le aule disponibili
+  const dataoraInput = document.getElementById("dataora");
+  const oraInput = document.getElementById("ora");
+
+  // Aggiungi event listener per aggiornare le aule quando cambiano data o ora
+  dataoraInput.addEventListener("change", aggiornaAuleDisponibili);
+  oraInput.addEventListener("change", aggiornaAuleDisponibili);
+
+  // Funzione per determinare il periodo (mattina/pomeriggio) in base all'ora
+  function determinaPeriodo(ora) {
+    if (!ora) return null;
+    const oreParts = ora.split(':');
+    const oreInt = parseInt(oreParts[0], 10);
+    return oreInt > 13 ? 1 : 0; // 1 pomeriggio, 0 mattina
+  }
+
+  // Funzione per aggiornare le aule disponibili in base a data e ora
+  function aggiornaAuleDisponibili() {
+    const data = dataoraInput.value;
+    const ora = oraInput.value;
+    
+    // Se non sono impostati data e ora, disabilita la selezione dell'aula
+    if (!data || !ora) {
+      const selectAula = document.getElementById("aula");
+      selectAula.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
+      return;
+    }
+    
+    // Determina il periodo in base all'ora
+    const periodo = determinaPeriodo(ora);
+    
+    // Richiedi le aule disponibili per questa data e periodo
+    fetch(`/flask/api/ottieniAule?data=${data}&periodo=${periodo}`)
       .then((response) => response.json())
       .then((aule) => {
         const selectAula = document.getElementById("aula");
         // Imposta la prima option di default
-        selectAula.innerHTML =
-          '<option value="" disabled selected hidden>Scegli l\'aula</option>';
+        selectAula.innerHTML = '<option value="" disabled selected hidden>Scegli l\'aula</option>';
+        
+        // Aggiungi lo studio docente se non è presente nella lista
+        const studioDocente = "Studio docente DMI";
+        let studioDocentePresente = false;
+        
+        // Controlla se lo studio docente è già presente nella lista delle aule
+        for (const aula of aule) {
+          if (aula === studioDocente) {
+            studioDocentePresente = true;
+            break;
+          }
+        }
+        
+        // Se lo studio docente non è presente, aggiungerlo alla lista
+        if (!studioDocentePresente) {
+          aule.push(studioDocente);
+          // Ordina alfabeticamente le aule dopo aver aggiunto lo studio docente
+          aule.sort();
+        }
+        
+        // Se non ci sono aule disponibili (il che è improbabile ora, poiché almeno lo studio docente è presente)
+        if (aule.length === 0) {
+          selectAula.innerHTML = '<option value="" disabled selected>Nessuna aula disponibile</option>';
+          return;
+        }
+        
+        // Aggiungi le aule disponibili
         aule.forEach((aula) => {
           let option = document.createElement("option");
           option.value = aula;
           option.textContent = aula;
+          
+          // Imposta lo Studio Docente come pre-selezionato se è l'unica aula disponibile
+          if (aula === studioDocente && aule.length === 1) {
+            option.selected = true;
+          }
+          
           selectAula.appendChild(option);
         });
       })
-      .catch((error) =>
-        console.error("Errore nel recupero delle aule:", error)
-      );
+      .catch((error) => {
+        console.error("Errore nel recupero delle aule:", error);
+        const selectAula = document.getElementById("aula");
+        selectAula.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
+        
+        // Anche in caso di errore, aggiungi comunque lo studio docente come opzione
+        let option = document.createElement("option");
+        option.value = studioDocente;
+        option.textContent = studioDocente;
+        selectAula.appendChild(option);
+      });
+  }
+  
+  // Funzione per popolare la select con tutte le aule (usato solo all'inizio)
+  function popolaAule() {
+    const selectAula = document.getElementById("aula");
+    selectAula.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
   }
   
   // Funzione per popolare il selettore degli insegnamenti con titolo visibile e codice come value
@@ -87,11 +163,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function preselectInsegnamenti() {
     if (window.preselectedInsegnamenti && window.preselectedInsegnamenti.length > 0) {
       // Se è disponibile InsegnamentiManager, usa quello per preselezionare
-      if (window.InsegnamentiManager) {
-        const selectedCodes = window.InsegnamentiManager.getSelectedCodes();
-        if (selectedCodes.length > 0) {
-          window.preselectedInsegnamenti = selectedCodes;
-        }
+      const selectedCodes = window.InsegnamentiManager.getSelectedCodes();
+      if (selectedCodes.length > 0) {
+        window.preselectedInsegnamenti = selectedCodes;
       }
       
       // Continua con la logica esistente
@@ -433,6 +507,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     
+    // Verifica che sia stata selezionata un'aula
+    const aulaSelezionata = document.getElementById('aula').value;
+    if (!aulaSelezionata) {
+      alert("Seleziona un'aula disponibile");
+      return;
+    }
+    
     const formData = new FormData(this);
 
     fetch("/flask/api/inserisciEsame", {
@@ -443,6 +524,9 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((data) => {
         if (data.status === "error") {
           showPopup(data.message);
+        } else if (data.status === "validation") {
+          // Mostra il popup di conferma con gli esami validi e invalidi
+          mostraPopupConferma(data);
         } else {
           // Rimuovi eventualmente i preselected insegnamenti
           window.preselectedInsegnamenti = [];
@@ -460,6 +544,196 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("Si è verificato un errore durante l'inserimento dell'esame");
       });
   });
+
+  // Funzione per mostrare il popup di conferma con gli esami validi e invalidi
+  function mostraPopupConferma(data) {
+    // Crea il contenitore del popup
+    const popupContainer = document.createElement('div');
+    popupContainer.id = 'popupConferma';
+    popupContainer.className = 'popup-overlay';
+    popupContainer.style.display = 'flex';
+    
+    // Crea il contenuto del popup
+    const popupContent = document.createElement('div');
+    popupContent.className = 'popup';
+    popupContent.style.width = 'clamp(500px, 50vw, 800px)';
+    
+    // Header del popup
+    const header = document.createElement('div');
+    header.className = 'popup-header';
+    header.innerHTML = `
+      <h2>Conferma inserimento esami</h2>
+      <span id="closeConferma" class="popup-close">&times;</span>
+    `;
+    
+    // Contenuto del popup
+    const content = document.createElement('div');
+    content.className = 'popup-content';
+    
+    // Costruisci l'HTML per gli esami validi e invalidi
+    let htmlContent = '';
+    
+    // Se ci sono esami invalidi, mostra un avviso
+    if (data.esami_invalidi && data.esami_invalidi.length > 0) {
+      htmlContent += `
+        <div class="alert alert-warning" style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+          <p><strong>Attenzione!</strong> Alcuni esami non possono essere inseriti:</p>
+          <ul style="margin-left: 20px;">
+      `;
+      
+      data.esami_invalidi.forEach(esame => {
+        // Usa il titolo invece del codice per il messaggio di errore
+        htmlContent += `<li>${esame.titolo || esame.codice}: ${esame.errore}</li>`;
+      });
+      
+      htmlContent += `
+          </ul>
+        </div>
+      `;
+    }
+    
+    // Tabella degli esami validi
+    if (data.esami_validi && data.esami_validi.length > 0) {
+      htmlContent += `
+        <p>I seguenti esami possono essere inseriti:</p>
+        <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd; background-color: #f2f2f2;">
+                  <input type="checkbox" id="selectAllExams" checked> Seleziona tutti
+                </th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd; background-color: #f2f2f2;">Insegnamento</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      data.esami_validi.forEach(esame => {
+        htmlContent += `
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+              <input type="checkbox" class="esame-checkbox" data-codice="${esame.codice}" 
+                     data-inizio="${esame.data_inizio_iscrizione}" data-fine="${esame.data_fine_iscrizione}" checked>
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${esame.titolo}</td>
+          </tr>
+        `;
+      });
+      
+      htmlContent += `
+            </tbody>
+          </table>
+        </div>
+        <div style="text-align: center;">
+          <button id="btnConfermaEsami" class="invia" style="margin-right: 10px;">Conferma</button>
+          <button id="btnAnnullaEsami" class="invia" style="background-color: #6c757d;">Annulla</button>
+        </div>
+      `;
+    } else {
+      htmlContent += `
+        <p>Non ci sono esami validi da inserire.</p>
+        <div style="text-align: center;">
+          <button id="btnAnnullaEsami" class="invia">Chiudi</button>
+        </div>
+      `;
+    }
+    
+    content.innerHTML = htmlContent;
+    
+    // Assembla il popup
+    popupContent.appendChild(header);
+    popupContent.appendChild(content);
+    popupContainer.appendChild(popupContent);
+    
+    // Aggiungi il popup al DOM
+    document.body.appendChild(popupContainer);
+    
+    // Aggiungi event listeners
+    document.getElementById('closeConferma').addEventListener('click', () => {
+      document.body.removeChild(popupContainer);
+    });
+    
+    document.getElementById('btnAnnullaEsami').addEventListener('click', () => {
+      document.body.removeChild(popupContainer);
+    });
+    
+    // Event listener per "Seleziona tutti"
+    const selectAllCheckbox = document.getElementById('selectAllExams');
+    if (selectAllCheckbox) {
+      selectAllCheckbox.addEventListener('change', () => {
+        const checkboxes = document.querySelectorAll('.esame-checkbox');
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = selectAllCheckbox.checked;
+        });
+      });
+    }
+    
+    // Event listener per il pulsante di conferma
+    const btnConferma = document.getElementById('btnConfermaEsami');
+    if (btnConferma) {
+      btnConferma.addEventListener('click', () => {
+        // Raccogli gli esami selezionati
+        const checkboxes = document.querySelectorAll('.esame-checkbox:checked');
+        const esamiSelezionati = Array.from(checkboxes).map(checkbox => ({
+          codice: checkbox.dataset.codice,
+          data_inizio_iscrizione: checkbox.dataset.inizio,
+          data_fine_iscrizione: checkbox.dataset.fine
+        }));
+        
+        // Se non ci sono esami selezionati, mostra un messaggio e non fare nulla
+        if (esamiSelezionati.length === 0) {
+          alert('Seleziona almeno un esame da inserire');
+          return;
+        }
+        
+        // Invia la richiesta al server per inserire gli esami selezionati
+        fetch('/flask/api/confermaEsami', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            dati_comuni: data.dati_comuni,
+            esami_da_inserire: esamiSelezionati
+          }),
+        })
+        .then(response => response.json())
+        .then(response => {
+          // Rimuovi il popup
+          document.body.removeChild(popupContainer);
+          
+          // Mostra messaggio di successo o errore
+          if (response.status === 'success' || response.status === 'partial') {
+            // Rimuovi i preselected insegnamenti
+            window.preselectedInsegnamenti = [];
+            
+            // Se è disponibile InsegnamentiManager, svuota la selezione
+            if (window.InsegnamentiManager) {
+              window.InsegnamentiManager.clearSelection();
+            }
+            
+            // Mostra messaggio di successo
+            alert(response.message);
+            
+            // Ricarica la pagina
+            window.location.reload();
+          } else {
+            alert('Errore: ' + response.message);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Si è verificato un errore durante l\'inserimento degli esami');
+        });
+      });
+    }
+  }
+
+  // Funzione per mostrare un popup generico di errore
+  function showPopup(message) {
+    alert(message);
+  }
   
   // Variabile per l'anno corrente
   const year = currentDate.getFullYear();

@@ -42,9 +42,8 @@ def mieiEsami():
 
 # ===== API Gestione Esami =====
 @app.route('/flask/api/inserisciEsame', methods=['POST'])
+# API per verificare e inserire nuovi esami
 def inserisciEsame():
-  """API per inserire un nuovo esame"""
-  conn = None
   try:
     # Raccogli i dati dal form
     data = request.form
@@ -119,13 +118,29 @@ def inserisciEsame():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Lista per tenere traccia degli esami inseriti
-    esami_inseriti = []
-    errori = []
+    # Liste per tenere traccia degli esami validi e non validi
+    esami_validi = []
+    esami_invalidi = []
 
-    # Ciclo su tutti gli insegnamenti selezionati
+    # Verifica aule/giorni/periodo - facciamo questa verifica una sola volta per tutti gli esami
+    cursor.execute("""
+      SELECT COUNT(*) FROM esami 
+      WHERE data_appello = %s AND aula = %s AND periodo = %s
+    """, (data_appello, aula, periodo))
+    if cursor.fetchone()[0] > 0:
+      # C'è un conflitto con altre prenotazioni
+      return jsonify({
+        'status': 'error', 
+        'message': 'Aula già occupata in questo periodo'
+      }), 400
+
+    # Ciclo su tutti gli insegnamenti selezionati per verificarli
     for insegnamento in insegnamenti:
       try:
+        # Ottieni il titolo dell'insegnamento per mostrarlo nei messaggi di errore
+        cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+        titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
+        
         # Ottieni le informazioni del CDS dall'insegnamento per l'anno corrente
         cursor.execute("""
           SELECT ic.cds, ic.anno_accademico 
@@ -139,7 +154,11 @@ def inserisciEsame():
         
         cds_info = cursor.fetchone()
         if not cds_info:
-          errori.append(f"Insegnamento {insegnamento} non trovato")
+          esami_invalidi.append({
+            'codice': insegnamento,
+            'titolo': titolo_insegnamento,
+            'errore': "Insegnamento non trovato"
+          })
           continue
         
         cds_code, anno_acc = cds_info
@@ -147,16 +166,18 @@ def inserisciEsame():
         # Verifica limite esami per sessione
         sessione_info = get_session_for_date(data_esame, cds_code, anno_acc)
         if not sessione_info:
-          errori.append(f"La data selezionata non rientra in nessuna sessione d'esame valida per {insegnamento}")
+          esami_invalidi.append({
+            'codice': insegnamento,
+            'titolo': titolo_insegnamento,
+            'errore': "La data selezionata non rientra in nessuna sessione d'esame valida"
+          })
           continue
 
         sessione, limite_max, data_inizio_sessione = sessione_info
 
         # Imposta valori predefiniti per i campi obbligatori
-        if not inizio_iscrizione:
-          inizio_iscrizione = data_inizio_sessione - timedelta(days=20)
-        if not fine_iscrizione:
-          fine_iscrizione = data_esame - timedelta(days=1)
+        data_inizio_iscrizione = inizio_iscrizione if inizio_iscrizione else (data_inizio_sessione - timedelta(days=20)).strftime("%Y-%m-%d")
+        data_fine_iscrizione = fine_iscrizione if fine_iscrizione else (data_esame - timedelta(days=1)).strftime("%Y-%m-%d")
 
         # Conta esami nella stessa sessione
         cursor.execute("""
@@ -177,7 +198,11 @@ def inserisciEsame():
         """, (cds_code, anno_acc, docente, insegnamento, sessione))
 
         if cursor.fetchone()[0] >= limite_max:
-          errori.append(f"Limite di {limite_max} esami per l'insegnamento {insegnamento} nella sessione {sessione} raggiunto")
+          esami_invalidi.append({
+            'codice': insegnamento,
+            'titolo': titolo_insegnamento,
+            'errore': f"Limite di {limite_max} esami nella sessione {sessione} raggiunto"
+          })
           continue
 
         # Verifica vincolo dei 14 giorni
@@ -192,9 +217,106 @@ def inserisciEsame():
         esami_vicini = cursor.fetchall()
         if esami_vicini:
           date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
-          errori.append(f"Non puoi inserire esami a meno di 14 giorni di distanza per {insegnamento}. Hai già esami nelle date: {', '.join(date_esami)}")
+          esami_invalidi.append({
+            'codice': insegnamento,
+            'titolo': titolo_insegnamento,
+            'errore': f"Non puoi inserire esami a meno di 14 giorni di distanza. Hai già esami nelle date: {', '.join(date_esami)}"
+          })
           continue
 
+        # Ottieni il titolo dell'insegnamento per mostrarlo nell'interfaccia utente
+        cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+        titolo = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
+        
+        # L'esame è valido, aggiungi alla lista
+        esami_validi.append({
+          'codice': insegnamento,
+          'titolo': titolo,
+          'data_inizio_iscrizione': data_inizio_iscrizione,
+          'data_fine_iscrizione': data_fine_iscrizione
+        })
+
+      except Exception as e:
+        # Se avviene un errore in questa fase, cerca comunque di ottenere il titolo dell'insegnamento
+        try:
+          cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+          titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
+        except:
+          titolo_insegnamento = insegnamento
+          
+        esami_invalidi.append({
+          'codice': insegnamento,
+          'titolo': titolo_insegnamento,
+          'errore': f"Errore nella verifica dell'esame: {str(e)}"
+        })
+
+    # Costruisci i dati comuni della richiesta
+    dati_comuni = {
+      'docente': docente,
+      'aula': aula,
+      'data_appello': data_appello,
+      'ora_appello': ora_appello,
+      'periodo': periodo,
+      'durata_appello': durata_appello,
+      'verbalizzazione': verbalizzazione,
+      'tipo_esame': tipo_esame,
+      'posti': posti,
+      'note_appello': note_appello,
+      'tipo_appello': tipo_appello,
+      'definizione_appello': definizione_appello,
+      'gestione_prenotazione': gestione_prenotazione,
+      'riservato': riservato,
+      'tipo_iscrizione': tipo_iscrizione
+    }
+    
+    # Costruisci risposta
+    risposta = {
+      'status': 'validation',
+      'message': 'Verifica completata',
+      'dati_comuni': dati_comuni,
+      'esami_validi': esami_validi,
+      'esami_invalidi': esami_invalidi
+    }
+    
+    return jsonify(risposta), 200
+
+  except Exception as e:
+    return jsonify({'status': 'error', 'message': str(e)}), 500
+  finally:
+    if 'conn' in locals() and conn:
+      cursor.close()
+      conn.close()
+
+@app.route('/flask/api/confermaEsami', methods=['POST'])
+def confermaEsami():
+  """API per inserire gli esami selezionati dall'utente"""
+  conn = None
+  try:
+    # Parse JSON della richiesta
+    data = request.json
+    if not data:
+      return jsonify({'status': 'error', 'message': 'Dati mancanti'}), 400
+    
+    dati_comuni = data.get('dati_comuni', {})
+    esami_da_inserire = data.get('esami_da_inserire', [])
+    
+    if not esami_da_inserire:
+      return jsonify({'status': 'error', 'message': 'Nessun esame selezionato per l\'inserimento'}), 400
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Lista per tenere traccia degli esami inseriti
+    esami_inseriti = []
+    errori = []
+    
+    # Inserisci gli esami selezionati
+    for esame in esami_da_inserire:
+      try:
+        insegnamento = esame['codice']
+        inizio_iscrizione = esame.get('data_inizio_iscrizione')
+        fine_iscrizione = esame.get('data_fine_iscrizione')
+        
         # Inserimento nel database
         cursor.execute(
           """INSERT INTO esami 
@@ -204,42 +326,41 @@ def inserisciEsame():
               tipo_appello, definizione_appello, gestione_prenotazione, 
               riservato, tipo_iscrizione, periodo, durata_appello)
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-          (docente, insegnamento, aula, data_appello, ora_appello, 
+          (dati_comuni['docente'], insegnamento, dati_comuni['aula'], 
+           dati_comuni['data_appello'], dati_comuni['ora_appello'], 
            inizio_iscrizione, fine_iscrizione, 
-           tipo_esame, verbalizzazione, note_appello, posti,
-           tipo_appello, definizione_appello, gestione_prenotazione,
-           riservato, tipo_iscrizione, periodo, durata_appello)
+           dati_comuni['tipo_esame'], dati_comuni['verbalizzazione'], 
+           dati_comuni['note_appello'], dati_comuni['posti'],
+           dati_comuni['tipo_appello'], dati_comuni['definizione_appello'], 
+           dati_comuni['gestione_prenotazione'], dati_comuni['riservato'], 
+           dati_comuni['tipo_iscrizione'], dati_comuni['periodo'], 
+           dati_comuni['durata_appello'])
         )
         esami_inseriti.append(insegnamento)
       except Exception as e:
-        errori.append(f"Errore nell'inserimento dell'esame per {insegnamento}: {str(e)}")
-        # Non facciamo rollback qui per consentire a altri esami di essere inseriti
+        errori.append({
+          'codice': insegnamento,
+          'errore': f"Errore nell'inserimento dell'esame: {str(e)}"
+        })
 
-    # Verifica aule/giorni/periodo - facciamo questa verifica una sola volta per tutti gli esami
-    cursor.execute("""
-      SELECT COUNT(*) FROM esami 
-      WHERE data_appello = %s AND aula = %s AND periodo = %s
-    """, (data_appello, aula, periodo))
-    if cursor.fetchone()[0] > len(esami_inseriti):
-      # C'è un conflitto con altre prenotazioni (oltre quelle che abbiamo appena inserito)
-      if esami_inseriti:
-        # Se abbiamo inserito alcuni esami, facciamo rollback per liberare l'aula
-        conn.rollback()
-        return jsonify({'status': 'error', 'message': 'Aula già occupata in questo periodo'}), 400
-    
-    # Se non ci sono esami inseriti, significa che tutti gli insegnamenti hanno avuto problemi
-    if not esami_inseriti:
-      return jsonify({'status': 'error', 'message': 'Nessun esame inserito', 'errors': errori}), 400
-    
     # Commit delle modifiche se è stato inserito almeno un esame
-    conn.commit()
+    if esami_inseriti:
+      conn.commit()
     
-    # Se ci sono stati alcuni errori ma almeno un esame è stato inserito, restituisci avviso
+    # Se ci sono stati errori ma almeno un esame è stato inserito, restituisci avviso
     if errori:
-      return jsonify({'status': 'partial', 'message': 'Alcuni esami sono stati inseriti con successo', 
-                     'inserted': esami_inseriti, 'errors': errori}), 207
+      return jsonify({
+        'status': 'partial', 
+        'message': 'Alcuni esami sono stati inseriti con successo', 
+        'inserted': esami_inseriti, 
+        'errors': errori
+      }), 207
     
-    return jsonify({'status': 'success', 'message': 'Tutti gli esami sono stati inseriti con successo'}), 200
+    return jsonify({
+      'status': 'success', 
+      'message': 'Tutti gli esami sono stati inseriti con successo',
+      'inserted': esami_inseriti
+    }), 200
 
   except Exception as e:
     if conn:
@@ -302,10 +423,30 @@ def ottieniInsegnamenti():
 # API per ottenere le aule disponibili. Usato in formEsame.html
 @app.route('/flask/api/ottieniAule', methods=['GET'])
 def ottieniAule():
+  data = request.args.get('data')
+  periodo = request.args.get('periodo')  # 0 per mattina, 1 per pomeriggio
+  
   try:
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT nome FROM aule")
+    
+    if data and periodo is not None:
+      # Recupera solo le aule disponibili nella data e periodo specificati
+      cursor.execute("""
+        SELECT DISTINCT a.nome 
+        FROM aule a
+        WHERE NOT EXISTS (
+          SELECT 1 FROM esami e
+          WHERE e.aula = a.nome
+          AND e.data_appello = %s
+          AND e.periodo = %s
+        )
+        ORDER BY a.nome
+      """, (data, periodo))
+    else:
+      # Se non sono specificate data e periodo, restituisci tutte le aule
+      cursor.execute("SELECT nome FROM aule ORDER BY nome")
+      
     aule = [row[0] for row in cursor.fetchall()]
     return jsonify(aule)
   except Exception as e:

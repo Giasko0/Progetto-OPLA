@@ -199,6 +199,25 @@
   color: #777;
 }
 
+/* Stile per il popup di conferma */
+.alert {
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+}
+
+.alert-success {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
 </style>
 
 <div id="popupOverlay" class="popup-overlay">
@@ -227,14 +246,16 @@
           <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden" required></select>
         </div>
 
-        <label class="formEsame-label" for="aula">Aula*</label>
-        <select id="aula" name="aula" required></select>
-
         <label class="formEsame-label" for="dataora">Data*</label>
-        <input type="date" id="dataora" name="dataora" readonly>
+        <input type="date" id="dataora" name="dataora">
 
         <label class="formEsame-label" for="ora" required>Ora*</label>
         <input type="time" id="ora" name="ora" min="08:00" max="23:00" required>
+
+        <label class="formEsame-label" for="aula">Aula*</label>
+        <select id="aula" name="aula" required>
+          <option value="" disabled selected hidden>Seleziona prima data e ora</option>
+        </select>
 
         <label class="formEsame-label" for="durata">Durata*</label>
         <input type="number" id="durata" name="durata" min="1" step="0.1" required>
