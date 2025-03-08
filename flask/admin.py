@@ -341,3 +341,146 @@ def truncate_table(table_name):
         if conn:
             cursor.close()
             conn.close()
+
+@admin_bp.route('/save-cds-dates', methods=['POST'])
+def save_cds_dates():
+    if 'admin' not in request.cookies:
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+    
+    try:
+        data = request.get_json()
+        
+        # Estrai i parametri dal JSON ricevuto
+        codice_cds = data.get('codice_cds')
+        anno_accademico = int(data.get('anno_accademico'))
+        nome_corso = data.get('nome_corso')
+        durata = int(data.get('durata'))
+        
+        # Date del primo semestre
+        inizio_primo = data.get('inizio_primo')
+        fine_primo = data.get('fine_primo')
+        pausa_primo_inizio = data.get('pausa_primo_inizio') or None
+        pausa_primo_fine = data.get('pausa_primo_fine') or None
+        
+        # Date del secondo semestre
+        inizio_secondo = data.get('inizio_secondo')
+        fine_secondo = data.get('fine_secondo')
+        pausa_secondo_inizio = data.get('pausa_secondo_inizio') or None
+        pausa_secondo_fine = data.get('pausa_secondo_fine') or None
+        
+        # Date delle sessioni d'esame
+        anticipata_inizio = data.get('anticipata_inizio')
+        anticipata_fine = data.get('anticipata_fine')
+        estiva_inizio = data.get('estiva_inizio')
+        estiva_fine = data.get('estiva_fine')
+        autunnale_inizio = data.get('autunnale_inizio')
+        autunnale_fine = data.get('autunnale_fine')
+        invernale_inizio = data.get('invernale_inizio')
+        invernale_fine = data.get('invernale_fine')
+        
+        # Verifica che tutti i campi obbligatori siano presenti
+        required_fields = [
+            codice_cds, anno_accademico, nome_corso, durata,
+            inizio_primo, fine_primo, inizio_secondo, fine_secondo,
+            anticipata_inizio, anticipata_fine, estiva_inizio, estiva_fine,
+            autunnale_inizio, autunnale_fine, invernale_inizio, invernale_fine
+        ]
+        
+        if any(field is None or field == "" for field in required_fields):
+            return jsonify({'status': 'error', 'message': 'Tutti i campi obbligatori devono essere completati'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verifica se esiste già un record per questo corso e anno accademico
+        cursor.execute(
+            "SELECT 1 FROM cds WHERE codice = %s AND anno_accademico = %s",
+            (codice_cds, anno_accademico)
+        )
+        exists = cursor.fetchone()
+        
+        if exists:
+            # Aggiorna il record esistente
+            cursor.execute("""
+                UPDATE cds SET 
+                nome_corso = %s,
+                durata = %s,
+                inizio_lezioni_primo_semestre = %s,
+                fine_lezioni_primo_semestre = %s,
+                inizio_lezioni_secondo_semestre = %s,
+                fine_lezioni_secondo_semestre = %s,
+                pausa_didattica_primo_inizio = %s,
+                pausa_didattica_primo_fine = %s,
+                pausa_didattica_secondo_inizio = %s,
+                pausa_didattica_secondo_fine = %s,
+                inizio_sessione_anticipata = %s,
+                fine_sessione_anticipata = %s,
+                inizio_sessione_estiva = %s,
+                fine_sessione_estiva = %s,
+                inizio_sessione_autunnale = %s,
+                fine_sessione_autunnale = %s,
+                inizio_sessione_invernale = %s,
+                fine_sessione_invernale = %s
+                WHERE codice = %s AND anno_accademico = %s
+            """, (
+                nome_corso, durata,
+                inizio_primo, fine_primo,
+                inizio_secondo, fine_secondo,
+                pausa_primo_inizio, pausa_primo_fine,
+                pausa_secondo_inizio, pausa_secondo_fine,
+                anticipata_inizio, anticipata_fine,
+                estiva_inizio, estiva_fine,
+                autunnale_inizio, autunnale_fine,
+                invernale_inizio, invernale_fine,
+                codice_cds, anno_accademico
+            ))
+            message = f"Informazioni del corso {codice_cds} per l'anno accademico {anno_accademico} aggiornate con successo"
+        else:
+            # Inserisci un nuovo record
+            cursor.execute("""
+                INSERT INTO cds (
+                    codice, anno_accademico, nome_corso, durata,
+                    inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
+                    inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre,
+                    pausa_didattica_primo_inizio, pausa_didattica_primo_fine,
+                    pausa_didattica_secondo_inizio, pausa_didattica_secondo_fine,
+                    inizio_sessione_anticipata, fine_sessione_anticipata,
+                    inizio_sessione_estiva, fine_sessione_estiva,
+                    inizio_sessione_autunnale, fine_sessione_autunnale,
+                    inizio_sessione_invernale, fine_sessione_invernale
+                ) VALUES (
+                    %s, %s, %s, %s, 
+                    %s, %s, %s, %s, 
+                    %s, %s, %s, %s, 
+                    %s, %s, %s, %s, 
+                    %s, %s, %s, %s
+                )
+            """, (
+                codice_cds, anno_accademico, nome_corso, durata,
+                inizio_primo, fine_primo,
+                inizio_secondo, fine_secondo,
+                pausa_primo_inizio, pausa_primo_fine,
+                pausa_secondo_inizio, pausa_secondo_fine,
+                anticipata_inizio, anticipata_fine,
+                estiva_inizio, estiva_fine,
+                autunnale_inizio, autunnale_fine,
+                invernale_inizio, invernale_fine
+            ))
+            message = f"Nuovo corso {codice_cds} per l'anno accademico {anno_accademico} creato con successo"
+        
+        conn.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': message
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'status': 'error', 'message': f'Si è verificato un errore: {str(e)}'}), 500
+    
+    finally:
+        if 'conn' in locals() and conn:
+            cursor.close()
+            conn.close()
