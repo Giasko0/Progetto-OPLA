@@ -292,56 +292,6 @@ def upload_teachers():
             cursor.close()
             conn.close()
 
-@admin_bp.route('/truncate-table/<table_name>', methods=['POST'])
-def truncate_table(table_name):
-    if 'admin' not in request.cookies:
-        return redirect('/flask/admin')
-    
-    # Lista delle tabelle consentite
-    allowed_tables = ['insegnamenti', 'docenti', 'esami', 'sessioni']
-    
-    if table_name not in allowed_tables:
-        return jsonify({
-            'status': 'error',
-            'message': 'Tabella non valida'
-        }), 400
-    
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Esegui il truncate della tabella
-        cursor.execute(f"DELETE FROM {table_name}")
-        
-        # Se stiamo svuotando la tabella esami, resettiamo anche eventuali sequenze associate
-        if table_name == 'esami':
-            try:
-                cursor.execute("ALTER SEQUENCE esami_id_seq RESTART WITH 1")
-            except:
-                # Se non esiste una sequenza, ignora l'errore
-                pass
-        
-        conn.commit()
-        
-        return jsonify({
-            'status': 'success',
-            'message': f'La tabella {table_name} è stata svuotata con successo'
-        })
-    
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-    
-    finally:
-        if conn:
-            cursor.close()
-            conn.close()
-
 @admin_bp.route('/save-cds-dates', methods=['POST'])
 def save_cds_dates():
     if 'admin' not in request.cookies:

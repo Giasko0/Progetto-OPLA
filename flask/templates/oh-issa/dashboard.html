@@ -33,16 +33,6 @@
     </div>
 </section>
 
-<section style="margin-top: 3rem;">
-    <h2>Reset Database</h2>
-    
-    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-        <button class="btn btn-danger reset-btn" data-table="docenti">Reset Tabella Docenti</button>
-        <button class="btn btn-danger reset-btn" data-table="insegnamenti">Reset Tabella Insegnamenti</button>
-        <button class="btn btn-danger reset-btn" data-table="esami">Reset Tabella Esami</button>
-    </div>
-</section>
-
 <div id="responseMessages" style="margin-top: 2rem;"></div>
 {% endblock %}
 
@@ -59,16 +49,6 @@
         document.getElementById('teachingsForm').addEventListener('submit', function(e) {
             e.preventDefault();
             uploadFile(this, 'Insegnamenti');
-        });
-        
-        // Gestisci i pulsanti di reset
-        document.querySelectorAll('.reset-btn').forEach(function(button) {
-            button.addEventListener('click', function() {
-                const table = this.getAttribute('data-table');
-                if (confirm(`Sei sicuro di voler eliminare tutti i dati della tabella ${table}?`)) {
-                    resetTable(table);
-                }
-            });
         });
         
         // Funzione per caricare i file
@@ -97,25 +77,6 @@
             .catch(error => {
                 console.error('Errore:', error);
                 showMessage('error', `Si è verificato un errore durante l'upload: ${error.message}`);
-            });
-        }
-        
-        // Funzione per resettare una tabella
-        function resetTable(table) {
-            fetch(`/flask/admin/truncate-table/${table}`, {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showMessage('success', data.message);
-                } else {
-                    showMessage('error', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Errore:', error);
-                showMessage('error', `Si è verificato un errore durante il reset: ${error.message}`);
             });
         }
         
