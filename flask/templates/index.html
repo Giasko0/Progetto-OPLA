@@ -12,7 +12,74 @@
 {% block body %}
   <h1 class="titolo">Benvenuto, utente!</h1>
 
-  <div id="calendar"></div>
+  <div id="calendars-container">
+    <div class="calendar-row">
+      <div class="calendar-col">
+        <h3>Sessione Anticipata</h3>
+        <div id="calendar-anticipata" class="mini-calendar"></div>
+      </div>
+      <div class="calendar-col">
+        <h3>Sessione Estiva</h3>
+        <div id="calendar-estiva" class="mini-calendar"></div>
+      </div>
+    </div>
+    
+    <div class="calendar-row">
+      <div class="calendar-col">
+        <h3>Sessione Autunnale</h3>
+        <div id="calendar-autunnale" class="mini-calendar"></div>
+      </div>
+      <div class="calendar-col">
+        <h3>Sessione Invernale</h3>
+        <div id="calendar-invernale" class="mini-calendar"></div>
+      </div>
+    </div>
+    
+    <div class="calendar-row">
+      <div class="calendar-col">
+        <h3>Pausa Didattica (1° sem)</h3>
+        <div id="calendar-pausa1" class="mini-calendar"></div>
+      </div>
+      <div class="calendar-col">
+        <h3>Pausa Didattica (2° sem)</h3>
+        <div id="calendar-pausa2" class="mini-calendar"></div>
+      </div>
+    </div>
+    
+    <div class="calendar-row">
+      <div class="calendar-col full-width">
+        <h3>Tutti gli Esami</h3>
+        <div id="calendar-completo" class="mini-calendar"></div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    #calendars-container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .calendar-row {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    .calendar-col {
+      flex: 1;
+      padding: 0 10px;
+    }
+    .mini-calendar {
+      height: 500px;
+      margin-bottom: 20px;
+    }
+    .full-width {
+      width: 100%;
+    }
+    h3 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+  </style>
 
   {% include 'formEsame.html' %}
 {% endblock %}
