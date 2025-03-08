@@ -465,6 +465,11 @@ def getEsami():
     docente = request.args.get('docente')
     solo_docente = request.args.get('solo_docente', 'false').lower() == 'true'
     
+    # Parametri aggiuntivi per il filtraggio
+    anni_corso_filtro = request.args.get('anni_corso')
+    semestri_filtro = request.args.get('semestri')
+    cds_filtro = request.args.get('cds')
+    
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -513,11 +518,11 @@ def getEsami():
             cursor.execute(query, tuple(params))
             
         else:
-            # Query per mostrare gli esami filtrati per anno/semestre degli insegnamenti selezionati
+            # Query per mostrare gli esami filtrati per anno/semestre/cds degli insegnamenti selezionati
             query = """
-                WITH anno_semestre_selezionati AS (
-                    -- Ottieni tutte le combinazioni anno_corso/semestre degli insegnamenti selezionati
-                    SELECT DISTINCT ic.anno_corso, ic.semestre
+                WITH parametri_selezionati AS (
+                    -- Ottieni tutte le combinazioni anno_corso/semestre/cds degli insegnamenti selezionati
+                    SELECT DISTINCT ic.anno_corso, ic.semestre, ic.cds
                     FROM insegnamenti_cds ic
                     WHERE ic.anno_accademico = %s
                     AND ic.insegnamento IN ({})
@@ -531,9 +536,10 @@ def getEsami():
                 JOIN insegnamenti i ON e.insegnamento = i.codice
                 JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
                     AND ic.anno_accademico = %s
-                -- JOIN con le combinazioni di anno/semestre degli insegnamenti selezionati
-                JOIN anno_semestre_selezionati ase ON ic.anno_corso = ase.anno_corso 
-                    AND ic.semestre = ase.semestre
+                -- JOIN con le combinazioni di anno/semestre/cds degli insegnamenti selezionati
+                JOIN parametri_selezionati ps ON ic.anno_corso = ps.anno_corso 
+                    AND ic.semestre = ps.semestre
+                    AND ic.cds = ps.cds
                 JOIN insegna ins ON e.insegnamento = ins.insegnamento 
                     AND ins.annoaccademico = ic.anno_accademico
                 WHERE 1=1
@@ -541,6 +547,7 @@ def getEsami():
             
             params = [planning_year] + insegnamenti + [planning_year]
             
+            # Aggiungi filtri aggiuntivi se specificati
             if anno:
                 query += " AND ins.annoaccademico = %s"
                 params.append(int(anno))

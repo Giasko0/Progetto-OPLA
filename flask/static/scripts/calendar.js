@@ -232,20 +232,26 @@ document.addEventListener("DOMContentLoaded", function () {
             const codici = Array.from(selected.keys());
             params.append('insegnamenti', codici.join(','));
             
-            // Raccogli anni corso e semestri
+            // Raccogli anni corso, semestri e codici CDS
             const anniCorso = new Set();
             const semestri = new Set();
+            const cds = new Set();
+            
             selected.forEach(ins => {
               if (ins.anno_corso) anniCorso.add(ins.anno_corso);
               if (ins.semestre) semestri.add(ins.semestre);
+              if (ins.cds) cds.add(ins.cds);
             });
             
-            // Aggiungi parametri per anno corso e semestre
+            // Aggiungi parametri per anno corso, semestre e CDS
             if (anniCorso.size > 0) {
               params.append('anni_corso', Array.from(anniCorso).join(','));
             }
             if (semestri.size > 0) {
               params.append('semestri', Array.from(semestri).join(','));
+            }
+            if (cds.size > 0) {
+              params.append('cds', Array.from(cds).join(','));
             }
           }
         } else {
