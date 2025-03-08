@@ -54,6 +54,17 @@ INSERT INTO cds (
     '2025-06-03', '2025-07-31',                    -- Sessione estiva
     '2025-09-01', '2025-09-30',                    -- Sessione autunnale
     '2026-01-07', '2026-02-21'                     -- Sessione invernale
+),
+(
+    'L035', 2024, 'Matematica', 3,
+    '2024-09-23', '2024-12-20',                    -- Primo semestre
+    '2025-02-26', '2025-05-30',                    -- Secondo semestre
+    '2024-11-01', '2024-11-05',                    -- Pausa primo semestre
+    '2025-04-10', '2025-04-15',                    -- Pausa secondo semestre
+    '2025-01-10', '2025-02-22',                    -- Sessione anticipata
+    '2025-06-05', '2025-07-30',                    -- Sessione estiva
+    '2025-09-01', '2025-10-01',                    -- Sessione autunnale
+    '2026-01-09', '2026-02-20'                     -- Sessione invernale
 );
 
 -- Inserimento insegnamenti (ora solo codice e titolo)
@@ -68,7 +79,13 @@ INSERT INTO insegnamenti (codice, titolo) VALUES
 ('A000408', 'Computer Vision'),
 ('A000385', 'Programmazione I'),
 ('A000391', 'Sistemi Operativi'),
-('A000389', 'Programmazione II');
+('A000389', 'Programmazione II'),
+('A000450', 'Analisi Matematica I'),
+('A000451', 'Algebra Lineare'),
+('A000452', 'Analisi Matematica II'),
+('A000453', 'Geometria'),
+('A000454', 'Fisica Matematica'),
+('A000455', 'Calcolo Numerico');
 
 -- Inserimento configurazione insegnamenti per anno 2024
 INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da) VALUES
@@ -82,7 +99,13 @@ INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, se
 ('A000408', 2024, 'L062', 2, 1, NULL),  -- Computer Vision
 ('A000385', 2024, 'L062', 1, 1, NULL),  -- Programmazione I
 ('A000391', 2024, 'L062', 2, 1, NULL),  -- Sistemi Operativi
-('A000389', 2024, 'L062', 1, 2, NULL);  -- Programmazione II
+('A000389', 2024, 'L062', 1, 2, NULL),  -- Programmazione II
+('A000450', 2024, 'L035', 1, 1, NULL),  -- Analisi Matematica I
+('A000451', 2024, 'L035', 1, 1, NULL),  -- Algebra Lineare
+('A000452', 2024, 'L035', 1, 2, NULL),  -- Analisi Matematica II
+('A000453', 2024, 'L035', 2, 1, NULL),  -- Geometria
+('A000454', 2024, 'L035', 2, 2, NULL),  -- Fisica Matematica
+('A000455', 2024, 'L035', 3, 1, NULL);  -- Calcolo Numerico
 
 -- Esempio di cambio semestre/anno per alcuni insegnamenti nel 2025
 INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da) VALUES
@@ -112,6 +135,12 @@ INSERT INTO insegna (insegnamento, docente, annoaccademico) VALUES
 ('A000385', 'mr800001', 2024),  -- Programmazione I: mr800001
 ('A000391', 'mr800001', 2024),  -- Sistemi Operativi: mr800001
 ('A000389', 'mr800001', 2024),  -- Programmazione II: mr800001
+('A000450', 'av790001', 2024),  -- Analisi Matematica I: Anna Verdi
+('A000451', 'pg950001', 2024),  -- Algebra Lineare: Paolo Gialli
+('A000452', 'mr800001', 2024),  -- Analisi Matematica II: Mario Rossi
+('A000453', 'gn900001', 2024),  -- Geometria: Giulia Neri
+('A000454', 'lb750001', 2024),  -- Fisica Matematica: Luigi Bianchi
+('A000455', 'mr800001', 2024),  -- Calcolo Numerico: Mario Rossi
 
 -- Anno 2025 (con cambi di docente)
 ('A000392', 'av790001', 2025),  -- Reti di Calcolatori: cambiato da gn900001 a av790001
@@ -185,4 +214,34 @@ INSERT INTO esami (
     '14:30', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
-    NULL, NULL, 3.0, 1);
+    NULL, NULL, 3.0, 1),
+
+-- Esami per il CdS di Matematica
+    ('PF', 'av790001', 'A000450', 'A0',        -- Analisi Matematica I
+    '2025-01-12', '2024-12-12', '2025-01-10', 
+    '09:00', 'FIRMA DIGITALE', 'SO', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    'Portare calcolatrice', NULL, 3.0, 0),
+
+    ('PF', 'pg950001', 'A000451', 'A2',        -- Algebra Lineare
+    '2025-01-22', '2024-12-22', '2025-01-20', 
+    '14:00', 'FIRMA DIGITALE', 'S', 80,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL, 2.5, 0),
+
+-- Sessione estiva
+    ('PF', 'mr800001', 'A000452', 'I1',        -- Analisi Matematica II
+    '2025-06-20', '2025-05-20', '2025-06-18', 
+    '09:00', 'FIRMA DIGITALE', 'S', 120,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    'Portare calcolatrice scientifica', NULL, 3.5, 0),
+
+    ('PF', 'mr800001', 'A000455', 'B1',        -- Calcolo Numerico
+    '2025-07-05', '2025-06-05', '2025-07-03', 
+    '14:30', 'FIRMA DIGITALE', 'SO', 20,
+    'STD', 'STD', 'STD',
+    NULL, NULL, NULL, false,
+    NULL, NULL, 3.0, 0);

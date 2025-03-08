@@ -20,6 +20,35 @@ document.addEventListener("DOMContentLoaded", function () {
         [sessioni.pausa_secondo.start, sessioni.pausa_secondo.end, 'Pausa Didattica']
       ];
 
+      // Crea dropdown per le sessioni
+      const dropdownSessioni = document.createElement('div');
+      dropdownSessioni.className = 'calendar-dropdown';
+      dropdownSessioni.id = 'sessioniDropdown';
+      document.body.appendChild(dropdownSessioni);
+      
+      // Popola il dropdown con le sessioni
+      let dropdownSessioniHTML = `
+        <div class="dropdown-item" data-data="${sessioni.anticipata.start}">Sessione Anticipata</div>
+        <div class="dropdown-item" data-data="${sessioni.estiva.start}">Sessione Estiva</div>
+        <div class="dropdown-item" data-data="${sessioni.autunnale.start}">Sessione Autunnale</div>
+        <div class="dropdown-item" data-data="${sessioni.invernale.start}">Sessione Invernale</div>
+        <div class="dropdown-item" data-data="${sessioni.pausa_primo.start}">Pausa Didattica (1° sem)</div>
+        <div class="dropdown-item" data-data="${sessioni.pausa_secondo.start}">Pausa Didattica (2° sem)</div>
+      `;
+      dropdownSessioni.innerHTML = dropdownSessioniHTML;
+      
+      // Aggiungi event listener per navigare alle sessioni
+      dropdownSessioni.addEventListener('click', (e) => {
+        const item = e.target.closest('.dropdown-item');
+        if (item) {
+          const data = item.dataset.data;
+          if (data) {
+            calendar.gotoDate(data);
+            dropdownSessioni.classList.remove('show');
+          }
+        }
+      });
+
       const dropdownInsegnamenti = document.createElement('div');
       dropdownInsegnamenti.className = 'calendar-dropdown';
       document.body.appendChild(dropdownInsegnamenti);
@@ -265,28 +294,35 @@ document.addEventListener("DOMContentLoaded", function () {
         headerToolbar: {
           left: 'title',
           center: '',
-          right: 'annoAccademico pulsanteInsegnamenti pulsanteDebug prev,next today'
+          right: 'pulsanteSessioni pulsanteInsegnamenti pulsanteDebug prev,next today'
         },
 
         customButtons: {
-          annoAccademico: {
-            text: `A.A. ${planningYear}/${planningYear + 1}`,
-            click: function() {
-              // Disabilita il click
-              return false;
-            },
-            // Aggiunge una classe CSS personalizzata
-            className: 'fc-anno-button'
+          pulsanteSessioni: {
+            text: 'Sessioni',
+            click: function(e) {
+              // Position and show sessions dropdown
+              const button = e.currentTarget;
+              const rect = button.getBoundingClientRect();
+              dropdownSessioni.style.top = `${rect.bottom}px`;
+              dropdownSessioni.style.left = `${rect.left}px`;
+              dropdownSessioni.classList.toggle('show');
+              
+              // Chiudi altri dropdown
+              dropdownInsegnamenti.classList.remove('show');
+            }
           },
           pulsanteInsegnamenti: {
             text: 'Insegnamenti',
             click: function(e) {
-
               // Position and show courses dropdown
               const button = e.currentTarget;
               const rect = button.getBoundingClientRect();
               dropdownInsegnamenti.style.top = `${rect.bottom}px`;
               dropdownInsegnamenti.style.left = `${rect.left}px`;
+              
+              // Chiudi altri dropdown
+              dropdownSessioni.classList.remove('show');
               
               // Get courses from API
               const docente = document.cookie
@@ -626,6 +662,9 @@ document.addEventListener("DOMContentLoaded", function () {
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.fc-pulsanteInsegnamenti-button') && !e.target.closest('.calendar-dropdown')) {
           dropdownInsegnamenti.classList.remove('show');
+        }
+        if (!e.target.closest('.fc-pulsanteSessioni-button') && !e.target.closest('#sessioniDropdown')) {
+          dropdownSessioni.classList.remove('show');
         }
       });
 
