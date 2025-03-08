@@ -8,8 +8,8 @@ CREATE TABLE aule (
 
 -- Creazione della tabella 'cds'
 CREATE TABLE cds (
-    codice TEXT,                         -- Codice del corso di studio (L062)
-    anno_accademico INT,                 -- Anno accademico (2025 per 2025/2026)
+    codice TEXT NOT NULL,                         -- Codice del corso di studio (L062)
+    anno_accademico INT NOT NULL,                 -- Anno accademico (2025 per 2025/2026)
     nome_corso TEXT NOT NULL,            -- Nome del corso di studio (Informatica Triennale) (NOT NULL)
     durata INT,                          -- Durata del corso di studio in anni (3)
     inizio_lezioni_primo_semestre DATE,  -- Inizio lezioni primo semestre

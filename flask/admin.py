@@ -72,9 +72,9 @@ def download_csv():
                 e.posti,                    -- Posti
                 e.codice_turno              -- Codice Turno
             FROM esami e
-            LEFT JOIN insegnamenti i ON e.insegnamento = i.codice
+            JOIN insegnamenti i ON e.insegnamento = i.codice
             LEFT JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
-                AND EXTRACT(YEAR FROM e.data_appello) = ic.anno_accademico
+                AND ic.anno_accademico = EXTRACT(YEAR FROM e.data_appello) - 1
             LEFT JOIN aule a ON e.aula = a.nome
             LEFT JOIN docenti d ON e.docente = d.username
             ORDER BY e.data_appello, e.insegnamento
