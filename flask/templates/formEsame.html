@@ -246,10 +246,10 @@
           <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden" required></select>
         </div>
 
-        <label class="formEsame-label" for="dataora">Data*</label>
+        <label class="formEsame-label" for="dataora">Data Appello*</label>
         <input type="date" id="dataora" name="dataora">
 
-        <label class="formEsame-label" for="ora" required>Ora*</label>
+        <label class="formEsame-label" for="ora" required>Ora Appello*</label>
         <input type="time" id="ora" name="ora" min="08:00" max="23:00" required>
 
         <label class="formEsame-label" for="aula">Aula*</label>
@@ -257,7 +257,7 @@
           <option value="" disabled selected hidden>Seleziona prima data e ora</option>
         </select>
 
-        <label class="formEsame-label" for="durata">Durata*</label>
+        <label class="formEsame-label" for="durata">Durata (in ore)*</label>
         <input type="number" id="durata" name="durata" min="1" step="0.1" required>
         
         <div>
@@ -267,7 +267,7 @@
             <option value="FWP">Firma doppia</option>
             <option value="FSS">Firma singola</option>
             <option value="PAR">Prova parziale</option>
-            <option value="PPP">Prova parziale pubblica</option>
+            <option value="PPP">Prova parziale con pubblicazione</option>
           </select>  
         </div>
 
@@ -289,6 +289,7 @@
             <label class="formEsame-label" for="tipoEsame">Tipo esame</label>
             <select id="tipoEsame" name="tipoEsame">
               <option value="" disabled selected hidden>Scegli il tipo di esame</option>
+              <option value="">Non definito</option>
               <option value="S">Scritto</option>
               <option value="O">Orale</option>
               <option value="SO">Scritto e orale</option>
