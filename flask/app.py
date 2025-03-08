@@ -718,7 +718,7 @@ def getAnniAccademici():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT DISTINCT anno_accademico FROM cds ORDER BY anno_accademico DESC")
+        cursor.execute("SELECT DISTINCT anno_accademico FROM cds ORDER BY anno_accademico ASC")
         anni = [row[0] for row in cursor.fetchall()]
         return jsonify(anni)
     except Exception as e:

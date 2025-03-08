@@ -484,3 +484,429 @@ def save_cds_dates():
         if 'conn' in locals() and conn:
             cursor.close()
             conn.close()
+
+# Aggiungi la rotta per la pagina del calendario esami
+@admin_bp.route('/calendarioEsami')
+def calendarioEsami():
+    if 'admin' not in request.cookies:
+        return redirect('/flask/admin')
+    return render_template('oh-issa/calendarioEsami.html')
+
+# API per ottenere l'elenco dei corsi di studio (con duplicati per anno accademico)
+@admin_bp.route('/api/getCdS')
+def get_cds():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Recupera tutti i corsi di studio, inclusi quelli con stesso codice ma anni diversi
+        cursor.execute("""
+            SELECT c.codice, c.nome_corso, c.anno_accademico
+            FROM cds c
+            ORDER BY c.nome_corso, c.anno_accademico DESC
+        """)
+        
+        cds_list = [{"codice": row[0], "nome_corso": row[1], "anno_accademico": row[2]} for row in cursor.fetchall()]
+        return jsonify(cds_list)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            cursor.close()
+            conn.close()
+
+# Nuova API per ottenere l'elenco dei corsi di studio senza duplicati (per il calendario)
+@admin_bp.route('/api/getCdSDistinct')
+def get_cds_distinct():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Recupera i corsi di studio solo con l'anno accademico più recente per ogni codice
+        cursor.execute("""
+            WITH ranked_cds AS (
+                SELECT 
+                    c.codice, 
+                    c.nome_corso, 
+                    c.anno_accademico,
+                    ROW_NUMBER() OVER (PARTITION BY c.codice ORDER BY c.anno_accademico DESC) as rn
+                FROM cds c
+            )
+            SELECT codice, nome_corso, anno_accademico
+            FROM ranked_cds
+            WHERE rn = 1
+            ORDER BY nome_corso
+        """)
+        
+        cds_list = [{"codice": row[0], "nome_corso": row[1], "anno_accademico": row[2]} for row in cursor.fetchall()]
+        return jsonify(cds_list)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            cursor.close()
+            conn.close()
+
+# API per ottenere i dati del calendario esami
+@admin_bp.route('/api/getCalendarioEsami')
+def get_calendario_esami():
+    cds = request.args.get('cds')
+    anno = request.args.get('anno')
+    
+    if not cds or not anno:
+        return jsonify({"error": "Parametri mancanti"}), 400
+    
+    try:
+        anno = int(anno)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Ottieni la durata del corso
+        cursor.execute("SELECT durata FROM cds WHERE codice = %s AND anno_accademico = %s", (cds, anno))
+        durata_result = cursor.fetchone()
+        if not durata_result:
+            return jsonify({"error": "Corso di studi non trovato"}), 404
+            
+        durata = durata_result[0]
+        
+        # Ottieni le date delle sessioni d'esame e delle pause didattiche
+        cursor.execute("""
+            SELECT 
+                inizio_sessione_anticipata, fine_sessione_anticipata,
+                inizio_sessione_estiva, fine_sessione_estiva,
+                inizio_sessione_autunnale, fine_sessione_autunnale,
+                inizio_sessione_invernale, fine_sessione_invernale,
+                pausa_didattica_primo_inizio, pausa_didattica_primo_fine,
+                pausa_didattica_secondo_inizio, pausa_didattica_secondo_fine
+            FROM cds 
+            WHERE codice = %s AND anno_accademico = %s
+        """, (cds, anno))
+        
+        date_result = cursor.fetchone()
+        if not date_result:
+            return jsonify({"error": "Date del corso di studi non trovate"}), 404
+            
+        # Estrai tutte le date
+        start_anticipata, end_anticipata = date_result[0], date_result[1]
+        start_estiva, end_estiva = date_result[2], date_result[3]
+        start_autunnale, end_autunnale = date_result[4], date_result[5]
+        start_invernale, end_invernale = date_result[6], date_result[7]
+        start_pausa1, end_pausa1 = date_result[8], date_result[9]
+        start_pausa2, end_pausa2 = date_result[10], date_result[11]
+        
+        # Crea una lista di tutte le sessioni e pause didattiche
+        sessioni = []
+        periodi = []
+        
+        # Aggiungi le sessioni se le date sono valide
+        if start_anticipata and end_anticipata:
+            sessioni.append({
+                "nome": "Sessione Anticipata",
+                "inizio": start_anticipata.isoformat(),
+                "fine": end_anticipata.isoformat()
+            })
+            
+            # Aggiungi i mesi della sessione anticipata ai periodi
+            add_months_to_periods(periodi, start_anticipata, end_anticipata)
+            
+        if start_estiva and end_estiva:
+            sessioni.append({
+                "nome": "Sessione Estiva",
+                "inizio": start_estiva.isoformat(),
+                "fine": end_estiva.isoformat()
+            })
+            
+            # Aggiungi i mesi della sessione estiva ai periodi
+            add_months_to_periods(periodi, start_estiva, end_estiva)
+            
+        if start_autunnale and end_autunnale:
+            sessioni.append({
+                "nome": "Sessione Autunnale",
+                "inizio": start_autunnale.isoformat(),
+                "fine": end_autunnale.isoformat()
+            })
+            
+            # Aggiungi i mesi della sessione autunnale ai periodi
+            add_months_to_periods(periodi, start_autunnale, end_autunnale)
+            
+        if start_invernale and end_invernale:
+            sessioni.append({
+                "nome": "Sessione Invernale",
+                "inizio": start_invernale.isoformat(),
+                "fine": end_invernale.isoformat()
+            })
+            
+            # Aggiungi i mesi della sessione invernale ai periodi
+            add_months_to_periods(periodi, start_invernale, end_invernale)
+            
+        # Aggiungi le pause didattiche
+        if start_pausa1 and end_pausa1:
+            sessioni.append({
+                "nome": "Pausa Didattica Primo Semestre",
+                "inizio": start_pausa1.isoformat(),
+                "fine": end_pausa1.isoformat()
+            })
+            
+            # Aggiungi i mesi della pausa didattica ai periodi
+            add_months_to_periods(periodi, start_pausa1, end_pausa1)
+            
+        if start_pausa2 and end_pausa2:
+            sessioni.append({
+                "nome": "Pausa Didattica Secondo Semestre",
+                "inizio": start_pausa2.isoformat(),
+                "fine": end_pausa2.isoformat()
+            })
+            
+            # Aggiungi i mesi della pausa didattica ai periodi
+            add_months_to_periods(periodi, start_pausa2, end_pausa2)
+        
+        # Ottieni tutti gli insegnamenti per questo CdS con i relativi esami
+        cursor.execute("""
+            WITH insegnamenti_cds AS (
+                SELECT 
+                    i.codice, 
+                    i.titolo, 
+                    ic.anno_corso, 
+                    ic.semestre
+                FROM insegnamenti i
+                JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento
+                WHERE ic.cds = %s AND ic.anno_accademico = %s
+            )
+            SELECT 
+                ic.codice, 
+                ic.titolo, 
+                ic.anno_corso, 
+                ic.semestre,
+                e.data_appello,
+                EXTRACT(DAY FROM e.data_appello) as giorno,
+                to_char(e.data_appello, 'MM') as mese,
+                to_char(e.data_appello, 'YYYY') as anno
+            FROM insegnamenti_cds ic
+            LEFT JOIN esami e ON ic.codice = e.insegnamento
+            ORDER BY ic.anno_corso, ic.semestre, ic.titolo
+        """, (cds, anno))
+        
+        # Crea una struttura dati per organizzare gli insegnamenti e i loro esami
+        insegnamenti = []
+        insegnamenti_map = {}
+        
+        # Dizionario per mappare numeri di mese ai nomi abbreviati
+        mesi_nomi = {
+            '01': 'GEN', '02': 'FEB', '03': 'MAR', '04': 'APR',
+            '05': 'MAG', '06': 'GIU', '07': 'LUG', '08': 'AGO',
+            '09': 'SET', '10': 'OTT', '11': 'NOV', '12': 'DIC'
+        }
+        
+        for row in cursor.fetchall():
+            codice, titolo, anno_corso, semestre, data_appello, giorno, mese_numero, anno_str = row
+            
+            # Crea o recupera l'insegnamento
+            if codice not in insegnamenti_map:
+                insegnamento = {
+                    "codice": codice,
+                    "titolo": titolo,
+                    "anno_corso": anno_corso,
+                    "semestre": semestre,
+                    "esami": []
+                }
+                insegnamenti_map[codice] = insegnamento
+                insegnamenti.append(insegnamento)
+            else:
+                insegnamento = insegnamenti_map[codice]
+            
+            # Aggiungi l'esame se esiste
+            if data_appello:
+                # Crea un nome di periodo standardizzato
+                nome_mese = mesi_nomi.get(mese_numero, f"M{mese_numero}")
+                periodo_nome = f"{nome_mese} {anno_str}"
+                
+                # Aggiungi l'esame alla lista degli esami dell'insegnamento
+                insegnamento["esami"].append({
+                    "data": data_appello.isoformat(),
+                    "giorno": int(giorno),
+                    "periodo": periodo_nome,
+                    "mese": int(mese_numero),
+                    "anno": int(anno_str)
+                })
+        
+        # Costruisci una lista di periodi unici e ordinati
+        periodi_map = {}
+        
+        # Aggiungi periodi dalle sessioni
+        if start_anticipata and end_anticipata:
+            add_months_to_periods_v2(periodi_map, start_anticipata, end_anticipata, mesi_nomi)
+            
+        if start_estiva and end_estiva:
+            add_months_to_periods_v2(periodi_map, start_estiva, end_estiva, mesi_nomi)
+            
+        if start_autunnale and end_autunnale:
+            add_months_to_periods_v2(periodi_map, start_autunnale, end_autunnale, mesi_nomi)
+            
+        if start_invernale and end_invernale:
+            add_months_to_periods_v2(periodi_map, start_invernale, end_invernale, mesi_nomi)
+            
+        # Aggiungi i periodi dalle pause didattiche
+        if start_pausa1 and end_pausa1:
+            add_months_to_periods_v2(periodi_map, start_pausa1, end_pausa1, mesi_nomi)
+            
+        if start_pausa2 and end_pausa2:
+            add_months_to_periods_v2(periodi_map, start_pausa2, end_pausa2, mesi_nomi)
+        
+        # Aggiungi periodi da tutti gli esami (nel caso non fossero già inclusi)
+        for insegnamento in insegnamenti:
+            for esame in insegnamento.get("esami", []):
+                key = f"{esame['mese']:02d}-{esame['anno']}"
+                if key not in periodi_map:
+                    nome_mese = mesi_nomi.get(f"{esame['mese']:02d}", f"Mese {esame['mese']}")
+                    periodi_map[key] = {
+                        "nome": f"{nome_mese} {esame['anno']}",
+                        "mese": esame['mese'],
+                        "anno": esame['anno']
+                    }
+        
+        # Converte il dizionario in lista e ordina i periodi per data
+        periodi = list(periodi_map.values())
+        periodi.sort(key=lambda x: (x["anno"], x["mese"]))
+        
+        # Costruisci e restituisci la risposta
+        return jsonify({
+            "durata": durata,
+            "sessioni": sessioni,
+            "periodi": periodi,
+            "insegnamenti": insegnamenti
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            cursor.close()
+            conn.close()
+
+# Funzione helper per aggiungere i mesi da una data di inizio a una di fine ai periodi
+def add_months_to_periods(periodi, start_date, end_date):
+    current = datetime(start_date.year, start_date.month, 1)
+    end = datetime(end_date.year, end_date.month, 1)
+    
+    while current <= end:
+        month_name = current.strftime("%B %Y").strip()  # Aggiungiamo .strip() per rimuovere spazi aggiuntivi
+        
+        # Controlla se questo mese è già nei periodi (usa confronto case-insensitive)
+        periodo_trovato = False
+        for p in periodi:
+            if p["nome"].strip().lower() == month_name.lower():  # confronto normalizzato
+                periodo_trovato = True
+                break
+                
+        # Se non è stato trovato, aggiungilo
+        if not periodo_trovato:
+            periodi.append({
+                "nome": month_name,
+                "mese": current.month,
+                "anno": current.year
+            })
+            
+        # Passa al mese successivo
+        month = current.month + 1
+        year = current.year
+        if month > 12:
+            month = 1
+            year += 1
+        current = datetime(year, month, 1)
+
+# Nuova funzione helper che usa un dizionario per tracciare periodi unici
+def add_months_to_periods_v2(periodi_map, start_date, end_date, mesi_nomi):
+    current = datetime(start_date.year, start_date.month, 1)
+    end = datetime(end_date.year, end_date.month, 1)
+    
+    while current <= end:
+        # Crea una chiave standardizzata (MM-YYYY)
+        key = f"{current.month:02d}-{current.year}"
+        
+        # Se questo periodo non è già nella mappa, aggiungilo
+        if key not in periodi_map:
+            nome_mese = mesi_nomi.get(f"{current.month:02d}", f"M{current.month}")
+            periodi_map[key] = {
+                "nome": f"{nome_mese} {current.year}",
+                "mese": current.month,
+                "anno": current.year
+            }
+            
+        # Passa al mese successivo
+        month = current.month + 1
+        year = current.year
+        if month > 12:
+            month = 1
+            year += 1
+        current = datetime(year, month, 1)
+
+@admin_bp.route('/gestisciCds')
+def gestisci_cds():
+    if 'admin' not in request.cookies:
+        return redirect('/flask/admin')
+    return render_template('oh-issa/gestisci-cds.html')
+
+# API per ottenere i dettagli di un corso di studio
+@admin_bp.route('/api/getCdsDetails')
+def get_cds_details():
+    if 'admin' not in request.cookies:
+        return jsonify({'error': 'Accesso non autorizzato'}), 401
+        
+    codice = request.args.get('codice')
+    anno = request.args.get('anno')
+    
+    if not codice:
+        return jsonify({'error': 'Codice CdS mancante'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Query di base
+        query = """
+            SELECT 
+                codice, anno_accademico, nome_corso, durata,
+                inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
+                inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre,
+                pausa_didattica_primo_inizio, pausa_didattica_primo_fine,
+                pausa_didattica_secondo_inizio, pausa_didattica_secondo_fine,
+                inizio_sessione_anticipata, fine_sessione_anticipata,
+                inizio_sessione_estiva, fine_sessione_estiva,
+                inizio_sessione_autunnale, fine_sessione_autunnale,
+                inizio_sessione_invernale, fine_sessione_invernale
+            FROM cds 
+            WHERE codice = %s
+        """
+        params = [codice]
+        
+        # Se è specificato un anno, filtriamo per quell'anno specifico
+        if anno:
+            query += " AND anno_accademico = %s"
+            params.append(int(anno))
+        else:
+            # Altrimenti prendiamo il record più recente
+            query += " ORDER BY anno_accademico DESC LIMIT 1"
+            
+        cursor.execute(query, params)
+        
+        result = cursor.fetchone()
+        if not result:
+            return jsonify({'error': 'Corso di studio non trovato'}), 404
+            
+        # Converti in un dizionario
+        columns = [col[0] for col in cursor.description]
+        cds_data = dict(zip(columns, result))
+        
+        # Converti le date in stringhe
+        for key, value in cds_data.items():
+            if isinstance(value, datetime.date):
+                cds_data[key] = value.isoformat()
+                
+        return jsonify(cds_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn:
+            cursor.close()
+            conn.close()

@@ -1,0 +1,82 @@
+{% extends "oh-issa/template-ohissa.html" %}
+
+{% block title %}Calendario Esami - OH-ISSA{% endblock %}
+
+{% block calendario_active %}active{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .calendar-container {
+        margin-top: 20px;
+    }
+    .year-header {
+        font-weight: bold;
+        text-align: center;
+        background-color: #f0f0f0;
+    }
+    .month-header, .exam-day {
+        font-weight: bold;
+        text-align: center;
+    }
+    .session-marker {
+        background-color: #e6f7ff;
+        font-style: italic;
+    }
+    .table-year {
+        margin-bottom: 30px;
+        border: 1px solid #dee2e6;
+    }
+    .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .form-col {
+        flex: 1;
+        min-width: 200px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Calendario Esami</h1>
+
+<div class="form-row">
+    <div class="form-col">
+        <div class="form-group">
+            <label for="cdsSelector">Seleziona Corso di Studi:</label>
+            <select class="form-control" id="cdsSelector">
+                <option value="">Seleziona un CdS</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-col">
+        <div class="form-group">
+            <label for="annoAccademicoSelector">Anno Accademico:</label>
+            <select class="form-control" id="annoAccademicoSelector">
+                <option value="">Seleziona un Anno Accademico</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-col" style="display: flex; align-items: flex-end;">
+        <button id="btnGeneraCalendario" class="btn btn-primary">Genera Calendario</button>
+    </div>
+</div>
+
+<div id="calendarioContainer" class="calendar-container">
+    <!-- Il calendario sarà generato qui dinamicamente -->
+    <p style="text-align: center;">Seleziona un corso di studi e un anno accademico per visualizzare il calendario degli esami.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="{{ url_for('static', filename='scripts/oh-issa/calendarioEsami.js') }}"></script>
+{% endblock %}
