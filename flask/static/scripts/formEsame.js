@@ -297,10 +297,10 @@ document.addEventListener("DOMContentLoaded", () => {
       
       if (isActive) {
         multiSelectDropdown.style.display = 'none';
-        multiSelectBox.classList.remove('active');
+        // Rimuoviamo la manipolazione della classe active
       } else {
         multiSelectDropdown.style.display = 'block';
-        multiSelectBox.classList.add('active');
+        // Rimuoviamo la manipolazione della classe active
       }
     });
     

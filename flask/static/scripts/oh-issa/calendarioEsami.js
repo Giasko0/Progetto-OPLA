@@ -1,182 +1,281 @@
-$(document).ready(function() {
-    // Carica i corsi di studio all'avvio della pagina
-    caricaCdS();
+/**
+ * Script per la gestione del calendario esami
+ * Utilizza JavaScript nativo (no jQuery)
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    // Elementi DOM
+    const cdsSelector = document.getElementById('cdsSelector');
+    const annoAccademicoSelector = document.getElementById('annoAccademicoSelector');
+    const btnGeneraCalendario = document.getElementById('btnGeneraCalendario');
+    const calendarioContainer = document.getElementById('calendarioContainer');
     
-    // Carica gli anni accademici disponibili
-    caricaAnniAccademici();
+    // Inizializza i selettori
+    initSelectors();
     
-    // Gestisce il click sul pulsante "Genera Calendario"
-    $('#btnGeneraCalendario').click(function() {
-        const cds = $('#cdsSelector').val();
-        const annoAccademico = $('#annoAccademicoSelector').val();
+    // Event listeners
+    btnGeneraCalendario.addEventListener('click', generaCalendario);
+    cdsSelector.addEventListener('change', aggiornaAnniAccademici);
+    
+    /**
+     * Inizializza i selettori con i dati disponibili
+     */
+    function initSelectors() {
+        // Carica la lista dei corsi di studio
+        fetch('/flask/admin/api/getCdS')
+            .then(response => response.json())
+            .then(data => {
+                // Raggruppa i CdS per codice
+                const cdsMap = {};
+                
+                data.forEach(cds => {
+                    if (!cdsMap[cds.codice]) {
+                        cdsMap[cds.codice] = {
+                            codice: cds.codice,
+                            nome_corso: cds.nome_corso,
+                            anni_accademici: []
+                        };
+                    }
+                    
+                    cdsMap[cds.codice].anni_accademici.push({
+                        anno: cds.anno_accademico,
+                        formattato: `${cds.anno_accademico}/${cds.anno_accademico + 1}`
+                    });
+                });
+                
+                // Pulisci il selettore
+                cdsSelector.innerHTML = '<option value="">Seleziona un CdS</option>';
+                
+                // Aggiungi le opzioni al selettore
+                Object.values(cdsMap).forEach(cds => {
+                    const option = document.createElement('option');
+                    option.value = cds.codice;
+                    option.textContent = `${cds.codice} - ${cds.nome_corso}`;
+                    option.dataset.anniAccademici = JSON.stringify(cds.anni_accademici);
+                    cdsSelector.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Errore nel caricamento dei corsi di studio:', error);
+                mostraErrore('Impossibile caricare i corsi di studio');
+            });
+    }
+    
+    /**
+     * Aggiorna il selettore degli anni accademici in base al CdS selezionato
+     */
+    function aggiornaAnniAccademici() {
+        // Pulisci il selettore degli anni accademici
+        annoAccademicoSelector.innerHTML = '<option value="">Seleziona un Anno Accademico</option>';
         
-        if (!cds || !annoAccademico) {
-            alert('Seleziona un corso di studi e un anno accademico');
+        // Se non è selezionato alcun CdS, esci
+        if (!cdsSelector.value) {
             return;
         }
         
-        generaCalendario(cds, annoAccademico);
-    });
-});
-
-// Funzione per caricare i corsi di studio
-function caricaCdS() {
-    $.ajax({
-        // Utilizziamo l'API distinta per il calendario esami
-        url: '/flask/admin/api/getCdSDistinct',
-        type: 'GET',
-        success: function(data) {
-            const selector = $('#cdsSelector');
-            selector.empty();
-            selector.append('<option value="">Seleziona un CdS</option>');
-            
-            data.forEach(function(cds) {
-                selector.append(`<option value="${cds.codice}">${cds.nome_corso} (${cds.codice})</option>`);
-            });
-        },
-        error: function(xhr, status, error) {
-            console.error('Errore nel caricamento dei CdS:', error);
-            alert('Errore nel caricamento dei corsi di studio');
-        }
-    });
-}
-
-// Funzione per caricare gli anni accademici
-function caricaAnniAccademici() {
-    $.ajax({
-        url: '/flask/api/getAnniAccademici',
-        type: 'GET',
-        success: function(data) {
-            const selector = $('#annoAccademicoSelector');
-            selector.empty();
-            selector.append('<option value="">Seleziona un Anno Accademico</option>');
-            
-            data.forEach(function(anno) {
-                selector.append(`<option value="${anno}">${anno}/${anno+1}</option>`);
-            });
-        },
-        error: function(xhr, status, error) {
-            console.error('Errore nel caricamento degli anni accademici:', error);
-            alert('Errore nel caricamento degli anni accademici');
-        }
-    });
-}
-
-// Funzione per generare il calendario
-function generaCalendario(cds, annoAccademico) {
-    const container = $('#calendarioContainer');
-    container.html('<div class="loading"><div class="spinner-border text-primary" role="status"><span class="sr-only">Caricamento...</span></div></div>');
+        // Ottieni l'opzione selezionata
+        const selectedOption = cdsSelector.options[cdsSelector.selectedIndex];
+        
+        // Ottieni gli anni accademici dal data attribute
+        const anniAccademici = JSON.parse(selectedOption.dataset.anniAccademici || '[]');
+        
+        // Ordina gli anni accademici (più recenti prima)
+        anniAccademici.sort((a, b) => b.anno - a.anno);
+        
+        // Aggiungi le opzioni al selettore
+        anniAccademici.forEach(anno => {
+            const option = document.createElement('option');
+            option.value = anno.anno;
+            option.textContent = anno.formattato;
+            annoAccademicoSelector.appendChild(option);
+        });
+    }
     
-    $.ajax({
-        url: '/flask/admin/api/getCalendarioEsami',
-        type: 'GET',
-        data: {
-            cds: cds,
-            anno: annoAccademico
-        },
-        success: function(data) {
-            // Svuota il container
-            container.empty();
-            
-            if (!data.durata || !data.periodi || !data.insegnamenti) {
-                container.html('<p class="text-center">Nessun dato disponibile per questo corso di studi.</p>');
-                return;
+    /**
+     * Genera il calendario degli esami
+     */
+    function generaCalendario() {
+        const codiceCds = cdsSelector.value;
+        const annoAccademico = annoAccademicoSelector.value;
+        
+        if (!codiceCds || !annoAccademico) {
+            mostraErrore('Seleziona sia il Corso di Studi che l\'Anno Accademico');
+            return;
+        }
+        
+        // Mostra messaggio di caricamento
+        calendarioContainer.innerHTML = '<div class="loading">Generazione calendario in corso...</div>';
+        
+        // Richiedi il calendario al server - corretti i nomi dei parametri
+        fetch(`/flask/admin/api/getCalendarioEsami?cds=${codiceCds}&anno=${annoAccademico}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    mostraErrore(data.error);
+                    return;
+                }
+                
+                // Visualizza il calendario
+                visualizzaCalendario(data);
+            })
+            .catch(error => {
+                console.error('Errore nella generazione del calendario:', error);
+                mostraErrore('Si è verificato un errore nella generazione del calendario');
+            });
+    }
+    
+    /**
+     * Visualizza il calendario degli esami
+     * @param {Object} data - Dati del calendario
+     */
+    function visualizzaCalendario(data) {
+        // Pulisci il container
+        calendarioContainer.innerHTML = '';
+        
+        // Se non ci sono dati, mostra un messaggio
+        if (!data || !data.insegnamenti || data.insegnamenti.length === 0) {
+            calendarioContainer.innerHTML = '<p class="text-center">Nessun dato disponibile per il calendario</p>';
+            return;
+        }
+        
+        // Ottieni la durata del corso
+        const durata = data.durata || 3;
+        
+        // Organizziamo gli insegnamenti per anno di corso
+        const insegnamentiPerAnno = {};
+        for (let i = 1; i <= durata; i++) {
+            insegnamentiPerAnno[i] = [];
+        }
+        
+        // Raggruppa gli insegnamenti per anno di corso
+        data.insegnamenti.forEach(insegnamento => {
+            const anno = insegnamento.anno_corso || 1;
+            if (anno <= durata) {
+                insegnamentiPerAnno[anno].push(insegnamento);
+            }
+        });
+        
+        // Crea una lista ordinata di periodi
+        const periodi = data.periodi || [];
+        
+        // Per ogni anno di corso, crea una tabella separata
+        for (let anno = 1; anno <= durata; anno++) {
+            // Controlla se ci sono insegnamenti per questo anno
+            if (insegnamentiPerAnno[anno].length === 0) {
+                continue;
             }
             
-            // Crea una tabella per ogni anno di corso
-            for (let anno = 1; anno <= data.durata; anno++) {
-                const insegnamentiAnno = data.insegnamenti.filter(i => i.anno_corso === anno);
+            // Crea un div per l'anno di corso
+            const annoDiv = document.createElement('div');
+            annoDiv.className = 'anno-corso';
+            
+            // Aggiungi il titolo dell'anno
+            const annoTitle = document.createElement('h3');
+            annoTitle.textContent = `${anno}° Anno`;
+            annoDiv.appendChild(annoTitle);
+            
+            // Crea la tabella per questo anno
+            const table = document.createElement('table');
+            table.className = 'table table-bordered table-calendar';
+            
+            // Crea l'header della tabella
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            
+            // Prima cella: Insegnamento
+            const thInsegnamento = document.createElement('th');
+            thInsegnamento.textContent = 'Insegnamento';
+            headerRow.appendChild(thInsegnamento);
+            
+            // Aggiungi i mesi come header
+            periodi.forEach(periodo => {
+                const th = document.createElement('th');
+                th.textContent = periodo.nome;
+                headerRow.appendChild(th);
+            });
+            
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            // Crea il corpo della tabella
+            const tbody = document.createElement('tbody');
+            
+            // Aggiungi gli insegnamenti come righe
+            insegnamentiPerAnno[anno].forEach(insegnamento => {
+                const row = document.createElement('tr');
                 
-                if (insegnamentiAnno.length === 0) continue;
+                // Cella per il nome dell'insegnamento
+                const tdNome = document.createElement('td');
+                tdNome.textContent = insegnamento.titolo;
+                row.appendChild(tdNome);
                 
-                // Crea la tabella per l'anno corrente
-                const tableDiv = $('<div class="table-responsive"></div>');
-                const table = $(`<table class="table table-bordered table-sm table-year" id="table-year-${anno}"></table>`);
-                const thead = $('<thead></thead>');
-                const tbody = $('<tbody></tbody>');
-                
-                // Aggiungi l'intestazione dell'anno
-                const yearRow = $('<tr></tr>');
-                yearRow.append(`<th colspan="${data.periodi.length + 1}" class="year-header">Anno ${anno}</th>`);
-                thead.append(yearRow);
-                
-                // Aggiungi la riga con le intestazioni dei mesi
-                const headerRow = $('<tr></tr>');
-                headerRow.append('<th>Insegnamento</th>');
-                
-                data.periodi.forEach(periodo => {
-                    // La larghezza delle colonne può essere ridotta perché i nomi sono più corti
-                    headerRow.append(`<th class="month-header" style="width: 80px;">${periodo.nome}</th>`);
-                });
-                
-                thead.append(headerRow);
-                table.append(thead);
-                
-                // Aggiungi le righe degli insegnamenti
-                insegnamentiAnno.forEach(insegnamento => {
-                    const row = $('<tr></tr>');
-                    row.append(`<td>${insegnamento.titolo}</td>`);
+                // Per ogni periodo, verifica se ci sono esami
+                periodi.forEach(periodo => {
+                    const tdEsami = document.createElement('td');
                     
-                    data.periodi.forEach(periodo => {
-                        const esami = insegnamento.esami.filter(e => {
-                            // Recupera il periodo dell'esame dal nome preciso (non dal confronto)
-                            return e.periodo === periodo.nome;
-                        });
-                        
-                        if (esami.length > 0) {
-                            const giorni = esami.map(e => e.giorno).sort((a, b) => a - b).join(' - ');
-                            row.append(`<td class="exam-day">${giorni}</td>`);
-                        } else {
-                            row.append('<td></td>');
-                        }
+                    // Filtra gli esami di questo insegnamento per questo periodo
+                    const esamiPeriodo = (insegnamento.esami || []).filter(esame => {
+                        return esame.mese === periodo.mese && esame.anno === periodo.anno;
                     });
                     
-                    tbody.append(row);
+                    // Se ci sono esami, mostra i giorni
+                    if (esamiPeriodo.length > 0) {
+                        // Estrai i giorni e ordinali
+                        const giorni = esamiPeriodo.map(esame => esame.giorno).sort((a, b) => a - b);
+                        
+                        // Crea la stringa con i giorni separati da virgola
+                        tdEsami.textContent = giorni.join(' - ');
+                    }
+                    
+                    row.appendChild(tdEsami);
                 });
                 
-                table.append(tbody);
-                tableDiv.append(table);
-                container.append(tableDiv);
-            }
+                tbody.appendChild(row);
+            });
             
-            // Aggiungi le legende per le sessioni e pause didattiche
-            aggiungiLegende(container, data.sessioni);
-        },
-        error: function(xhr, status, error) {
-            console.error('Errore nella generazione del calendario:', error);
-            container.html('<div class="alert alert-danger">Errore nella generazione del calendario. Riprova più tardi.</div>');
+            table.appendChild(tbody);
+            annoDiv.appendChild(table);
+            calendarioContainer.appendChild(annoDiv);
         }
-    });
-}
-
-// Funzione per aggiungere le legende delle sessioni e pause didattiche
-function aggiungiLegende(container, sessioni) {
-    if (!sessioni || sessioni.length === 0) return;
+        
+        // Aggiungi stili CSS per rendere la tabella più leggibile
+        const style = document.createElement('style');
+        style.textContent = `
+            .table-calendar {
+                margin-bottom: 30px;
+                border-collapse: collapse;
+                width: 100%;
+            }
+            .table-calendar th, .table-calendar td {
+                text-align: center;
+                vertical-align: middle;
+                border: 1px solid #dee2e6;
+                padding: 8px;
+            }
+            .table-calendar th {
+                background-color: #f8f9fa;
+                font-weight: bold;
+            }
+            .table-calendar td:first-child {
+                text-align: left;
+                font-weight: bold;
+                background-color: #f8f9fa;
+            }
+            .anno-corso {
+                margin-bottom: 40px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
     
-    const legendDiv = $('<div class="mt-4"></div>');
-    legendDiv.append('<h4>Legende</h4>');
-    
-    const sessioniList = $('<ul class="list-group"></ul>');
-    
-    sessioni.forEach(sessione => {
-        sessioniList.append(`
-            <li class="list-group-item">
-                <strong>${sessione.nome}:</strong> 
-                dal ${formatDate(sessione.inizio)} al ${formatDate(sessione.fine)}
-            </li>
-        `);
-    });
-    
-    legendDiv.append(sessioniList);
-    container.append(legendDiv);
-}
-
-// Funzione per formattare le date
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('it-IT', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    });
-}
+    /**
+     * Mostra un messaggio di errore
+     * @param {string} message - Messaggio di errore
+     */
+    function mostraErrore(message) {
+        calendarioContainer.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Errore:</strong> ${message}
+            </div>
+        `;
+    }
+});

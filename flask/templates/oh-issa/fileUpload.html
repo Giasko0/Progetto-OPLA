@@ -1,101 +1,33 @@
-{% extends "oh-issa/template-ohissa.html" %}
+{% extends "oh-issa/ohissaTemplate.html" %}
 
-{% block title %}Dashboard - OH-ISSA{% endblock %}
-
-{% block input_active %}active{% endblock %}
+{% block head %}
+<title>Carica File - OH-ISSA</title>
+{% endblock %}
 
 {% block content %}
 <h1>Upload file docenti/insegnamenti</h1>
 
-<section>
-    <h2>Importazione Dati</h2>
-    
-    <div class="form-group">
-        <h3>Docenti</h3>
-        <form id="teachersForm" action="/flask/admin/upload-teachers" method="post" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="teachersFile">File Docenti (CSV):</label>
-                <input type="file" id="teachersFile" name="file" accept=".csv,.tsv,.txt">
-            </div>
-            <button type="submit" class="btn btn-primary">Carica Docenti</button>
-        </form>
-    </div>
-    
-    <div class="form-group" style="margin-top: 2rem;">
-        <h3>Insegnamenti</h3>
-        <form id="teachingsForm" action="/flask/admin/upload-teachings" method="post" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="teachingsFile">File Insegnamenti (CSV):</label>
-                <input type="file" id="teachingsFile" name="file" accept=".csv,.tsv,.txt">
-            </div>
-            <button type="submit" class="btn btn-primary">Carica Insegnamenti</button>
-        </form>
-    </div>
+<section class="upload-section">
+  <h2>Importazione Dati</h2>
+
+  <form id="teachersForm" action="/flask/admin/upload-teachers" method="post" enctype="multipart/form-data">
+    <fieldset>
+      <legend>Docenti</legend>
+      <label for="teachersFile">File Docenti (CSV):</label>
+      <input type="file" id="teachersFile" name="file" accept=".csv,.tsv,.txt">
+      <button type="submit" class="btn primary">Carica Docenti</button>
+    </fieldset>
+  </form>
+
+  <form id="teachingsForm" action="/flask/admin/upload-teachings" method="post" enctype="multipart/form-data">
+    <fieldset>
+      <legend>Insegnamenti</legend>
+      <label for="teachingsFile">File Insegnamenti (CSV):</label>
+      <input type="file" id="teachingsFile" name="file" accept=".csv,.tsv,.txt">
+      <button type="submit" class="btn primary">Carica Insegnamenti</button>
+    </fieldset>
+  </form>
 </section>
 
-<div id="responseMessages" style="margin-top: 2rem;"></div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Gestisci il form di upload docenti
-        document.getElementById('teachersForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            uploadFile(this, 'Docenti');
-        });
-        
-        // Gestisci il form di upload insegnamenti
-        document.getElementById('teachingsForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            uploadFile(this, 'Insegnamenti');
-        });
-        
-        // Funzione per caricare i file
-        function uploadFile(form, type) {
-            const formData = new FormData(form);
-            const fileInput = form.querySelector('input[type="file"]');
-            
-            if (!fileInput.files[0]) {
-                showMessage('error', `Seleziona un file per caricare i ${type.toLowerCase()}`);
-                return;
-            }
-            
-            fetch(form.action, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showMessage('success', data.message);
-                    form.reset();
-                } else {
-                    showMessage('error', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Errore:', error);
-                showMessage('error', `Si è verificato un errore durante l'upload: ${error.message}`);
-            });
-        }
-        
-        // Funzione per mostrare messaggi
-        function showMessage(type, message) {
-            const messageDiv = document.getElementById('responseMessages');
-            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-            
-            const alert = document.createElement('div');
-            alert.className = `alert ${alertClass}`;
-            alert.textContent = message;
-            
-            messageDiv.appendChild(alert);
-            
-            // Rimuovi il messaggio dopo 5 secondi
-            setTimeout(() => {
-                alert.remove();
-            }, 5000);
-        }
-    });
-</script>
+<div id="responseMessages"></div>
 {% endblock %}

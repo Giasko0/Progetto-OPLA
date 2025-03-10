@@ -1,88 +1,26 @@
-{% extends "oh-issa/template-ohissa.html" %}
+{% extends "oh-issa/ohissaTemplate.html" %}
 
-{% block download_active %}active{% endblock %}
-
-{% block content %}
-<div class="container">
-    <h1>Download File ESSE3</h1>
-    
-    <div class="download-box">
-        <p>Scarica il file CSV contenente tutti gli esami nel formato richiesto da ESSE3.</p>
-        <button id="downloadButton" class="btn btn-primary">
-            <i class="fas fa-download"></i> Scarica File ESSE3
-        </button>
-    </div>
-
-    <div class="info-box">
-        <h3>Informazioni sul file</h3>
-        <p>Il file scaricato contiene i seguenti dati per ogni esame:</p>
-        <ul>
-            <li>Data e ora dell'appello</li>
-            <li>Date di inizio e fine iscrizione</li>
-            <li>Aula assegnata</li>
-            <li>Docente responsabile</li>
-            <li>Altri dettagli richiesti dal sistema</li>
-        </ul>
-    </div>
-</div>
-
-<style>
-    .container {
-        max-width: 800px;
-        margin: 2rem auto;
-        padding: 0 1rem;
-    }
-
-    .download-box {
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        padding: 2rem;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .info-box {
-        background-color: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 1.5rem;
-    }
-
-    .info-box h3 {
-        margin-top: 0;
-        color: #0d6efd;
-    }
-
-    .info-box ul {
-        list-style-type: none;
-        padding-left: 0;
-    }
-
-    .info-box li {
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #eee;
-    }
-
-    .info-box li:last-child {
-        border-bottom: none;
-    }
-
-    #downloadButton {
-        font-size: 1.2rem;
-        padding: 1rem 2rem;
-    }
-
-    #downloadButton i {
-        margin-right: 0.5rem;
-    }
-</style>
-
+{% block head %}
+<title>Download File - OH-ISSA</title>
 {% endblock %}
 
-{% block scripts %}
-<script>
-    document.getElementById('downloadButton').addEventListener('click', function() {
-        window.location.href = '/flask/admin/downloadFileESSE3';
-    });
-</script>
+{% block content %}
+<h1>Download File ESSE3</h1>
+    
+<section class="action-section">
+    <p>Scarica il file CSV contenente tutti gli esami nel formato richiesto da ESSE3.</p>
+    <button id="downloadButton" class="btn primary">Scarica File ESSE3</button>
+</section>
+
+<section class="info-section">
+    <h3>Informazioni sul file</h3>
+    <p>Il file scaricato contiene i seguenti dati per ogni esame:</p>
+    <ul>
+        <li>Data e ora dell'appello</li>
+        <li>Date di inizio e fine iscrizione</li>
+        <li>Aula assegnata</li>
+        <li>Docente responsabile</li>
+        <li>Altri dettagli richiesti dal sistema</li>
+    </ul>
+</section>
 {% endblock %}

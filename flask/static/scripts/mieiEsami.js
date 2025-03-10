@@ -29,14 +29,15 @@ function fetchAndDisplayEsami() {
       // Crea i pulsanti dei tabs
       insegnamenti.forEach((insegnamento, index) => {
         const tabButton = document.createElement("button");
-        tabButton.className = `tab-button ${index === 0 ? 'active' : ''}`;
+        tabButton.className = "tab-button";
         tabButton.textContent = insegnamento;
         tabButton.onclick = () => switchTab(insegnamento);
         tabsHeader.appendChild(tabButton);
         
         // Crea il contenuto del tab
         const tabContent = document.createElement("div");
-        tabContent.className = `tab-content ${index === 0 ? 'active' : ''}`;
+        tabContent.className = "tab-content";
+        tabContent.style.display = index === 0 ? 'block' : 'none'; // Mostra il primo tab all'inizio
         tabContent.id = `tab-${insegnamento.replace(/\s+/g, "-")}`;
         
         // Aggiungi contenuto al tab
@@ -57,39 +58,30 @@ function fetchAndDisplayEsami() {
 }
 
 function switchTab(insegnamento) {
-  // Rimuovi active da tutti i tabs
-  document.querySelectorAll('.tab-button').forEach(button => {
-    button.classList.remove('active');
-  });
-  document.getElementById("allExamsButton").classList.remove('active');
+  // Modifica per rimuovere la logica delle classi active
   document.querySelectorAll('.tab-content').forEach(content => {
-    content.classList.remove('active');
+    content.style.display = 'none';
   });
   
-  // Attiva il tab selezionato
-  const selectedButton = Array.from(document.querySelectorAll('.tab-button')).find(
-    button => button.textContent === insegnamento
-  );
+  // Mostra solo il tab selezionato senza usare classi active
   const selectedContent = document.querySelector(`#tab-${insegnamento.replace(/\s+/g, "-")}`);
   
-  if (selectedButton && selectedContent) {
-    selectedButton.classList.add('active');
-    selectedContent.classList.add('active');
+  if (selectedContent) {
+    selectedContent.style.display = 'block';
   }
 }
 
 function showAllExams() {
-  // Rimuovi active da tutti i tabs
-  document.querySelectorAll('.tab-button').forEach(button => {
-    button.classList.remove('active');
-  });
+  // Modifica per rimuovere la logica delle classi active
   document.querySelectorAll('.tab-content').forEach(content => {
-    content.classList.remove('active');
+    content.style.display = 'none';
   });
   
-  // Attiva il tab "Tutti gli appelli"
-  document.getElementById("allExamsButton").classList.add('active');
-  document.getElementById("tab-all-exams").classList.add('active');
+  // Mostra solo il tab "Tutti gli appelli" senza usare classi active
+  const allExamsTab = document.getElementById("tab-all-exams");
+  if (allExamsTab) {
+    allExamsTab.style.display = 'block';
+  }
 }
 
 function displayTabelleEsami(data, insegnamento, container) {

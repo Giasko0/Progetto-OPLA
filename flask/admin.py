@@ -9,7 +9,7 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/flask/admin')
 @admin_bp.route('/')
 def admin_login():
     if 'admin' in request.cookies:
-        return redirect('/flask/admin/dashboard')
+        return redirect('/flask/admin/fileUpload')
     return render_template('oh-issa/login.html')
 
 @admin_bp.route('/fileUpload')
@@ -30,7 +30,7 @@ def admin_auth():
     password = request.form.get('password')
     
     if username == "Admin" and password == "admin":
-        response = redirect('/flask/admin/dashboard')
+        response = redirect('/flask/admin/')
         response.set_cookie('admin', 'true')
         return response
     return redirect('/flask/admin')
@@ -800,7 +800,7 @@ def add_months_to_periods_v2(periodi_map, start_date, end_date, mesi_nomi):
 def gestisci_cds():
     if 'admin' not in request.cookies:
         return redirect('/flask/admin')
-    return render_template('oh-issa/gestisci-cds.html')
+    return render_template('oh-issa/gestisciCds.html')
 
 # API per ottenere i dettagli di un corso di studio
 @admin_bp.route('/api/getCdsDetails')
