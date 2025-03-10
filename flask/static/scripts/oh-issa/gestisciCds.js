@@ -165,14 +165,14 @@ function loadExistingCdS() {
                 // Spazio tra i pulsanti
                 actionCell.appendChild(document.createTextNode(' '));
                 
-                // Pulsante per duplicare
-                const duplicateBtn = document.createElement('button');
-                duplicateBtn.className = 'btn';
-                duplicateBtn.textContent = 'Duplica';
-                duplicateBtn.onclick = function() {
-                    duplicateCds(cds.codice, cds.anno_accademico);
+                // Pulsante per eliminare (sostituisce il pulsante duplica)
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-danger';
+                deleteBtn.textContent = 'Elimina';
+                deleteBtn.onclick = function() {
+                    deleteCds(cds.codice, cds.anno_accademico);
                 };
-                actionCell.appendChild(duplicateBtn);
+                actionCell.appendChild(deleteBtn);
                 
                 row.appendChild(actionCell);
                 tbody.appendChild(row);
@@ -236,54 +236,38 @@ function loadCdsDetails(cdsCode, annoAccademico) {
         });
 }
 
-// Funzione per duplicare un CdS (carica i dati ma reimposta il codice)
-function duplicateCds(cdsCode, annoAccademico) {
-    fetch(`/flask/admin/api/getCdsDetails?codice=${cdsCode}&anno=${annoAccademico}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                showMessage('error', data.error);
-                return;
-            }
-            
-            // Popola il form con i dati del CdS
-            document.getElementById('codice').value = ''; // Resetta il codice
-            document.getElementById('anno_accademico').value = data.anno_accademico;
-            document.getElementById('nome_corso').value = data.nome_corso + ' (Copia)';
-            document.getElementById('durata').value = data.durata;
-            
-            // Date primo semestre
-            document.getElementById('inizio_lezioni_primo_semestre').value = formatDateForInput(data.inizio_lezioni_primo_semestre);
-            document.getElementById('fine_lezioni_primo_semestre').value = formatDateForInput(data.fine_lezioni_primo_semestre);
-            document.getElementById('pausa_didattica_primo_inizio').value = formatDateForInput(data.pausa_didattica_primo_inizio);
-            document.getElementById('pausa_didattica_primo_fine').value = formatDateForInput(data.pausa_didattica_primo_fine);
-            
-            // Date secondo semestre
-            document.getElementById('inizio_lezioni_secondo_semestre').value = formatDateForInput(data.inizio_lezioni_secondo_semestre);
-            document.getElementById('fine_lezioni_secondo_semestre').value = formatDateForInput(data.fine_lezioni_secondo_semestre);
-            document.getElementById('pausa_didattica_secondo_inizio').value = formatDateForInput(data.pausa_didattica_secondo_inizio);
-            document.getElementById('pausa_didattica_secondo_fine').value = formatDateForInput(data.pausa_didattica_secondo_fine);
-            
-            // Date sessioni d'esame
-            document.getElementById('inizio_sessione_anticipata').value = formatDateForInput(data.inizio_sessione_anticipata);
-            document.getElementById('fine_sessione_anticipata').value = formatDateForInput(data.fine_sessione_anticipata);
-            document.getElementById('inizio_sessione_estiva').value = formatDateForInput(data.inizio_sessione_estiva);
-            document.getElementById('fine_sessione_estiva').value = formatDateForInput(data.fine_sessione_estiva);
-            document.getElementById('inizio_sessione_autunnale').value = formatDateForInput(data.inizio_sessione_autunnale);
-            document.getElementById('fine_sessione_autunnale').value = formatDateForInput(data.fine_sessione_autunnale);
-            document.getElementById('inizio_sessione_invernale').value = formatDateForInput(data.inizio_sessione_invernale);
-            document.getElementById('fine_sessione_invernale').value = formatDateForInput(data.fine_sessione_invernale);
-            
-            // Scroll to form
-            document.querySelector('h1').scrollIntoView({ behavior: 'smooth' });
-            
-            // Evidenzia il campo codice CdS per essere compilato
-            document.getElementById('codice').focus();
-        })
-        .catch(error => {
-            console.error('Errore nel caricamento dei dettagli del corso:', error);
-            showMessage('error', 'Impossibile caricare i dettagli del corso');
-        });
+// Funzione per eliminare un CdS
+function deleteCds(cdsCode, annoAccademico) {
+    // Chiedi conferma prima di procedere
+    if (!confirm(`Sei sicuro di voler eliminare il corso ${cdsCode} (A.A. ${annoAccademico}/${annoAccademico+1})?`)) {
+        return; // Interrompi se l'utente annulla
+    }
+    
+    // Invia la richiesta di eliminazione al server
+    fetch('/flask/admin/api/deleteCds', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            codice: cdsCode,
+            anno_accademico: annoAccademico
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showMessage('success', data.message || 'Corso di studio eliminato con successo');
+            // Ricarica la lista dei corsi dopo l'eliminazione
+            loadExistingCdS();
+        } else {
+            showMessage('error', data.message || 'Errore durante l\'eliminazione del corso di studio');
+        }
+    })
+    .catch(error => {
+        console.error('Errore durante l\'eliminazione:', error);
+        showMessage('error', 'Si è verificato un errore durante l\'eliminazione');
+    });
 }
 
 // Funzione helper per formattare una data per input type="date"
