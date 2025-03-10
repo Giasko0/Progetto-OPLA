@@ -610,11 +610,14 @@ def miei_esami():
                c.inizio_sessione_anticipata, c.fine_sessione_anticipata,
                c.inizio_sessione_estiva, c.fine_sessione_estiva,
                c.inizio_sessione_autunnale, c.fine_sessione_autunnale,
-               c.inizio_sessione_invernale, c.fine_sessione_invernale
+               c.inizio_sessione_invernale, c.fine_sessione_invernale,
+               c.nome_corso as nome_cds, c.codice as codice_cds,
+               a.edificio
         FROM esami e
         JOIN insegnamenti i ON e.insegnamento = i.codice
         JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento
         JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico
+        LEFT JOIN aule a ON e.aula = a.nome
         WHERE e.docente = %s 
         AND ic.anno_accademico = %s
         ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello
@@ -631,7 +634,12 @@ def miei_esami():
       # Estrai i dati base dell'esame
       docente, titolo, aula, data_appello, ora = row[:5]
       # Estrai le date delle sessioni
-      date_sessioni = row[5:]
+      date_sessioni = row[5:13]
+      # Estrai le informazioni aggiuntive
+      nome_cds, codice_cds, edificio = row[13:]
+      
+      # Formatta l'edificio come sigla se presente
+      aula_completa = f"{aula} ({edificio})" if edificio else aula
       
       # Determina la sessione in base alle date
       sessione = None
@@ -648,10 +656,12 @@ def miei_esami():
       exam = {
         'docente': docente,
         'insegnamento': titolo,
-        'aula': aula,
+        'aula': aula_completa,
         'data': data_appello.strftime("%d/%m/%Y"),
         'ora': ora.strftime("%H:%M") if ora else "00:00",
-        'dataora': f"{data_appello.isoformat()}T{ora.isoformat() if ora else '00:00:00'}"
+        'dataora': f"{data_appello.isoformat()}T{ora.isoformat() if ora else '00:00:00'}",
+        'cds': nome_cds,
+        'codice_cds': codice_cds
       }
       esami.append(exam)
       

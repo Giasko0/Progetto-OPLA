@@ -140,6 +140,26 @@
   .tab-content.active {
     display: block;
   }
+
+  .all-exams-button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    border: none;
+    background: #4CAF50;
+    color: white;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+  
+  .all-exams-button:hover {
+    background: #388E3C;
+  }
+  
+  .all-exams-button.active {
+    background: #388E3C;
+  }
 </style>
 {% endblock %}
 
@@ -148,6 +168,7 @@
 
 <div class="tabs-container">
   <div class="tabs-header" id="tabsHeader">
+    <button id="allExamsButton" class="all-exams-button">Tutti gli appelli</button>
     <!-- I pulsanti dei tabs verranno generati qui -->
   </div>
 </div>

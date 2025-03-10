@@ -1,5 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
   fetchAndDisplayEsami();
+  
+  // Aggiungo event listener per il pulsante "Tutti gli appelli"
+  document.getElementById("allExamsButton").addEventListener("click", () => {
+    showAllExams();
+  });
 });
 
 function fetchAndDisplayEsami() {
@@ -8,10 +13,18 @@ function fetchAndDisplayEsami() {
     .then((data) => {
       const tabsHeader = document.getElementById("tabsHeader");
       const container = document.getElementById("contenitoreEsami");
+      // Manteniamo il pulsante "Tutti gli appelli"
+      const allExamsButton = document.getElementById("allExamsButton");
       container.innerHTML = "";
+      
+      // Manteniamo solo il pulsante "Tutti gli appelli"
       tabsHeader.innerHTML = "";
+      tabsHeader.appendChild(allExamsButton);
       
       const insegnamenti = Object.keys(data.insegnamenti);
+      
+      // Salviamo i dati come proprietà globale per usarli nel tab "Tutti gli appelli"
+      window.esamiData = data;
       
       // Crea i pulsanti dei tabs
       insegnamenti.forEach((insegnamento, index) => {
@@ -32,6 +45,13 @@ function fetchAndDisplayEsami() {
         
         container.appendChild(tabContent);
       });
+      
+      // Crea il tab per "Tutti gli appelli" ma inizialmente nascosto
+      const allExamsTab = document.createElement("div");
+      allExamsTab.className = "tab-content";
+      allExamsTab.id = "tab-all-exams";
+      displayAllExams(data, allExamsTab);
+      container.appendChild(allExamsTab);
     })
     .catch((error) => console.error("Errore:", error));
 }
@@ -41,6 +61,7 @@ function switchTab(insegnamento) {
   document.querySelectorAll('.tab-button').forEach(button => {
     button.classList.remove('active');
   });
+  document.getElementById("allExamsButton").classList.remove('active');
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.remove('active');
   });
@@ -55,6 +76,20 @@ function switchTab(insegnamento) {
     selectedButton.classList.add('active');
     selectedContent.classList.add('active');
   }
+}
+
+function showAllExams() {
+  // Rimuovi active da tutti i tabs
+  document.querySelectorAll('.tab-button').forEach(button => {
+    button.classList.remove('active');
+  });
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+  
+  // Attiva il tab "Tutti gli appelli"
+  document.getElementById("allExamsButton").classList.add('active');
+  document.getElementById("tab-all-exams").classList.add('active');
 }
 
 function displayTabelleEsami(data, insegnamento, container) {
@@ -76,10 +111,10 @@ function displayTabelleEsami(data, insegnamento, container) {
     table.innerHTML = `
       <thead>
           <tr>
-              <th onclick="sortTable('${table.id}', 0)">Docente</th>
+              <th onclick="sortTable('${table.id}', 0)">CDS</th>
               <th onclick="sortTable('${table.id}', 1)">Insegnamento</th>
-              <th onclick="sortTable('${table.id}', 2)">Aula</th>
-              <th onclick="sortTable('${table.id}', 3)">Data</th>
+              <th onclick="sortTable('${table.id}', 2, 'date')">Data</th>
+              <th onclick="sortTable('${table.id}', 3)">Aula</th>
           </tr>
       </thead>
       <tbody></tbody>
@@ -88,10 +123,15 @@ function displayTabelleEsami(data, insegnamento, container) {
     const tbody = table.querySelector("tbody");
     esamiInsegnamento.forEach((esame) => {
       const row = tbody.insertRow();
-      row.insertCell(0).textContent = esame.docente;
+      row.insertCell(0).textContent = esame.cds || "N/A";
       row.insertCell(1).textContent = esame.insegnamento;
-      row.insertCell(2).textContent = esame.aula;
-      row.insertCell(3).textContent = formatDateTime(esame.dataora);
+      
+      // Aggiungo il data-datetime come attributo nascosto per l'ordinamento
+      const dataCell = row.insertCell(2);
+      dataCell.textContent = formatDateTime(esame.dataora);
+      dataCell.setAttribute('data-datetime', esame.dataora);
+      
+      row.insertCell(3).textContent = esame.aula;
     });
 
     section.appendChild(table);
@@ -143,8 +183,56 @@ function displaySessioniEsami(data, insegnamento, container) {
   container.appendChild(section);
 }
 
-// Ordinamento tabella
-function sortTable(tableId, colIndex) {
+function displayAllExams(data, container) {
+  const section = document.createElement("div");
+  section.className = "section";
+
+  const title = document.createElement("h2");
+  title.textContent = "Tutti gli appelli";
+  section.appendChild(title);
+
+  const table = document.createElement("table");
+  table.id = "tabella-tutti-appelli";
+
+  table.innerHTML = `
+    <thead>
+        <tr>
+            <th onclick="sortTable('${table.id}', 0)">CDS</th>
+            <th onclick="sortTable('${table.id}', 1)">Insegnamento</th>
+            <th onclick="sortTable('${table.id}', 2, 'date')">Data</th>
+            <th onclick="sortTable('${table.id}', 3)">Aula</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+
+  const tbody = table.querySelector("tbody");
+  // Ordina gli esami per data
+  const esamiOrdinati = [...data.esami].sort((a, b) => {
+    const dateA = new Date(a.dataora);
+    const dateB = new Date(b.dataora);
+    return dateA - dateB;
+  });
+  
+  esamiOrdinati.forEach((esame) => {
+    const row = tbody.insertRow();
+    row.insertCell(0).textContent = esame.cds || "N/A";
+    row.insertCell(1).textContent = esame.insegnamento;
+    
+    // Aggiungo il data-datetime come attributo nascosto per l'ordinamento
+    const dataCell = row.insertCell(2);
+    dataCell.textContent = formatDateTime(esame.dataora);
+    dataCell.setAttribute('data-datetime', esame.dataora);
+    
+    row.insertCell(3).textContent = esame.aula;
+  });
+
+  section.appendChild(table);
+  container.appendChild(section);
+}
+
+// Ordinamento tabella migliorato per gestire correttamente le date
+function sortTable(tableId, colIndex, type = 'text') {
   const table = document.getElementById(tableId);
   const tbody = table.tBodies[0];
   const rows = Array.from(tbody.rows);
@@ -164,12 +252,29 @@ function sortTable(tableId, colIndex) {
 
   // Esegue l'ordinamento
   rows.sort((a, b) => {
-    const aValue = a.cells[colIndex].textContent.trim().toLowerCase();
-    const bValue = b.cells[colIndex].textContent.trim().toLowerCase();
-
-    return direction === "asc"
-      ? aValue.localeCompare(bValue)
-      : bValue.localeCompare(aValue);
+    let aValue, bValue;
+    
+    if (type === 'date') {
+      // Usa il valore dell'attributo data-datetime per le date
+      aValue = a.cells[colIndex].getAttribute('data-datetime') || a.cells[colIndex].textContent.trim();
+      bValue = b.cells[colIndex].getAttribute('data-datetime') || b.cells[colIndex].textContent.trim();
+      
+      // Converti in oggetti Date per il confronto
+      const dateA = new Date(aValue);
+      const dateB = new Date(bValue);
+      
+      return direction === "asc" 
+        ? dateA - dateB 
+        : dateB - dateA;
+    } else {
+      // Per i campi di testo, usa il metodo esistente
+      aValue = a.cells[colIndex].textContent.trim().toLowerCase();
+      bValue = b.cells[colIndex].textContent.trim().toLowerCase();
+      
+      return direction === "asc"
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    }
   });
 
   // Ricostruisce la tabella con le righe ordinate
