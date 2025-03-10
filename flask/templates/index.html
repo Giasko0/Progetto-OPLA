@@ -7,10 +7,40 @@
   <script src="{{ url_for('static', filename='scripts/formEsame.js') }}"></script> <!-- Script per gestire la form di inserimento esami -->
   <script src="{{ url_for('static', filename='scripts/insegnamentiManager.js') }}"></script>
   <script src="{{ url_for('static', filename='scripts/popup.js') }}"></script> <!-- Script per la gestione dei popup -->
+  <script src="{{ url_for('static', filename='scripts/easmiMinimi.js') }}"></script> <!-- Script per verificare esami minimi -->
+  <style>
+    .banner-avviso {
+      background-color: #ffebcc;
+      color: #cc7000;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      min-width: 40vw;
+      font-size: 1.1rem;
+      border-left: 4px solid #ff9800;
+      position: relative;
+      border-radius: 4px;
+    }
+    .banner-avviso .banner-close {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
 {% endblock %}
 
 {% block body %}
   <h1 class="titolo">Benvenuto, utente!</h1>
+
+  <!-- Banner avviso esami minimi -->
+  <div id="banner-esami-minimi" class="banner-avviso hidden">
+    <span class="banner-close">&times;</span>
+    <p class="banner-messaggio">Attenzione, non è stato inserito il numero minimo di esami per gli insegnamenti: </p>
+  </div>
 
   <div id="calendar"></div>
 

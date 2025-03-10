@@ -374,6 +374,71 @@ def confermaEsami():
       cursor.close()
       conn.close()
 
+@app.route('/flask/api/esamiMinimi', methods=['GET'])
+@require_auth
+def esamiMinimi():
+    """API per verificare se sono stati inseriti almeno 8 esami per insegnamento del docente"""
+    try:
+        if app.config['SAML_ENABLED']:
+            username = session.get('saml_nameid')
+        else:
+            username = request.cookies.get('username')
+        
+        if not username:
+            return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
+        
+        anno_accademico = request.args.get('anno_accademico')
+        if not anno_accademico:
+            # Usa l'anno accademico corrente come default
+            current_year = datetime.now().year
+            month = datetime.now().month
+            if month >= 9:  # Se siamo prima di settembre, l'anno accademico è l'anno prossimo
+                anno_accademico = current_year
+            else:
+                anno_accademico = current_year-1
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Ottiene tutti gli insegnamenti del docente per l'anno accademico
+        cursor.execute("""
+            SELECT i.insegnamento, ins.titolo
+            FROM insegna i
+            JOIN insegnamenti ins ON i.insegnamento = ins.codice
+            WHERE i.docente = %s AND i.annoaccademico = %s
+        """, (username, anno_accademico))
+        
+        insegnamenti = cursor.fetchall()
+        risultati = []
+        
+        # Per ogni insegnamento, conta il numero di esami inseriti
+        for codice, titolo in insegnamenti:
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM esami 
+                WHERE docente = %s AND insegnamento = %s
+            """, (username, codice))
+            
+            count = cursor.fetchone()[0]
+            if count < 8:  # Minimo 8 esami richiesti
+                risultati.append({
+                    'codice': codice,
+                    'titolo': titolo,
+                    'esami_inseriti': count
+                })
+        
+        return jsonify({
+            'status': 'success',
+            'insegnamenti_sotto_minimo': risultati
+        }), 200
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        if 'conn' in locals() and conn:
+            cursor.close()
+            conn.close()
+
 # ===== Main =====
 if __name__ == '__main__':
     app.config['DEBUG'] = True 
