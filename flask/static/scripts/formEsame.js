@@ -110,41 +110,78 @@ document.addEventListener("DOMContentLoaded", () => {
     selectAula.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
   }
   
-  // Funzione per popolare il selettore degli insegnamenti con titolo visibile e codice come value
-  function popolaInsegnamenti() {
-    const username = document.getElementById('docente').value;
-    if (username) {
-      fetch('/flask/api/ottieniInsegnamenti?username=' + username)
+  // Funzione per ottenere l'username corrente
+  function getCurrentUsername() {
+    return new Promise((resolve, reject) => {
+      fetch('/flask/api/check-auth')
         .then(response => response.json())
         .then(data => {
-          // Ottieni il container delle opzioni
-          const optionsContainer = document.getElementById('insegnamentoOptions');
-          // Svuota le opzioni esistenti
-          optionsContainer.innerHTML = '';
-          
-          // Aggiungi le opzioni degli insegnamenti
-          data.forEach(ins => {
-            const option = document.createElement('div');
-            option.className = 'multi-select-option';
-            option.dataset.value = ins.codice;
-            option.textContent = ins.titolo;
-            
-            // Aggiungi evento click per selezionare/deselezionare
-            option.addEventListener('click', function() {
-              toggleOption(this);
-            });
-            
-            optionsContainer.appendChild(option);
-          });
-          
-          // Dopo aver popolato gli insegnamenti, controlla se ci sono insegnamenti preselezionati
-          preselectInsegnamenti();
-          
-          // Gestisci l'evento di rimozione per i tag già esistenti
-          setupExistingTagsRemoval();
+          if (data.authenticated) {
+            resolve(data.username);
+          } else {
+            reject('Utente non autenticato');
+          }
         })
-        .catch(error => console.error('Errore nel caricamento degli insegnamenti:', error));
-    }
+        .catch(error => {
+          console.error('Errore nel controllo dell\'autenticazione:', error);
+          // Fallback al metodo vecchio
+          const username = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('username='))
+            ?.split('=')[1];
+            
+          if (username) {
+            resolve(username);
+          } else {
+            reject('Utente non autenticato');
+          }
+        });
+    });
+  }
+  
+  // Funzione per popolare il selettore degli insegnamenti con titolo visibile e codice come value
+  function popolaInsegnamenti() {
+    // Ottieni lo username corrente
+    getCurrentUsername()
+      .then(username => {
+        if (username) {
+          fetch('/flask/api/ottieniInsegnamenti?username=' + username)
+            .then(response => response.json())
+            .then(data => {
+              // Ottieni il container delle opzioni
+              const optionsContainer = document.getElementById('insegnamentoOptions');
+              // Svuota le opzioni esistenti
+              optionsContainer.innerHTML = '';
+              
+              // Aggiungi le opzioni degli insegnamenti
+              data.forEach(ins => {
+                const option = document.createElement('div');
+                option.className = 'multi-select-option';
+                option.dataset.value = ins.codice;
+                option.textContent = ins.titolo;
+                
+                // Aggiungi evento click per selezionare/deselezionare
+                option.addEventListener('click', function() {
+                  toggleOption(this);
+                });
+                
+                optionsContainer.appendChild(option);
+              });
+              
+              // Dopo aver popolato gli insegnamenti, controlla se ci sono insegnamenti preselezionati
+              preselectInsegnamenti();
+              
+              // Gestisci l'evento di rimozione per i tag già esistenti
+              setupExistingTagsRemoval();
+            })
+            .catch(error => console.error('Errore nel caricamento degli insegnamenti:', error));
+        }
+      })
+      .catch(error => {
+        console.error("Errore:", error);
+        alert("È necessario effettuare il login per utilizzare questa funzione");
+        window.location.href = '/flask/login';
+      });
   }
   
   // Funzione per controllare se ci sono insegnamenti preselezionati dal calendario

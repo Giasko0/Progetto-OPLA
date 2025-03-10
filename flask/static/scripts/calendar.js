@@ -178,71 +178,138 @@ document.addEventListener("DOMContentLoaded", function () {
           }
 
           // Controlla login
-          if (document.cookie.split(';').some(cookie => cookie.trim().startsWith('username='))) {
-            // Formatta data per form
-            const formattedDate = dataClick.toISOString().split('T')[0];
-            document.getElementById('dataora').value = formattedDate;
-            if (periodo !== null) {
-              document.getElementById('periodo').value = periodo;
-            }
-            
-            // Pre-popola insegnamenti nel form
-            if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
-              const username = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('username='))
-                ?.split('=')[1];
-              
-              if (username) {
-                // Prepara contenitore
-                const multiSelectBox = document.getElementById('insegnamentoBox');
-                if (multiSelectBox) {
-                  // Salva placeholder
-                  const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
-                  
-                  // Svuota contenitore
-                  multiSelectBox.innerHTML = '';
-                  
-                  // Ripristina placeholder se necessario
-                  if (placeholder && window.InsegnamentiManager.getSelectedCodes().length === 0) {
-                    multiSelectBox.appendChild(placeholder.cloneNode(true));
-                  }
+          fetch('/flask/api/check-auth')
+            .then(response => response.json())
+            .then(data => {
+              if (data.authenticated) {
+                // Formatta data per form
+                const formattedDate = dataClick.toISOString().split('T')[0];
+                document.getElementById('dataora').value = formattedDate;
+                if (periodo !== null) {
+                  document.getElementById('periodo').value = periodo;
+                }
                 
-                  // Carica insegnamenti selezionati
-                  window.InsegnamentiManager.loadSelectedInsegnamenti(username, function(data) {
-                    if (data.length > 0) {
-                      // Rimuovi placeholder
-                      const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
-                      if (placeholder) {
-                        placeholder.remove();
+                // Pre-popola insegnamenti nel form
+                if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
+                  // Prepara contenitore
+                  const multiSelectBox = document.getElementById('insegnamentoBox');
+                  if (multiSelectBox) {
+                    // Salva placeholder
+                    const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
+                    
+                    // Svuota contenitore
+                    multiSelectBox.innerHTML = '';
+                    
+                    // Ripristina placeholder se necessario
+                    if (placeholder && window.InsegnamentiManager.getSelectedCodes().length === 0) {
+                      multiSelectBox.appendChild(placeholder.cloneNode(true));
+                    }
+                  
+                    // Carica insegnamenti selezionati
+                    window.InsegnamentiManager.loadSelectedInsegnamenti(username, function(data) {
+                      if (data.length > 0) {
+                        // Rimuovi placeholder
+                        const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
+                        if (placeholder) {
+                          placeholder.remove();
+                        }
+                        
+                        // Crea tag per insegnamenti
+                        data.forEach(ins => {
+                          createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
+                        });
+                        
+                        // Aggiorna select nascosta
+                        updateHiddenSelect(multiSelectBox);
+                        
+                        // Aggiorna opzioni nel dropdown
+                        const options = document.querySelectorAll('#insegnamentoOptions .multi-select-option');
+                        options.forEach(option => {
+                          if (window.InsegnamentiManager.isSelected(option.dataset.value)) {
+                            option.classList.add('selected');
+                          }
+                        });
                       }
+                    });
+                  }
+                }
+                
+                // Mostra l'overlay del form
+                document.getElementById('overlay').style.display = 'flex';
+              } else {
+                alert('Effettua il login per inserire un esame');
+                window.location.href = '/flask/login';
+              }
+            })
+            .catch(error => {
+              console.error('Errore nella verifica dell\'autenticazione:', error);
+              // Fallback al vecchio metodo
+              if (document.cookie.split(';').some(cookie => cookie.trim().startsWith('username='))) {
+                // Formatta data per form
+                const formattedDate = dataClick.toISOString().split('T')[0];
+                document.getElementById('dataora').value = formattedDate;
+                if (periodo !== null) {
+                  document.getElementById('periodo').value = periodo;
+                }
+                
+                // Pre-popola insegnamenti nel form
+                if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
+                  const username = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('username='))
+                    ?.split('=')[1];
+                  
+                  if (username) {
+                    // Prepara contenitore
+                    const multiSelectBox = document.getElementById('insegnamentoBox');
+                    if (multiSelectBox) {
+                      // Salva placeholder
+                      const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
                       
-                      // Crea tag per insegnamenti
-                      data.forEach(ins => {
-                        createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
-                      });
+                      // Svuota contenitore
+                      multiSelectBox.innerHTML = '';
                       
-                      // Aggiorna select nascosta
-                      updateHiddenSelect(multiSelectBox);
-                      
-                      // Aggiorna opzioni nel dropdown
-                      const options = document.querySelectorAll('#insegnamentoOptions .multi-select-option');
-                      options.forEach(option => {
-                        if (window.InsegnamentiManager.isSelected(option.dataset.value)) {
-                          option.classList.add('selected');
+                      // Ripristina placeholder se necessario
+                      if (placeholder && window.InsegnamentiManager.getSelectedCodes().length === 0) {
+                        multiSelectBox.appendChild(placeholder.cloneNode(true));
+                      }
+                    
+                      // Carica insegnamenti selezionati
+                      window.InsegnamentiManager.loadSelectedInsegnamenti(username, function(data) {
+                        if (data.length > 0) {
+                          // Rimuovi placeholder
+                          const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
+                          if (placeholder) {
+                            placeholder.remove();
+                          }
+                          
+                          // Crea tag per insegnamenti
+                          data.forEach(ins => {
+                            createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
+                          });
+                          
+                          // Aggiorna select nascosta
+                          updateHiddenSelect(multiSelectBox);
+                          
+                          // Aggiorna opzioni nel dropdown
+                          const options = document.querySelectorAll('#insegnamentoOptions .multi-select-option');
+                          options.forEach(option => {
+                            if (window.InsegnamentiManager.isSelected(option.dataset.value)) {
+                              option.classList.add('selected');
+                            }
+                          });
                         }
                       });
                     }
-                  });
+                  }
                 }
+                
+                // Mostra form
+                document.getElementById('popupOverlay').style.display = 'flex';
+              } else {
+                alert("Devi essere loggato per inserire un esame.");
               }
-            }
-            
-            // Mostra form
-            document.getElementById('popupOverlay').style.display = 'flex';
-          } else {
-            alert("Devi essere loggato per inserire un esame.");
-          }
+            });
         },
 
         // Dettagli evento al click

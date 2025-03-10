@@ -3,6 +3,7 @@ from functools import wraps
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.utils import OneLogin_Saml2_Utils
+from db import get_db_connection
 import os
 
 saml_bp = Blueprint('saml', __name__)
@@ -84,6 +85,35 @@ def acs():
     session['saml_nameid_spnq'] = auth.get_nameid_spnq()
     session['saml_session_index'] = auth.get_session_index()
     session['saml_attributes'] = auth.get_attributes()
+    
+    # Verifica se l'utente esiste nel database, altrimenti crea un nuovo record
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+      username = auth.get_nameid()
+      attributes = auth.get_attributes()
+      
+      # Estrai informazioni dall'attributo, adatta secondo l'implementazione SAML
+      email = attributes.get('email', [''])[0] if attributes.get('email') else ''
+      nome = attributes.get('firstName', [''])[0] if attributes.get('firstName') else ''
+      cognome = attributes.get('lastName', [''])[0] if attributes.get('lastName') else ''
+      
+      # Verifica se l'utente esiste
+      cursor.execute("SELECT 1 FROM docenti WHERE username = %s", (username,))
+      if not cursor.fetchone():
+        # Crea un nuovo utente con permessi visitatore di default
+        cursor.execute(
+          """INSERT INTO docenti 
+             (username, email, nome, cognome, permessi_visitatore, permessi_docente, permessi_admin) 
+             VALUES (%s, %s, %s, %s, %s, %s, %s)""", 
+          (username, email, nome, cognome, True, False, False)
+        )
+        conn.commit()
+    
+    finally:
+      cursor.close()
+      conn.close()
     
     self_url = OneLogin_Saml2_Utils.get_self_url(req)
     if 'RelayState' in request.form and self_url != request.form['RelayState']:
