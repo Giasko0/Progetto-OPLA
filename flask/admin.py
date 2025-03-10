@@ -12,11 +12,17 @@ def admin_login():
         return redirect('/flask/admin/dashboard')
     return render_template('oh-issa/login.html')
 
-@admin_bp.route('/dashboard')
+@admin_bp.route('/fileUpload')
 def admin_dashboard():
     if 'admin' not in request.cookies:
         return redirect('/flask/admin')
-    return render_template('oh-issa/dashboard.html')
+    return render_template('oh-issa/fileUpload.html')
+
+@admin_bp.route('/fileDownload')
+def file_download():
+    if 'admin' not in request.cookies:
+        return redirect('/flask/admin')
+    return render_template('oh-issa/fileDownload.html')
 
 @admin_bp.route('/auth', methods=['POST'])
 def admin_auth():
