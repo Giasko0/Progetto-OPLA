@@ -257,29 +257,70 @@ function displaySessioniEsami(data, insegnamento, container) {
 }
 
 function displayAllExams(data, container) {
+  // Aggiungi il riepilogo delle sessioni per tutti gli insegnamenti
+  const sessionsSection = document.createElement("div");
+  sessionsSection.className = "exam-section";
+  
+  const sessionsTitle = document.createElement("h2");
+  sessionsTitle.textContent = "Riepilogo insegnamenti";
+  sessionsSection.appendChild(sessionsTitle);
+  
+  // Crea una griglia per mostrare tutti gli insegnamenti (stile simile a exam-session)
+  const sessionsGrid = document.createElement("div");
+  sessionsGrid.className = "sessions-grid";
+  
+  // Per ogni insegnamento, crea una card simile a quelle usate in displaySessioniEsami
+  const insegnamenti = Object.keys(data.insegnamenti);
+  insegnamenti.forEach(insegnamento => {
+    const sessioni = data.insegnamenti[insegnamento];
+    const totaleEsami = Object.values(sessioni).reduce((sum, val) => sum + (val || 0), 0);
+    
+    const cardElement = document.createElement("div");
+    cardElement.className = "session-card";
+    
+    // Aggiungiamo una classe in base al numero di esami
+    if (totaleEsami < 8) {
+      cardElement.classList.add("warning-card");
+    } else {
+      cardElement.classList.add("success-card");
+    }
+    
+    cardElement.innerHTML = `
+      <h4>${insegnamento}</h4>
+      <p>${totaleEsami} esami inseriti</p>
+      <p class="exams-requirement">Min: 8 - Max: 13</p>
+    `;
+    
+    sessionsGrid.appendChild(cardElement);
+  });
+  
+  sessionsSection.appendChild(sessionsGrid);
+  container.appendChild(sessionsSection);
+  
+  // Continua con la tabella dettagliata di tutti gli appelli
   const section = document.createElement("div");
   section.className = "section";
-
+  
   const title = document.createElement("h2");
   title.textContent = "Tutti gli appelli";
   section.appendChild(title);
 
-  const table = document.createElement("table");
-  table.id = "tabella-tutti-appelli";
+  const tableAllExams = document.createElement("table");
+  tableAllExams.id = "tabella-tutti-appelli";
 
-  table.innerHTML = `
+  tableAllExams.innerHTML = `
     <thead>
         <tr>
-            <th onclick="sortTable('${table.id}', 0)">CDS</th>
-            <th onclick="sortTable('${table.id}', 1)">Insegnamento</th>
-            <th onclick="sortTable('${table.id}', 2, 'date')">Data</th>
-            <th onclick="sortTable('${table.id}', 3)">Aula</th>
+            <th onclick="sortTable('${tableAllExams.id}', 0)">CDS</th>
+            <th onclick="sortTable('${tableAllExams.id}', 1)">Insegnamento</th>
+            <th onclick="sortTable('${tableAllExams.id}', 2, 'date')">Data</th>
+            <th onclick="sortTable('${tableAllExams.id}', 3)">Aula</th>
         </tr>
     </thead>
     <tbody></tbody>
   `;
 
-  const tbody = table.querySelector("tbody");
+  const tbodyAllExams = tableAllExams.querySelector("tbody");
   // Ordina gli esami per data
   const esamiOrdinati = [...data.esami].sort((a, b) => {
     const dateA = new Date(a.dataora);
@@ -288,7 +329,7 @@ function displayAllExams(data, container) {
   });
   
   esamiOrdinati.forEach((esame) => {
-    const row = tbody.insertRow();
+    const row = tbodyAllExams.insertRow();
     row.insertCell(0).textContent = esame.cds || "N/A";
     row.insertCell(1).textContent = esame.insegnamento;
     
@@ -300,7 +341,7 @@ function displayAllExams(data, container) {
     row.insertCell(3).textContent = esame.aula;
   });
 
-  section.appendChild(table);
+  section.appendChild(tableAllExams);
   container.appendChild(section);
 }
 
