@@ -1,3 +1,12 @@
+-- Droppa tutte le tabelle
+DROP TABLE IF EXISTS esami CASCADE;
+DROP TABLE IF EXISTS insegna CASCADE;
+DROP TABLE IF EXISTS docenti CASCADE;
+DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
+DROP TABLE IF EXISTS insegnamenti CASCADE;
+DROP TABLE IF EXISTS cds CASCADE;
+DROP TABLE IF EXISTS aule CASCADE;
+
 -- Creazione della tabella 'aule'
 CREATE TABLE aule (
     nome TEXT PRIMARY KEY,      -- Nome dell'aula (chiave primaria)
