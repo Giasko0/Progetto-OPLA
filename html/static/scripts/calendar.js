@@ -15,16 +15,40 @@ document.addEventListener("DOMContentLoaded", function () {
   const dateRange = getValidDateRange();
   var calendarEl = document.getElementById("calendar");
 
-  // Carica le date delle sessioni
-  fetch('/api/ottieniSessioni')
-    .then(response => response.json())
-    .then(sessioni => {
+  // Controlla se l'utente è un amministratore
+  let isAdmin = false;
+
+  // Funzione per verificare i permessi di amministratore
+  function checkAdminPermissions() {
+    return fetch('/api/check-auth')
+      .then(response => response.json())
+      .then(data => {
+        isAdmin = data.authenticated && data.user_data && data.user_data.permessi_admin;
+        return isAdmin;
+      })
+      .catch(error => {
+        console.error('Errore nella verifica dei permessi:', error);
+        return false;
+      });
+  }
+
+  // Carica le date delle sessioni e verifica i permessi
+  Promise.all([
+    fetch('/api/ottieniSessioni').then(response => response.json()),
+    checkAdminPermissions()
+  ])
+    .then(([sessioni]) => {
       // Converti in array di date
       const dateValide = getDateValideFromSessioni(sessioni);
 
       // Crea dropdown
       const dropdownSessioni = createDropdown('sessioni', sessioni);
       const dropdownInsegnamenti = createDropdown('insegnamenti');
+
+      // Determina quali pulsanti mostrare in base ai permessi
+      const rightButtons = isAdmin ? 
+        'pulsanteSessioni pulsanteInsegnamenti pulsanteDebug prev,next today' : 
+        'pulsanteSessioni pulsanteInsegnamenti prev,next today';
 
       // Configurazione calendario
       var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -40,7 +64,7 @@ document.addEventListener("DOMContentLoaded", function () {
         headerToolbar: {
           left: 'title',
           center: '',
-          right: 'pulsanteSessioni pulsanteInsegnamenti pulsanteDebug prev,next today'
+          right: rightButtons
         },
 
         // Pulsanti personalizzati
@@ -83,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function () {
               populateInsegnamentiDropdown(dropdownInsegnamenti, docente, planningYear);
             }
           },
-          // Debug: tutti gli esami
+          // Debug: tutti gli esami (solo admin)
           pulsanteDebug: {
             text: '(Debug) Tutti gli esami',
             click: function() {
@@ -478,7 +502,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Esponi funzione globale
       window.updateHiddenSelect = (multiSelectBox) => updateHiddenSelect(multiSelectBox);
     })
-    .catch(error => console.error('Errore nel caricamento delle sessioni:', error));
+    .catch(error => console.error('Errore nel caricamento delle sessioni o verifica permessi:', error));
   
   // Gestione chiusura form esami
   const setupCloseHandlers = () => {

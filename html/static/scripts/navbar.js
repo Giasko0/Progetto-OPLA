@@ -36,17 +36,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Controlliamo se l'utente è autenticato attraverso una chiamata API
     fetch('/api/check-auth')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Errore nella risposta del server: ' + response.status);
-        }
-        return response.json();
-      })
+      .then(response => response.json())
       .then(data => {
-        if (data.authenticated) {
-          link.href = "/flask/logout";
-          link.innerHTML = `${data.username} - Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
+        const link = document.createElement('a');
+        link.className = 'nav-link';
+        
+        if (data.authenticated && data.user_data) {
+          // Utente autenticato
+          link.href = "/api/logout";
+          link.innerHTML = `${data.user_data.nome} ${data.user_data.cognome} - Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
         } else {
+          // Utente non autenticato
           link.href = "login.html";
           link.innerHTML = "Accedi <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>login</span>";
         }
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const username = getCookie('username');
         
         if (username) {
-          link.href = "/flask/logout";
+          link.href = "/api/logout";
           link.innerHTML = "Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>";
         } else {
           link.href = "login.html";

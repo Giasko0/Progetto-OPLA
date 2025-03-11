@@ -10,13 +10,7 @@ function getCookie(name) {
 
 // Funzione per ottenere lo username dell'utente corrente
 function getCurrentUsername() {
-  // Prima controlla il cookie 'username'
-  const username = getCookie('username');
-  if (username) {
-    return Promise.resolve(username);
-  }
-  
-  // Altrimenti, prova a controllare tramite API
+
   return fetch('/api/check-auth')
     .then(response => {
       if (!response.ok) {
@@ -25,8 +19,12 @@ function getCurrentUsername() {
       return response.json();
     })
     .then(data => {
-      if (data.authenticated && data.username) {
-        return data.username;
+      if (data.authenticated && data.user_data) {
+        return {
+          username: data.user_data.username,
+          nome: data.user_data.nome,
+          cognome: data.user_data.cognome
+        };
       }
       return null;
     })
@@ -39,11 +37,11 @@ function getCurrentUsername() {
 // Funzione per impostare il valore dell'username in un campo di input
 function setUsernameField(fieldId) {
   getCurrentUsername()
-    .then(username => {
-      if (username) {
+    .then(user => {
+      if (user && user.username) {
         const field = document.getElementById(fieldId);
         if (field) {
-          field.value = username;
+          field.value = user.username;
         }
       }
     });
@@ -52,11 +50,11 @@ function setUsernameField(fieldId) {
 // Funzione per mostrare/nascondere elementi in base all'autenticazione
 function updateUIByAuth() {
   getCurrentUsername()
-    .then(username => {
+    .then(user => {
       const authElements = document.querySelectorAll('[data-auth]');
       authElements.forEach(el => {
-        if ((el.dataset.auth === 'authenticated' && username) || 
-            (el.dataset.auth === 'unauthenticated' && !username)) {
+        if ((el.dataset.auth === 'authenticated' && user && user.username) || 
+            (el.dataset.auth === 'unauthenticated' && (!user || !user.username))) {
           el.style.display = '';
         } else {
           el.style.display = 'none';
@@ -66,8 +64,8 @@ function updateUIByAuth() {
       // Mostra il nome utente dove necessario
       const usernameElements = document.querySelectorAll('[data-username]');
       usernameElements.forEach(el => {
-        if (username) {
-          el.textContent = username;
+        if (user && user.username) {
+          el.textContent = user.username;
         }
       });
     });

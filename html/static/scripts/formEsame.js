@@ -82,11 +82,14 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Funzione per personalizzare il saluto
   function personalizzaSaluto() {
-    getCurrentUsername().then(username => {
-      if (username) {
+    getCurrentUsername().then(userData => {
+      if (userData) {
         const titolo = document.querySelector('.titolo');
         if (titolo) {
-          titolo.textContent = `Benvenuto, ${username}!`;
+          const nomeCompleto = userData.nome && userData.cognome ? 
+            `${userData.nome} ${userData.cognome}` : 
+            userData.username;
+          titolo.textContent = `Benvenuto, ${nomeCompleto}!`;
         }
       }
     }).catch(() => {});
@@ -502,31 +505,31 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Ottiene l'username corrente
   function getCurrentUsername() {
-    return new Promise((resolve, reject) => {
-      fetch('/api/check-auth')
-        .then(response => response.json())
-        .then(data => {
-          if (data.authenticated) {
-            resolve(data.username);
-          } else {
-            reject('Utente non autenticato');
-          }
-        })
-        .catch(error => {
-          console.error('Errore nel controllo dell\'autenticazione:', error);
-          // Fallback al metodo vecchio
-          const username = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('username='))
-            ?.split('=')[1];
-            
-          if (username) {
-            resolve(username);
-          } else {
-            reject('Utente non autenticato');
-          }
-        });
-    });
+    return fetch('/api/check-auth')
+      .then(response => response.json())
+      .then(data => {
+        if (data.authenticated) {
+          return {
+            username: data.user_data.username,
+            nome: data.user_data.nome,
+            cognome: data.user_data.cognome
+          };
+        }
+        throw new Error('Utente non autenticato');
+      })
+      .catch(error => {
+        console.error('Errore nel controllo dell\'autenticazione:', error);
+        // Fallback al metodo vecchio
+        const username = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('username='))
+          ?.split('=')[1];
+          
+        if (username) {
+          return { username };
+        }
+        throw new Error('Utente non autenticato');
+      });
   }
   
   // Imposta username in un campo

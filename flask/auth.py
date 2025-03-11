@@ -4,23 +4,18 @@ from functools import wraps
 
 auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route('/flask/login')
-def login():
-  # Verifica se l'utente è già autenticato
-  if 'username' in request.cookies or session.get('saml_authenticated'):
-    return redirect('/flask')
-  return render_template("login.html")
-
-@auth_bp.route('/flask/logout')
+@auth_bp.route('/api/logout')
 def logout():
-  # Verifica se l'utente è autenticato tramite SAML
-  if session.get('saml_authenticated'):
-    return redirect('/flask/saml/logout')
-  
-  # Logout locale
-  response = redirect('/flask')
-  response.delete_cookie('username')
-  return response
+    # Verifica se l'utente è autenticato tramite SAML
+    if session.get('saml_authenticated'):
+        session.clear()
+        return redirect('/flask/saml/logout')
+    
+    # Logout locale
+    session.clear()
+    response = make_response(redirect('/flask'))
+    response.delete_cookie('username')
+    return response
 
 @auth_bp.route('/api/login', methods=['POST'])
 def api_login():
@@ -42,32 +37,69 @@ def api_login():
     cursor.close()
     conn.close()
 
-# Funzione di supporto per verificare l'autenticazione
-def is_authenticated():
-  return 'username' in request.cookies or session.get('saml_authenticated')
-  
-# Funzione per ottenere l'username corrente
-def get_current_user():
-  if 'username' in request.cookies:
-    return request.cookies.get('username')
-  elif session.get('saml_authenticated'):
-    return session.get('saml_nameid')
-  return None
-
-# Funzione decoratore che richiede il login
+# Decorator per richiedere autenticazione
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'username' not in request.cookies and not session.get('saml_authenticated'):
+        response = get_user_data().get_json()
+        if not response.get('authenticated'):
             return redirect('/flask/login')
         return f(*args, **kwargs)
     return decorated_function
 
-# Funzione per ottenere il nome utente indipendentemente dal metodo di autenticazione
-def get_current_username():
-    """Ottieni il nome utente indipendentemente dal metodo di autenticazione"""
+@auth_bp.route('/api/check-auth')
+def get_user_data():
+    username = None
+    
+    # Determina l'username basato sul metodo di autenticazione
     if 'username' in request.cookies:
-        return request.cookies.get('username')
+        username = request.cookies.get('username')
     elif session.get('saml_authenticated'):
-        return session.get('saml_nameid')
-    return None
+        username = session.get('saml_nameid')
+    
+    if not username:
+        return jsonify({
+            'authenticated': False,
+            'user_data': None
+        })
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT username, matricola, email, nome, cognome, 
+                   permessi_visitatore, permessi_docente, permessi_admin 
+            FROM utenti 
+            WHERE username = %s
+        """, (username,))
+        user_record = cursor.fetchone()
+        
+        if user_record:
+            # Creo manualmente il dizionario con i nomi delle colonne
+            user_data = {
+                'username': user_record[0],
+                'matricola': user_record[1],
+                'email': user_record[2],
+                'nome': user_record[3],
+                'cognome': user_record[4],
+                'permessi_visitatore': user_record[5],
+                'permessi_docente': user_record[6],
+                'permessi_admin': user_record[7]
+            }
+        else:
+            user_data = None
+        
+        return jsonify({
+            'authenticated': user_data is not None,
+            'user_data': user_data
+        })
+    except Exception as e:
+        print(f"Errore nell'ottenere i dati utente: {e}")
+        return jsonify({
+            'authenticated': False,
+            'user_data': None,
+            'error': str(e)
+        }), 500
+    finally:
+        cursor.close()
+        conn.close()

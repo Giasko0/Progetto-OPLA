@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, session
 from db import get_db_connection
 from datetime import datetime
 from utils.sessions import get_valid_years
-from auth import get_current_user, get_current_username
+from auth import get_user_data
 
 fetch_bp = Blueprint('fetch', __name__)
 
@@ -217,98 +217,99 @@ def getEsami():
 # API per ottenere gli esami di un docente. Usato in mieiEsami.html
 @fetch_bp.route('/api/mieiEsami', methods=['GET'])
 def miei_esami():
-  # Ottieni il docente corrente usando la nuova funzione
-  docente = get_current_username()
+    # Ottieni i dati dell'utente usando la nuova funzione
+    user_data = get_user_data().get_json()
+    if not user_data['authenticated'] or not user_data['user_data']:
+        return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
 
-  if not docente:
-    return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
+    docente = user_data['user_data']['username']
 
-  try:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    current_date = datetime.now()
-    planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        current_date = datetime.now()
+        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
 
-    cursor.execute("""
-      WITH esami_unici AS (
-        SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
-               e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
-               c.inizio_sessione_anticipata, c.fine_sessione_anticipata,
-               c.inizio_sessione_estiva, c.fine_sessione_estiva,
-               c.inizio_sessione_autunnale, c.fine_sessione_autunnale,
-               c.inizio_sessione_invernale, c.fine_sessione_invernale,
-               c.nome_corso as nome_cds, c.codice as codice_cds,
-               a.edificio
-        FROM esami e
-        JOIN insegnamenti i ON e.insegnamento = i.codice
-        JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento
-        JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico
-        LEFT JOIN aule a ON e.aula = a.nome
-        WHERE e.docente = %s 
-        AND ic.anno_accademico = %s
-        ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello
-      )
-      SELECT * FROM esami_unici
-      ORDER BY data_appello
-    """, (docente, planning_year))
-    
-    rows = cursor.fetchall()
-    esami = []
-    insegnamenti = {}
-    
-    for row in rows:
-      # Estrai i dati base dell'esame
-      docente, titolo, aula, data_appello, ora = row[:5]
-      # Estrai le date delle sessioni
-      date_sessioni = row[5:13]
-      # Estrai le informazioni aggiuntive
-      nome_cds, codice_cds, edificio = row[13:]
-      
-      # Formatta l'edificio come sigla se presente
-      aula_completa = f"{aula} ({edificio})" if edificio else aula
-      
-      # Determina la sessione in base alle date
-      sessione = None
-      if data_appello >= date_sessioni[0] and data_appello <= date_sessioni[1]:
-        sessione = 'Anticipata'
-      elif data_appello >= date_sessioni[2] and data_appello <= date_sessioni[3]:
-        sessione = 'Estiva'
-      elif data_appello >= date_sessioni[4] and data_appello <= date_sessioni[5]:
-        sessione = 'Autunnale'
-      elif data_appello >= date_sessioni[6] and data_appello <= date_sessioni[7]:
-        sessione = 'Invernale'
-      
-      # Formatta l'esame
-      exam = {
-        'docente': docente,
-        'insegnamento': titolo,
-        'aula': aula_completa,
-        'data': data_appello.strftime("%d/%m/%Y"),
-        'ora': ora.strftime("%H:%M") if ora else "00:00",
-        'dataora': f"{data_appello.isoformat()}T{ora.isoformat() if ora else '00:00:00'}",
-        'cds': nome_cds,
-        'codice_cds': codice_cds
-      }
-      esami.append(exam)
-      
-      # Aggiorna il conteggio delle sessioni
-      if titolo not in insegnamenti:
-        insegnamenti[titolo] = {
-          'Anticipata': 0,
-          'Estiva': 0,
-          'Autunnale': 0,
-          'Invernale': 0
-        }
-      if sessione:
-        insegnamenti[titolo][sessione] += 1
-    
-    return jsonify({'esami': esami, 'insegnamenti': insegnamenti}), 200
-  except Exception as e:
-    return jsonify({'status': 'error', 'message': str(e)}), 500
-  finally:
-    cursor.close()
-    conn.close()
+        cursor.execute("""
+          WITH esami_unici AS (
+            SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
+                   e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
+                   c.inizio_sessione_anticipata, c.fine_sessione_anticipata,
+                   c.inizio_sessione_estiva, c.fine_sessione_estiva,
+                   c.inizio_sessione_autunnale, c.fine_sessione_autunnale,
+                   c.inizio_sessione_invernale, c.fine_sessione_invernale,
+                   c.nome_corso as nome_cds, c.codice as codice_cds,
+                   a.edificio
+            FROM esami e
+            JOIN insegnamenti i ON e.insegnamento = i.codice
+            JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento
+            JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico
+            LEFT JOIN aule a ON e.aula = a.nome
+            WHERE e.docente = %s 
+            AND ic.anno_accademico = %s
+            ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello
+          )
+          SELECT * FROM esami_unici
+          ORDER BY data_appello
+        """, (docente, planning_year))
+        
+        rows = cursor.fetchall()
+        esami = []
+        insegnamenti = {}
+        
+        for row in rows:
+          # Estrai i dati base dell'esame
+          docente, titolo, aula, data_appello, ora = row[:5]
+          # Estrai le date delle sessioni
+          date_sessioni = row[5:13]
+          # Estrai le informazioni aggiuntive
+          nome_cds, codice_cds, edificio = row[13:]
+          
+          # Formatta l'edificio come sigla se presente
+          aula_completa = f"{aula} ({edificio})" if edificio else aula
+          
+          # Determina la sessione in base alle date
+          sessione = None
+          if data_appello >= date_sessioni[0] and data_appello <= date_sessioni[1]:
+            sessione = 'Anticipata'
+          elif data_appello >= date_sessioni[2] and data_appello <= date_sessioni[3]:
+            sessione = 'Estiva'
+          elif data_appello >= date_sessioni[4] and data_appello <= date_sessioni[5]:
+            sessione = 'Autunnale'
+          elif data_appello >= date_sessioni[6] and data_appello <= date_sessioni[7]:
+            sessione = 'Invernale'
+          
+          # Formatta l'esame
+          exam = {
+            'docente': docente,
+            'insegnamento': titolo,
+            'aula': aula_completa,
+            'data': data_appello.strftime("%d/%m/%Y"),
+            'ora': ora.strftime("%H:%M") if ora else "00:00",
+            'dataora': f"{data_appello.isoformat()}T{ora.isoformat() if ora else '00:00:00'}",
+            'cds': nome_cds,
+            'codice_cds': codice_cds
+          }
+          esami.append(exam)
+          
+          # Aggiorna il conteggio delle sessioni
+          if titolo not in insegnamenti:
+            insegnamenti[titolo] = {
+              'Anticipata': 0,
+              'Estiva': 0,
+              'Autunnale': 0,
+              'Invernale': 0
+            }
+          if sessione:
+            insegnamenti[titolo][sessione] += 1
+        
+        return jsonify({'esami': esami, 'insegnamenti': insegnamenti}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 # API per ottenere le date delle sessioni d'esame
 @fetch_bp.route('/api/ottieniSessioni', methods=['GET'])
@@ -400,13 +401,3 @@ def getInsegnamentiDocente():
     finally:
         cursor.close()
         conn.close()
-
-@fetch_bp.route('/api/check-auth')
-def check_auth():
-    from auth import is_authenticated, get_current_username
-    authenticated = is_authenticated()
-    username = get_current_username()
-    return jsonify({
-        'authenticated': authenticated,
-        'username': username if authenticated else None
-    })

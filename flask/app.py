@@ -8,7 +8,7 @@ from db import get_db_connection
 # Funzioni per la gestione delle date/sessioni
 from utils.sessions import get_session_for_date, get_valid_years
 # Auth stupida e SAML
-from auth import auth_bp, is_authenticated, get_current_user
+from auth import auth_bp
 from saml_auth import saml_bp, require_auth
 # Backend OH-ISSA
 from admin import admin_bp

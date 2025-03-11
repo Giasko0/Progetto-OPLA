@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Aggiorna il titolo della pagina con il nome dell'utente
       const titolo = document.querySelector('.titolo');
       if (titolo) {
-        titolo.textContent = `Esami di ${username}`;
+        titolo.textContent = `Esami di ${username.nome} ${username.cognome}`;
       }
       
       // Carica gli esami dell'utente usando l'API
