@@ -3,6 +3,7 @@ from db import get_db_connection
 import io
 import csv
 from datetime import datetime, timedelta
+import xlwt  # Cambiato da xlsxwriter a xlwt
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/flask/admin')
 
@@ -71,12 +72,19 @@ def download_csv():
         """)
         esami = cursor.fetchall()
 
-        # Crea il file CSV in memoria
-        output = io.StringIO()
-        writer = csv.writer(output)
+        # Crea il file Excel in memoria
+        workbook = xlwt.Workbook()
+        worksheet = workbook.add_sheet('Esami')
 
-        # Prima riga del CSV
-        writer.writerow([
+        # Formattazione per le date
+        date_format = xlwt.XFStyle()
+        date_format.num_format_str = 'DD/MM/YYYY'
+        
+        time_format = xlwt.XFStyle()
+        time_format.num_format_str = 'HH:MM'
+
+        # Intestazioni
+        headers = [
             'Tipo appello',
             'Anno',
             'CDS',
@@ -86,6 +94,7 @@ def download_csv():
             'Data inizio iscr. (gg/mm/yyyy)',
             'Data Fine iscr. (gg/mm/yyyy)',
             'Ora appello (hh:mm)',
+            'Tipo Iscr', # Colonna J del file, non usata
             'Verb.',
             'Def. App.',
             'Gest. Pren.',
@@ -99,13 +108,19 @@ def download_csv():
             'Condizione SQL',
             'Partizionamento',
             'Partizione',
+            'Errore Import', # Colonna X del file, non usata
             'Note Appello',
             'Posti',
-            'Codice Turno'
-        ])
+            'Codice Turno',
+            'Note Sist Log' # Colonna AB del file, non usata
+        ]
 
-        # Dati esami con mappatura corretta dal database
-        for esame in esami:
+        # Scrivi le intestazioni
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header)
+
+        # Scrivi i dati
+        for row_idx, esame in enumerate(esami, start=1):
             (tipo_appello, anno_corso, cds, codice, titolo,
              data_appello, data_inizio_iscr, data_fine_iscr,
              ora_appello, verbalizzazione, def_appello,
@@ -113,41 +128,46 @@ def download_csv():
              tipo_esame, edificio, aula, matricola,
              sede, condizione_sql, partizionamento,
              partizione, note_appello, posti, codice_turno) = esame
-            
-            row = [
-                tipo_appello or "",            # Tipo appello
-                anno_corso or "",              # Anno
-                cds or "",                     # CDS
-                codice or "",                  # AD
-                titolo or "",                  # Des. Appello
-                data_appello,                  # Data Appello
-                data_inizio_iscr,             # Data inizio iscrizione
-                data_fine_iscr,               # Data fine iscrizione
-                ora_appello,                  # Ora appello
-                verbalizzazione or "",         # Verbalizzazione
-                def_appello or "",            # Def. App.
-                gest_prenotazione or "",      # Gest. Pren.
-                "1" if riservato else "0",    # Riservato
-                tipo_iscr or "",              # Tipo Iscr.
-                tipo_esame or "",             # Tipo Esa.
-                edificio or "",               # Edificio
-                aula or "",                   # Aula
-                matricola or "",              # Matricola Docente
-                sede or "",                   # Sede
-                condizione_sql or "",         # Condizione SQL
-                partizionamento or "",        # Partizionamento
-                partizione or "",             # Partizione
-                note_appello or "",           # Note Appello
-                posti or "",                  # Posti
-                codice_turno or ""            # Codice Turno
-            ]
-            writer.writerow(row)
+
+            col = 0
+            worksheet.write(row_idx, col, tipo_appello or ""); col += 1
+            worksheet.write(row_idx, col, anno_corso or ""); col += 1
+            worksheet.write(row_idx, col, cds or ""); col += 1
+            worksheet.write(row_idx, col, codice or ""); col += 1
+            worksheet.write(row_idx, col, titolo or ""); col += 1
+            worksheet.write(row_idx, col, data_appello, date_format); col += 1
+            worksheet.write(row_idx, col, data_inizio_iscr, date_format); col += 1
+            worksheet.write(row_idx, col, data_fine_iscr, date_format); col += 1
+            worksheet.write(row_idx, col, ora_appello, time_format if ora_appello else ""); col += 1
+            worksheet.write(row_idx, col, ""); col += 1 # Colonna J del file, non usata
+            worksheet.write(row_idx, col, verbalizzazione or ""); col += 1
+            worksheet.write(row_idx, col, def_appello or ""); col += 1
+            worksheet.write(row_idx, col, gest_prenotazione or ""); col += 1
+            worksheet.write(row_idx, col, "1" if riservato else "0"); col += 1
+            worksheet.write(row_idx, col, tipo_iscr or ""); col += 1
+            worksheet.write(row_idx, col, tipo_esame or ""); col += 1
+            worksheet.write(row_idx, col, edificio or ""); col += 1
+            worksheet.write(row_idx, col, aula or ""); col += 1
+            worksheet.write(row_idx, col, matricola or ""); col += 1
+            worksheet.write(row_idx, col, sede or ""); col += 1
+            worksheet.write(row_idx, col, condizione_sql or ""); col += 1
+            worksheet.write(row_idx, col, partizionamento or ""); col += 1
+            worksheet.write(row_idx, col, partizione or ""); col += 1
+            worksheet.write(row_idx, col, ""); col += 1 # Colonna X del file, non usata
+            worksheet.write(row_idx, col, note_appello or ""); col += 1
+            worksheet.write(row_idx, col, posti or ""); col += 1
+            worksheet.write(row_idx, col, codice_turno or ""); col += 1
+            worksheet.write(row_idx, col, "") # Colonna AB del file, non usata
+
+        # Salva il workbook in memoria
+        output = io.BytesIO()
+        workbook.save(output)
+        output.seek(0)
 
         # Prepara la risposta
-        output.seek(0)
         response = make_response(output.getvalue())
-        response.headers['Content-Disposition'] = 'attachment; filename=esami.csv'
-        response.headers['Content-type'] = 'text/csv'
+        response.headers['Content-Disposition'] = 'attachment; filename=esami.xls'
+        response.headers['Content-type'] = 'application/vnd.ms-excel'
         
         return response
 

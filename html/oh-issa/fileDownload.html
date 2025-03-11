@@ -16,6 +16,11 @@
       downloadButton.addEventListener('click', function() {
         window.location.href = '/flask/admin/downloadFileESSE3';
       });
+
+      const downloadEasyAcademyButton = document.getElementById('downloadEasyAcademyButton');
+      downloadEasyAcademyButton.addEventListener('click', function() {
+        window.location.href = '/flask/admin/downloadFileEasyAcademy';
+      });
     });
   </script>
 </head>
@@ -27,21 +32,15 @@
     <h1>Download File ESSE3</h1>
 
     <section class="action-section">
-      <p>Scarica il file CSV contenente tutti gli esami nel formato richiesto da ESSE3.</p>
+      <p>Scarica il file XLS contenente tutti gli esami nel formato richiesto da ESSE3.</p>
       <button id="downloadButton" class="btn primary">Scarica File ESSE3</button>
     </section>
 
-    <section class="info-section">
-      <h3>Informazioni sul file</h3>
-      <p>Il file scaricato contiene i seguenti dati per ogni esame:</p>
-      <ul>
-        <li>Data e ora dell'appello</li>
-        <li>Date di inizio e fine iscrizione</li>
-        <li>Aula assegnata</li>
-        <li>Docente responsabile</li>
-        <li>Altri dettagli richiesti dal sistema</li>
-      </ul>
+    <section class="action-section">
+      <p>Scarica il file CSV contenente le aule occupate nel formato richiesto da EasyAcademy.</p>
+      <button id="downloadEasyAcademyButton" class="btn primary">Scarica File EasyAcademy</button>
     </section>
+
   </main>
 </body>
 

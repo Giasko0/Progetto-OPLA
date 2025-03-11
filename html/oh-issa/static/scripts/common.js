@@ -2,29 +2,18 @@
  * Gestione del caricamento file (per la pagina fileUpload.html)
  */
 function initFileUploadHandlers() {
-    // Gestisci il form di upload docenti
-    document.getElementById('teachersForm')?.addEventListener('submit', function (e) {
+    // Gestisci il form di upload U-GOV
+    document.getElementById('uploadForm')?.addEventListener('submit', function (e) {
         e.preventDefault();
-        uploadFile(this, 'Docenti');
-    });
-
-    // Gestisci il form di upload insegnamenti
-    document.getElementById('teachingsForm')?.addEventListener('submit', function (e) {
-        e.preventDefault();
-        uploadFile(this, 'Insegnamenti');
-    });
-
-    // Funzione per caricare i file
-    function uploadFile(form, type) {
-        const formData = new FormData(form);
-        const fileInput = form.querySelector('input[type="file"]');
+        const formData = new FormData(this);
+        const fileInput = this.querySelector('input[type="file"]');
 
         if (!fileInput.files[0]) {
-            showMessage('error', `Seleziona un file per caricare i ${type.toLowerCase()}`);
+            showMessage('error', 'Seleziona un file da caricare');
             return;
         }
 
-        fetch(form.action, {
+        fetch(this.action, {
             method: 'POST',
             body: formData
         })
@@ -32,16 +21,16 @@ function initFileUploadHandlers() {
             .then(data => {
                 if (data.status === 'success') {
                     showMessage('success', data.message);
-                    form.reset();
+                    this.reset();
                 } else {
                     showMessage('error', data.message);
                 }
             })
             .catch(error => {
                 console.error('Errore:', error);
-                showMessage('error', `Si è verificato un errore durante l'upload: ${error.message}`);
+                showMessage('error', `Si è verificato un errore durante l'import: ${error.message}`);
             });
-    }
+    });
 
     // Funzione per mostrare messaggi
     function showMessage(type, message) {
@@ -71,6 +60,13 @@ function initFileDownloadHandlers() {
     if (downloadButton) {
         downloadButton.addEventListener('click', function() {
             window.location.href = '/flask/admin/downloadFileESSE3';
+        });
+    }
+
+    const downloadEasyAcademyButton = document.getElementById('downloadEasyAcademyButton');
+    if (downloadEasyAcademyButton) {
+        downloadEasyAcademyButton.addEventListener('click', function() {
+            window.location.href = '/flask/admin/downloadFileEasyAcademy';
         });
     }
 }

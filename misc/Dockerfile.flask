@@ -29,7 +29,8 @@ RUN pip install --no-cache-dir lxml==5.2.1 && \
     gunicorn \
     psycopg2-binary \
     python3-saml \
-    flask-session
+    flask-session \
+    xlwt
 
 ENV FLASK_APP=app.py
 
