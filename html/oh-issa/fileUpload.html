@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
+  <title>Carica File - OH-ISSA</title>
+  <link rel="stylesheet" href="static/styles/admin.css">
+  <script src="static/scripts/common.js"></script>
+  <script src="static/scripts/authCheck.js"></script>
+  <script src="static/scripts/navbarAdmin.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Gestisci il form di upload docenti
+      document.getElementById('teachersForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        uploadFile(this, 'teachersFile', '/flask/admin/upload-teachers', 'Docenti');
+      });
+      
+      // Gestisci il form di upload insegnamenti
+      document.getElementById('teachingsForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        uploadFile(this, 'teachingsFile', '/flask/admin/upload-teachings', 'Insegnamenti');
+      });
+    });
+    
+    function uploadFile(form, fileInputId, endpoint, type) {
+      const fileInput = document.getElementById(fileInputId);
+      const file = fileInput.files[0];
+      
+      if (!file) {
+        showMessage('error', `Nessun file selezionato per ${type}.`);
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      fetch(endpoint, {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          showMessage('success', data.message);
+        } else {
+          showMessage('error', data.message);
+        }
+      })
+      .catch(error => {
+        showMessage('error', `Errore durante l'upload: ${error.message}`);
+      });
+    }
+    
+    function showMessage(type, text) {
+      const messagesDiv = document.getElementById('responseMessages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'}`;
+      messageDiv.textContent = text;
+      
+      messagesDiv.innerHTML = '';
+      messagesDiv.appendChild(messageDiv);
+      
+      // Auto-dismiss dopo 5 secondi
+      setTimeout(() => {
+        messageDiv.remove();
+      }, 5000);
+    }
+  </script>
+</head>
+
+<body>
+  <div id="navbar"></div>
+
+  <main>
+    <h1>Upload file docenti/insegnamenti</h1>
+
+    <section class="upload-section">
+      <h2>Importazione Dati</h2>
+
+      <form id="teachersForm" action="/flask/admin/upload-teachers" method="post" enctype="multipart/form-data">
+        <fieldset>
+          <legend>Docenti</legend>
+          <label for="teachersFile">File Docenti (CSV):</label>
+          <input type="file" id="teachersFile" name="file" accept=".csv,.tsv,.txt">
+          <button type="submit" class="btn primary">Carica Docenti</button>
+        </fieldset>
+      </form>
+
+      <form id="teachingsForm" action="/flask/admin/upload-teachings" method="post" enctype="multipart/form-data">
+        <fieldset>
+          <legend>Insegnamenti</legend>
+          <label for="teachingsFile">File Insegnamenti (CSV):</label>
+          <input type="file" id="teachingsFile" name="file" accept=".csv,.tsv,.txt">
+          <button type="submit" class="btn primary">Carica Insegnamenti</button>
+        </fieldset>
+      </form>
+    </section>
+
+    <div id="responseMessages"></div>
+  </main>
+</body>
+
+</html>

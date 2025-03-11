@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
+  <title>Dashboard - OH-ISSA</title>
+  <link rel="stylesheet" href="static/styles/admin.css">
+  <script src="static/scripts/common.js"></script>
+  <script src="static/scripts/authCheck.js"></script>
+  <script src="static/scripts/navbarAdmin.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+</head>
+
+<body>
+  <div id="navbar"></div>
+
+  <main>
+    <h1>Dashboard OH-ISSA</h1>
+    
+    <section class="info-section welcome-section">
+      <p>Benvenuto nella piattaforma di gestione degli appelli d'esame dell'Università di Perugia.
+        Seleziona una delle funzionalità disponibili per iniziare.</p>
+    </section>
+
+    <section class="grid-container">
+      <div class="card">
+        <div class="card-header">
+          <span class="material-symbols-outlined">calendar_month</span>
+          Calendario Esami
+        </div>
+        <div class="card-body">
+          <div class="card-description">
+            Visualizza e gestisci il calendario completo degli appelli d'esame programmati.
+          </div>
+          <a href="calendarioEsami.html" class="btn primary">Accedi</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="material-symbols-outlined">school</span>
+          Gestione CdS
+        </div>
+        <div class="card-body">
+          <div class="card-description">
+            Amministra i corsi di studio, aggiungendo o modificando le informazioni relative.
+          </div>
+          <a href="gestisciCds.html" class="btn primary">Accedi</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="material-symbols-outlined">upload_file</span>
+          Upload File
+        </div>
+        <div class="card-body">
+          <div class="card-description">
+            Carica documenti e file relativi agli esami o ai corsi di studio.
+          </div>
+          <a href="fileUpload.html" class="btn primary">Accedi</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="material-symbols-outlined">download</span>
+          Download File
+        </div>
+        <div class="card-body">
+          <div class="card-description">
+            Scarica documenti e materiali disponibili nel sistema.
+          </div>
+          <a href="fileDownload.html" class="btn primary">Accedi</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="material-symbols-outlined">settings</span>
+          Impostazioni
+        </div>
+        <div class="card-body">
+          <div class="card-description">
+            Configura le preferenze del sistema e gestisci il tuo account.
+          </div>
+          <a href="#" class="btn primary">Accedi</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="material-symbols-outlined">help</span>
+          Guida
+        </div>
+        <div class="card-body">
+          <div class="card-description">
+            Consulta la documentazione e le guide per l'utilizzo del sistema.
+          </div>
+          <a href="#" class="btn primary">Accedi</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+
+</html>

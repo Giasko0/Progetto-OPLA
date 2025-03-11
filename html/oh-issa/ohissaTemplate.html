@@ -1,0 +1,18 @@
+
+<body>
+  <nav class="navbar">
+    <a class="navbar-brand">OH-ISSA</a>
+    <ul class="navbar-nav">
+      <li><a href="/flask/admin/fileUpload" data-page="fileUpload">Carica File</a></li>
+      <li><a href="/flask/admin/fileDownload" data-page="fileDownload">Scarica File</a></li>
+      <li><a href="/flask/admin/gestisciCds" data-page="gestisciCds">Gestisci CdS</a></li>
+      <li><a href="/flask/admin/calendarioEsami" data-page="calendarioEsami">Calendario Esami</a></li>
+      <li class="nav-right"><a href="/flask/admin/logout">Logout</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

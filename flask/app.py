@@ -1,5 +1,5 @@
 # ===== Imports e configurazione =====
-from flask import Flask, render_template, request, jsonify, redirect, make_response, session
+from flask import Flask, request, jsonify, make_response, session
 from psycopg2 import sql
 from datetime import datetime, timedelta
 import os
@@ -129,17 +129,16 @@ def inserisciEsame():
         titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
         
         # Ottieni le informazioni del CDS dall'insegnamento per l'anno corrente
+        # Query modificata per risolvere il problema
         cursor.execute("""
           SELECT ic.cds, ic.anno_accademico 
           FROM insegnamenti_cds ic
-          JOIN insegna i ON ic.insegnamento = i.insegnamento 
-            AND ic.anno_accademico = i.annoaccademico
           WHERE ic.insegnamento = %s 
-            AND i.docente = %s 
-            AND i.annoaccademico = %s
-        """, (insegnamento, docente, anno_accademico))
+            AND ic.anno_accademico = %s
+        """, (insegnamento, anno_accademico))
         
         cds_info = cursor.fetchone()
+          
         if not cds_info:
           esami_invalidi.append({
             'codice': insegnamento,

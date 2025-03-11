@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, make_response, jsonify
+from flask import Blueprint, request, make_response, jsonify
 from db import get_db_connection
 import io
 import csv
@@ -6,23 +6,7 @@ from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/flask/admin')
 
-@admin_bp.route('/')
-def admin_login():
-    if 'admin' in request.cookies:
-        return redirect('/flask/admin/fileUpload')
-    return render_template('oh-issa/login.html')
-
-@admin_bp.route('/fileUpload')
-def admin_dashboard():
-    if 'admin' not in request.cookies:
-        return redirect('/flask/admin')
-    return render_template('oh-issa/fileUpload.html')
-
-@admin_bp.route('/fileDownload')
-def file_download():
-    if 'admin' not in request.cookies:
-        return redirect('/flask/admin')
-    return render_template('oh-issa/fileDownload.html')
+# Rimuovo tutte le route che ritornano pagine HTML
 
 @admin_bp.route('/auth', methods=['POST'])
 def admin_auth():
@@ -30,21 +14,21 @@ def admin_auth():
     password = request.form.get('password')
     
     if username == "Admin" and password == "admin":
-        response = redirect('/flask/admin/')
+        response = jsonify({'status': 'success', 'message': 'Login effettuato con successo'})
         response.set_cookie('admin', 'true')
-        return response
-    return redirect('/flask/admin')
+        return response, 200
+    return jsonify({'status': 'error', 'message': 'Credenziali non valide'}), 401
 
-@admin_bp.route('/logout')
+@admin_bp.route('/logout', methods=['POST'])
 def admin_logout():
-    response = redirect('/flask/admin')
+    response = jsonify({'status': 'success', 'message': 'Logout effettuato con successo'})
     response.delete_cookie('admin')
-    return response
+    return response, 200
 
 @admin_bp.route('/downloadFileESSE3')
 def download_csv():
     if 'admin' not in request.cookies:
-        return redirect('/flask/admin')
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
         
     try:
         conn = get_db_connection()
@@ -177,7 +161,7 @@ def download_csv():
 @admin_bp.route('/upload-teachings', methods=['POST'])
 def upload_teachings():
     if 'admin' not in request.cookies:
-        return redirect('/flask/admin')
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
     conn = None
     try:
@@ -240,7 +224,7 @@ def upload_teachings():
 @admin_bp.route('/upload-teachers', methods=['POST'])
 def upload_teachers():
     if 'admin' not in request.cookies:
-        return redirect('/flask/admin')
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
     conn = None
     try:
@@ -440,13 +424,6 @@ def save_cds_dates():
         if 'conn' in locals() and conn:
             cursor.close()
             conn.close()
-
-# Aggiungi la rotta per la pagina del calendario esami
-@admin_bp.route('/calendarioEsami')
-def calendarioEsami():
-    if 'admin' not in request.cookies:
-        return redirect('/flask/admin')
-    return render_template('oh-issa/calendarioEsami.html')
 
 # API per ottenere l'elenco dei corsi di studio (con duplicati per anno accademico)
 @admin_bp.route('/api/getCdS')
@@ -796,17 +773,11 @@ def add_months_to_periods_v2(periodi_map, start_date, end_date, mesi_nomi):
             year += 1
         current = datetime(year, month, 1)
 
-@admin_bp.route('/gestisciCds')
-def gestisci_cds():
-    if 'admin' not in request.cookies:
-        return redirect('/flask/admin')
-    return render_template('oh-issa/gestisciCds.html')
-
 # API per ottenere i dettagli di un corso di studio
 @admin_bp.route('/api/getCdsDetails')
 def get_cds_details():
     if 'admin' not in request.cookies:
-        return jsonify({'error': 'Accesso non autorizzato'}), 401
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
         
     codice = request.args.get('codice')
     anno = request.args.get('anno')
