@@ -30,7 +30,6 @@ body {
 
 .content {
   width: var(--body-width);
-  margin-top: var(--nav-height);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -47,7 +46,6 @@ body {
 
 /*---------NAVBAR---------*/
 .navbar {
-  position: fixed;
   width: 100vw;
   height: var(--nav-height);
   background-color: var(--color-light-gray);
