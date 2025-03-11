@@ -559,13 +559,13 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const oraAppello = document.getElementById('ora')?.value;
     if (!validaOraAppello(oraAppello)) {
-      showPopup("L'ora dell'appello deve essere compresa tra le 08:00 e le 23:00", "Errore di validazione");
+      showPopup("L'ora dell'appello deve essere compresa tra le 08:00 e le 23:00", "Errore di validazione", {type: 'error'});
       return;
     }
     
     const aulaSelezionata = document.getElementById('aula')?.value;
     if (!aulaSelezionata) {
-      showPopup("Seleziona un'aula disponibile", "Errore di validazione");
+      showPopup("Seleziona un'aula disponibile", "Errore di validazione", {type: 'error'});
       return;
     }
     
@@ -578,7 +578,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((response) => response.json())
       .then((data) => {
         if (data.status === "error") {
-          showPopup(data.message, "Errore");
+          showPopup(data.message, "Errore", {type: 'error'});
         } else if (data.status === "validation") {
           mostraPopupConferma(data);
         } else {
@@ -588,12 +588,17 @@ document.addEventListener("DOMContentLoaded", () => {
             window.InsegnamentiManager.clearSelection();
           }
           
-          window.location.reload();
+          showPopup(data.message || "Esami inseriti con successo", "Operazione completata", {
+            type: 'success',
+            callback: function() {
+              window.location.reload();
+            }
+          });
         }
       })
       .catch((error) => {
         console.error("Error:", error);
-        showPopup("Si è verificato un errore durante l'inserimento dell'esame", "Errore");
+        showPopup("Si è verificato un errore durante l'inserimento dell'esame", "Errore", {type: 'error'});
       });
   }
 
@@ -734,7 +739,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // Se non ci sono esami selezionati, mostra un messaggio e non fare nulla
         if (esamiSelezionati.length === 0) {
-          alert('Seleziona almeno un esame da inserire');
+          showPopup('Seleziona almeno un esame da inserire', 'Attenzione', {type: 'warning'});
           return;
         }
         
@@ -761,15 +766,19 @@ document.addEventListener("DOMContentLoaded", () => {
               window.InsegnamentiManager.clearSelection();
             }
             
-            alert(response.message);
-            window.location.reload();
+            showPopup(response.message, response.status === 'success' ? 'Operazione completata' : 'Inserimento parziale', {
+              type: response.status === 'success' ? 'success' : 'warning',
+              callback: function() {
+                window.location.reload();
+              }
+            });
           } else {
-            alert('Errore: ' + response.message);
+            showPopup('Errore: ' + response.message, 'Errore', {type: 'error'});
           }
         })
         .catch(error => {
           console.error('Error:', error);
-          alert('Si è verificato un errore durante l\'inserimento degli esami');
+          showPopup('Si è verificato un errore durante l\'inserimento degli esami', 'Errore', {type: 'error'});
         });
       });
     }

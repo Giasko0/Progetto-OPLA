@@ -255,7 +255,69 @@ def inserisciEsame():
       'tipo_iscrizione': tipo_iscrizione
     }
     
-    # Costruisci risposta
+    # Se non ci sono esami invalidi, inserisci direttamente gli esami validi
+    if not esami_invalidi and esami_validi:
+      # Copiato il codice di confermaEsami
+      conn = get_db_connection()
+      cursor = conn.cursor()
+      
+      esami_inseriti = []
+      errori = []
+      
+      # Inserimento diretto degli esami validi
+      for esame in esami_validi:
+        try:
+          insegnamento = esame['codice']
+          inizio_iscrizione = esame.get('data_inizio_iscrizione')
+          fine_iscrizione = esame.get('data_fine_iscrizione')
+          
+          # Inserimento nel database
+          cursor.execute(
+            """INSERT INTO esami 
+               (docente, insegnamento, aula, data_appello, ora_appello, 
+                data_inizio_iscrizione, data_fine_iscrizione, 
+                tipo_esame, verbalizzazione, note_appello, posti,
+                tipo_appello, definizione_appello, gestione_prenotazione, 
+                riservato, tipo_iscrizione, periodo, durata_appello)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (dati_comuni['docente'], insegnamento, dati_comuni['aula'], 
+             dati_comuni['data_appello'], dati_comuni['ora_appello'], 
+             inizio_iscrizione, fine_iscrizione, 
+             dati_comuni['tipo_esame'], dati_comuni['verbalizzazione'], 
+             dati_comuni['note_appello'], dati_comuni['posti'],
+             dati_comuni['tipo_appello'], dati_comuni['definizione_appello'], 
+             dati_comuni['gestione_prenotazione'], dati_comuni['riservato'], 
+             dati_comuni['tipo_iscrizione'], dati_comuni['periodo'], 
+             dati_comuni['durata_appello'])
+          )
+          esami_inseriti.append(esame['titolo'])
+        except Exception as e:
+          errori.append({
+            'codice': insegnamento,
+            'titolo': esame['titolo'],
+            'errore': f"Errore nell'inserimento dell'esame: {str(e)}"
+          })
+      
+      # Commit delle modifiche
+      if esami_inseriti:
+        conn.commit()
+      
+      # Gestisci i risultati
+      if errori:
+        return jsonify({
+          'status': 'partial', 
+          'message': 'Alcuni esami sono stati inseriti con successo', 
+          'inserted': esami_inseriti, 
+          'errors': errori
+        }), 207
+      
+      return jsonify({
+        'status': 'direct_insert',
+        'message': 'Tutti gli esami sono stati inseriti con successo',
+        'inserted': esami_inseriti
+      }), 200
+    
+    # Costruisci risposta per la validazione se ci sono esami invalidi
     risposta = {
       'status': 'validation',
       'message': 'Verifica completata',
