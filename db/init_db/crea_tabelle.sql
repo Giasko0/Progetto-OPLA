@@ -2,6 +2,7 @@
 DROP TABLE IF EXISTS esami CASCADE;
 DROP TABLE IF EXISTS insegna CASCADE;
 DROP TABLE IF EXISTS docenti CASCADE;
+DROP TABLE IF EXISTS utenti CASCADE;
 DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
 DROP TABLE IF EXISTS insegnamenti CASCADE;
 DROP TABLE IF EXISTS cds CASCADE;
@@ -61,10 +62,10 @@ CREATE TABLE insegnamenti_cds (
     FOREIGN KEY (mutuato_da) REFERENCES insegnamenti(codice) ON DELETE SET NULL
 );
 
--- Creazione della tabella 'docenti'
-CREATE TABLE docenti (
+-- Creazione della tabella 'utenti'
+CREATE TABLE utenti (
     username TEXT PRIMARY KEY,   -- Username del docente (ad020022) (chiave primaria)
-    matricola TEXT NOT NULL,     -- Matricola del docente (011876) (NOT NULL)
+    matricola TEXT,              -- Matricola del docente (011876)
     email TEXT,                  -- Email del docente
     nome TEXT,                   -- Nome del docente
     cognome TEXT,                -- Cognome del docente
@@ -73,21 +74,21 @@ CREATE TABLE docenti (
     permessi_admin BOOLEAN       -- Permessi admin (true/false)
 );
 
--- Creazione della tabella 'insegna' (relazione N:N tra insegnamenti e docenti)
+-- Creazione della tabella 'insegna' (relazione N:N tra insegnamenti e utenti)
 CREATE TABLE insegna (
     insegnamento TEXT,           -- Codice dell'insegnamento (chiave esterna)
     docente TEXT,                -- Username del docente (chiave esterna)
     annoaccademico INT,          -- Anno accademico
     PRIMARY KEY (insegnamento, docente, annoaccademico),
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(codice) ON DELETE CASCADE,
-    FOREIGN KEY (docente) REFERENCES docenti(username) ON DELETE CASCADE
+    FOREIGN KEY (docente) REFERENCES utenti(username) ON DELETE CASCADE
 );
 
 -- Creazione della tabella 'esami'
 CREATE TABLE esami (
     id SERIAL PRIMARY KEY,                -- Identificativo univoco dell'esame (chiave primaria)
     tipo_appello TEXT NOT NULL,           -- Tipo di appello (finale o parziale)
-    docente TEXT NOT NULL REFERENCES docenti(username) ON DELETE CASCADE,         -- Username del docente responsabile (chiave esterna)
+    docente TEXT NOT NULL REFERENCES utenti(username) ON DELETE CASCADE,         -- Username del docente responsabile (chiave esterna)
     insegnamento TEXT NOT NULL REFERENCES insegnamenti(codice) ON DELETE CASCADE, -- Codice dell'insegnamento (chiave esterna)
     aula TEXT REFERENCES aule(nome) ON DELETE SET NULL,                           -- Nome dell'aula dove si svolgerà l'esame (chiave esterna)
     data_appello DATE NOT NULL,           -- Data dell'esame
@@ -122,9 +123,9 @@ CREATE INDEX idx_insegnamenti_cds_anno ON insegnamenti_cds(anno_accademico);
 CREATE INDEX idx_insegnamenti_cds_cds ON insegnamenti_cds(cds);
 CREATE INDEX idx_insegnamenti_cds_mutuato_da ON insegnamenti_cds(mutuato_da);
 
-CREATE INDEX idx_docenti_matricola ON docenti(matricola);
-CREATE INDEX idx_docenti_email ON docenti(email);
-CREATE INDEX idx_docenti_cognome ON docenti(cognome);
+CREATE INDEX idx_utenti_matricola ON utenti(matricola);
+CREATE INDEX idx_utenti_email ON utenti(email);
+CREATE INDEX idx_utenti_cognome ON utenti(cognome);
 
 CREATE INDEX idx_insegna_annoaccademico ON insegna(annoaccademico);
 CREATE INDEX idx_insegna_docente ON insegna(docente);

@@ -119,7 +119,7 @@ def getEsami():
                     e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
                     e.periodo, ic.semestre, ic.anno_accademico
                 FROM esami e
-                JOIN docenti d ON e.docente = d.username
+                JOIN utenti d ON e.docente = d.username
                 JOIN insegnamenti i ON e.insegnamento = i.codice
                 JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
                 WHERE ic.anno_accademico = %s
@@ -135,7 +135,7 @@ def getEsami():
                     e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
                     e.periodo, ic.semestre, ic.anno_accademico
                 FROM esami e
-                JOIN docenti d ON e.docente = d.username
+                JOIN utenti d ON e.docente = d.username
                 JOIN insegnamenti i ON e.insegnamento = i.codice
                 JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
                     AND ic.anno_accademico = %s
@@ -167,7 +167,7 @@ def getEsami():
                     e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
                     e.periodo, ic.semestre, ic.anno_accademico
                 FROM esami e
-                JOIN docenti d ON e.docente = d.username
+                JOIN utenti d ON e.docente = d.username
                 JOIN insegnamenti i ON e.insegnamento = i.codice
                 JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
                     AND ic.anno_accademico = %s

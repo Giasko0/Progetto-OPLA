@@ -31,7 +31,7 @@ def api_login():
   conn = get_db_connection()
   cursor = conn.cursor()
   try:
-    cursor.execute("SELECT 1 FROM docenti WHERE username = %s AND nome = %s", 
+    cursor.execute("SELECT 1 FROM utenti WHERE username = %s AND nome = %s", 
       (username, password))
     if cursor.fetchone():
       response = redirect('/flask')

@@ -12,7 +12,7 @@
   <script src="static/scripts/navbarAdmin.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Gestisci il form di upload docenti
+      // Gestisci il form di upload utenti
       document.getElementById('teachersForm').addEventListener('submit', function(e) {
         e.preventDefault();
         uploadFile(this, 'teachersFile', '/flask/admin/upload-teachers', 'Docenti');

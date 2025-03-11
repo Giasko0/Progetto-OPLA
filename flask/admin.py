@@ -66,7 +66,7 @@ def download_csv():
             LEFT JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
                 AND ic.anno_accademico = EXTRACT(YEAR FROM e.data_appello) - 1
             LEFT JOIN aule a ON e.aula = a.nome
-            LEFT JOIN docenti d ON e.docente = d.username
+            LEFT JOIN utenti d ON e.docente = d.username
             ORDER BY e.data_appello, e.insegnamento
         """)
         esami = cursor.fetchall()
@@ -249,7 +249,7 @@ def upload_teachers():
         cursor = conn.cursor()
         
         # Elimina i dati esistenti
-        cursor.execute("DELETE FROM docenti")
+        cursor.execute("DELETE FROM utenti")
         
         # Inserisci i nuovi dati
         inserted_count = 0
@@ -262,7 +262,7 @@ def upload_teachers():
                 cognome = row[4]
                 
                 cursor.execute("""
-                    INSERT INTO docenti (codicefiscale, matricola, email, nome, cognome)
+                    INSERT INTO utenti (codicefiscale, matricola, email, nome, cognome)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (codicefiscale, matricola, email, nome, cognome))
                 inserted_count += 1
@@ -270,7 +270,7 @@ def upload_teachers():
         conn.commit()
         return jsonify({
             'status': 'success', 
-            'message': f'Caricamento completato con successo. {inserted_count} docenti importati.'
+            'message': f'Caricamento completato con successo. {inserted_count} utenti importati.'
         })
     
     except Exception as e:

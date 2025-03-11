@@ -100,11 +100,11 @@ def acs():
       cognome = attributes.get('lastName', [''])[0] if attributes.get('lastName') else ''
       
       # Verifica se l'utente esiste
-      cursor.execute("SELECT 1 FROM docenti WHERE username = %s", (username,))
+      cursor.execute("SELECT 1 FROM utenti WHERE username = %s", (username,))
       if not cursor.fetchone():
         # Crea un nuovo utente con permessi visitatore di default
         cursor.execute(
-          """INSERT INTO docenti 
+          """INSERT INTO utenti 
              (username, email, nome, cognome, permessi_visitatore, permessi_docente, permessi_admin) 
              VALUES (%s, %s, %s, %s, %s, %s, %s)""", 
           (username, email, nome, cognome, True, False, False)
