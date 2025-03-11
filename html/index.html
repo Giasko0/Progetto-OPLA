@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
+  <link rel="stylesheet" href="static/styles/style.css">
+  <script src="static/scripts/checkLogin.js"></script>
+  <!--<script src="static/scripts/darkMode.js"></script>-->
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <!-- Icone Google -->
+  <title>Inserimento Appelli UniPG</title>
+  <script src="static/fullcalendar7/dist/index.global.min.js"></script>
+  <script src="static/scripts/calendar.js" type="module"></script>
+  <!-- Carica il calendario -->
+  <script src="static/scripts/formEsame.js"></script>
+  <!-- Script per gestire la form di inserimento esami -->
+  <script src="static/scripts/insegnamentiManager.js"></script>
+  <script src="static/scripts/popup.js"></script> <!-- Script per la gestione dei popup -->
+  <script src="static/scripts/easmiMinimi.js"></script>
+  <!-- Script per verificare esami minimi -->
+  <style>
+    .banner-avviso {
+      background-color: #ffebcc;
+      color: #cc7000;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      min-width: 40vw;
+      font-size: 1.1rem;
+      border-left: 4px solid #ff9800;
+      position: relative;
+      border-radius: 4px;
+    }
+
+    .banner-avviso .banner-close {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /*---------FORM---------*/
+    .popup-overlay {
+      width: 100%;
+      height: 100%;
+      display: none;
+      /* nascosto di default */
+      position: fixed;
+      top: 0;
+      left: 0;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+
+    .popup {
+      height: auto;
+      max-height: 80vh;
+      width: clamp(400px, 30vw, 600px);
+      background: var(--color-white);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      overflow: auto;
+    }
+
+    .popup-header {
+      background: #f2f2f2;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .popup-header h2 {
+      margin: 5px;
+    }
+
+    .popup-close {
+      cursor: pointer;
+      font-size: 2em;
+    }
+
+    .popup-content {
+      padding: 20px;
+      font-size: 1em;
+    }
+
+    .formEsame-label {
+      width: 100%;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .popup input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 15px;
+      box-sizing: border-box;
+    }
+
+    .invia {
+      padding: 10px 15px;
+      cursor: pointer;
+      margin: 20px auto;
+      display: block;
+    }
+
+    #buttonOpzioniAvanzate {
+      cursor: pointer;
+      margin: 50px 0;
+      font-size: 1.2em;
+      color: var(--color-primary);
+    }
+
+    #opzioniAvanzate {
+      display: none;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+      padding: 15px;
+      background-color: #eee;
+      border-radius: var(--radius);
+    }
+
+    #opzioniAvanzate label {
+      margin-bottom: 5px;
+    }
+
+    #opzioniAvanzate select,
+    #opzioniAvanzate input,
+    #opzioniAvanzate textarea {
+      padding: 8px;
+      margin-bottom: 15px;
+      box-sizing: border-box;
+    }
+
+    /* Stili per la select multipla personalizzata */
+    .multi-select-container {
+      width: 100%;
+      margin-bottom: 15px;
+      position: relative;
+    }
+
+    .multi-select-box {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid #ccc;
+      border-radius: var(--radius);
+      padding: 4px 8px;
+      cursor: pointer;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .multi-select-box.active {
+      border-color: var(--color-primary);
+    }
+
+    .multi-select-placeholder {
+      color: #999;
+    }
+
+    .multi-select-tag {
+      display: inline-flex;
+      align-items: center;
+      background-color: var(--color-primary);
+      color: white;
+      border-radius: var(--radius);
+      padding: 3px 8px;
+      margin: 2px;
+      font-size: 0.9em;
+    }
+
+    .multi-select-tag-remove {
+      margin-left: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .multi-select-dropdown {
+      position: absolute;
+      width: 100%;
+      max-height: 200px;
+      overflow-y: auto;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 0 0 var(--radius) var(--radius);
+      z-index: 10;
+      display: none;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .multi-select-search {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-bottom: 1px solid #eee;
+      box-sizing: border-box;
+      font-size: 0.95em;
+    }
+
+    .multi-select-search:focus {
+      outline: none;
+      border-bottom-color: var(--color-primary);
+    }
+
+    .multi-select-option {
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+
+    .multi-select-option:hover {
+      background-color: #f5f5f5;
+    }
+
+    .multi-select-option.selected {
+      background-color: #e6f7ff;
+    }
+
+    .multi-select-hidden {
+      display: none;
+    }
+
+    .multi-select-loading,
+    .multi-select-no-results,
+    .multi-select-error {
+      padding: 12px;
+      text-align: center;
+      color: #666;
+      font-style: italic;
+    }
+
+    .multi-select-error {
+      color: #d9534f;
+    }
+
+    .multi-select-no-results {
+      color: #777;
+    }
+
+    /* Stile per il popup di conferma */
+    .alert {
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 15px;
+    }
+
+    .alert-warning {
+      background-color: #fff3cd;
+      border: 1px solid #ffeeba;
+      color: #856404;
+    }
+
+    .alert-success {
+      background-color: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="navbar">
+    <a href="index.html"><img src="static/imgs/logo.png" alt="Logo" class="logo"></a>
+
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="mieiEsami.html">I miei esami</a>
+    </div>
+    <!--<span id="darkModeButton" class="material-symbols-outlined"  onclick="darkMode()">dark_mode</span>-->
+
+  </div>
+
+
+  <div class="content">
+    <h1 class="titolo">Benvenuto, utente!</h1>
+
+    <!-- Banner avviso esami minimi -->
+    <div id="banner-esami-minimi" class="banner-avviso hidden">
+      <span class="banner-close">&times;</span>
+      <p class="banner-messaggio">Attenzione, non è stato inserito il numero minimo di esami per gli insegnamenti: </p>
+    </div>
+
+    <div id="calendar"></div>
+  </div>
+
+  <div id="popupOverlay" class="popup-overlay">
+    <div class="popup">
+      <div class="popup-header">
+        <h2>Inserisci un esame</h2>
+        <span id="closeOverlay" class="popup-close">&times;</span>
+      </div>
+
+      <div class="popup-content">
+        <form id="formEsame" method="POST" action="/api/inserisciEsame">
+          <p style="margin: 0; float: right">* Campi obbligatori</p>
+
+          <!-- Hidden values -->
+          <input type="text" id="docente" name="docente" hidden
+            value="{{ request.cookies.get('username') }}"><!--Creare fun js per username-->
+          <input type="text" id="anno_accademico" name="anno_accademico" hidden>
+
+          <label class="formEsame-label" for="insegnamento">Insegnamento*</label>
+          <div class="multi-select-container">
+            <div id="insegnamentoBox" class="multi-select-box">
+              <span class="multi-select-placeholder">Seleziona gli insegnamenti</span>
+            </div>
+            <div id="insegnamentoDropdown" class="multi-select-dropdown">
+              <div id="insegnamentoOptions"></div>
+            </div>
+            <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden" required></select>
+          </div>
+
+          <label class="formEsame-label" for="dataora">Data Appello*</label>
+          <input type="date" id="dataora" name="dataora">
+
+          <label class="formEsame-label" for="ora" required>Ora Appello*</label>
+          <input type="time" id="ora" name="ora" min="08:00" max="23:00" required>
+
+          <label class="formEsame-label" for="aula">Aula*</label>
+          <select id="aula" name="aula" required>
+            <option value="" disabled selected hidden>Seleziona prima data e ora</option>
+          </select>
+
+          <label class="formEsame-label" for="durata">Durata (in ore)*</label>
+          <input type="number" id="durata" name="durata" min="1" step="0.1" required>
+
+          <div>
+            <label class="formEsame-label" for="verbalizzazione">Verbalizzazione*</label>
+            <select id="verbalizzazione" name="verbalizzazione">
+              <option value="STD" selected>Standard</option>
+              <option value="FWP">Firma doppia</option>
+              <option value="FSS">Firma singola</option>
+              <option value="PAR">Prova parziale</option>
+              <option value="PPP">Prova parziale con pubblicazione</option>
+            </select>
+          </div>
+
+          <span id="buttonOpzioniAvanzate">Opzioni avanzate &#x25BA;</span>
+
+          <!-- Opzioni avanzate -->
+          <div id="opzioniAvanzate">
+            <div>
+              <label class="formEsame-label" for="inizioIscrizione">Data inizio iscrizione</label>
+              <input type="date" id="inizioIscrizione"
+                name="inizioIscrizione"><!-- Funzione js per inizio/fine iscrizione-->
+            </div>
+
+            <div>
+              <label class="formEsame-label" for="fineIscrizione">Data fine iscrizione</label>
+              <input type="date" id="fineIscrizione" name="fineIscrizione">
+            </div>
+
+            <div>
+              <label class="formEsame-label" for="tipoEsame">Tipo esame</label>
+              <select id="tipoEsame" name="tipoEsame">
+                <option value="" disabled selected hidden>Scegli il tipo di esame</option>
+                <option value="">Non definito</option>
+                <option value="S">Scritto</option>
+                <option value="O">Orale</option>
+                <option value="SO">Scritto e orale</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="formEsame-label" for="posti">Posti</label>
+              <input type="number" id="posti" name="posti" min="1">
+            </div>
+
+            <div>
+              <label class="formEsame-label" for="note">Note</label>
+              <textarea id="note" name="note" rows="2"></textarea>
+            </div>
+
+            <span> Se non si inseriscono date inizio/fine iscrizione, il sistema le imposterà automaticamente a 20
+              giorni dall'inizio sessione fino al giorno prima dell'esame</span>
+
+            <!--<div>
+            <label class="formEsame-label" for="tipoAppello">Tipo appello</label>
+            <select id="tipoAppello" name="tipoAppello">
+              <option value="PF" selected>PF</option>
+            </select>
+          </div>
+          <div>
+            <label class="formEsame-label" for="riservato">Riservato</label>
+            <input type="checkbox" id="riservato" name="riservato">  
+          </div>
+          <div>
+            <label class="formEsame-label" for="definizioneAppello">Definizione appello</label>
+            <select id="definizioneAppello" name="definizioneAppello">
+              <option value="STD" selected>Standard</option>
+            </select>
+          </div>
+          <div>
+            <label class="formEsame-label" for="gestionePrenotazione">Gestione pren.</label>
+            <select id="gestionePrenotazione" name="gestionePrenotazione">
+              <option value="STD" selected>Standard</option>
+            </select>  
+          </div>-->
+          </div>
+
+          <button class="invia" type="submit">Invia</button>
+        </form>
+
+      </div>
+    </div>
+  </div>
+  <script>
+    // Chiude l'overlay al click della X
+    document.getElementById('closeOverlay').addEventListener('click', function () {
+      document.getElementById('popupOverlay').style.display = 'none';
+    });
+
+    // Chiude l'overlay se clicchi fuori dal form
+    window.addEventListener('click', function (event) {
+      if (event.target === document.getElementById('popupOverlay')) {
+        document.getElementById('popupOverlay').style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>

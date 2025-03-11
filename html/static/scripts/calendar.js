@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var calendarEl = document.getElementById("calendar");
 
   // Carica le date delle sessioni
-  fetch('/flask/api/ottieniSessioni')
+  fetch('/api/ottieniSessioni')
     .then(response => response.json())
     .then(sessioni => {
       // Converti in array di date
@@ -91,7 +91,7 @@ document.addEventListener("DOMContentLoaded", function () {
               calendar.getEventSources().forEach(source => source.remove());
               
               // Carica tutti gli esami
-              fetch('/flask/api/getEsami?all=true')
+              fetch('/api/getEsami?all=true')
                 .then(response => response.json())
                 .then(data => {
                   calendar.addEventSource(data);
@@ -178,7 +178,7 @@ document.addEventListener("DOMContentLoaded", function () {
           }
 
           // Controlla login
-          fetch('/flask/api/check-auth')
+          fetch('/api/check-auth')
             .then(response => response.json())
             .then(data => {
               if (data.authenticated) {
@@ -238,7 +238,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 document.getElementById('overlay').style.display = 'flex';
               } else {
                 alert('Effettua il login per inserire un esame');
-                window.location.href = '/flask/login';
               }
             })
             .catch(error => {

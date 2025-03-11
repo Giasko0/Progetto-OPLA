@@ -27,24 +27,8 @@ app.register_blueprint(fetch_bp)
 # Metodo popo rozzo pe non usa saml
 app.config['SAML_ENABLED'] = False
 
-# ===== Routes =====
-@app.route('/flask')
-def home():
-  return render_template("index.html")
-
-@app.route('/flask/mieiEsami')
-@require_auth
-def mieiEsami():
-    if app.config['SAML_ENABLED']:
-        username = session.get('saml_nameid')
-    else:
-        username = request.cookies.get('username')
-    if not username:
-        return redirect('/flask/login')
-    return render_template("mieiEsami.html")
-
 # ===== API Gestione Esami =====
-@app.route('/flask/api/inserisciEsame', methods=['POST'])
+@app.route('/api/inserisciEsame', methods=['POST'])
 # API per verificare e inserire nuovi esami
 def inserisciEsame():
   try:
@@ -290,7 +274,7 @@ def inserisciEsame():
       cursor.close()
       conn.close()
 
-@app.route('/flask/api/confermaEsami', methods=['POST'])
+@app.route('/api/confermaEsami', methods=['POST'])
 def confermaEsami():
   """API per inserire gli esami selezionati dall'utente"""
   conn = None
@@ -374,7 +358,7 @@ def confermaEsami():
       cursor.close()
       conn.close()
 
-@app.route('/flask/api/esamiMinimi', methods=['GET'])
+@app.route('/api/esamiMinimi', methods=['GET'])
 @require_auth
 def esamiMinimi():
     """API per verificare se sono stati inseriti almeno 8 esami per insegnamento del docente"""

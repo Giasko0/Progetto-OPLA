@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const periodo = determinaPeriodo(ora);
     
     // Richiedi le aule disponibili per questa data e periodo
-    fetch(`/flask/api/ottieniAule?data=${data}&periodo=${periodo}`)
+    fetch(`/api/ottieniAule?data=${data}&periodo=${periodo}`)
       .then((response) => response.json())
       .then((aule) => {
         const selectAula = document.getElementById("aula");
@@ -113,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Funzione per ottenere l'username corrente
   function getCurrentUsername() {
     return new Promise((resolve, reject) => {
-      fetch('/flask/api/check-auth')
+      fetch('/api/check-auth')
         .then(response => response.json())
         .then(data => {
           if (data.authenticated) {
@@ -145,7 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
     getCurrentUsername()
       .then(username => {
         if (username) {
-          fetch('/flask/api/ottieniInsegnamenti?username=' + username)
+          fetch('/api/ottieniInsegnamenti?username=' + username)
             .then(response => response.json())
             .then(data => {
               // Ottieni il container delle opzioni
@@ -178,9 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       })
       .catch(error => {
-        console.error("Errore:", error);
-        alert("È necessario effettuare il login per utilizzare questa funzione");
-        window.location.href = '/flask/login';
+        console.error("Errore, devi effettuare il login:", error);
       });
   }
   
@@ -251,7 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const username = document.getElementById('docente').value;
         if (username) {
           const insegnamentiCodes = window.preselectedInsegnamenti.join(',');
-          fetch(`/flask/api/ottieniInsegnamenti?username=${username}&codici=${insegnamentiCodes}`)
+          fetch(`/api/ottieniInsegnamenti?username=${username}&codici=${insegnamentiCodes}`)
             .then(response => response.json())
             .then(data => {
               if (data.length > 0) {
@@ -553,7 +551,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const formData = new FormData(this);
 
-    fetch("/flask/api/inserisciEsame", {
+    fetch("/api/inserisciEsame", {
       method: "POST",
       body: formData,
     })
@@ -725,7 +723,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         
         // Invia la richiesta al server per inserire gli esami selezionati
-        fetch('/flask/api/confermaEsami', {
+        fetch('/api/confermaEsami', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

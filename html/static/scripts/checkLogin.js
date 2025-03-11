@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const navlinksDiv = document.querySelector('.navlinks');
   
   // Controlliamo se l'utente è autenticato attraverso una chiamata API
-  fetch('/flask/api/check-auth')
+  fetch('/api/check-auth')
     .then(response => response.json())
     .then(data => {
       const link = document.createElement('a');
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.href = "/flask/logout";
         link.innerHTML = `${data.username} - Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
       } else {
-        link.href = "/flask/login";
+        link.href = "login.html";
         link.innerHTML = "Accedi <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>login</span>";
       }
       
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.href = "/flask/logout";
         link.innerHTML = "Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>";
       } else {
-        link.href = "/flask/login";
+        link.href = "login.html";
         link.innerHTML = "Accedi <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>login</span>";
       }
       

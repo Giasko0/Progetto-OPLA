@@ -6,6 +6,8 @@ services:
     # Deve esserci per forza la porta 80:80, altrimenti non funziona
     ports:
       - "80:80"
+    volumes:
+      - ./html:/usr/share/nginx/html
     depends_on:
       - opla-flask
 
@@ -24,7 +26,7 @@ services:
       dockerfile: Dockerfile.postgres
     volumes:
       - type: bind
-        source: db
+        source: ./db/data
         target: /var/lib/postgresql/data
 
   opla-pgadmin:

@@ -44,7 +44,7 @@ export function createDropdown(type, data, calendar) {
 // Popola il dropdown degli insegnamenti raggruppandoli per CdS
 export function populateInsegnamentiDropdown(dropdownInsegnamenti, docente, planningYear) {
     // Richiesta API per gli insegnamenti
-    fetch(`/flask/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`)
+    fetch(`/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`)
         .then(response => response.json())
         .then(insegnamenti => {
             // Raggruppa gli insegnamenti per CDS
@@ -162,7 +162,7 @@ export function fetchCalendarEvents(calendar, planningYear, info = null, success
     }
     
     // Richiesta API
-    fetch('/flask/api/getEsami?' + params.toString())
+    fetch('/api/getEsami?' + params.toString())
         .then(response => response.json())
         .then(data => {
             if (successCallback) {

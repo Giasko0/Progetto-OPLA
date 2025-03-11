@@ -7,7 +7,7 @@ from auth import get_current_user, get_current_username
 fetch_bp = Blueprint('fetch', __name__)
 
 # API per ottenere gli insegnamenti di un docente. Usato in formEsame.html
-@fetch_bp.route('/flask/api/ottieniInsegnamenti', methods=['GET'])
+@fetch_bp.route('/api/ottieniInsegnamenti', methods=['GET'])
 def ottieniInsegnamenti():
   username = request.args.get('username')
   search = request.args.get('search')
@@ -56,7 +56,7 @@ def ottieniInsegnamenti():
     conn.close()
 
 # API per ottenere le aule disponibili. Usato in formEsame.html
-@fetch_bp.route('/flask/api/ottieniAule', methods=['GET'])
+@fetch_bp.route('/api/ottieniAule', methods=['GET'])
 def ottieniAule():
   data = request.args.get('data')
   periodo = request.args.get('periodo')  # 0 per mattina, 1 per pomeriggio
@@ -91,7 +91,7 @@ def ottieniAule():
     conn.close()
 
 # API per ottenere tutti gli esami. Usato per gli eventi del calendario
-@fetch_bp.route('/flask/api/getEsami', methods=['GET'])
+@fetch_bp.route('/api/getEsami', methods=['GET'])
 def getEsami():
     # Parametri di input
     show_all = request.args.get('all', 'false').lower() == 'true'
@@ -215,7 +215,7 @@ def getEsami():
             conn.close()
 
 # API per ottenere gli esami di un docente. Usato in mieiEsami.html
-@fetch_bp.route('/flask/api/mieiEsami', methods=['GET'])
+@fetch_bp.route('/api/mieiEsami', methods=['GET'])
 def miei_esami():
   # Ottieni il docente corrente usando la nuova funzione
   docente = get_current_username()
@@ -311,7 +311,7 @@ def miei_esami():
     conn.close()
 
 # API per ottenere le date delle sessioni d'esame
-@fetch_bp.route('/flask/api/ottieniSessioni', methods=['GET'])
+@fetch_bp.route('/api/ottieniSessioni', methods=['GET'])
 def ottieniSessioni():
     try:
         conn = get_db_connection()
@@ -350,7 +350,7 @@ def ottieniSessioni():
         cursor.close()
         conn.close()
 
-@fetch_bp.route('/flask/api/getAnniAccademici', methods=['GET'])
+@fetch_bp.route('/api/getAnniAccademici', methods=['GET'])
 def getAnniAccademici():
     try:
         conn = get_db_connection()
@@ -364,7 +364,7 @@ def getAnniAccademici():
         cursor.close()
         conn.close()
 
-@fetch_bp.route('/flask/api/getInsegnamentiDocente', methods=['GET'])
+@fetch_bp.route('/api/getInsegnamentiDocente', methods=['GET'])
 def getInsegnamentiDocente():
     anno = request.args.get('anno')
     docente = request.args.get('docente')
@@ -401,7 +401,7 @@ def getInsegnamentiDocente():
         cursor.close()
         conn.close()
 
-@fetch_bp.route('/flask/api/check-auth')
+@fetch_bp.route('/api/check-auth')
 def check_auth():
     from auth import is_authenticated, get_current_username
     authenticated = is_authenticated()

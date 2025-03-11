@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Ottieni informazioni sull'utente autenticato
-  fetch('/flask/api/check-auth')
+  fetch('/api/check-auth')
     .then(response => response.json())
     .then(data => {
       if (!data.authenticated) {
@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Send a GET request to the server with the username
       fetch(
-        `/flask/api/ottieniInsegnamenti?username=${encodeURIComponent(username)}`
+        `/api/ottieniInsegnamenti?username=${encodeURIComponent(username)}`
       )
         .then((response) => {
           if (!response.ok) {
@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Send a GET request to the server with the username
       fetch(
-        `/flask/api/ottieniInsegnamenti?username=${encodeURIComponent(username)}`
+        `/api/ottieniInsegnamenti?username=${encodeURIComponent(username)}`
       )
         .then((response) => {
           if (!response.ok) {

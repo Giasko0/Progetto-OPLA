@@ -22,7 +22,7 @@ def logout():
   response.delete_cookie('username')
   return response
 
-@auth_bp.route('/flask/api/login', methods=['POST'])
+@auth_bp.route('/api/login', methods=['POST'])
 def api_login():
   data = request.form
   username = data.get('username')

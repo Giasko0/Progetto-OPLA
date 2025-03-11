@@ -91,7 +91,7 @@ const InsegnamentiManager = (function() {
       return;
     }
     
-    fetch(`/flask/api/ottieniInsegnamenti?username=${username}&codici=${getSelectedCodes().join(',')}`)
+    fetch(`/api/ottieniInsegnamenti?username=${username}&codici=${getSelectedCodes().join(',')}`)
       .then(response => response.json())
       .then(data => {
         if (typeof callback === 'function') callback(data);

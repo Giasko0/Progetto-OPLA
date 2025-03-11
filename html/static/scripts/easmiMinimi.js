@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Funzione per verificare gli esami minimi
     function checkEsamiMinimi() {
-        fetch('/flask/api/esamiMinimi')
+        fetch('/api/esamiMinimi')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Errore nella richiesta API');

@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function fetchAndDisplayEsami() {
-  fetch("/flask/api/mieiEsami")
+  fetch("/api/mieiEsami")
     .then((response) => response.json())
     .then((data) => {
       const tabsHeader = document.getElementById("tabsHeader");
