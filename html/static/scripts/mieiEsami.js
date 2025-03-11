@@ -1,11 +1,66 @@
-document.addEventListener("DOMContentLoaded", () => {
-  fetchAndDisplayEsami();
-  
-  // Aggiungo event listener per il pulsante "Tutti gli appelli"
-  document.getElementById("allExamsButton").addEventListener("click", () => {
-    showAllExams();
+// Script per la gestione della pagina "I miei esami"
+
+// Quando il documento è pronto
+document.addEventListener('DOMContentLoaded', function() {
+  // Usa la funzione di auth.js per ottenere e mostrare gli esami dell'utente corrente
+  getCurrentUsername().then(username => {
+    if (username) {
+      // Aggiorna il titolo della pagina con il nome dell'utente
+      const titolo = document.querySelector('.titolo');
+      if (titolo) {
+        titolo.textContent = `Esami di ${username}`;
+      }
+      
+      // Carica gli esami dell'utente usando l'API
+      fetch(`/api/mieiEsami?docente=${encodeURIComponent(username)}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Errore nel caricamento degli esami');
+          }
+          return response.json();
+        })
+        .then(data => {
+          // Visualizza i dati degli esami
+          visualizzaEsami(data);
+        })
+        .catch(error => {
+          console.error('Errore:', error);
+          // Mostra un messaggio di errore all'utente
+          document.getElementById('contenitoreEsami').innerHTML = 
+            `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
+        });
+    } else {
+      // Reindirizza alla pagina di login se l'utente non è autenticato
+      window.location.href = 'login.html';
+    }
   });
 });
+
+/**
+ * Visualizza gli esami nel contenitore appropriato
+ * @param {Array} esami - Array di oggetti esame
+ */
+function visualizzaEsami(esami) {
+  const contenitoreEsami = document.getElementById('contenitoreEsami');
+  const tabsHeader = document.getElementById('tabsHeader');
+  
+  if (!esami || esami.length === 0) {
+    contenitoreEsami.innerHTML = '<p>Non hai esami programmati.</p>';
+    return;
+  }
+  
+  // Implementazione della visualizzazione esami
+  fetchAndDisplayEsami();
+  
+  // Funzionalità dei tab per periodo
+  const allExamsButton = document.getElementById('allExamsButton');
+  if (allExamsButton) {
+    allExamsButton.addEventListener('click', function() {
+      // Mostra tutti gli esami
+      showAllExams();
+    });
+  }
+}
 
 function fetchAndDisplayEsami() {
   fetch("/api/mieiEsami")
@@ -37,7 +92,7 @@ function fetchAndDisplayEsami() {
         // Crea il contenuto del tab
         const tabContent = document.createElement("div");
         tabContent.className = "tab-content";
-        tabContent.style.display = index === 0 ? 'block' : 'none'; // Mostra il primo tab all'inizio
+        tabContent.style.display = 'none'; // Tutti i tab sono nascosti inizialmente
         tabContent.id = `tab-${insegnamento.replace(/\s+/g, "-")}`;
         
         // Aggiungi contenuto al tab
@@ -47,12 +102,17 @@ function fetchAndDisplayEsami() {
         container.appendChild(tabContent);
       });
       
-      // Crea il tab per "Tutti gli appelli" ma inizialmente nascosto
+      // Crea il tab per "Tutti gli appelli"
       const allExamsTab = document.createElement("div");
       allExamsTab.className = "tab-content";
       allExamsTab.id = "tab-all-exams";
+      // Mostra questo tab per default
+      allExamsTab.style.display = 'block';
       displayAllExams(data, allExamsTab);
       container.appendChild(allExamsTab);
+      
+      // Evidenzia il pulsante "Tutti gli appelli" come selezionato
+      allExamsButton.classList.add('active');
     })
     .catch((error) => console.error("Errore:", error));
 }
@@ -63,12 +123,25 @@ function switchTab(insegnamento) {
     content.style.display = 'none';
   });
   
+  // Rimuovi la classe active da tutti i pulsanti
+  document.querySelectorAll('.tab-button, .all-exams-button').forEach(button => {
+    button.classList.remove('active');
+  });
+  
   // Mostra solo il tab selezionato senza usare classi active
   const selectedContent = document.querySelector(`#tab-${insegnamento.replace(/\s+/g, "-")}`);
   
   if (selectedContent) {
     selectedContent.style.display = 'block';
   }
+  
+  // Trova e attiva il pulsante corrispondente
+  const buttons = document.querySelectorAll('.tab-button');
+  buttons.forEach(button => {
+    if (button.textContent === insegnamento) {
+      button.classList.add('active');
+    }
+  });
 }
 
 function showAllExams() {
@@ -77,11 +150,19 @@ function showAllExams() {
     content.style.display = 'none';
   });
   
+  // Rimuovi la classe active da tutti i pulsanti
+  document.querySelectorAll('.tab-button, .all-exams-button').forEach(button => {
+    button.classList.remove('active');
+  });
+  
   // Mostra solo il tab "Tutti gli appelli" senza usare classi active
   const allExamsTab = document.getElementById("tab-all-exams");
   if (allExamsTab) {
     allExamsTab.style.display = 'block';
   }
+  
+  // Aggiungi la classe active al pulsante "Tutti gli appelli"
+  document.getElementById('allExamsButton').classList.add('active');
 }
 
 function displayTabelleEsami(data, insegnamento, container) {

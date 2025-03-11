@@ -31,12 +31,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Recupera il container dei link della navbar
     const navlinksDiv = document.querySelector('.navlinks');
     
+    // Crea il link di login/logout
+    const link = document.createElement('a');
+    
     // Controlliamo se l'utente è autenticato attraverso una chiamata API
     fetch('/api/check-auth')
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Errore nella risposta del server: ' + response.status);
+        }
+        return response.json();
+      })
       .then(data => {
-        const link = document.createElement('a');
-        
         if (data.authenticated) {
           link.href = "/flask/logout";
           link.innerHTML = `${data.username} - Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
@@ -51,7 +57,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Errore nel controllo dell\'autenticazione:', error);
         // Fallback al vecchio sistema
         const username = getCookie('username');
-        const link = document.createElement('a');
         
         if (username) {
           link.href = "/flask/logout";

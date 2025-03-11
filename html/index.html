@@ -20,6 +20,7 @@
   <script src="static/scripts/esamiMinimi.js"></script>
   <!-- Script per verificare esami minimi -->
   <script src="static/scripts/navbar.js"></script> <!-- Script per generare la navbar -->
+  <script src="static/scripts/auth.js"></script> <!-- Script per gestire l'autenticazione -->
   <style>
     .banner-avviso {
       background-color: #ffebcc;
@@ -37,8 +38,15 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .banner-avviso .banner-close {
@@ -305,8 +313,7 @@
           <p style="margin: 0; float: right">* Campi obbligatori</p>
 
           <!-- Hidden values -->
-          <input type="text" id="docente" name="docente" hidden
-            value="{{ request.cookies.get('username') }}"><!--Creare fun js per username-->
+          <input type="text" id="docente" name="docente" hidden>
           <input type="text" id="anno_accademico" name="anno_accademico" hidden>
 
           <label class="formEsame-label" for="insegnamento">Insegnamento*</label>
@@ -414,18 +421,6 @@
       </div>
     </div>
   </div>
-  <script>
-    // Chiude l'overlay al click della X
-    document.getElementById('closeOverlay').addEventListener('click', function () {
-      document.getElementById('popupOverlay').style.display = 'none';
-    });
-
-    // Chiude l'overlay se clicchi fuori dal form
-    window.addEventListener('click', function (event) {
-      if (event.target === document.getElementById('popupOverlay')) {
-        document.getElementById('popupOverlay').style.display = 'none';
-      }
-    });
-  </script>
 </body>
+
 </html>

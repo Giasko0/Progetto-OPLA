@@ -11,8 +11,9 @@
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <!-- Icone Google -->
   <title>I Miei Esami</title>
-  <script src="static/scripts/mieiEsami.js"></script>
   <script src="static/scripts/navbar.js"></script> <!-- Script per generare la navbar -->
+  <script src="static/scripts/auth.js"></script> <!-- Script per l'autenticazione -->
+  <script src="static/scripts/mieiEsami.js"></script> <!-- Script principale per la gestione esami -->
   <style>
     table {
       width: clamp(500px, 50vw, 1000px);
@@ -138,21 +139,17 @@
       color: white;
     }
 
-    /* Rimuoviamo lo stile active */
-    /* .tab-button.active {
-    background: #27348b;
-    color: white;
-  } */
+    /* Style for active tab buttons */
+    .tab-button.active,
+    .all-exams-button.active {
+      background: #27348b;
+      color: white;
+    }
 
     .tab-content {
       display: none;
       /* Nascosto di default, controllo tramite JavaScript */
     }
-
-    /* Rimuoviamo lo stile active */
-    /* .tab-content.active {
-    display: block;
-  } */
 
     .all-exams-button {
       padding: 10px 20px;
@@ -170,10 +167,10 @@
       background: #388E3C;
     }
 
-    /* Rimuoviamo lo stile active */
-    /* .all-exams-button.active {
-    background: #388E3C;
-  } */
+    /* Active state for all-exams-button */
+    .all-exams-button.active {
+      background: #388E3C;
+    }
   </style>
 </head>
 
@@ -194,7 +191,6 @@
       <!-- Il contenuto dei tabs verrà generato qui -->
     </div>
   </div>
-
 </body>
 
 </html>

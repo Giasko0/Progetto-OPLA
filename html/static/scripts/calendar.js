@@ -412,32 +412,36 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Dropdown insegnamenti
       dropdownInsegnamenti.addEventListener('click', (e) => {
-        const item = e.target.closest('.dropdown-item');
-        if (item) {
-            const checkbox = item.querySelector('input[type="checkbox"]');
-            if (checkbox) {
-                // Toggle checkbox
-                checkbox.checked = !checkbox.checked;
-                
-                // Dati insegnamento
-                const codice = item.dataset.codice;
-                const semestre = parseInt(item.dataset.semestre);
-                const annoCorso = parseInt(item.dataset.annoCorso) || 1;
-                const cds = item.dataset.cds;
-                
-                // Aggiorna InsegnamentiManager
-                if (window.InsegnamentiManager) {
-                    if (checkbox.checked) {
-                        window.InsegnamentiManager.selectInsegnamento(codice, { 
-                            semestre: semestre, 
-                            anno_corso: annoCorso,
-                            cds: cds
-                        });
-                    } else {
-                        window.InsegnamentiManager.deselectInsegnamento(codice);
-                    }
-                }
-            }
+        // Trova l'elemento dropdown-item o dropdown-item-indented più vicino
+        const item = e.target.closest('.dropdown-item, .dropdown-item-indented');
+        if (!item) return;
+        
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        if (!checkbox) return;
+        
+        // Se l'elemento cliccato è il checkbox, lascia che il browser gestisca lo stato
+        // altrimenti inverti manualmente lo stato del checkbox
+        if (e.target.type !== 'checkbox') {
+          e.preventDefault(); // Previene comportamenti predefiniti di altri elementi
+          checkbox.checked = !checkbox.checked;
+        }
+        
+        // Aggiorna InsegnamentiManager in base allo stato finale del checkbox
+        if (window.InsegnamentiManager) {
+          const codice = item.dataset.codice;
+          const semestre = parseInt(item.dataset.semestre);
+          const annoCorso = parseInt(item.dataset.annoCorso) || 1;
+          const cds = item.dataset.cds;
+          
+          if (checkbox.checked) {
+            window.InsegnamentiManager.selectInsegnamento(codice, { 
+              semestre: semestre, 
+              anno_corso: annoCorso,
+              cds: cds
+            });
+          } else {
+            window.InsegnamentiManager.deselectInsegnamento(codice);
+          }
         }
       });
 
