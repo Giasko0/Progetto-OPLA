@@ -38,35 +38,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (adminCookie) {
       // Utente autenticato, mostra il link di logout
       const logoutLink = document.createElement('a');
-      logoutLink.href = "#";
+      logoutLink.href = "/api/logout";
       logoutLink.id = 'logoutBtn';
       logoutLink.innerHTML = 'Logout';
       loginLogoutItem.appendChild(logoutLink);
-      
-      // Aggiungi event listener per il pulsante logout
-      logoutLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        fetch('/oh-issa/api/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.status === 'success') {
-            // Redirect alla pagina di login dopo il logout
-            window.location.href = 'login.html';
-          }
-        })
-        .catch(error => {
-          console.error('Errore durante il logout:', error);
-        });
-      });
     } else {
       // Utente non autenticato, mostra il link di login
       const loginLink = document.createElement('a');
-      loginLink.href = 'login.html';
+      loginLink.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
       loginLink.innerHTML = 'Login';
       loginLogoutItem.appendChild(loginLink);
     }

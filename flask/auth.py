@@ -15,6 +15,7 @@ def logout():
     session.clear()
     response = make_response(redirect('/'))
     response.delete_cookie('username')
+    response.delete_cookie('admin')
     return response
 
 @auth_bp.route('/api/login', methods=['POST'])
@@ -26,13 +27,38 @@ def api_login():
   conn = get_db_connection()
   cursor = conn.cursor()
   try:
-    cursor.execute("SELECT 1 FROM utenti WHERE username = %s AND nome = %s", 
-      (username, password))
-    if cursor.fetchone():
-      response = redirect('/')
+    # Verifica le credenziali nel database
+    cursor.execute("""
+        SELECT username, permessi_admin, permessi_docente, permessi_visitatore 
+        FROM utenti 
+        WHERE username = %s AND nome = %s
+    """, (username, password))
+    
+    user = cursor.fetchone()
+    
+    if user:
+      # Ottieni i permessi dell'utente
+      username, is_admin, is_docente, is_visitatore = user
+      
+      # Crea la risposta JSON con i dati dell'utente
+      response = jsonify({
+          'status': 'success',
+          'message': 'Login effettuato con successo',
+          'admin': bool(is_admin),
+          'docente': bool(is_docente), 
+          'visitatore': bool(is_visitatore)
+      })
+      
+      # Imposta i cookie appropriati
       response.set_cookie('username', username)
+      
+      # Se l'utente è un admin, imposta anche il cookie admin
+      if is_admin:
+          response.set_cookie('admin', 'true')
+      
       return response
-    return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
+      
+    return jsonify({'status': 'error', 'message': 'Credenziali non valide'}), 401
   finally:
     cursor.close()
     conn.close()

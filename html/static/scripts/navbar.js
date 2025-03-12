@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="navlinks">
           <a href="index.html">Home</a>
           <a href="mieiEsami.html">I miei esami</a>
-          <!-- Il link di login/logout verrà aggiunto qui dinamicamente -->
+          <!-- Il link di login/logout e altri link verranno aggiunti qui dinamicamente -->
         </div>
         <!-- Pulsante dark mode commentato per consistenza con i file originali -->
         <!--<span id="darkModeButton" class="material-symbols-outlined" onclick="darkMode()">dark_mode</span>-->
@@ -31,8 +31,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Recupera il container dei link della navbar
     const navlinksDiv = document.querySelector('.navlinks');
     
-    // Crea il link di login/logout
-    const link = document.createElement('a');
+    // Verifica se l'utente è un admin per aggiungere il pulsante OH-ISSA
+    const isAdmin = getCookie('admin') === 'true';
+    
+    // Se l'utente è un admin, aggiungi il pulsante OH-ISSA
+    if (isAdmin) {
+      const ohIssaLink = document.createElement('a');
+      ohIssaLink.href = "/oh-issa/index.html";
+      ohIssaLink.innerHTML = "OH-ISSA <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>admin_panel_settings</span>";
+      navlinksDiv.appendChild(ohIssaLink);
+    }
     
     // Controlliamo se l'utente è autenticato attraverso una chiamata API
     fetch('/api/check-auth')

@@ -7,25 +7,6 @@ import xlwt  # Cambiato da xlsxwriter a xlwt
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/oh-issa/api')
 
-# Rimuovo tutte le route che ritornano pagine HTML
-
-@admin_bp.route('/auth', methods=['POST'])
-def admin_auth():
-    username = request.form.get('username')
-    password = request.form.get('password')
-    
-    if username == "Admin" and password == "admin":
-        response = jsonify({'status': 'success', 'message': 'Login effettuato con successo'})
-        response.set_cookie('admin', 'true')
-        return response, 200
-    return jsonify({'status': 'error', 'message': 'Credenziali non valide'}), 401
-
-@admin_bp.route('/logout', methods=['POST'])
-def admin_logout():
-    response = jsonify({'status': 'success', 'message': 'Logout effettuato con successo'})
-    response.delete_cookie('admin')
-    return response, 200
-
 @admin_bp.route('/downloadFileESSE3')
 def download_csv():
     if 'admin' not in request.cookies:

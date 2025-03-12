@@ -100,6 +100,43 @@
     }
   </style>
 
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginForm = document.querySelector('form');
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirect = urlParams.get('redirect');
+      
+      loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams(new FormData(loginForm)).toString(),
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            // Se c'è un redirect specifico, usalo
+            if (redirect) {
+              window.location.href = decodeURIComponent(redirect);
+            } else {
+              // Reindirizza sempre alla homepage
+              window.location.href = '/';
+            }
+          } else {
+            alert('Credenziali non valide. Riprova.');
+          }
+        })
+        .catch(error => {
+          console.error('Errore durante il login:', error);
+          alert('Si è verificato un errore durante il login. Riprova.');
+        });
+      });
+    });
+  </script>
 </head>
 
 <body>
@@ -108,7 +145,7 @@
   <div class="content">
     <div class="login-container">
       <h2>Login</h2>
-      <form action="/api/login" method="post">
+      <form>
         <div>
           <label for="username">Username:</label>
           <input type="text" id="username" name="username" required>

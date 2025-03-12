@@ -8,7 +8,7 @@ function checkAdminAuth(skipCheck = false) {
   
   if (!adminCookie) {
     // Utente non autenticato, reindirizza alla pagina di login
-    window.location.href = 'login.html';
+    window.location.href = '/login.html';
     return false;
   }
   
