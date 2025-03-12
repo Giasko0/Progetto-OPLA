@@ -16,8 +16,8 @@ document.addEventListener('DOMContentLoaded', function() {
       <a class="navbar-brand">OH-ISSA</a>
       <ul class="navbar-nav">
         <li><a href="/oh-issa/">Dashboard</a></li>
-        <li><a href="/oh-issa/fileUpload.html">Carica File</a></li>
-        <li><a href="/oh-issa/fileDownload.html">Scarica File</a></li>
+        <li><a href="/oh-issa/fileUpload.html">Upload U-GOV</a></li>
+        <li><a href="/oh-issa/fileDownload.html">Download ESSE3/EasyRoom</a></li>
         <li><a href="/oh-issa/gestisciCds.html">Gestisci CdS</a></li>
         <li><a href="/oh-issa/calendarioEsami.html">Calendario Esami</a></li>
         <li id="loginLogoutItem" class="nav-right">
