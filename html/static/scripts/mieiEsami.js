@@ -96,8 +96,8 @@ function fetchAndDisplayEsami() {
         tabContent.id = `tab-${insegnamento.replace(/\s+/g, "-")}`;
         
         // Aggiungi contenuto al tab
-        displayTabelleEsami(data, insegnamento, tabContent);
         displaySessioniEsami(data, insegnamento, tabContent);
+        displayTabelleEsami(data, insegnamento, tabContent);
         
         container.appendChild(tabContent);
       });
@@ -174,10 +174,6 @@ function displayTabelleEsami(data, insegnamento, container) {
     const section = document.createElement("div");
     section.className = "section";
 
-    const title = document.createElement("h2");
-    title.textContent = insegnamento;
-    section.appendChild(title);
-
     const table = document.createElement("table");
     table.id = `tabella-${insegnamento.replace(/\s+/g, "-")}`;
 
@@ -215,6 +211,11 @@ function displayTabelleEsami(data, insegnamento, container) {
 function displaySessioniEsami(data, insegnamento, container) {
   const section = document.createElement("div");
   section.className = "exam-section";
+
+  // Aggiungi il titolo
+  const title = document.createElement("h2");
+  title.textContent = insegnamento;
+  section.appendChild(title);
   
   const today = new Date();
   const currentMonth = today.getMonth() + 1;
@@ -224,35 +225,67 @@ function displaySessioniEsami(data, insegnamento, container) {
   
   const sessioni = data.insegnamenti[insegnamento];
 
-  section.innerHTML = `
-    <div class="sessions-grid">
-        <div class="session-card">
-            <h4>Sessione Anticipata (Gen/Feb ${planningYear})</h4>
-            <p>${sessioni.Anticipata || 0}/3 esami</p>
-        </div>
-        <div class="session-card">
-            <h4>Pausa Didattica (Mar/Apr ${planningYear})</h4>
-            <p>${sessioni["Pausa Didattica Primavera"] || 0}/1 esami</p>
-        </div>
-        <div class="session-card">
-            <h4>Sessione Estiva (Giu/Lug ${planningYear})</h4>
-            <p>${sessioni.Estiva || 0}/3 esami</p>
-        </div>
-        <div class="session-card">
-            <h4>Sessione Autunnale (Set ${planningYear})</h4>
-            <p>${sessioni.Autunnale || 0}/2 esami</p>
-        </div>
-        <div class="session-card">
-            <h4>Pausa Didattica (Nov ${planningYear})</h4>
-            <p>${sessioni["Pausa Didattica Autunno"] || 0}/1 esami</p>
-        </div>
-        <div class="session-card">
-            <h4>Sessione Invernale (Gen/Feb ${nextYear})</h4>
-            <p>${sessioni.Invernale || 0}/3 esami</p>
-        </div>
-    </div>
-  `;
-  
+  // Crea il contenitore della griglia
+  const gridContainer = document.createElement("div");
+  gridContainer.className = "sessions-grid";
+
+  // Array delle sessioni da visualizzare
+  const sessioniDaVisualizzare = [
+    {
+      nome: "Sessione Anticipata",
+      periodo: `Gen/Feb ${planningYear}`,
+      count: sessioni.Anticipata || 0,
+      max: 3
+    },
+    {
+      nome: "Pausa Didattica",
+      periodo: `Mar/Apr ${planningYear}`,
+      count: sessioni["Pausa Didattica Primavera"] || 0,
+      max: 1
+    },
+    {
+      nome: "Sessione Estiva",
+      periodo: `Giu/Lug ${planningYear}`,
+      count: sessioni.Estiva || 0,
+      max: 3
+    },
+    {
+      nome: "Sessione Autunnale",
+      periodo: `Set ${planningYear}`,
+      count: sessioni.Autunnale || 0,
+      max: 2
+    },
+    {
+      nome: "Pausa Didattica",
+      periodo: `Nov ${planningYear}`,
+      count: sessioni["Pausa Didattica Autunno"] || 0,
+      max: 1
+    },
+    {
+      nome: "Sessione Invernale",
+      periodo: `Gen/Feb ${nextYear}`,
+      count: sessioni.Invernale || 0,
+      max: 3
+    }
+  ];
+
+  // Crea le cards delle sessioni
+  sessioniDaVisualizzare.forEach(sessione => {
+    const card = document.createElement("div");
+    card.className = "session-card";
+    
+    const heading = document.createElement("h4");
+    heading.textContent = `${sessione.nome} (${sessione.periodo})`;
+    
+    const count = document.createElement("p");
+    count.textContent = `${sessione.count}/${sessione.max} esami`;
+    
+    card.appendChild(heading);
+    card.appendChild(count);
+    gridContainer.appendChild(card);
+  });
+
+  section.appendChild(gridContainer);
   container.appendChild(section);
 }
 
@@ -300,10 +333,6 @@ function displayAllExams(data, container) {
   // Continua con la tabella dettagliata di tutti gli appelli
   const section = document.createElement("div");
   section.className = "section";
-  
-  const title = document.createElement("h2");
-  title.textContent = "Tutti gli appelli";
-  section.appendChild(title);
 
   const tableAllExams = document.createElement("table");
   tableAllExams.id = "tabella-tutti-appelli";
