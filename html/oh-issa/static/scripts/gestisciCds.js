@@ -3,7 +3,7 @@
  */
 document.addEventListener('DOMContentLoaded', function() {
     // Carica gli anni accademici disponibili
-    fetch('/flask/api/getAnniAccademici')
+    fetch('/api/getAnniAccademici')
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('anno_accademico');
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
             cdsData.durata = parseInt(cdsData.durata);
             
             // Invia i dati al server
-            fetch('/flask/admin/save-cds-dates', {
+            fetch('/oh-issa/api/save-cds-dates', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ function loadExistingCdS() {
     
     container.innerHTML = '<p>Caricamento in corso...</p>';
     
-    fetch('/flask/admin/api/getCdS')
+    fetch('/oh-issa/api/getCdS')
         .then(response => response.json())
         .then(data => {
             if (data.length === 0) {
@@ -191,7 +191,7 @@ function loadExistingCdS() {
 
 // Funzione per caricare i dettagli di un CdS nel form
 function loadCdsDetails(cdsCode, annoAccademico) {
-    fetch(`/flask/admin/api/getCdsDetails?codice=${cdsCode}&anno=${annoAccademico}`)
+    fetch(`/oh-issa/api/getCdsDetails?codice=${cdsCode}&anno=${annoAccademico}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
@@ -244,7 +244,7 @@ function deleteCds(cdsCode, annoAccademico) {
     }
     
     // Invia la richiesta di eliminazione al server
-    fetch('/flask/admin/api/deleteCds', {
+    fetch('/oh-issa/api/deleteCds', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

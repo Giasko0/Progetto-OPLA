@@ -21,7 +21,7 @@ def require_auth(f):
     # Rimuovere l'if una volta configurato il SAML
     if not current_app.config.get('SAML_ENABLED'):
       if request.cookies.get('username') is None:
-        return redirect('/flask/login')
+        return redirect('/login.html')
     else:
       if not session.get('saml_authenticated'):
         return redirect(url_for('saml.login'))
@@ -47,7 +47,7 @@ def prepare_flask_request(request):
     'query_string': request.query_string.decode('utf-8')
   }
 
-@saml_bp.route('/flask/saml/metadata/')
+@saml_bp.route('/saml/metadata/')
 def metadata():
   try:
     req = prepare_flask_request(request)
@@ -63,13 +63,13 @@ def metadata():
   except Exception as e:
     return str(e), 500
 
-@saml_bp.route('/flask/saml/login')
+@saml_bp.route('/saml/login')
 def login():
   req = prepare_flask_request(request)
   auth = init_saml_auth(req)
   return redirect(auth.login())
 
-@saml_bp.route('/flask/saml/acs/', methods=['POST'])
+@saml_bp.route('/saml/acs/', methods=['POST'])
 def acs():
   req = prepare_flask_request(request)
   auth = init_saml_auth(req)
@@ -122,7 +122,7 @@ def acs():
   else:
     return render_template('error.html', errors=errors)
 
-@saml_bp.route('/flask/saml/logout')
+@saml_bp.route('/saml/logout')
 def logout():
   req = prepare_flask_request(request)
   auth = init_saml_auth(req)
@@ -130,7 +130,7 @@ def logout():
   session_index = session.get('saml_session_index')
   return redirect(auth.logout(name_id=name_id, session_index=session_index))
 
-@saml_bp.route('/flask/saml/sls/')
+@saml_bp.route('/saml/sls/')
 def sls():
   req = prepare_flask_request(request)
   auth = init_saml_auth(req)

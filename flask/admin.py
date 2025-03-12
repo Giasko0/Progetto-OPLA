@@ -5,7 +5,7 @@ import csv
 from datetime import datetime, timedelta
 import xlwt  # Cambiato da xlsxwriter a xlwt
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/flask/admin')
+admin_bp = Blueprint('admin', __name__, url_prefix='/oh-issa/api')
 
 # Rimuovo tutte le route che ritornano pagine HTML
 
@@ -446,7 +446,7 @@ def save_cds_dates():
             conn.close()
 
 # API per ottenere l'elenco dei corsi di studio (con duplicati per anno accademico)
-@admin_bp.route('/api/getCdS')
+@admin_bp.route('/getCdS')
 def get_cds():
     try:
         conn = get_db_connection()
@@ -469,7 +469,7 @@ def get_cds():
             conn.close()
 
 # Nuova API per ottenere l'elenco dei corsi di studio senza duplicati (per il calendario)
-@admin_bp.route('/api/getCdSDistinct')
+@admin_bp.route('/getCdSDistinct')
 def get_cds_distinct():
     try:
         conn = get_db_connection()
@@ -501,7 +501,7 @@ def get_cds_distinct():
             conn.close()
 
 # API per ottenere i dati del calendario esami
-@admin_bp.route('/api/getCalendarioEsami')
+@admin_bp.route('/getCalendarioEsami')
 def get_calendario_esami():
     cds = request.args.get('cds')
     anno = request.args.get('anno')
@@ -794,7 +794,7 @@ def add_months_to_periods_v2(periodi_map, start_date, end_date, mesi_nomi):
         current = datetime(year, month, 1)
 
 # API per ottenere i dettagli di un corso di studio
-@admin_bp.route('/api/getCdsDetails')
+@admin_bp.route('/getCdsDetails')
 def get_cds_details():
     if 'admin' not in request.cookies:
         return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401

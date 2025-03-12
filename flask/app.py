@@ -15,7 +15,6 @@ from admin import admin_bp
 # API fetch
 from fetch import fetch_bp
 
-# app = Flask(__name__, static_url_path='/flask')
 app = Flask(__name__)
 # Chiave super segreta per SAML, TODO: Capire perché
 app.config['SECRET_KEY'] = os.urandom(24)

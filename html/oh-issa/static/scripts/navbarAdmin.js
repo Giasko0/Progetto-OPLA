@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Aggiungi event listener per il pulsante logout
       logoutLink.addEventListener('click', function(e) {
         e.preventDefault();
-        fetch('/flask/admin/logout', {
+        fetch('/oh-issa/api/logout', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

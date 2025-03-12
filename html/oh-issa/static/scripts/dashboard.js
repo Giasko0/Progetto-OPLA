@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("downloadFileESSE3").addEventListener("click", function () {
-    window.location.href = "/flask/admin/downloadFileESSE3";
+    window.location.href = "/oh-issa/api/downloadFileESSE3";
   });
 
   // Gestione upload file unificato
@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const formData = new FormData();
       formData.append("file", file);
 
-      fetch("/flask/admin/upload-file", {
+      fetch("/oh-issa/api/upload-file", {
         method: "POST",
         body: formData,
       })
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const formData = new FormData(this);
     const data = Object.fromEntries(formData.entries());
 
-    fetch("/flask/admin/save-cds-dates", {
+    fetch("/oh-issa/api/save-cds-dates", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", function () {
           `Sei sicuro di voler svuotare la tabella ${table}? Questa operazione non può essere annullata.`
         )
       ) {
-        fetch(`/flask/admin/truncate-table/${table}`, {
+        fetch(`/oh-issa/api/truncate-table/${table}`, {
           method: "POST",
         })
           .then((response) => response.json())

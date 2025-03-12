@@ -12,15 +12,12 @@
       loginForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        
-        fetch('/flask/admin/auth', {
+        fetch('/oh-issa/api/auth', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-          body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+          body: new URLSearchParams(new FormData(loginForm)).toString(),
         })
         .then(response => response.json())
         .then(data => {

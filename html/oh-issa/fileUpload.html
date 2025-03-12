@@ -26,7 +26,7 @@
         const formData = new FormData();
         formData.append('file', file);
         
-        fetch('/flask/admin/upload-ugov', {
+        fetch('/oh-issa/api/upload-ugov', {
           method: 'POST',
           body: formData
         })
@@ -70,7 +70,7 @@
     <section class="upload-section">
       <h2>Importazione Dati</h2>
 
-      <form id="uploadForm" action="/flask/admin/upload-ugov" method="post" enctype="multipart/form-data">
+      <form id="uploadForm" action="/oh-issa/api/upload-ugov" method="post" enctype="multipart/form-data">
         <fieldset>
           <legend>Import U-GOV</legend>
           <label for="ugovFile">File U-GOV (CSV):</label>

@@ -9,11 +9,11 @@ def logout():
     # Verifica se l'utente è autenticato tramite SAML
     if session.get('saml_authenticated'):
         session.clear()
-        return redirect('/flask/saml/logout')
+        return redirect('/saml/logout')
     
     # Logout locale
     session.clear()
-    response = make_response(redirect('/flask'))
+    response = make_response(redirect('/'))
     response.delete_cookie('username')
     return response
 
@@ -29,7 +29,7 @@ def api_login():
     cursor.execute("SELECT 1 FROM utenti WHERE username = %s AND nome = %s", 
       (username, password))
     if cursor.fetchone():
-      response = redirect('/flask')
+      response = redirect('/')
       response.set_cookie('username', username)
       return response
     return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
@@ -43,7 +43,7 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         response = get_user_data().get_json()
         if not response.get('authenticated'):
-            return redirect('/flask/login')
+            return redirect('/login.html')
         return f(*args, **kwargs)
     return decorated_function
 
