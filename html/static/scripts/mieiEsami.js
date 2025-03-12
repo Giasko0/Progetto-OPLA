@@ -324,6 +324,16 @@ function displayAllExams(data, container) {
       <p class="exams-requirement">Min: 8 - Max: 13</p>
     `;
     
+    // Aggiungi il click handler
+    cardElement.addEventListener('click', () => {
+      // Trova e clicca il tab button corrispondente
+      const tabButton = Array.from(document.querySelectorAll('.tab-button'))
+        .find(button => button.textContent === insegnamento);
+      if (tabButton) {
+        tabButton.click();
+      }
+    });
+    
     sessionsGrid.appendChild(cardElement);
   });
   

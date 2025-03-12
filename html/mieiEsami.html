@@ -100,6 +100,8 @@
       padding: 15px;
       border-radius: var(--radius);
       text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s ease-in-out;
     }
 
     .session-card h4 {
@@ -110,6 +112,10 @@
     .session-card p {
       font-size: 1.2em;
       margin: 0;
+    }
+    
+    .session-card:hover {
+      transform: translateY(-2px);
     }
 
     .tabs-container {
