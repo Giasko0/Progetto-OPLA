@@ -1,5 +1,5 @@
 from flask import Blueprint, request, make_response, jsonify
-from db import get_db_connection
+from db import get_db_connection, release_connection
 import io
 import csv
 from datetime import datetime, timedelta
@@ -155,9 +155,10 @@ def download_csv():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
-        if conn:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-            conn.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
 
 @admin_bp.route('/upload-teachings', methods=['POST'])
 def upload_teachings():
@@ -218,9 +219,10 @@ def upload_teachings():
             conn.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
-        if conn:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-            conn.close()
+        if conn:
+            release_connection(conn)
 
 @admin_bp.route('/upload-teachers', methods=['POST'])
 def upload_teachers():
@@ -279,9 +281,10 @@ def upload_teachers():
             conn.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
-        if conn:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-            conn.close()
+        if conn:
+            release_connection(conn)
 
 @admin_bp.route('/save-cds-dates', methods=['POST'])
 def save_cds_dates():
@@ -417,14 +420,15 @@ def save_cds_dates():
         })
         
     except Exception as e:
-        if conn:
+        if 'conn' in locals() and conn:
             conn.rollback()
         return jsonify({'status': 'error', 'message': f'Si è verificato un errore: {str(e)}'}), 500
     
     finally:
-        if 'conn' in locals() and conn:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-            conn.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
 
 # API per ottenere l'elenco dei corsi di studio (con duplicati per anno accademico)
 @admin_bp.route('/getCdS')
@@ -445,9 +449,10 @@ def get_cds():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        if conn:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-            conn.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
 
 # Nuova API per ottenere l'elenco dei corsi di studio senza duplicati (per il calendario)
 @admin_bp.route('/getCdSDistinct')
@@ -477,9 +482,10 @@ def get_cds_distinct():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        if conn:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-            conn.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
 
 # API per ottenere i dati del calendario esami
 @admin_bp.route('/getCalendarioEsami')
@@ -713,9 +719,10 @@ def get_calendario_esami():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        if conn:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-            conn.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
 
 # Funzione helper per aggiungere i mesi da una data di inizio a una di fine ai periodi
 def add_months_to_periods(periodi, start_date, end_date):
@@ -835,6 +842,7 @@ def get_cds_details():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
-        if conn:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-            conn.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)

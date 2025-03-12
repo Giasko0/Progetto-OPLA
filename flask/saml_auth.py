@@ -3,7 +3,7 @@ from functools import wraps
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.utils import OneLogin_Saml2_Utils
-from db import get_db_connection
+from db import get_db_connection, release_connection
 import os
 
 saml_bp = Blueprint('saml', __name__)
@@ -113,7 +113,7 @@ def acs():
     
     finally:
       cursor.close()
-      conn.close()
+      release_connection(conn)
     
     self_url = OneLogin_Saml2_Utils.get_self_url(req)
     if 'RelayState' in request.form and self_url != request.form['RelayState']:

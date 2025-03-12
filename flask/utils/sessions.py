@@ -1,8 +1,8 @@
-from db import get_db_connection
+from db import get_db_connection, release_connection
 from datetime import datetime
 
 def get_valid_years():
-    """Determina gli anni validi per l'inserimento degli esami"""
+    # Determina gli anni validi per l'inserimento degli esami
     current_date = datetime.now()
     current_year = current_date.year
     current_month = current_date.month
@@ -105,4 +105,4 @@ def get_session_for_date(date, cds_code, anno_acc):
         if 'cursor' in locals() and cursor:
             cursor.close()
         if 'conn' in locals() and conn:
-            conn.close()
+            release_connection(conn)

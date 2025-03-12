@@ -4,7 +4,7 @@ from psycopg2 import sql
 from datetime import datetime, timedelta
 import os
 # Config DB
-from db import get_db_connection
+from db import get_db_connection, release_connection, init_db, close_all_connections
 # Funzioni per la gestione delle date/sessioni
 from utils.sessions import get_session_for_date, get_valid_years
 # Auth stupida e SAML
@@ -16,8 +16,12 @@ from admin import admin_bp
 from fetch import fetch_bp
 
 app = Flask(__name__)
-# Chiave super segreta per SAML, TODO: Capire perché
+# Chiave super segreta per SAML
 app.config['SECRET_KEY'] = os.urandom(24)
+
+# Inizializza il pool di connessioni prima di registrare i blueprint
+init_db()
+
 app.register_blueprint(auth_bp)
 app.register_blueprint(saml_bp)
 app.register_blueprint(admin_bp)
@@ -330,9 +334,10 @@ def inserisciEsame():
   except Exception as e:
     return jsonify({'status': 'error', 'message': str(e)}), 500
   finally:
-    if 'conn' in locals() and conn:
+    if 'cursor' in locals() and cursor:
       cursor.close()
-      conn.close()
+    if 'conn' in locals() and conn:
+      release_connection(conn)
 
 @app.route('/api/confermaEsami', methods=['POST'])
 def confermaEsami():
@@ -414,9 +419,10 @@ def confermaEsami():
       conn.rollback()
     return jsonify({'status': 'error', 'message': str(e)}), 500
   finally:
-    if conn:
+    if 'cursor' in locals() and cursor:
       cursor.close()
-      conn.close()
+    if conn:
+      release_connection(conn)
 
 @app.route('/api/esamiMinimi', methods=['GET'])
 @require_auth
@@ -481,7 +487,7 @@ def esamiMinimi():
     finally:
         if 'conn' in locals() and conn:
             cursor.close()
-            conn.close()
+            release_connection(conn)
 
 # ===== Main =====
 if __name__ == '__main__':

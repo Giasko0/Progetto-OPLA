@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, session
-from db import get_db_connection
+from db import get_db_connection, release_connection
 from datetime import datetime
 from utils.sessions import get_valid_years
 from auth import get_user_data
@@ -52,8 +52,10 @@ def ottieniInsegnamenti():
   except Exception as e:
     return jsonify({'status': 'error', 'message': str(e)}), 500
   finally:
-    cursor.close()
-    conn.close()
+    if 'cursor' in locals() and cursor:
+      cursor.close()
+    if 'conn' in locals() and conn:
+      release_connection(conn)
 
 # API per ottenere le aule disponibili. Usato in formEsame.html
 @fetch_bp.route('/api/ottieniAule', methods=['GET'])
@@ -87,8 +89,10 @@ def ottieniAule():
   except Exception as e:
     return jsonify({'status': 'error', 'message': str(e)}), 500
   finally:
-    cursor.close()
-    conn.close()
+    if 'cursor' in locals() and cursor:
+      cursor.close()
+    if 'conn' in locals() and conn:
+      release_connection(conn)
 
 # API per ottenere tutti gli esami. Usato per gli eventi del calendario
 @fetch_bp.route('/api/getEsami', methods=['GET'])
@@ -210,9 +214,10 @@ def getEsami():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
-        if conn:
+        if 'cursor' in locals() and cursor:
             cursor.close()
-            conn.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
 
 # API per ottenere gli esami di un docente. Usato in mieiEsami.html
 @fetch_bp.route('/api/mieiEsami', methods=['GET'])
@@ -308,8 +313,10 @@ def miei_esami():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
 
 # API per ottenere le date delle sessioni d'esame
 @fetch_bp.route('/api/ottieniSessioni', methods=['GET'])
@@ -348,8 +355,10 @@ def ottieniSessioni():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
 
 @fetch_bp.route('/api/getAnniAccademici', methods=['GET'])
 def getAnniAccademici():
@@ -362,8 +371,10 @@ def getAnniAccademici():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
 
 @fetch_bp.route('/api/getInsegnamentiDocente', methods=['GET'])
 def getInsegnamentiDocente():
@@ -399,5 +410,7 @@ def getInsegnamentiDocente():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, make_response, session
-from db import get_db_connection
+from db import get_db_connection, release_connection
 from functools import wraps
 
 auth_bp = Blueprint('auth', __name__)
@@ -61,7 +61,7 @@ def api_login():
     return jsonify({'status': 'error', 'message': 'Credenziali non valide'}), 401
   finally:
     cursor.close()
-    conn.close()
+    release_connection(conn)
 
 # Decorator per richiedere autenticazione
 def login_required(f):
@@ -128,4 +128,4 @@ def get_user_data():
         }), 500
     finally:
         cursor.close()
-        conn.close()
+        release_connection(conn)
