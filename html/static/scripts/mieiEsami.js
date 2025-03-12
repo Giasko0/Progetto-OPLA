@@ -2,17 +2,22 @@
 
 // Quando il documento è pronto
 document.addEventListener('DOMContentLoaded', function() {
-  // Usa la funzione di auth.js per ottenere e mostrare gli esami dell'utente corrente
-  getCurrentUsername().then(username => {
-    if (username) {
+  // Usa getUserData per ottenere le informazioni sull'utente
+  getUserData().then(data => {
+    if (data && data.authenticated) {
+      const userData = data.user_data;
+      
       // Aggiorna il titolo della pagina con il nome dell'utente
       const titolo = document.querySelector('.titolo');
-      if (titolo) {
-        titolo.textContent = `Esami di ${username.nome} ${username.cognome}`;
+      if (titolo && userData) {
+        titolo.textContent = `Esami di ${userData.nome || ''} ${userData.cognome || ''}`.trim();
+        if (!userData.nome && !userData.cognome) {
+          titolo.textContent = `I miei esami`;
+        }
       }
       
       // Carica gli esami dell'utente usando l'API
-      fetch(`/api/mieiEsami?docente=${encodeURIComponent(username)}`)
+      fetch(`/api/mieiEsami?docente=${encodeURIComponent(userData.username)}`)
         .then(response => {
           if (!response.ok) {
             throw new Error('Errore nel caricamento degli esami');
@@ -33,6 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // Reindirizza alla pagina di login se l'utente non è autenticato
       window.location.href = 'login.html';
     }
+  }).catch(error => {
+    console.error('Errore nell\'autenticazione:', error);
+    window.location.href = 'login.html';
   });
 });
 

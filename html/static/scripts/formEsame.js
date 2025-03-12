@@ -82,8 +82,9 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Funzione per personalizzare il saluto
   function personalizzaSaluto() {
-    getCurrentUsername().then(userData => {
-      if (userData) {
+    getUserData().then(data => {
+      if (data && data.authenticated && data.user_data) {
+        const userData = data.user_data;
         const titolo = document.querySelector('.titolo');
         if (titolo) {
           const nomeCompleto = userData.nome && userData.cognome ? 
@@ -92,7 +93,9 @@ document.addEventListener("DOMContentLoaded", () => {
           titolo.textContent = `Benvenuto, ${nomeCompleto}!`;
         }
       }
-    }).catch(() => {});
+    }).catch(error => {
+      console.error('Errore nel recupero dei dati utente:', error);
+    });
   }
   
   // Funzione per chiudere il popup overlay
@@ -134,37 +137,38 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Funzione per popolare insegnamenti
   function popolaInsegnamenti() {
-    getCurrentUsername()
-      .then(userData => {
-        if (userData && userData.username) {
-          fetch('/api/ottieniInsegnamenti?username=' + userData.username)
-            .then(response => response.json())
-            .then(data => {
-              const optionsContainer = document.getElementById('insegnamentoOptions');
-              if (!optionsContainer) return;
+    getUserData().then(data => {
+      if (data && data.authenticated && data.user_data) {
+        const userData = data.user_data;
+        fetch('/api/ottieniInsegnamenti?username=' + userData.username)
+          .then(response => response.json())
+          .then(data => {
+            const optionsContainer = document.getElementById('insegnamentoOptions');
+            if (!optionsContainer) return;
+            
+            optionsContainer.innerHTML = '';
+            
+            data.forEach(ins => {
+              const option = document.createElement('div');
+              option.className = 'multi-select-option';
+              option.dataset.value = ins.codice;
+              option.textContent = ins.titolo;
               
-              optionsContainer.innerHTML = '';
-              
-              data.forEach(ins => {
-                const option = document.createElement('div');
-                option.className = 'multi-select-option';
-                option.dataset.value = ins.codice;
-                option.textContent = ins.titolo;
-                
-                option.addEventListener('click', function() {
-                  toggleOption(this);
-                });
-                
-                optionsContainer.appendChild(option);
+              option.addEventListener('click', function() {
+                toggleOption(this);
               });
               
-              preselectInsegnamenti();
-              setupExistingTagsRemoval();
-            })
-            .catch(error => console.error('Errore nel caricamento degli insegnamenti:', error));
-        }
-      })
-      .catch(() => {});
+              optionsContainer.appendChild(option);
+            });
+            
+            preselectInsegnamenti();
+            setupExistingTagsRemoval();
+          })
+          .catch(error => console.error('Errore nel caricamento degli insegnamenti:', error));
+      }
+    }).catch(error => {
+      console.error('Errore nel recupero dei dati utente:', error);
+    });
   }
   
   // Funzione per preselezionare insegnamenti
@@ -503,47 +507,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ------- Funzioni di utility -------
   
-  // Ottiene l'username corrente
-  function getCurrentUsername() {
-    return fetch('/api/check-auth')
-      .then(response => response.json())
-      .then(data => {
-        if (data.authenticated) {
-          return {
-            username: data.user_data.username,
-            nome: data.user_data.nome,
-            cognome: data.user_data.cognome
-          };
-        }
-        throw new Error('Utente non autenticato');
-      })
-      .catch(error => {
-        console.error('Errore nel controllo dell\'autenticazione:', error);
-        // Fallback al metodo vecchio
-        const username = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('username='))
-          ?.split('=')[1];
-          
-        if (username) {
-          return { username };
-        }
-        throw new Error('Utente non autenticato');
-      });
-  }
-  
   // Imposta username in un campo
   function setUsernameField(fieldId) {
-    getCurrentUsername()
-      .then(username => {
-        if (username) {
-          const field = document.getElementById(fieldId);
-          if (field) {
-            field.value = username;
-          }
+    getUserData().then(data => {
+      if (data && data.authenticated && data.user_data) {
+        const userData = data.user_data;
+        const field = document.getElementById(fieldId);
+        if (field) {
+          field.value = userData.username;
         }
-      })
-      .catch(() => {});
+      }
+    }).catch(error => {
+      console.error('Errore nel recupero dei dati utente:', error);
+    });
   }
 
   // ------- Gestione form e validazione -------
@@ -793,5 +769,4 @@ document.addEventListener("DOMContentLoaded", () => {
   window.updateHiddenSelect = updateHiddenSelect;
   window.toggleOption = toggleOption;
   window.createInsegnamentoTag = createInsegnamentoTag;
-  window.getCurrentUsername = getCurrentUsername;
 });

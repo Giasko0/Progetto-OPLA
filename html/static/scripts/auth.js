@@ -15,14 +15,10 @@ function getCookie(name) {
   return null;
 }
 
-// Funzione per ottenere lo username dell'utente corrente con caching
+// Funzione per ottenere lo username dell'utente corrente direttamente dal cookie
 function getCurrentUsername() {
-  return getUserData().then(userData => {
-    if (userData && userData.authenticated) {
-      return userData.user_data;
-    }
-    return null;
-  });
+  const username = getCookie('username');
+  return username ? { username } : null;
 }
 
 // Funzione centrale per ottenere i dati dell'utente (con caching)
@@ -51,39 +47,36 @@ function getUserData() {
 
 // Funzione per impostare il valore dell'username in un campo di input
 function setUsernameField(fieldId) {
-  getCurrentUsername()
-    .then(userData => {
-      if (userData && userData.username) {
-        const field = document.getElementById(fieldId);
-        if (field) {
-          field.value = userData.username;
-        }
-      }
-    });
+  const userData = getCurrentUsername();
+  if (userData && userData.username) {
+    const field = document.getElementById(fieldId);
+    if (field) {
+      field.value = userData.username;
+    }
+  }
 }
 
 // Funzione per mostrare/nascondere elementi in base all'autenticazione
 function updateUIByAuth() {
-  getCurrentUsername()
-    .then(user => {
-      const authElements = document.querySelectorAll('[data-auth]');
-      authElements.forEach(el => {
-        if ((el.dataset.auth === 'authenticated' && user && user.username) || 
-            (el.dataset.auth === 'unauthenticated' && (!user || !user.username))) {
-          el.style.display = '';
-        } else {
-          el.style.display = 'none';
-        }
-      });
-      
-      // Mostra il nome utente dove necessario
-      const usernameElements = document.querySelectorAll('[data-username]');
-      usernameElements.forEach(el => {
-        if (user && user.username) {
-          el.textContent = user.username;
-        }
-      });
-    });
+  const user = getCurrentUsername();
+  
+  const authElements = document.querySelectorAll('[data-auth]');
+  authElements.forEach(el => {
+    if ((el.dataset.auth === 'authenticated' && user && user.username) || 
+        (el.dataset.auth === 'unauthenticated' && (!user || !user.username))) {
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+  
+  // Mostra il nome utente dove necessario
+  const usernameElements = document.querySelectorAll('[data-username]');
+  usernameElements.forEach(el => {
+    if (user && user.username) {
+      el.textContent = user.username;
+    }
+  });
 }
 
 // Funzione per invalidare la cache (da chiamare dopo il logout)
