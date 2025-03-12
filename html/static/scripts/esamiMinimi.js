@@ -29,17 +29,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Aggiorna il testo del banner con intestazione
         const messaggioElement = banner.querySelector('.banner-messaggio');
-        messaggioElement.innerHTML = `Attenzione, non è stato inserito il numero minimo di esami per gli insegnamenti:`;
+        messaggioElement.innerHTML = `<small>Insegnamenti con meno di 8 esami inseriti:</small>`;
         
         // Crea una lista HTML per gli insegnamenti
         const listaElement = document.createElement('ul');
-        listaElement.style.marginTop = '10px';
+        listaElement.style.marginTop = '5px';
+        listaElement.style.marginBottom = '5px';
         listaElement.style.paddingLeft = '20px';
         
         // Aggiungi ogni insegnamento come elemento della lista
         insegnamenti.forEach(ins => {
             const itemElement = document.createElement('li');
-            itemElement.textContent = `${ins.titolo} (${ins.codice}): ${ins.esami_inseriti}/8 esami inseriti`;
+            itemElement.textContent = `${ins.titolo}: ${ins.esami_inseriti}/8`;
+            itemElement.style.fontSize = '0.9em';
             listaElement.appendChild(itemElement);
         });
         
