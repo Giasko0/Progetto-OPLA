@@ -20,8 +20,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Funzione per verificare i permessi di amministratore
   function checkAdminPermissions() {
-    return fetch('/api/check-auth')
-      .then(response => response.json())
+    return getUserData()
       .then(data => {
         isAdmin = data.authenticated && data.user_data && data.user_data.permessi_admin;
         return isAdmin;
@@ -201,9 +200,8 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
           }
 
-          // Controlla login
-          fetch('/api/check-auth')
-            .then(response => response.json())
+          // Controlla login usando il sistema di cache
+          getUserData()
             .then(data => {
               if (data.authenticated) {
                 // Formatta data per form

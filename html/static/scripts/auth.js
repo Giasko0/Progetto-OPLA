@@ -1,5 +1,12 @@
 // Autenticazione utente tramite cookie
 
+// Cache per i dati dell'utente
+let authCache = {
+  data: null,
+  timestamp: null,
+  expiresIn: 5 * 60 * 1000 // 5 minuti in millisecondi
+};
+
 // Funzione per recuperare un cookie per nome
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -8,40 +15,48 @@ function getCookie(name) {
   return null;
 }
 
-// Funzione per ottenere lo username dell'utente corrente
+// Funzione per ottenere lo username dell'utente corrente con caching
 function getCurrentUsername() {
+  return getUserData().then(userData => {
+    if (userData && userData.authenticated) {
+      return userData.user_data;
+    }
+    return null;
+  });
+}
 
+// Funzione centrale per ottenere i dati dell'utente (con caching)
+function getUserData() {
+  const now = new Date().getTime();
+  
+  // Se abbiamo dati in cache validi, usiamo quelli
+  if (authCache.data && authCache.timestamp && (now - authCache.timestamp < authCache.expiresIn)) {
+    return Promise.resolve(authCache.data);
+  }
+
+  // Altrimenti facciamo una nuova richiesta
   return fetch('/api/check-auth')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Errore nella risposta del server');
-      }
-      return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-      if (data.authenticated && data.user_data) {
-        return {
-          username: data.user_data.username,
-          nome: data.user_data.nome,
-          cognome: data.user_data.cognome
-        };
-      }
-      return null;
+      // Salviamo i dati nella cache
+      authCache.data = data;
+      authCache.timestamp = new Date().getTime();
+      return data;
     })
     .catch(error => {
-      console.error('Errore nel controllo dell\'autenticazione:', error);
-      return null;
+      console.error('Errore nel recupero dei dati utente:', error);
+      return { authenticated: false, user_data: null };
     });
 }
 
 // Funzione per impostare il valore dell'username in un campo di input
 function setUsernameField(fieldId) {
   getCurrentUsername()
-    .then(user => {
-      if (user && user.username) {
+    .then(userData => {
+      if (userData && userData.username) {
         const field = document.getElementById(fieldId);
         if (field) {
-          field.value = user.username;
+          field.value = userData.username;
         }
       }
     });
@@ -70,3 +85,20 @@ function updateUIByAuth() {
       });
     });
 }
+
+// Funzione per invalidare la cache (da chiamare dopo il logout)
+function clearAuthCache() {
+  authCache.data = null;
+  authCache.timestamp = null;
+}
+
+// Funzione di invalidazione per il logout
+document.addEventListener('DOMContentLoaded', function() {
+  // Cerca link di logout e aggiungi event listener per pulire la cache
+  const logoutLinks = document.querySelectorAll('a[href="/api/logout"]');
+  logoutLinks.forEach(link => {
+    link.addEventListener('click', function() {
+      clearAuthCache();
+    });
+  });
+});

@@ -505,28 +505,15 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Ottiene l'username corrente
   function getCurrentUsername() {
-    return fetch('/api/check-auth')
-      .then(response => response.json())
-      .then(data => {
+    // Utilizziamo la funzione centralizzata da auth.js
+    return window.getCurrentUsername ? window.getCurrentUsername() : 
+      getUserData().then(data => {
         if (data.authenticated) {
           return {
             username: data.user_data.username,
             nome: data.user_data.nome,
             cognome: data.user_data.cognome
           };
-        }
-        throw new Error('Utente non autenticato');
-      })
-      .catch(error => {
-        console.error('Errore nel controllo dell\'autenticazione:', error);
-        // Fallback al metodo vecchio
-        const username = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('username='))
-          ?.split('=')[1];
-          
-        if (username) {
-          return { username };
         }
         throw new Error('Utente non autenticato');
       });

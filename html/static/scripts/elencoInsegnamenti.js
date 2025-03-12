@@ -7,16 +7,15 @@ document.addEventListener("DOMContentLoaded", () => {
     return null;
   }
 
-  // Ottieni informazioni sull'utente autenticato
-  fetch('/api/check-auth')
-    .then(response => response.json())
+  // Ottieni informazioni sull'utente autenticato usando il sistema di cache
+  getUserData()
     .then(data => {
       if (!data.authenticated) {
         console.error("L'utente non sembra essere loggato");
         return;
       }
 
-      const username = data.username;
+      const username = data.user_data.username;
 
       // Send a GET request to the server with the username
       fetch(

@@ -42,9 +42,8 @@ document.addEventListener('DOMContentLoaded', function() {
       navlinksDiv.appendChild(ohIssaLink);
     }
     
-    // Controlliamo se l'utente è autenticato attraverso una chiamata API
-    fetch('/api/check-auth')
-      .then(response => response.json())
+    // Utilizziamo il sistema di cache per controllare l'autenticazione
+    getUserData()
       .then(data => {
         const link = document.createElement('a');
         link.className = 'nav-link';
@@ -65,6 +64,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Errore nel controllo dell\'autenticazione:', error);
         // Fallback al vecchio sistema
         const username = getCookie('username');
+        const link = document.createElement('a');
+        link.className = 'nav-link';
         
         if (username) {
           link.href = "/api/logout";
