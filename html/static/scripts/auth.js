@@ -15,12 +15,6 @@ function getCookie(name) {
   return null;
 }
 
-// Funzione per ottenere lo username dell'utente corrente direttamente dal cookie
-function getCurrentUsername() {
-  const username = getCookie('username');
-  return username ? { username } : null;
-}
-
 // Funzione centrale per ottenere i dati dell'utente (con caching)
 function getUserData() {
   const now = new Date().getTime();
@@ -47,35 +41,43 @@ function getUserData() {
 
 // Funzione per impostare il valore dell'username in un campo di input
 function setUsernameField(fieldId) {
-  const userData = getCurrentUsername();
-  if (userData && userData.username) {
-    const field = document.getElementById(fieldId);
-    if (field) {
-      field.value = userData.username;
+  getUserData().then(data => {
+    if (data && data.authenticated && data.user_data) {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.value = data.user_data.username;
+      }
     }
-  }
+  }).catch(error => {
+    console.error('Errore nel recupero dei dati utente:', error);
+  });
 }
 
 // Funzione per mostrare/nascondere elementi in base all'autenticazione
 function updateUIByAuth() {
-  const user = getCurrentUsername();
-  
-  const authElements = document.querySelectorAll('[data-auth]');
-  authElements.forEach(el => {
-    if ((el.dataset.auth === 'authenticated' && user && user.username) || 
-        (el.dataset.auth === 'unauthenticated' && (!user || !user.username))) {
-      el.style.display = '';
-    } else {
-      el.style.display = 'none';
-    }
-  });
-  
-  // Mostra il nome utente dove necessario
-  const usernameElements = document.querySelectorAll('[data-username]');
-  usernameElements.forEach(el => {
-    if (user && user.username) {
-      el.textContent = user.username;
-    }
+  getUserData().then(data => {
+    const isAuthenticated = data && data.authenticated && data.user_data;
+    const username = isAuthenticated ? data.user_data.username : null;
+    
+    const authElements = document.querySelectorAll('[data-auth]');
+    authElements.forEach(el => {
+      if ((el.dataset.auth === 'authenticated' && isAuthenticated) || 
+          (el.dataset.auth === 'unauthenticated' && !isAuthenticated)) {
+        el.style.display = '';
+      } else {
+        el.style.display = 'none';
+      }
+    });
+    
+    // Mostra il nome utente dove necessario
+    const usernameElements = document.querySelectorAll('[data-username]');
+    usernameElements.forEach(el => {
+      if (isAuthenticated) {
+        el.textContent = username;
+      }
+    });
+  }).catch(error => {
+    console.error('Errore nel recupero dei dati utente:', error);
   });
 }
 
