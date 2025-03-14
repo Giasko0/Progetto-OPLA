@@ -94,7 +94,10 @@ function fetchAndDisplayEsami() {
         const tabButton = document.createElement("button");
         tabButton.className = "tab-button";
         tabButton.textContent = insegnamento;
-        tabButton.onclick = () => switchTab(insegnamento);
+        // Usa un link diretto per cambiare pagina
+        tabButton.onclick = function() {
+          window.location.href = `?insegnamento=${encodeURIComponent(insegnamento)}`;
+        };
         tabsHeader.appendChild(tabButton);
         
         // Crea il contenuto del tab
@@ -114,63 +117,45 @@ function fetchAndDisplayEsami() {
       const allExamsTab = document.createElement("div");
       allExamsTab.className = "tab-content";
       allExamsTab.id = "tab-all-exams";
-      // Mostra questo tab per default
-      allExamsTab.style.display = 'block';
+      
+      // Per default, tutti i tab sono nascosti
+      allExamsTab.style.display = 'none';
       displayAllExams(data, allExamsTab);
       container.appendChild(allExamsTab);
       
-      // Evidenzia il pulsante "Tutti gli appelli" come selezionato
-      allExamsButton.classList.add('active');
+      // Leggi il parametro URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const insegnamentoParam = urlParams.get('insegnamento');
+      
+      // Se c'è un parametro insegnamento nell'URL
+      if (insegnamentoParam) {
+        // Cerca il tab corrispondente
+        const tabId = `tab-${insegnamentoParam.replace(/\s+/g, "-")}`;
+        const tab = document.getElementById(tabId);
+        
+        if (tab) {
+          // Mostra il tab richiesto
+          tab.style.display = 'block';
+          
+          // Attiva il pulsante corrispondente
+          const buttons = document.querySelectorAll('.tab-button');
+          buttons.forEach(button => {
+            if (button.textContent === insegnamentoParam) {
+              button.classList.add('active');
+            }
+          });
+        } else {
+          // Se non esiste, mostra "Tutti gli appelli"
+          allExamsTab.style.display = 'block';
+          allExamsButton.classList.add('active');
+        }
+      } else {
+        // Se non c'è parametro, mostra "Tutti gli appelli"
+        allExamsTab.style.display = 'block';
+        allExamsButton.classList.add('active');
+      }
     })
     .catch((error) => console.error("Errore:", error));
-}
-
-function switchTab(insegnamento) {
-  // Modifica per rimuovere la logica delle classi active
-  document.querySelectorAll('.tab-content').forEach(content => {
-    content.style.display = 'none';
-  });
-  
-  // Rimuovi la classe active da tutti i pulsanti
-  document.querySelectorAll('.tab-button, .all-exams-button').forEach(button => {
-    button.classList.remove('active');
-  });
-  
-  // Mostra solo il tab selezionato senza usare classi active
-  const selectedContent = document.querySelector(`#tab-${insegnamento.replace(/\s+/g, "-")}`);
-  
-  if (selectedContent) {
-    selectedContent.style.display = 'block';
-  }
-  
-  // Trova e attiva il pulsante corrispondente
-  const buttons = document.querySelectorAll('.tab-button');
-  buttons.forEach(button => {
-    if (button.textContent === insegnamento) {
-      button.classList.add('active');
-    }
-  });
-}
-
-function showAllExams() {
-  // Modifica per rimuovere la logica delle classi active
-  document.querySelectorAll('.tab-content').forEach(content => {
-    content.style.display = 'none';
-  });
-  
-  // Rimuovi la classe active da tutti i pulsanti
-  document.querySelectorAll('.tab-button, .all-exams-button').forEach(button => {
-    button.classList.remove('active');
-  });
-  
-  // Mostra solo il tab "Tutti gli appelli" senza usare classi active
-  const allExamsTab = document.getElementById("tab-all-exams");
-  if (allExamsTab) {
-    allExamsTab.style.display = 'block';
-  }
-  
-  // Aggiungi la classe active al pulsante "Tutti gli appelli"
-  document.getElementById('allExamsButton').classList.add('active');
 }
 
 function displayTabelleEsami(data, insegnamento, container) {
@@ -337,12 +322,7 @@ function displayAllExams(data, container) {
     
     // Aggiungi il click handler
     cardElement.addEventListener('click', () => {
-      // Trova e clicca il tab button corrispondente
-      const tabButton = Array.from(document.querySelectorAll('.tab-button'))
-        .find(button => button.textContent === insegnamento);
-      if (tabButton) {
-        tabButton.click();
-      }
+      window.location.href = `?insegnamento=${encodeURIComponent(insegnamento)}`;
     });
     
     sessionsGrid.appendChild(cardElement);
@@ -475,3 +455,13 @@ function formatDateTime(dateTimeStr) {
 
 // Espone funzioni necessarie per l'HTML
 window.sortTable = sortTable;
+
+// Aggiorna l'evento del pulsante "Tutti gli appelli"
+document.addEventListener('DOMContentLoaded', function() {
+  const allExamsButton = document.getElementById('allExamsButton');
+  if (allExamsButton) {
+    allExamsButton.onclick = function() {
+      window.location.href = window.location.pathname;
+    };
+  }
+});
