@@ -240,11 +240,7 @@ def miei_esami():
           WITH esami_unici AS (
             SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
                    e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
-                   c.inizio_sessione_anticipata, c.fine_sessione_anticipata,
-                   c.inizio_sessione_estiva, c.fine_sessione_estiva,
-                   c.inizio_sessione_autunnale, c.fine_sessione_autunnale,
-                   c.inizio_sessione_invernale, c.fine_sessione_invernale,
-                   c.nome_corso as nome_cds, c.codice as codice_cds,
+                   c.codice as codice_cds, c.nome_corso as nome_cds,
                    a.edificio
             FROM esami e
             JOIN insegnamenti i ON e.insegnamento = i.codice
@@ -264,50 +260,60 @@ def miei_esami():
         insegnamenti = {}
         
         for row in rows:
-          # Estrai i dati base dell'esame
-          docente, titolo, aula, data_appello, ora = row[:5]
-          # Estrai le date delle sessioni
-          date_sessioni = row[5:13]
-          # Estrai le informazioni aggiuntive
-          nome_cds, codice_cds, edificio = row[13:]
-          
-          # Formatta l'edificio come sigla se presente
-          aula_completa = f"{aula} ({edificio})" if edificio else aula
-          
-          # Determina la sessione in base alle date
-          sessione = None
-          if data_appello >= date_sessioni[0] and data_appello <= date_sessioni[1]:
-            sessione = 'Anticipata'
-          elif data_appello >= date_sessioni[2] and data_appello <= date_sessioni[3]:
-            sessione = 'Estiva'
-          elif data_appello >= date_sessioni[4] and data_appello <= date_sessioni[5]:
-            sessione = 'Autunnale'
-          elif data_appello >= date_sessioni[6] and data_appello <= date_sessioni[7]:
-            sessione = 'Invernale'
-          
-          # Formatta l'esame
-          exam = {
-            'docente': docente,
-            'insegnamento': titolo,
-            'aula': aula_completa,
-            'data': data_appello.strftime("%d/%m/%Y"),
-            'ora': ora.strftime("%H:%M") if ora else "00:00",
-            'dataora': f"{data_appello.isoformat()}T{ora.isoformat() if ora else '00:00:00'}",
-            'cds': nome_cds,
-            'codice_cds': codice_cds
-          }
-          esami.append(exam)
-          
-          # Aggiorna il conteggio delle sessioni
-          if titolo not in insegnamenti:
-            insegnamenti[titolo] = {
-              'Anticipata': 0,
-              'Estiva': 0,
-              'Autunnale': 0,
-              'Invernale': 0
+            # Estrai i dati base dell'esame
+            docente, titolo, aula, data_appello, ora = row[:5]
+            # Estrai le informazioni aggiuntive
+            codice_cds, nome_cds, edificio = row[5:8]
+            
+            # Formatta l'edificio come sigla se presente
+            aula_completa = f"{aula} ({edificio})" if edificio else aula
+            
+            # Determina la sessione a cui appartiene l'esame
+            cursor.execute("""
+                SELECT tipo_periodo
+                FROM periodi_esame
+                WHERE cds = %s
+                AND anno_accademico = %s
+                AND %s BETWEEN inizio AND fine
+            """, (codice_cds, planning_year, data_appello))
+            
+            tipo_periodo = None
+            periodo_row = cursor.fetchone()
+            if periodo_row:
+                tipo_periodo = periodo_row[0]
+            
+            # Se tipo_periodo include "PAUSA", lo mappiamo come periodo speciale
+            sessione = None
+            if tipo_periodo:
+                if "PAUSA" in tipo_periodo:
+                    sessione = "Pausa Didattica"
+                else:
+                    sessione = tipo_periodo.capitalize()
+            
+            # Formatta l'esame
+            exam = {
+                'docente': docente,
+                'insegnamento': titolo,
+                'aula': aula_completa,
+                'data': data_appello.strftime("%d/%m/%Y"),
+                'ora': ora.strftime("%H:%M") if ora else "00:00",
+                'dataora': f"{data_appello.isoformat()}T{ora.isoformat() if ora else '00:00:00'}",
+                'cds': nome_cds,
+                'codice_cds': codice_cds
             }
-          if sessione:
-            insegnamenti[titolo][sessione] += 1
+            esami.append(exam)
+            
+            # Aggiorna il conteggio delle sessioni
+            if titolo not in insegnamenti:
+                insegnamenti[titolo] = {
+                    'Anticipata': 0,
+                    'Estiva': 0,
+                    'Autunnale': 0,
+                    'Invernale': 0,
+                    'Pausa Didattica': 0
+                }
+            if sessione:
+                insegnamenti[titolo][sessione] += 1
         
         return jsonify({'esami': esami, 'insegnamenti': insegnamenti}), 200
     except Exception as e:
@@ -327,30 +333,40 @@ def ottieniSessioni():
         
         current_date = datetime.now()
         anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
-
-        cursor.execute("""
-            SELECT 
-                inizio_sessione_anticipata, fine_sessione_anticipata,
-                inizio_sessione_estiva, fine_sessione_estiva,
-                inizio_sessione_autunnale, fine_sessione_autunnale,
-                inizio_sessione_invernale, fine_sessione_invernale,
-                pausa_didattica_primo_inizio, pausa_didattica_primo_fine,
-                pausa_didattica_secondo_inizio, pausa_didattica_secondo_fine
-            FROM cds 
-            WHERE anno_accademico = %s
-        """, (anno_accademico,))
         
-        result = cursor.fetchone()
-        if result:
-            return jsonify({
-                'anticipata': {'start': result[0].isoformat(), 'end': result[1].isoformat()},
-                'estiva': {'start': result[2].isoformat(), 'end': result[3].isoformat()},
-                'autunnale': {'start': result[4].isoformat(), 'end': result[5].isoformat()},
-                'invernale': {'start': result[6].isoformat(), 'end': result[7].isoformat()},
-                'pausa_primo': {'start': result[8].isoformat(), 'end': result[9].isoformat()},
-                'pausa_secondo': {'start': result[10].isoformat(), 'end': result[11].isoformat()}
-            })
-        return jsonify({'error': 'Nessuna sessione trovata'}), 404
+        # Ottieni il CDS specificato o il primo disponibile
+        cds_code = request.args.get('cds')
+        if not cds_code:
+            cursor.execute("SELECT codice FROM cds WHERE anno_accademico = %s LIMIT 1", (anno_accademico,))
+            result = cursor.fetchone()
+            if result:
+                cds_code = result[0]
+            else:
+                return jsonify({'error': 'Nessun corso di studi trovato'}), 404
+
+        # Ottieni i periodi d'esame dalla nuova tabella
+        cursor.execute("""
+            SELECT tipo_periodo, inizio, fine, max_esami
+            FROM periodi_esame
+            WHERE cds = %s AND anno_accademico = %s
+            ORDER BY inizio
+        """, (cds_code, anno_accademico))
+        
+        periodi = cursor.fetchall()
+        
+        if not periodi:
+            return jsonify({'error': 'Nessuna sessione trovata per il corso di studi selezionato'}), 404
+        
+        # Costruisci il risultato
+        result = {}
+        for periodo, inizio, fine, max_esami in periodi:
+            result[periodo.lower()] = {
+                'start': inizio.isoformat(),
+                'end': fine.isoformat(),
+                'max_esami': max_esami
+            }
+        
+        return jsonify(result)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

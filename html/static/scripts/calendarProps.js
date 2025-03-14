@@ -27,15 +27,17 @@ export function createDropdown(type, data, calendar) {
     document.body.appendChild(dropdown);
     
     if (type === 'sessioni') {
-        // Popola il dropdown con le sessioni
-        dropdown.innerHTML = `
-          <div class="dropdown-item" data-data="${data.anticipata.start}">Sessione Anticipata</div>
-          <div class="dropdown-item" data-data="${data.estiva.start}">Sessione Estiva</div>
-          <div class="dropdown-item" data-data="${data.autunnale.start}">Sessione Autunnale</div>
-          <div class="dropdown-item" data-data="${data.invernale.start}">Sessione Invernale</div>
-          <div class="dropdown-item" data-data="${data.pausa_primo.start}">Pausa Didattica (1° sem)</div>
-          <div class="dropdown-item" data-data="${data.pausa_secondo.start}">Pausa Didattica (2° sem)</div>
-        `;
+        // Popola il dropdown con le sessioni disponibili
+        dropdown.innerHTML = '';
+        
+        // Aggiungi le voci di menu per ogni tipo di sessione
+        for (const [nome, periodo] of Object.entries(data)) {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.dataset.data = periodo.start;
+            item.textContent = formatSessionName(nome);
+            dropdown.appendChild(item);
+        }
     }
     
     return dropdown;
@@ -220,14 +222,40 @@ export function createInsegnamentoTag(codice, titolo, container) {
 
 // Converte le sessioni in array di date valide per esami
 export function getDateValideFromSessioni(sessioni) {
-    return [
-        [sessioni.anticipata.start, sessioni.anticipata.end, 'Sessione Anticipata'],
-        [sessioni.estiva.start, sessioni.estiva.end, 'Sessione Estiva'],
-        [sessioni.autunnale.start, sessioni.autunnale.end, 'Sessione Autunnale'],
-        [sessioni.invernale.start, sessioni.invernale.end, 'Sessione Invernale'],
-        [sessioni.pausa_primo.start, sessioni.pausa_primo.end, 'Pausa Didattica'],
-        [sessioni.pausa_secondo.start, sessioni.pausa_secondo.end, 'Pausa Didattica']
-    ];
+    const dateValide = [];
+    
+    // Iteriamo su tutti i periodi presenti nella risposta
+    for (const [nome, periodo] of Object.entries(sessioni)) {
+        dateValide.push([
+            periodo.start, 
+            periodo.end, 
+            formatSessionName(nome)
+        ]);
+    }
+    
+    return dateValide;
+}
+
+// Formatta il nome della sessione per la visualizzazione
+function formatSessionName(nome) {
+    // Gestisce la formattazione dei nomi dei periodi
+    switch(nome) {
+        case 'estiva': 
+            return 'Sessione Estiva';
+        case 'autunnale': 
+            return 'Sessione Autunnale';
+        case 'invernale': 
+            return 'Sessione Invernale';
+        case 'anticipata': 
+            return 'Sessione Anticipata';
+        case 'pausa_autunnale': 
+            return 'Pausa Didattica (1° sem)';
+        case 'pausa_primaverile': 
+            return 'Pausa Didattica (2° sem)';
+        default:
+            // Capitalizza il nome se non riconosciuto
+            return nome.charAt(0).toUpperCase() + nome.slice(1).replace('_', ' ');
+    }
 }
 
 // Aggiorna la select nascosta con i valori dei tag

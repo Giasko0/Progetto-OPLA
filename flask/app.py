@@ -172,19 +172,13 @@ def inserisciEsame():
         cursor.execute("""
           SELECT COUNT(*) 
           FROM esami e
-          JOIN insegnamenti i ON e.insegnamento = i.codice
-          JOIN cds c ON c.codice = %s AND c.anno_accademico = %s
+          JOIN periodi_esame pe ON pe.cds = %s 
+                              AND pe.anno_accademico = %s
+                              AND pe.tipo_periodo = %s
           WHERE e.docente = %s 
-          AND e.insegnamento = %s
-          AND (
-            CASE %s
-              WHEN 'Anticipata' THEN e.data_appello BETWEEN c.inizio_sessione_anticipata AND c.fine_sessione_anticipata
-              WHEN 'Estiva' THEN e.data_appello BETWEEN c.inizio_sessione_estiva AND c.fine_sessione_estiva
-              WHEN 'Autunnale' THEN e.data_appello BETWEEN c.inizio_sessione_autunnale AND c.fine_sessione_autunnale
-              WHEN 'Invernale' THEN e.data_appello BETWEEN c.inizio_sessione_invernale AND c.fine_sessione_invernale
-            END
-          )
-        """, (cds_code, anno_acc, docente, insegnamento, sessione))
+            AND e.insegnamento = %s
+            AND e.data_appello BETWEEN pe.inizio AND pe.fine
+        """, (cds_code, anno_acc, sessione, docente, insegnamento))
 
         if cursor.fetchone()[0] >= limite_max:
           esami_invalidi.append({

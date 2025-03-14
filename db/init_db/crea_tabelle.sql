@@ -1,12 +1,12 @@
 -- Droppa tutte le tabelle
 DROP TABLE IF EXISTS esami CASCADE;
 DROP TABLE IF EXISTS insegna CASCADE;
-DROP TABLE IF EXISTS docenti CASCADE;
 DROP TABLE IF EXISTS utenti CASCADE;
 DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
 DROP TABLE IF EXISTS insegnamenti CASCADE;
 DROP TABLE IF EXISTS cds CASCADE;
 DROP TABLE IF EXISTS aule CASCADE;
+DROP TABLE IF EXISTS periodi_esame CASCADE;
 
 -- Creazione della tabella 'aule'
 CREATE TABLE aule (
@@ -26,20 +26,23 @@ CREATE TABLE cds (
     fine_lezioni_primo_semestre DATE,    -- Fine lezioni primo semestre
     inizio_lezioni_secondo_semestre DATE,-- Inizio lezioni secondo semestre
     fine_lezioni_secondo_semestre DATE,  -- Fine lezioni secondo semestre
-    pausa_didattica_primo_inizio DATE,   -- Inizio pausa didattica primo semestre
-    pausa_didattica_primo_fine DATE,     -- Fine pausa didattica primo semestre
-    pausa_didattica_secondo_inizio DATE, -- Inizio pausa didattica secondo semestre
-    pausa_didattica_secondo_fine DATE,   -- Fine pausa didattica secondo semestre
-    inizio_sessione_anticipata DATE,     -- Inizio sessione anticipata (gen/feb)
-    fine_sessione_anticipata DATE,       -- Fine sessione anticipata
-    inizio_sessione_estiva DATE,         -- Inizio sessione estiva (giu/lug)
-    fine_sessione_estiva DATE,           -- Fine sessione estiva
-    inizio_sessione_autunnale DATE,      -- Inizio sessione autunnale (set)
-    fine_sessione_autunnale DATE,        -- Fine sessione autunnale
-    inizio_sessione_invernale DATE,      -- Inizio sessione invernale (gen/feb anno successivo)
-    fine_sessione_invernale DATE,        -- Fine sessione invernale
     PRIMARY KEY (codice, anno_accademico),
     CONSTRAINT check_anno_accademico CHECK (anno_accademico >= 1900 AND anno_accademico <= 2100)
+);
+-- Creazione della tabella "periodi_esame"
+CREATE TABLE periodi_esame (
+    cds TEXT,
+    anno_accademico INTEGER,
+    tipo_periodo TEXT, -- 'ESTIVA', 'AUTUNNALE', 'INVERNALE', 'PAUSA_AUTUNNALE', 'PAUSA_PRIMAVERILE'
+    inizio DATE NOT NULL,
+    fine DATE NOT NULL,
+    max_esami INTEGER DEFAULT 3,
+    PRIMARY KEY (cds, anno_accademico, tipo_periodo),
+    FOREIGN KEY (cds, anno_accademico) REFERENCES cds(codice, anno_accademico),
+    CONSTRAINT check_tipo_periodo CHECK (tipo_periodo IN (
+        'ESTIVA', 'AUTUNNALE', 'INVERNALE', 'ANTICIPATA',
+        'PAUSA_AUTUNNALE', 'PAUSA_PRIMAVERILE'
+    ))
 );
 
 -- Creazione della tabella 'insegnamenti' (generici, possono essere usati da qualsiasi corso di studio)
@@ -56,7 +59,7 @@ CREATE TABLE insegnamenti_cds (
     anno_corso INT NOT NULL,    -- Anno del cds (1, 2 o 3 per triennale)
     semestre INT NOT NULL,      -- Semestre (1, 2 o 3 per annuale)
     mutuato_da TEXT,            -- Codice dell'insegnamento da cui è mutuato
-    PRIMARY KEY (insegnamento, anno_accademico),
+    PRIMARY KEY (insegnamento, anno_accademico, cds),
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(codice) ON DELETE CASCADE,
     FOREIGN KEY (cds, anno_accademico) REFERENCES cds(codice, anno_accademico) ON DELETE CASCADE,
     FOREIGN KEY (mutuato_da) REFERENCES insegnamenti(codice) ON DELETE SET NULL
@@ -65,7 +68,7 @@ CREATE TABLE insegnamenti_cds (
 -- Creazione della tabella 'utenti'
 CREATE TABLE utenti (
     username TEXT PRIMARY KEY,   -- Username del docente (ad020022) (chiave primaria)
-    matricola TEXT,              -- Matricola del docente (011876)
+    matricola TEXT NOT NULL,     -- Matricola del docente (011876) (NOT NULL)
     email TEXT,                  -- Email del docente
     nome TEXT,                   -- Nome del docente
     cognome TEXT,                -- Cognome del docente

@@ -22,50 +22,136 @@ INSERT INTO utenti (username, matricola, email, nome, cognome, permessi_visitato
     ('mr800001', '011872', 'mr@gmail.com', 'Mario', 'Rossi', true, true, false),         -- Docente: ha permessi docente e visitatore
     ('pg950001', '011871', 'pg@gmail.com', 'Paolo', 'Gialli', true, true, false);        -- Docente: ha permessi docente e visitatore
 
--- Inserimento CDS con date complete
-INSERT INTO cds (
-    codice, anno_accademico, nome_corso, durata,
+-- Inserimento CDS con date base
+INSERT INTO cds (codice, anno_accademico, nome_corso, durata,
     inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
-    inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre,
-    pausa_didattica_primo_inizio, pausa_didattica_primo_fine,
-    pausa_didattica_secondo_inizio, pausa_didattica_secondo_fine,
-    inizio_sessione_anticipata, fine_sessione_anticipata,
-    inizio_sessione_estiva, fine_sessione_estiva,
-    inizio_sessione_autunnale, fine_sessione_autunnale,
-    inizio_sessione_invernale, fine_sessione_invernale
-) VALUES (
-    'L062', 2025, 'Informatica Triennale', 3,
-    '2025-09-25', '2025-12-22',                    -- Primo semestre
-    '2026-02-24', '2026-05-31',                    -- Secondo semestre
-    '2025-11-01', '2025-11-03',                    -- Pausa primo semestre
-    '2026-04-09', '2026-04-14',                    -- Pausa secondo semestre
-    '2026-01-07', '2026-02-21',                    -- Sessione anticipata
-    '2026-06-03', '2026-07-31',                    -- Sessione estiva
-    '2026-09-01', '2026-09-30',                    -- Sessione autunnale
-    '2027-01-07', '2027-02-21'                     -- Sessione invernale
+    inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre
+) VALUES 
+-- Corsi 2024
+('L062', 2024, 'Informatica Triennale', 3,
+    '2024-09-25', '2024-12-22',                    
+    '2025-02-24', '2025-05-31'                    
 ),
-(
-    'L062', 2024, 'Informatica Triennale', 3,
-    '2024-09-25', '2024-12-22',                    -- Primo semestre
-    '2025-02-24', '2025-05-31',                    -- Secondo semestre
-    '2024-11-01', '2024-11-03',                    -- Pausa primo semestre
-    '2025-04-09', '2025-04-14',                    -- Pausa secondo semestre
-    '2025-01-07', '2025-02-21',                    -- Sessione anticipata
-    '2025-06-03', '2025-07-31',                    -- Sessione estiva
-    '2025-09-01', '2025-09-30',                    -- Sessione autunnale
-    '2026-01-07', '2026-02-21'                     -- Sessione invernale
+('L035', 2024, 'Matematica', 3,
+    '2024-09-23', '2024-12-20',                    
+    '2025-02-26', '2025-05-30'                     
 ),
-(
-    'L035', 2024, 'Matematica', 3,
-    '2024-09-23', '2024-12-20',                    -- Primo semestre
-    '2025-02-26', '2025-05-30',                    -- Secondo semestre
-    '2024-11-01', '2024-11-05',                    -- Pausa primo semestre
-    '2025-04-10', '2025-04-15',                    -- Pausa secondo semestre
-    '2025-01-10', '2025-02-22',                    -- Sessione anticipata
-    '2025-06-05', '2025-07-30',                    -- Sessione estiva
-    '2025-09-01', '2025-10-01',                    -- Sessione autunnale
-    '2026-01-09', '2026-02-20'                     -- Sessione invernale
+('LM21', 2024, 'Informatica Magistrale', 2,
+    '2024-09-25', '2024-12-22',
+    '2025-02-24', '2025-05-31'
+),
+('LM40', 2024, 'Matematica Magistrale', 2, 
+    '2024-09-23', '2024-12-20',
+    '2025-02-26', '2025-05-30'
+),
+('L31', 2024, 'Informatica e SMI', 3,
+    '2024-09-25', '2024-12-22',
+    '2025-02-24', '2025-05-31'
 );
+
+-- Inserimento CDS per l'anno 2025
+INSERT INTO cds (codice, anno_accademico, nome_corso, durata,
+    inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
+    inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre
+) VALUES 
+-- Corsi 2025
+('L062', 2025, 'Informatica Triennale', 3,
+    '2025-09-24', '2025-12-21',                    
+    '2026-02-23', '2026-05-30'                    
+),
+('L035', 2025, 'Matematica', 3,
+    '2025-09-22', '2025-12-19',                    
+    '2026-02-25', '2026-05-29'                     
+),
+('LM21', 2025, 'Informatica Magistrale', 2,
+    '2025-09-24', '2025-12-21',
+    '2026-02-23', '2026-05-30'
+),
+('LM40', 2025, 'Matematica Magistrale', 2,
+    '2025-09-22', '2025-12-19',
+    '2026-02-25', '2026-05-29'
+),
+('L31', 2025, 'Informatica e SMI', 3,
+    '2025-09-24', '2025-12-21',
+    '2026-02-23', '2026-05-30'
+);
+
+-- Inserimento periodi d'esame
+INSERT INTO periodi_esame (cds, anno_accademico, tipo_periodo, inizio, fine, max_esami) VALUES
+-- Informatica L062 2024
+('L062', 2024, 'ANTICIPATA', '2025-01-07', '2025-02-21', 3),
+('L062', 2024, 'ESTIVA', '2025-06-03', '2025-07-31', 3),
+('L062', 2024, 'AUTUNNALE', '2025-09-01', '2025-09-30', 2),
+('L062', 2024, 'INVERNALE', '2026-01-07', '2026-02-21', 3),
+('L062', 2024, 'PAUSA_AUTUNNALE', '2024-11-01', '2024-11-03', 1),
+('L062', 2024, 'PAUSA_PRIMAVERILE', '2025-04-09', '2025-04-14', 1),
+
+-- Matematica L035 2024
+('L035', 2024, 'ANTICIPATA', '2025-01-09', '2025-02-20', 3),
+('L035', 2024, 'ESTIVA', '2025-06-05', '2025-07-30', 3),
+('L035', 2024, 'AUTUNNALE', '2025-09-01', '2025-10-01', 2),
+('L035', 2024, 'INVERNALE', '2026-01-09', '2026-02-20', 3),
+('L035', 2024, 'PAUSA_AUTUNNALE', '2024-11-01', '2024-11-05', 1),
+('L035', 2024, 'PAUSA_PRIMAVERILE', '2025-04-10', '2025-04-15', 1),
+
+-- Informatica Magistrale LM21 2024
+('LM21', 2024, 'ANTICIPATA', '2025-01-07', '2025-02-21', 3),
+('LM21', 2024, 'ESTIVA', '2025-06-03', '2025-07-31', 3),
+('LM21', 2024, 'AUTUNNALE', '2025-09-01', '2025-09-30', 2),
+('LM21', 2024, 'INVERNALE', '2026-01-07', '2026-02-21', 3),
+('LM21', 2024, 'PAUSA_AUTUNNALE', '2024-11-01', '2024-11-03', 1),
+('LM21', 2024, 'PAUSA_PRIMAVERILE', '2025-04-09', '2025-04-14', 1),
+
+-- Matematica Magistrale LM40 2024
+('LM40', 2024, 'ANTICIPATA', '2025-01-09', '2025-02-20', 3),
+('LM40', 2024, 'ESTIVA', '2025-06-05', '2025-07-30', 3),
+('LM40', 2024, 'AUTUNNALE', '2025-09-01', '2025-10-01', 2),
+('LM40', 2024, 'INVERNALE', '2026-01-09', '2026-02-20', 3),
+('LM40', 2024, 'PAUSA_AUTUNNALE', '2024-11-01', '2024-11-05', 1),
+('LM40', 2024, 'PAUSA_PRIMAVERILE', '2025-04-10', '2025-04-15', 1),
+
+-- Informatica e SMI L31 2024
+('L31', 2024, 'ANTICIPATA', '2025-01-07', '2025-02-21', 3),
+('L31', 2024, 'ESTIVA', '2025-06-03', '2025-07-31', 3),
+('L31', 2024, 'AUTUNNALE', '2025-09-01', '2025-09-30', 2),
+('L31', 2024, 'INVERNALE', '2026-01-07', '2026-02-21', 3),
+('L31', 2024, 'PAUSA_AUTUNNALE', '2024-11-01', '2024-11-03', 1),
+('L31', 2024, 'PAUSA_PRIMAVERILE', '2025-04-09', '2025-04-14', 1),
+
+-- Informatica L062 2025
+('L062', 2025, 'ESTIVA', '2026-06-02', '2026-07-30', 3),
+('L062', 2025, 'AUTUNNALE', '2026-09-01', '2026-09-30', 2),
+('L062', 2025, 'INVERNALE', '2027-01-07', '2027-02-20', 3),
+('L062', 2025, 'PAUSA_AUTUNNALE', '2025-11-01', '2025-11-03', 1),
+('L062', 2025, 'PAUSA_PRIMAVERILE', '2026-04-08', '2026-04-13', 1),
+
+-- Matematica L035 2025
+('L035', 2025, 'ESTIVA', '2026-06-04', '2026-07-29', 3),
+('L035', 2025, 'AUTUNNALE', '2026-09-01', '2026-09-30', 2),
+('L035', 2025, 'INVERNALE', '2027-01-08', '2027-02-19', 3),
+('L035', 2025, 'PAUSA_AUTUNNALE', '2025-11-01', '2025-11-05', 1),
+('L035', 2025, 'PAUSA_PRIMAVERILE', '2026-04-09', '2026-04-14', 1),
+
+-- Informatica Magistrale LM21 2025
+('LM21', 2025, 'ESTIVA', '2026-06-02', '2026-07-30', 3),
+('LM21', 2025, 'AUTUNNALE', '2026-09-01', '2026-09-30', 2),
+('LM21', 2025, 'INVERNALE', '2027-01-07', '2027-02-20', 3),
+('LM21', 2025, 'PAUSA_AUTUNNALE', '2025-11-01', '2025-11-03', 1),
+('LM21', 2025, 'PAUSA_PRIMAVERILE', '2026-04-08', '2026-04-13', 1),
+
+-- Matematica Magistrale LM40 2025
+('LM40', 2025, 'ESTIVA', '2026-06-04', '2026-07-29', 3),
+('LM40', 2025, 'AUTUNNALE', '2026-09-01', '2026-09-30', 2),
+('LM40', 2025, 'INVERNALE', '2027-01-08', '2027-02-19', 3),
+('LM40', 2025, 'PAUSA_AUTUNNALE', '2025-11-01', '2025-11-05', 1),
+('LM40', 2025, 'PAUSA_PRIMAVERILE', '2026-04-09', '2026-04-14', 1),
+
+-- Informatica e SMI L31 2025
+('L31', 2025, 'ESTIVA', '2026-06-02', '2026-07-30', 3),
+('L31', 2025, 'AUTUNNALE', '2026-09-01', '2026-09-30', 2),
+('L31', 2025, 'INVERNALE', '2027-01-07', '2027-02-20', 3),
+('L31', 2025, 'PAUSA_AUTUNNALE', '2025-11-01', '2025-11-03', 1),
+('L31', 2025, 'PAUSA_PRIMAVERILE', '2026-04-08', '2026-04-13', 1);
 
 -- Inserimento insegnamenti (ora solo codice e titolo)
 INSERT INTO insegnamenti (codice, titolo) VALUES
@@ -85,10 +171,23 @@ INSERT INTO insegnamenti (codice, titolo) VALUES
 ('A000452', 'Analisi Matematica II'),
 ('A000453', 'Geometria'),
 ('A000454', 'Fisica Matematica'),
-('A000455', 'Calcolo Numerico');
+('A000455', 'Calcolo Numerico'),
+-- Insegnamenti Informatica Magistrale
+('LM001', 'Advanced Software Engineering'),
+('LM002', 'Advanced Computer Networks'),
+('LM003', 'Cloud Computing'),
+('LM004', 'Distributed Systems and Security'),
+('LM005', 'Data Mining and Analytics'),
+-- Insegnamenti Matematica Magistrale  
+('LM101', 'Analisi Funzionale'),
+('LM102', 'Teoria dei Gruppi'),
+('LM103', 'Geometria Differenziale'),
+('LM104', 'Teoria della Probabilità'),
+('LM105', 'Fisica Matematica Superiore');
 
 -- Inserimento configurazione insegnamenti per anno 2024
 INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da) VALUES
+-- Insegnamenti per L062
 ('A000392', 2024, 'L062', 3, 2, NULL),  -- Reti di Calcolatori
 ('A000390', 2024, 'L062', 2, 1, NULL),  -- Algoritmi e Strutture Dati
 ('A000406', 2024, 'L062', 3, 1, NULL),  -- Sistemi Distribuiti
@@ -105,7 +204,25 @@ INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, se
 ('A000452', 2024, 'L035', 1, 2, NULL),  -- Analisi Matematica II
 ('A000453', 2024, 'L035', 2, 1, NULL),  -- Geometria
 ('A000454', 2024, 'L035', 2, 2, NULL),  -- Fisica Matematica
-('A000455', 2024, 'L035', 3, 1, NULL);  -- Calcolo Numerico
+('A000455', 2024, 'L035', 3, 1, NULL),  -- Calcolo Numerico
+-- Informatica Magistrale
+('LM001', 2024, 'LM21', 1, 1, NULL),
+('LM002', 2024, 'LM21', 1, 2, NULL),
+('LM003', 2024, 'LM21', 1, 2, NULL),
+('LM004', 2024, 'LM21', 2, 1, NULL),
+('LM005', 2024, 'LM21', 2, 1, NULL),
+-- Matematica Magistrale
+('LM101', 2024, 'LM40', 1, 1, NULL),
+('LM102', 2024, 'LM40', 1, 2, NULL),
+('LM103', 2024, 'LM40', 2, 1, NULL),
+('LM104', 2024, 'LM40', 2, 1, NULL),
+('LM105', 2024, 'LM40', 2, 2, NULL),
+-- Informatica e SMI (mutua alcuni corsi da Informatica)
+('A000385', 2024, 'L31', 1, 1, NULL),
+('A000389', 2024, 'L31', 1, 2, NULL),
+('A000390', 2024, 'L31', 2, 1, 'A000390'),
+('A000394', 2024, 'L31', 2, 2, 'A000394'),
+('A000392', 2024, 'L31', 3, 1, 'A000392');
 
 -- Esempio di cambio semestre/anno per alcuni insegnamenti nel 2025
 INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da) VALUES
@@ -141,6 +258,18 @@ INSERT INTO insegna (insegnamento, docente, annoaccademico) VALUES
 ('A000453', 'gn900001', 2024),  -- Geometria: Giulia Neri
 ('A000454', 'lb750001', 2024),  -- Fisica Matematica: Luigi Bianchi
 ('A000455', 'mr800001', 2024),  -- Calcolo Numerico: Mario Rossi
+-- Informatica Magistrale
+('LM001', 'lb750001', 2024),
+('LM002', 'gn900001', 2024),
+('LM003', 'av790001', 2024),
+('LM004', 'pg950001', 2024),
+('LM005', 'mr800001', 2024),
+-- Matematica Magistrale
+('LM101', 'av790001', 2024),
+('LM102', 'pg950001', 2024),
+('LM103', 'gn900001', 2024),
+('LM104', 'mr800001', 2024),
+('LM105', 'lb750001', 2024),
 
 -- Anno 2025 (con cambi di docente)
 ('A000392', 'av790001', 2025),  -- Reti di Calcolatori: cambiato da gn900001 a av790001

@@ -248,7 +248,7 @@ function displaySessioniEsami(data, insegnamento, container) {
     {
       nome: "Pausa Didattica",
       periodo: `Mar/Apr ${planningYear}`,
-      count: sessioni["Pausa Didattica Primavera"] || 0,
+      count: sessioni["Pausa Didattica"] || 0,
       max: 1
     },
     {
@@ -266,7 +266,7 @@ function displaySessioniEsami(data, insegnamento, container) {
     {
       nome: "Pausa Didattica",
       periodo: `Nov ${planningYear}`,
-      count: sessioni["Pausa Didattica Autunno"] || 0,
+      count: sessioni["Pausa Didattica"] || 0,
       max: 1
     },
     {
