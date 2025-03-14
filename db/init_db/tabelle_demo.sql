@@ -299,7 +299,7 @@ INSERT INTO esami (
     '09:00', 'FIRMA DIGITALE', 'SO', 80,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
-    'Portare documento identità', NULL, 2.5, 0),
+    'Portare documento identità', NULL, 150, 0),
 
 -- Esami AA 2024/2025 (tutte le sessioni)
     ('PF', 'lb750001', 'A000394', 'A0',         -- BD
@@ -335,7 +335,7 @@ INSERT INTO esami (
     '09:00', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
-    NULL, NULL, 2.5, 0),
+    NULL, NULL, 150, 0),
 
 -- AA 2024/2025 (sessione invernale)
     ('PF', 'lb750001', 'A000394', 'A0',         -- BD
@@ -343,7 +343,7 @@ INSERT INTO esami (
     '14:30', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
-    NULL, NULL, 3.0, 1),
+    NULL, NULL, 180, 1),
 
 -- Esami per il CdS di Matematica
     ('PF', 'av790001', 'A000450', 'A0',        -- Analisi Matematica I
@@ -366,11 +366,11 @@ INSERT INTO esami (
     '09:00', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
-    'Portare calcolatrice scientifica', NULL, 3.5, 0),
+    'Portare calcolatrice scientifica', NULL, 210, 0),
 
     ('PF', 'mr800001', 'A000455', 'B1',        -- Calcolo Numerico
     '2025-07-05', '2025-06-05', '2025-07-03', 
     '14:30', 'FIRMA DIGITALE', 'SO', 20,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
-    NULL, NULL, 3.0, 0);
+    NULL, NULL, 180, 0);

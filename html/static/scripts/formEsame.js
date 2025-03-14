@@ -497,7 +497,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
   
-  // Determina periodo (mattina/pomeriggio) in base all'ora
+  // Funzione per determinare periodo (mattina/pomeriggio) in base all'ora
   function determinaPeriodo(ora) {
     if (!ora) return null;
     const oreParts = ora.split(':');
@@ -532,6 +532,14 @@ document.addEventListener("DOMContentLoaded", () => {
     return hours >= 8 && hours <= 23;
   }
   
+  // Funzione per validare la durata dell'esame
+  function validaDurataEsame(durataMinuti) {
+    if (!durataMinuti) return false;
+    
+    const durata = parseInt(durataMinuti, 10);
+    return durata >= 30 && durata <= 480; // Minimo 30 minuti, massimo 8 ore (480 minuti)
+  }
+
   // Handler submit form
   function handleFormSubmit(e) {
     e.preventDefault();
@@ -545,6 +553,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const aulaSelezionata = document.getElementById('aula')?.value;
     if (!aulaSelezionata) {
       showPopup("Seleziona un'aula disponibile", "Errore di validazione", {type: 'error'});
+      return;
+    }
+
+    const durataEsame = document.getElementById('durata')?.value;
+    if (!validaDurataEsame(durataEsame)) {
+      showPopup("La durata dell'esame deve essere di almeno 30 minuti e non superiore a 480 minuti (8 ore)", "Errore di validazione", {type: 'error'});
       return;
     }
     

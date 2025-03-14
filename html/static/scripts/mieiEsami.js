@@ -192,12 +192,14 @@ function displayTabelleEsami(data, insegnamento, container) {
               <th onclick="sortTable('${table.id}', 1)">Insegnamento</th>
               <th onclick="sortTable('${table.id}', 2, 'date')">Data</th>
               <th onclick="sortTable('${table.id}', 3)">Aula</th>
+              <th onclick="sortTable('${table.id}', 4)">Durata (min)</th>
           </tr>
       </thead>
       <tbody></tbody>
     `;
 
     const tbody = table.querySelector("tbody");
+    
     esamiInsegnamento.forEach((esame) => {
       const row = tbody.insertRow();
       row.insertCell(0).textContent = esame.cds || "N/A";
@@ -209,6 +211,7 @@ function displayTabelleEsami(data, insegnamento, container) {
       dataCell.setAttribute('data-datetime', esame.dataora);
       
       row.insertCell(3).textContent = esame.aula;
+      row.insertCell(4).textContent = esame.durata_appello || "120";
     });
 
     section.appendChild(table);
@@ -362,6 +365,7 @@ function displayAllExams(data, container) {
             <th onclick="sortTable('${tableAllExams.id}', 1)">Insegnamento</th>
             <th onclick="sortTable('${tableAllExams.id}', 2, 'date')">Data</th>
             <th onclick="sortTable('${tableAllExams.id}', 3)">Aula</th>
+            <th onclick="sortTable('${tableAllExams.id}', 4)">Durata (min)</th>
         </tr>
     </thead>
     <tbody></tbody>
@@ -386,6 +390,7 @@ function displayAllExams(data, container) {
     dataCell.setAttribute('data-datetime', esame.dataora);
     
     row.insertCell(3).textContent = esame.aula;
+    row.insertCell(4).textContent = esame.durata_appello || "120";
   });
 
   section.appendChild(tableAllExams);

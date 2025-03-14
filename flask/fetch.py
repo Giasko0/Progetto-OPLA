@@ -241,7 +241,7 @@ def miei_esami():
             SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
                    e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
                    c.codice as codice_cds, c.nome_corso as nome_cds,
-                   a.edificio
+                   a.edificio, e.durata_appello
             FROM esami e
             JOIN insegnamenti i ON e.insegnamento = i.codice
             JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento
@@ -263,7 +263,7 @@ def miei_esami():
             # Estrai i dati base dell'esame
             docente, titolo, aula, data_appello, ora = row[:5]
             # Estrai le informazioni aggiuntive
-            codice_cds, nome_cds, edificio = row[5:8]
+            codice_cds, nome_cds, edificio, durata_appello = row[5:9]
             
             # Formatta l'edificio come sigla se presente
             aula_completa = f"{aula} ({edificio})" if edificio else aula
@@ -299,7 +299,8 @@ def miei_esami():
                 'ora': ora.strftime("%H:%M") if ora else "00:00",
                 'dataora': f"{data_appello.isoformat()}T{ora.isoformat() if ora else '00:00:00'}",
                 'cds': nome_cds,
-                'codice_cds': codice_cds
+                'codice_cds': codice_cds,
+                'durata_appello': durata_appello
             }
             esami.append(exam)
             

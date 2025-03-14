@@ -583,7 +583,8 @@ def get_calendario_esami():
                 e.data_appello,
                 EXTRACT(DAY FROM e.data_appello) as giorno,
                 to_char(e.data_appello, 'MM') as mese,
-                to_char(e.data_appello, 'YYYY') as anno
+                to_char(e.data_appello, 'YYYY') as anno,
+                e.durata_appello
             FROM insegnamenti_cds ic
             LEFT JOIN esami e ON ic.codice = e.insegnamento
             ORDER BY ic.anno_corso, ic.semestre, ic.titolo
@@ -594,7 +595,7 @@ def get_calendario_esami():
         insegnamenti_map = {}
         
         for row in cursor.fetchall():
-            codice, titolo, anno_corso, semestre, data_appello, giorno, mese_numero, anno_str = row
+            codice, titolo, anno_corso, semestre, data_appello, giorno, mese_numero, anno_str, durata_appello = row
             
             # Crea o recupera l'insegnamento
             if codice not in insegnamenti_map:
@@ -622,7 +623,8 @@ def get_calendario_esami():
                     "giorno": int(giorno),
                     "periodo": periodo_nome,
                     "mese": int(mese_numero),
-                    "anno": int(anno_str)
+                    "anno": int(anno_str),
+                    "durata": durata_appello
                 })
         
         # Aggiungi periodi da tutti gli esami (nel caso non fossero già inclusi)

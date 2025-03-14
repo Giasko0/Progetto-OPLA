@@ -217,10 +217,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         return esame.mese === periodo.mese && esame.anno === periodo.anno;
                     });
                     
-                    // Se ci sono esami, mostra i giorni
+                    // Se ci sono esami, mostra i giorni e le durate
                     if (esamiPeriodo.length > 0) {
                         // Estrai i giorni e ordinali
-                        const giorni = esamiPeriodo.map(esame => esame.giorno).sort((a, b) => a - b);
+                        const giorni = esamiPeriodo.map(esame => {
+                            const durata = esame.durata_appello ? ` (${esame.durata_appello} min)` : '';
+                            return `${esame.giorno}${durata}`;
+                        }).sort((a, b) => parseInt(a) - parseInt(b));
                         
                         // Crea la stringa con i giorni separati da virgola
                         tdEsami.textContent = giorni.join(' - ');

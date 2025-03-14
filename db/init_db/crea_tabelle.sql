@@ -38,7 +38,7 @@ CREATE TABLE periodi_esame (
     fine DATE NOT NULL,
     max_esami INTEGER DEFAULT 3,
     PRIMARY KEY (cds, anno_accademico, tipo_periodo),
-    FOREIGN KEY (cds, anno_accademico) REFERENCES cds(codice, anno_accademico),
+    FOREIGN KEY (cds, anno_accademico) REFERENCES cds(codice, anno_accademico) ON DELETE CASCADE,
     CONSTRAINT check_tipo_periodo CHECK (tipo_periodo IN (
         'ESTIVA', 'AUTUNNALE', 'INVERNALE', 'ANTICIPATA',
         'PAUSA_AUTUNNALE', 'PAUSA_PRIMAVERILE'
@@ -98,7 +98,7 @@ CREATE TABLE esami (
     data_inizio_iscrizione DATE NOT NULL, -- Data di apertura iscrizioni
     data_fine_iscrizione DATE NOT NULL,   -- Data di chiusura iscrizioni
     ora_appello TIME NOT NULL,            -- Ora di inizio dell'esame
-    durata_appello REAL NOT NULL,         -- Durata dell'esame (in ore)
+    durata_appello REAL NOT NULL,         -- Durata dell'esame (in minuti)
     periodo INT NOT NULL,                 -- Periodo dell'esame (mattina o pomeriggio)
     verbalizzazione TEXT NOT NULL,        -- Modalità di verbalizzazione (Firme...)
     definizione_appello TEXT,             -- Boh (STD)
