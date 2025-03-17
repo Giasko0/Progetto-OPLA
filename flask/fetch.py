@@ -27,9 +27,9 @@ def ottieniInsegnamenti():
     query = """
       SELECT DISTINCT i.codice, i.titolo 
       FROM insegnamenti i 
-      JOIN insegna ins ON i.codice = ins.insegnamento 
-      WHERE ins.docente = %s 
-      AND ins.annoaccademico = %s
+      JOIN insegnamento_docente id ON i.codice = id.insegnamento 
+      WHERE id.docente = %s 
+      AND id.annoaccademico = %s
     """
     params = [username, planning_year]
     
@@ -143,14 +143,14 @@ def getEsami():
                 JOIN insegnamenti i ON e.insegnamento = i.codice
                 JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
                     AND ic.anno_accademico = %s
-                JOIN insegna ins ON e.insegnamento = ins.insegnamento 
-                    AND ins.annoaccademico = ic.anno_accademico
+                JOIN insegnamento_docente id ON e.insegnamento = id.insegnamento 
+                    AND id.annoaccademico = ic.anno_accademico
                 WHERE e.docente = %s
             """
             params = [planning_year, docente]
             
             if anno:
-                query += " AND ins.annoaccademico = %s"
+                query += " AND id.annoaccademico = %s"
                 params.append(int(anno))
                 
             query += " ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello"
@@ -179,8 +179,8 @@ def getEsami():
                 JOIN parametri_selezionati ps ON ic.anno_corso = ps.anno_corso 
                     AND ic.semestre = ps.semestre
                     AND ic.cds = ps.cds
-                JOIN insegna ins ON e.insegnamento = ins.insegnamento 
-                    AND ins.annoaccademico = ic.anno_accademico
+                JOIN insegnamento_docente id ON e.insegnamento = id.insegnamento 
+                    AND id.annoaccademico = ic.anno_accademico
                 WHERE 1=1
             """.format(','.join(['%s'] * len(insegnamenti)))
             
@@ -188,7 +188,7 @@ def getEsami():
             
             # Aggiungi filtri aggiuntivi se specificati
             if anno:
-                query += " AND ins.annoaccademico = %s"
+                query += " AND id.annoaccademico = %s"
                 params.append(int(anno))
                 
             query += " ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello"
@@ -408,11 +408,11 @@ def getInsegnamentiDocente():
                 SELECT DISTINCT ON (i.codice, ic.cds)
                        i.codice, i.titolo, ic.semestre, ic.anno_corso, ic.cds, c.nome_corso
                 FROM insegnamenti i
-                JOIN insegna ins ON i.codice = ins.insegnamento
+                JOIN insegnamento_docente id ON i.codice = id.insegnamento
                 JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
                 JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico
-                WHERE ins.docente = %s 
-                AND ins.annoaccademico = %s
+                WHERE id.docente = %s 
+                AND id.annoaccademico = %s
                 AND ic.anno_accademico = %s
                 ORDER BY i.codice, ic.cds, ic.anno_accademico DESC
             )
@@ -424,6 +424,85 @@ def getInsegnamentiDocente():
                         'cds_codice': row[4], 'cds_nome': row[5]} 
                         for row in cursor.fetchall()]
         return jsonify(insegnamenti)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+# API per ottenere i corsi di studio associati a un docente
+@fetch_bp.route('/api/ottieniCdSDocente', methods=['GET'])
+def ottieniCdSDocente():
+    docente = request.args.get('docente')
+    anno = request.args.get('anno')
+    
+    if not docente or not anno:
+        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Ottiene tutti i CdS distinti associati agli insegnamenti del docente
+        cursor.execute("""
+            SELECT DISTINCT c.codice, c.nome_corso
+            FROM cds c
+            JOIN insegnamenti_cds ic ON c.codice = ic.cds AND c.anno_accademico = ic.anno_accademico
+            JOIN insegnamento_docente id ON ic.insegnamento = id.insegnamento AND ic.anno_accademico = id.annoaccademico
+            WHERE id.docente = %s 
+            AND ic.anno_accademico = %s
+            ORDER BY c.nome_corso
+        """, (docente, anno))
+        
+        cds_list = [{'codice': row[0], 'nome_corso': row[1]} for row in cursor.fetchall()]
+        return jsonify(cds_list)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+# API per ottenere le sessioni d'esame specifiche per un corso di studio
+@fetch_bp.route('/api/ottieniSessioniCds', methods=['GET'])
+def ottieniSessioniCds():
+    cds = request.args.get('cds')
+    anno = request.args.get('anno')
+    
+    if not cds or not anno:
+        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Recupera i periodi d'esame per il CdS specificato
+        cursor.execute("""
+            SELECT tipo_periodo, inizio, fine, max_esami
+            FROM periodi_esame
+            WHERE cds = %s AND anno_accademico = %s
+            ORDER BY inizio
+        """, (cds, anno))
+        
+        periodi = cursor.fetchall()
+        
+        if not periodi:
+            # Se non ci sono periodi specifici per il CdS, usa quelli di default
+            return ottieniSessioni()
+        
+        # Costruisci il risultato
+        result = {}
+        for periodo, inizio, fine, max_esami in periodi:
+            result[periodo.lower()] = {
+                'start': inizio.isoformat(),
+                'end': fine.isoformat(),
+                'max_esami': max_esami
+            }
+        
+        return jsonify(result)
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:

@@ -19,11 +19,12 @@ export function getPlanningYear() {
     return currentDate.getMonth() >= 9 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
 }
 
-// Crea un dropdown per sessioni o insegnamenti
+// Crea un dropdown per sessioni, insegnamenti o cds
 export function createDropdown(type, data, calendar) {
     const dropdown = document.createElement('div');
     dropdown.className = 'calendar-dropdown';
     if (type === 'sessioni') dropdown.id = 'sessioniDropdown';
+    if (type === 'cds') dropdown.id = 'cdsDropdown';
     document.body.appendChild(dropdown);
     
     if (type === 'sessioni') {
@@ -44,9 +45,17 @@ export function createDropdown(type, data, calendar) {
 }
 
 // Popola il dropdown degli insegnamenti raggruppandoli per CdS
-export function populateInsegnamentiDropdown(dropdownInsegnamenti, docente, planningYear) {
+export function populateInsegnamentiDropdown(dropdownInsegnamenti, docente, planningYear, cdsFiltro = null) {
+    // Parametri per la richiesta
+    let url = `/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`;
+    
+    // Aggiungi filtro CdS se presente
+    if (cdsFiltro) {
+        url += `&cds=${cdsFiltro}`;
+    }
+    
     // Richiesta API per gli insegnamenti
-    fetch(`/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`)
+    fetch(url)
         .then(response => response.json())
         .then(insegnamenti => {
             // Raggruppa gli insegnamenti per CDS
@@ -113,7 +122,7 @@ export function populateInsegnamentiDropdown(dropdownInsegnamenti, docente, plan
 }
 
 // Aggiorna gli eventi del calendario con i dati filtrati
-export function fetchCalendarEvents(calendar, planningYear, info = null, successCallback = null) {
+export function fetchCalendarEvents(calendar, planningYear, info = null, successCallback = null, cdsFiltro = null) {
     // Ottieni docente dai cookie
     const loggedDocente = document.cookie
         .split('; ')
@@ -161,6 +170,11 @@ export function fetchCalendarEvents(calendar, planningYear, info = null, success
     } else {
         // Fallback: solo esami docente
         params.append('solo_docente', 'true');
+    }
+    
+    // Aggiungi filtro per CdS se presente
+    if (cdsFiltro) {
+        params.append('cds', cdsFiltro);
     }
     
     // Richiesta API

@@ -22,6 +22,7 @@ app.config['SECRET_KEY'] = os.urandom(24)
 # Inizializza il pool di connessioni prima di registrare i blueprint
 init_db()
 
+# Registrazione dei blueprint
 app.register_blueprint(auth_bp)
 app.register_blueprint(saml_bp)
 app.register_blueprint(admin_bp)
@@ -418,10 +419,10 @@ def confermaEsami():
     if conn:
       release_connection(conn)
 
-@app.route('/api/esamiMinimi', methods=['GET'])
+# API per verificare se sono stati inseriti almeno 8 esami per insegnamento del docente
+@app.route('/api/checkEsamiMinimi', methods=['GET'])
 @require_auth
 def esamiMinimi():
-    """API per verificare se sono stati inseriti almeno 8 esami per insegnamento del docente"""
     try:
         if app.config['SAML_ENABLED']:
             username = session.get('saml_nameid')
@@ -431,25 +432,18 @@ def esamiMinimi():
         if not username:
             return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
         
-        anno_accademico = request.args.get('anno_accademico')
-        if not anno_accademico:
-            # Usa l'anno accademico corrente come default
-            current_year = datetime.now().year
-            month = datetime.now().month
-            if month >= 9:  # Se siamo prima di settembre, l'anno accademico è l'anno prossimo
-                anno_accademico = current_year
-            else:
-                anno_accademico = current_year-1
+        current_year = datetime.now().year
+        anno_accademico = current_year if datetime.now().month >= 9 else current_year - 1
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # Ottiene tutti gli insegnamenti del docente per l'anno accademico
         cursor.execute("""
-            SELECT i.insegnamento, ins.titolo
-            FROM insegna i
-            JOIN insegnamenti ins ON i.insegnamento = ins.codice
-            WHERE i.docente = %s AND i.annoaccademico = %s
+            SELECT id.insegnamento, ins.titolo
+            FROM insegnamento_docente id
+            JOIN insegnamenti ins ON id.insegnamento = ins.codice
+            WHERE id.docente = %s AND id.annoaccademico = %s
         """, (username, anno_accademico))
         
         insegnamenti = cursor.fetchall()
