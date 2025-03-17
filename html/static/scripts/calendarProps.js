@@ -234,15 +234,20 @@ export function createInsegnamentoTag(codice, titolo, container) {
     return tag;
 }
 
-// Converte le sessioni in array di date valide per esami
+// Converti le sessioni in array di date valide per esami
 export function getDateValideFromSessioni(sessioni) {
     const dateValide = [];
     
     // Iteriamo su tutti i periodi presenti nella risposta
     for (const [nome, periodo] of Object.entries(sessioni)) {
+        // Assicuriamoci che le date siano nel formato corretto
+        // La data di inizio a mezzanotte e la data di fine a fine giornata
+        const startDate = periodo.start;
+        const endDate = periodo.end;
+        
         dateValide.push([
-            periodo.start, 
-            periodo.end, 
+            startDate, 
+            endDate, 
             formatSessionName(nome)
         ]);
     }

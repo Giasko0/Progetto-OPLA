@@ -504,7 +504,93 @@ def ottieniSessioniCds():
         
         return jsonify(result)
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+# API per ottenere l'intersezione delle sessioni d'esame di tutti i CdS di un docente
+@fetch_bp.route('/api/ottieniIntersessioniCds', methods=['GET'])
+def ottieniIntersessioniCds():
+    docente = request.args.get('docente')
+    anno = request.args.get('anno')
+    
+    if not docente or not anno:
+        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Recupera tutti i CdS associati al docente
+        cursor.execute("""
+            SELECT DISTINCT c.codice
+            FROM cds c
+            JOIN insegnamenti_cds ic ON c.codice = ic.cds AND c.anno_accademico = ic.anno_accademico
+            JOIN insegnamento_docente id ON ic.insegnamento = id.insegnamento AND ic.anno_accademico = id.annoaccademico
+            WHERE id.docente = %s 
+            AND ic.anno_accademico = %s
+        """, (docente, anno))
+        
+        cds_list = [row[0] for row in cursor.fetchall()]
+        
+        if not cds_list:
+            return jsonify({'error': 'Nessun corso di studi trovato per il docente'}), 404
+        
+        # Recupera i periodi d'esame di tutti i CdS
+        periodi_per_tipo = {}
+        
+        for cds_code in cds_list:
+            cursor.execute("""
+                SELECT tipo_periodo, inizio, fine, max_esami
+                FROM periodi_esame
+                WHERE cds = %s AND anno_accademico = %s
+                ORDER BY inizio
+            """, (cds_code, anno))
+            
+            for periodo, inizio, fine, max_esami in cursor.fetchall():
+                if periodo not in periodi_per_tipo:
+                    periodi_per_tipo[periodo] = {
+                        'start': inizio,
+                        'end': fine,
+                        'max_esami': max_esami,
+                        'cds_count': 1
+                    }
+                else:
+                    # Calcola l'intersezione
+                    current_start = periodi_per_tipo[periodo]['start']
+                    current_end = periodi_per_tipo[periodo]['end']
+                    
+                    # L'inizio dell'intersezione è il massimo tra gli inizi
+                    new_start = max(current_start, inizio)
+                    # La fine dell'intersezione è il minimo tra le fini
+                    new_end = min(current_end, fine)
+                    
+                    # Conserva il minimo numero di esami consentiti
+                    min_max_esami = min(periodi_per_tipo[periodo]['max_esami'], max_esami)
+                    
+                    periodi_per_tipo[periodo].update({
+                        'start': new_start,
+                        'end': new_end,
+                        'max_esami': min_max_esami,
+                        'cds_count': periodi_per_tipo[periodo]['cds_count'] + 1
+                    })
+        
+        # Filtra solo i periodi comuni a tutti i CdS
+        result = {}
+        for periodo, dati in periodi_per_tipo.items():
+            if dati['cds_count'] == len(cds_list) and dati['start'] <= dati['end']:
+                result[periodo.lower()] = {
+                    'start': dati['start'].isoformat(),
+                    'end': dati['end'].isoformat(),
+                    'max_esami': dati['max_esami']
+                }
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     finally:
         if 'cursor' in locals() and cursor:
             cursor.close()

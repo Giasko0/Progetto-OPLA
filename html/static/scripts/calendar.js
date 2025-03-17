@@ -17,6 +17,9 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // Variabile per tener traccia del CdS selezionato
   let selectedCds = null;
+  
+  // Variabile per memorizzare le date valide correnti
+  let dateValide = [];
 
   // Controlla se l'utente è un amministratore
   let isAdmin = false;
@@ -41,7 +44,7 @@ document.addEventListener("DOMContentLoaded", function () {
   ])
     .then(([sessioni]) => {
       // Converti in array di date
-      const dateValide = getDateValideFromSessioni(sessioni);
+      dateValide = getDateValideFromSessioni(sessioni);
 
       // Crea dropdown
       const dropdownSessioni = createDropdown('sessioni', sessioni);
@@ -251,6 +254,9 @@ document.addEventListener("DOMContentLoaded", function () {
           // Verifica data in sessione valida
           const dataValida = dateValide.some(([start, end]) => {
               const startDate = new Date(start);
+              // Reset delle ore per la data di inizio per un confronto corretto
+              startDate.setHours(0, 0, 0, 0);
+              
               const endDate = new Date(end);
               endDate.setHours(23, 59, 59, 999);
               
@@ -469,6 +475,9 @@ document.addEventListener("DOMContentLoaded", function () {
           // Verifica data in sessione
           const dataValida = dateValide.some(([start, end]) => {
               const startDate = new Date(start);
+              // Reset delle ore per la data di inizio per un confronto corretto
+              startDate.setHours(0, 0, 0, 0);
+              
               const endDate = new Date(end);
               endDate.setHours(23, 59, 59, 999);
               
@@ -498,18 +507,63 @@ document.addEventListener("DOMContentLoaded", function () {
         // Salva il CdS selezionato
         selectedCds = item.dataset.codice || null;
         
+        // Ottieni il docente loggato
+        const docente = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('username='))
+          ?.split('=')[1];
+          
+        if (!docente) {
+          console.error('Impossibile determinare il docente loggato');
+          return;
+        }
+        
         // Aggiorna le sessioni in base al CdS selezionato
         if (selectedCds) {
           fetch(`/api/ottieniSessioniCds?cds=${selectedCds}&anno=${planningYear}`)
             .then(response => response.json())
             .then(sessioniCds => {
-              // Aggiorna le date valide
-              const dateValideCds = getDateValideFromSessioni(sessioniCds);
+              // Aggiorna le date valide con quelle specifiche del CdS
+              dateValide = getDateValideFromSessioni(sessioniCds);
               
-              // Aggiorna il calendario con le nuove date
+              // Aggiorna il calendario con le nuove date valide
+              updateCalendarWithDates(calendar, dateValide);
+              
+              // Aggiorna gli eventi
               calendar.setOption('events', (info, successCallback) => 
                 fetchCalendarEvents(calendar, planningYear, info, successCallback, selectedCds)
               );
+              
+              // Chiudi il dropdown
+              dropdownCds.classList.remove('show');
+              
+              // Ricarica il calendario e ridisegna
+              calendar.refetchEvents();
+              
+              // Aggiorna anche il dropdown delle sessioni
+              updateSessioniDropdown(dropdownSessioni, dateValide);
+            })
+            .catch(error => {
+              console.error('Errore nel caricamento delle sessioni del CdS:', error);
+            });
+        } else {
+          // Per "Tutti i CdS" utilizziamo l'intersezione delle date di sessione
+          fetch(`/api/ottieniIntersessioniCds?docente=${docente}&anno=${planningYear}`)
+            .then(response => response.json())
+            .then(sessioniIntersection => {
+              // Aggiorna le date valide con l'intersezione
+              dateValide = getDateValideFromSessioni(sessioniIntersection);
+              
+              // Aggiorna il calendario con le nuove date valide
+              updateCalendarWithDates(calendar, dateValide);
+              
+              // Aggiorna gli eventi
+              calendar.setOption('events', (info, successCallback) => 
+                fetchCalendarEvents(calendar, planningYear, info, successCallback)
+              );
+              
+              // Aggiorna anche il dropdown delle sessioni
+              updateSessioniDropdown(dropdownSessioni, dateValide);
               
               // Chiudi il dropdown
               dropdownCds.classList.remove('show');
@@ -518,21 +572,57 @@ document.addEventListener("DOMContentLoaded", function () {
               calendar.refetchEvents();
             })
             .catch(error => {
-              console.error('Errore nel caricamento delle sessioni del CdS:', error);
+              console.error('Errore nel caricamento dell\'intersezione delle sessioni:', error);
+              
+              // In caso di errore, ritorna alle sessioni di default
+              fetch('/api/ottieniSessioni')
+                .then(response => response.json())
+                .then(sessioniDefault => {
+                  // Ripristina le date valide di default
+                  dateValide = getDateValideFromSessioni(sessioniDefault);
+                  updateCalendarWithDates(calendar, dateValide);
+                  updateSessioniDropdown(dropdownSessioni, dateValide);
+                  calendar.refetchEvents();
+                });
             });
-        } else {
-          // Reset alle impostazioni originali (tutti i CdS)
-          calendar.setOption('events', (info, successCallback) => 
-            fetchCalendarEvents(calendar, planningYear, info, successCallback)
-          );
-          
-          // Chiudi il dropdown
-          dropdownCds.classList.remove('show');
-          
-          // Ricarica il calendario
-          calendar.refetchEvents();
         }
       });
+
+      // Funzione helper per aggiornare il calendario con nuove date
+      function updateCalendarWithDates(calendar, dates) {
+        calendar.setOption('dayCellClassNames', function(arg) {
+          const dataCorrente = arg.date;
+          
+          // Verifica data in sessione
+          const dataValida = dates.some(([start, end]) => {
+            const startDate = new Date(start);
+            startDate.setHours(0, 0, 0, 0);
+            
+            const endDate = new Date(end);
+            endDate.setHours(23, 59, 59, 999);
+            
+            return dataCorrente >= startDate && dataCorrente <= endDate;
+          });
+          
+          // Applica classe per date non valide
+          return dataValida ? [] : ['fc-disabled-day'];
+        });
+      }
+      
+      // Funzione helper per aggiornare il dropdown delle sessioni
+      function updateSessioniDropdown(dropdown, dates) {
+        if (dropdown) {
+          dropdown.innerHTML = '';
+          // Aggiungi le voci di menu per ogni tipo di sessione
+          for (const [start, end, nome] of dates) {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.dataset.data = start;
+            item.textContent = nome;
+            dropdown.appendChild(item);
+          }
+        }
+      }
 
       // Dropdown sessioni
       dropdownSessioni.addEventListener('click', (e) => {
