@@ -137,31 +137,26 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Ottieni la durata del corso
-        const durata = data.durata || 3;
-        
         // Organizziamo gli insegnamenti per anno di corso
         const insegnamentiPerAnno = {};
-        for (let i = 1; i <= durata; i++) {
-            insegnamentiPerAnno[i] = [];
-        }
         
         // Raggruppa gli insegnamenti per anno di corso
         data.insegnamenti.forEach(insegnamento => {
             const anno = insegnamento.anno_corso || 1;
-            if (anno <= durata) {
-                insegnamentiPerAnno[anno].push(insegnamento);
+            if (!insegnamentiPerAnno[anno]) {
+                insegnamentiPerAnno[anno] = [];
             }
+            insegnamentiPerAnno[anno].push(insegnamento);
         });
         
         // Crea una lista ordinata di periodi
         const periodi = data.periodi || [];
         
         // Per ogni anno di corso, crea una tabella separata
-        for (let anno = 1; anno <= durata; anno++) {
+        Object.keys(insegnamentiPerAnno).sort().forEach(anno => {
             // Controlla se ci sono insegnamenti per questo anno
             if (insegnamentiPerAnno[anno].length === 0) {
-                continue;
+                return;
             }
             
             // Crea un div per l'anno di corso
@@ -238,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
             table.appendChild(tbody);
             annoDiv.appendChild(table);
             calendarioContainer.appendChild(annoDiv);
-        }
+        });
         
         // Aggiungi stili CSS per rendere la tabella più leggibile
         const style = document.createElement('style');

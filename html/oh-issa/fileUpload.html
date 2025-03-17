@@ -5,14 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
-  <title>Carica File - OH-ISSA</title>
+  <title>Importazione Dati - OH-ISSA</title>
   <link rel="stylesheet" href="static/styles/admin.css">
   <script src="static/scripts/common.js"></script>
   <script src="static/scripts/authCheck.js"></script>
   <script src="static/scripts/navbarAdmin.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Gestisci il form di upload unificato
+      // Gestione upload file U-GOV
       document.getElementById('uploadForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const fileInput = document.getElementById('ugovFile');
@@ -23,17 +23,24 @@
           return;
         }
         
+        if (!file.name.toLowerCase().endsWith('.xls') && !file.name.toLowerCase().endsWith('.xlsx')) {
+          showMessage('error', 'Formato file non supportato. Usare file Excel (.xls, .xlsx)');
+          return;
+        }
+        
         const formData = new FormData();
         formData.append('file', file);
         
-        fetch('/oh-issa/api/upload-ugov', {
+        showMessage('info', 'Caricamento in corso...');
+        
+        fetch('/oh-issa/api/uploadFileUGOV', {
           method: 'POST',
           body: formData
         })
         .then(response => response.json())
         .then(data => {
           if (data.status === 'success') {
-            showMessage('success', data.message);
+            showMessage('success', data.message, data.details);
           } else {
             showMessage('error', data.message);
           }
@@ -44,19 +51,26 @@
       });
     });
     
-    function showMessage(type, text) {
+    function showMessage(type, text, details) {
       const messagesDiv = document.getElementById('responseMessages');
+      messagesDiv.innerHTML = '';
+      
       const messageDiv = document.createElement('div');
-      messageDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'}`;
+      messageDiv.className = `alert alert-${type === 'success' ? 'success' : type === 'info' ? 'info' : 'danger'}`;
       messageDiv.textContent = text;
       
-      messagesDiv.innerHTML = '';
+      if (details) {
+        const detailsDiv = document.createElement('pre');
+        detailsDiv.className = 'import-details';
+        detailsDiv.textContent = details;
+        messageDiv.appendChild(detailsDiv);
+      }
+      
       messagesDiv.appendChild(messageDiv);
       
-      // Auto-dismiss dopo 5 secondi
-      setTimeout(() => {
-        messageDiv.remove();
-      }, 5000);
+      if (type === 'info') {
+        setTimeout(() => messageDiv.remove(), 5000);
+      }
     }
   </script>
 </head>
@@ -65,17 +79,15 @@
   <div id="navbar"></div>
 
   <main>
-    <h1>Importazione dati U-GOV</h1>
+    <h1>Importazione Dati U-GOV</h1>
 
     <section class="upload-section">
-      <h2>Importazione Dati</h2>
-
-      <form id="uploadForm" action="/oh-issa/api/upload-ugov" method="post" enctype="multipart/form-data">
+      <form id="uploadForm" action="/oh-issa/api/uploadFileUGOV" method="post" enctype="multipart/form-data">
         <fieldset>
           <legend>Import U-GOV</legend>
-          <label for="ugovFile">File U-GOV (CSV):</label>
-          <input type="file" id="ugovFile" name="file" accept=".csv,.tsv,.txt">
-          <button type="submit" class="btn primary">Importa dati da file U-GOV</button>
+          <p>Carica un file Excel esportato da U-GOV con dati di corsi, insegnamenti e docenti</p>
+          <input type="file" id="ugovFile" name="file" accept=".xls,.xlsx">
+          <button type="submit" class="btn primary">Importa dati</button>
         </fieldset>
       </form>
     </section>

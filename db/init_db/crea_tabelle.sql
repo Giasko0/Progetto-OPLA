@@ -1,12 +1,12 @@
 -- Droppa tutte le tabelle
-DROP TABLE IF EXISTS esami CASCADE;
-DROP TABLE IF EXISTS insegna CASCADE;
-DROP TABLE IF EXISTS utenti CASCADE;
-DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
-DROP TABLE IF EXISTS insegnamenti CASCADE;
-DROP TABLE IF EXISTS cds CASCADE;
 DROP TABLE IF EXISTS aule CASCADE;
+DROP TABLE IF EXISTS cds CASCADE;
 DROP TABLE IF EXISTS periodi_esame CASCADE;
+DROP TABLE IF EXISTS insegnamenti CASCADE;
+DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
+DROP TABLE IF EXISTS utenti CASCADE;
+DROP TABLE IF EXISTS insegnamento_docente CASCADE;
+DROP TABLE IF EXISTS esami CASCADE;
 
 -- Creazione della tabella 'aule'
 CREATE TABLE aule (
@@ -21,7 +21,6 @@ CREATE TABLE cds (
     codice TEXT NOT NULL,                         -- Codice del corso di studio (L062)
     anno_accademico INT NOT NULL,                 -- Anno accademico (2025 per 2025/2026)
     nome_corso TEXT NOT NULL,            -- Nome del corso di studio (Informatica Triennale) (NOT NULL)
-    durata INT,                          -- Durata del corso di studio in anni (3)
     inizio_lezioni_primo_semestre DATE,  -- Inizio lezioni primo semestre
     fine_lezioni_primo_semestre DATE,    -- Fine lezioni primo semestre
     inizio_lezioni_secondo_semestre DATE,-- Inizio lezioni secondo semestre
@@ -69,10 +68,8 @@ CREATE TABLE insegnamenti_cds (
 CREATE TABLE utenti (
     username TEXT PRIMARY KEY,   -- Username del docente (ad020022) (chiave primaria)
     matricola TEXT NOT NULL,     -- Matricola del docente (011876) (NOT NULL)
-    email TEXT,                  -- Email del docente
     nome TEXT,                   -- Nome del docente
     cognome TEXT,                -- Cognome del docente
-    permessi_visitatore BOOLEAN, -- Permessi visitatore (true/false)
     permessi_docente BOOLEAN,    -- Permessi docente (true/false)
     permessi_admin BOOLEAN       -- Permessi admin (true/false)
 );
@@ -127,12 +124,11 @@ CREATE INDEX idx_insegnamenti_cds_cds ON insegnamenti_cds(cds);
 CREATE INDEX idx_insegnamenti_cds_mutuato_da ON insegnamenti_cds(mutuato_da);
 
 CREATE INDEX idx_utenti_matricola ON utenti(matricola);
-CREATE INDEX idx_utenti_email ON utenti(email);
 CREATE INDEX idx_utenti_cognome ON utenti(cognome);
 
-CREATE INDEX idx_insegna_annoaccademico ON insegna(annoaccademico);
-CREATE INDEX idx_insegna_docente ON insegna(docente);
-CREATE INDEX idx_insegna_insegnamento ON insegna(insegnamento);
+CREATE INDEX idx_insegna_annoaccademico ON insegnamento_docente(annoaccademico);
+CREATE INDEX idx_insegna_docente ON insegnamento_docente(docente);
+CREATE INDEX idx_insegna_insegnamento ON insegnamento_docente(insegnamento);
 
 CREATE INDEX idx_esami_data_appello ON esami(data_appello);
 CREATE INDEX idx_esami_insegnamento ON esami(insegnamento);

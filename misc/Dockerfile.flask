@@ -30,7 +30,8 @@ RUN pip install --no-cache-dir lxml==5.2.1 && \
     psycopg2-binary \
     python3-saml \
     flask-session \
-    xlwt
+    xlwt \
+    xlrd
 
 ENV FLASK_APP=app.py
 

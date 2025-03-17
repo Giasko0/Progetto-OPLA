@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Converti l'anno accademico in numero intero
             cdsData.anno_accademico = parseInt(cdsData.anno_accademico);
-            cdsData.durata = parseInt(cdsData.durata);
             
             // Invia i dati al server
             fetch('/oh-issa/api/save-cds-dates', {
@@ -194,16 +193,17 @@ function loadCdsDetails(cdsCode, annoAccademico) {
     fetch(`/oh-issa/api/getCdsDetails?codice=${cdsCode}&anno=${annoAccademico}`)
         .then(response => response.json())
         .then(data => {
-            if (data.error) {
-                showMessage('error', data.error);
+            if (!data) {
+                showMessage('error', 'Dati del corso non trovati');
                 return;
             }
             
-            // Popola il form con i dati del CdS
+            // Popola il form con i dati del corso
             document.getElementById('codice').value = data.codice;
+            document.getElementById('codice').readOnly = true; // Impedisci modifiche al codice
             document.getElementById('anno_accademico').value = data.anno_accademico;
+            document.getElementById('anno_accademico').disabled = true; // Impedisci modifiche all'anno
             document.getElementById('nome_corso').value = data.nome_corso;
-            document.getElementById('durata').value = data.durata;
             
             // Date primo semestre
             document.getElementById('inizio_lezioni_primo_semestre').value = formatDateForInput(data.inizio_lezioni_primo_semestre);

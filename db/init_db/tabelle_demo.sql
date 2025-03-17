@@ -15,63 +15,63 @@ INSERT INTO aule (nome, sede, edificio, posti) VALUES
 
 -- Inserimento utenti (i permessi sono cumulativi)
 INSERT INTO utenti (username, matricola, email, nome, cognome, permessi_visitatore, permessi_docente, permessi_admin) VALUES
-    ('ad020022', '011876', 'amedeo@gmail.com', 'Amedeo', 'Di Biase', true, true, true),  -- Admin: ha permessi docente, visitatore e admin
-    ('av790001', '011875', 'av@gmail.com', 'Anna', 'Verdi', true, true, false),          -- Docente: ha permessi docente e visitatore
-    ('gn900001', '011874', 'gn@gmail.com', 'Giulia', 'Neri', true, true, false),         -- Docente: ha permessi docente e visitatore
-    ('lb750001', '011873', 'lb@gmail.com', 'Luigi', 'Bianchi', true, true, false),       -- Docente: ha permessi docente e visitatore
-    ('mr800001', '011872', 'mr@gmail.com', 'Mario', 'Rossi', true, true, false),         -- Docente: ha permessi docente e visitatore
-    ('pg950001', '011871', 'pg@gmail.com', 'Paolo', 'Gialli', true, true, false);        -- Docente: ha permessi docente e visitatore
+    ('ad020022', '011876', 'Amedeo', 'Di Biase', true, true),  -- Admin: ha permessi docente e admin
+    ('av790001', '011875', 'Anna', 'Verdi', true, false),          -- Docente: ha solo permessi docente
+    ('gn900001', '011874', 'Giulia', 'Neri', true, false),         -- Docente: ha solo permessi docente
+    ('lb750001', '011873', 'Luigi', 'Bianchi', true, false),       -- Docente: ha solo permessi docente
+    ('mr800001', '011872', 'Mario', 'Rossi', true, false),         -- Docente: ha solo permessi docente
+    ('pg950001', '011871', 'Paolo', 'Gialli', true, false);        -- Docente: ha solo permessi docente
 
 -- Inserimento CDS con date base
-INSERT INTO cds (codice, anno_accademico, nome_corso, durata,
+INSERT INTO cds (codice, anno_accademico, nome_corso,
     inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
     inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre
 ) VALUES 
 -- Corsi 2024
-('L062', 2024, 'Informatica Triennale', 3,
+('L062', 2024, 'Informatica Triennale',
     '2024-09-25', '2024-12-22',                    
     '2025-02-24', '2025-05-31'                    
 ),
-('L035', 2024, 'Matematica', 3,
+('L035', 2024, 'Matematica',
     '2024-09-23', '2024-12-20',                    
     '2025-02-26', '2025-05-30'                     
 ),
-('LM21', 2024, 'Informatica Magistrale', 2,
+('LM21', 2024, 'Informatica Magistrale',
     '2024-09-25', '2024-12-22',
     '2025-02-24', '2025-05-31'
 ),
-('LM40', 2024, 'Matematica Magistrale', 2, 
+('LM40', 2024, 'Matematica Magistrale', 
     '2024-09-23', '2024-12-20',
     '2025-02-26', '2025-05-30'
 ),
-('L31', 2024, 'Informatica e SMI', 3,
+('L31', 2024, 'Informatica e SMI',
     '2024-09-25', '2024-12-22',
     '2025-02-24', '2025-05-31'
 );
 
 -- Inserimento CDS per l'anno 2025
-INSERT INTO cds (codice, anno_accademico, nome_corso, durata,
+INSERT INTO cds (codice, anno_accademico, nome_corso,
     inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
     inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre
 ) VALUES 
 -- Corsi 2025
-('L062', 2025, 'Informatica Triennale', 3,
+('L062', 2025, 'Informatica Triennale',
     '2025-09-24', '2025-12-21',                    
     '2026-02-23', '2026-05-30'                    
 ),
-('L035', 2025, 'Matematica', 3,
+('L035', 2025, 'Matematica',
     '2025-09-22', '2025-12-19',                    
     '2026-02-25', '2026-05-29'                     
 ),
-('LM21', 2025, 'Informatica Magistrale', 2,
+('LM21', 2025, 'Informatica Magistrale',
     '2025-09-24', '2025-12-21',
     '2026-02-23', '2026-05-30'
 ),
-('LM40', 2025, 'Matematica Magistrale', 2,
+('LM40', 2025, 'Matematica Magistrale',
     '2025-09-22', '2025-12-19',
     '2026-02-25', '2026-05-29'
 ),
-('L31', 2025, 'Informatica e SMI', 3,
+('L31', 2025, 'Informatica e SMI',
     '2025-09-24', '2025-12-21',
     '2026-02-23', '2026-05-30'
 );

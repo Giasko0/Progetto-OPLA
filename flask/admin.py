@@ -4,11 +4,314 @@ import io
 import csv
 from datetime import datetime, timedelta
 import xlwt
+import xlrd
+from psycopg2.extras import DictCursor
+import re
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/oh-issa/api')
 
+
+@admin_bp.route('/uploadFileUGOV', methods=['POST'])
+def upload_ugov():
+    if 'admin' not in request.cookies:
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+    
+    conn = None
+    try:
+        if 'file' not in request.files:
+            return jsonify({'status': 'error', 'message': 'Nessun file selezionato'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'status': 'error', 'message': 'Nessun file selezionato'}), 400
+            
+        if not file.filename.endswith(('.xls', '.xlsx')):
+            return jsonify({'status': 'error', 'message': 'Formato file non supportato. Usare file Excel (.xls, .xlsx)'}), 400
+        
+        # Leggi il file Excel
+        workbook = xlrd.open_workbook(file_contents=file.read())
+        sheet = workbook.sheet_by_index(0)  # Assumiamo che i dati siano nel primo foglio
+        
+        # Dizionari per tenere traccia degli elementi già elaborati
+        insegnamenti_set = set()
+        cds_set = set()
+        utenti_set = set()
+        insegnamento_docente_set = set()
+        
+        # Mappa indici colonne (potrebbero variare)
+        colonna_indices = {
+            'anno_accademico': 0,      # A
+            'anno_reg_did': 11,         # L
+            'cod_cds': 6,              # G
+            'des_cds': 8,              # I
+            'cod_insegnamento': 15,    # P
+            'des_insegnamento': 16,    # Q
+            'cod_unita_didattica': 28, # AC
+            'des_periodo': 46,         # AU
+            'matricola_docente': 67,   # BP
+            'cognome_docente': 68,     # BQ
+            'nome_docente': 69,        # BR
+            'username_docente': 70,    # BS
+            'mutuato_da_z': 25,        # Z
+            'mutuato_da_bk': 62        # BK
+        }
+        
+        # Verifica header per determinare gli indici corretti
+        if sheet.nrows > 0:
+            header = [str(sheet.cell_value(0, i)).strip().upper() for i in range(sheet.ncols)]
+            
+            # Mappa nomi colonne a indici
+            header_map = {
+                'ANNO OFFERTA': 'anno_accademico',
+                'ANNO REGOLAMENTO DIDATTICO': 'anno_reg_did',
+                'COD. CORSO DI STUDIO': 'cod_cds',
+                'DES. CORSO DI STUDIO': 'des_cds',
+                'COD. INSEGNAMENTO': 'cod_insegnamento',
+                'DES. INSEGNAMENTO': 'des_insegnamento',
+                'COD. UNITÀ DIDATTICA': 'cod_unita_didattica',
+                'DES. PERIODO UNITÀ DIDATTICA': 'des_periodo',
+                'MATRICOLA DOCENTE': 'matricola_docente',
+                'COGNOME DOCENTE': 'cognome_docente',
+                'NOME DOCENTE': 'nome_docente',
+                'USERNAME': 'username_docente',
+                'MUTUATA DA': 'mutuato_da_z'
+            }
+            
+            # Aggiorna gli indici in base all'header reale
+            for i, col_name in enumerate(header):
+                for key, value in header_map.items():
+                    if key in col_name:
+                        colonna_indices[value] = i
+                        break
+                # Cerca anche per BK in base alle corrispondenze nel nome della colonna
+                if ('MUTUA' in col_name or 'CONDIV' in col_name) and i >= 60:
+                    colonna_indices['mutuato_da_bk'] = i
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Dati per l'inserimento
+        insegnamenti_data = []
+        insegnamenti_cds_data = []
+        cds_data = []
+        utenti_data = []
+        insegnamento_docente_data = []
+        
+        # Mappatura periodi a semestri
+        periodo_to_semestre = {
+            'Primo Semestre': 1,
+            'Secondo Semestre': 2
+        }
+        # Valore predefinito per annuale (quando des_periodo è null o non riconosciuto)
+        default_semestre = 3  # 3 = annuale
+        
+        # Funzione per estrarre il codice insegnamento dalla stringa di mutuazione
+        def estrai_codice_mutuato(text):
+            if not text:
+                return None
+                
+            # Pattern per riconoscere il codice dell'insegnamento (es. A002080)
+            match = re.search(r'(?:Af\s+)?([A-Z][0-9]{6})', str(text))
+            if match:
+                return match.group(1)
+            return None
+        
+        # Processa le righe (salta l'header)
+        for row_idx in range(1, sheet.nrows):
+            try:
+                # Estrai i valori dalle colonne
+                anno_accademico = int(float(sheet.cell_value(row_idx, colonna_indices['anno_accademico'])))
+                
+                # L'anno del corso dell'insegnamento non è nel file excel, quindi lo calcolo come differenza tra anno_accademico e anno_reg_did + 1, lo so è brutto ma non c'è alternativa
+                try:
+                    anno_reg_did = int(float(sheet.cell_value(row_idx, colonna_indices['anno_reg_did'])))
+                    anno_corso = anno_accademico - anno_reg_did + 1
+                    # Verifica che l'anno corso sia valido
+                    if anno_corso < 1 or anno_corso > 6:  # Assumo max 6 anni per una laurea magistrale/specialistica
+                        anno_corso = 1  # Valore predefinito in caso di calcolo errato
+                except:
+                    anno_corso = 1  # Valore predefinito se c'è un errore
+                
+                cod_cds = str(sheet.cell_value(row_idx, colonna_indices['cod_cds'])).strip()
+                des_cds = str(sheet.cell_value(row_idx, colonna_indices['des_cds'])).strip()
+                
+                # Usa cod_unita_didattica se disponibile, altrimenti cod_insegnamento
+                cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_unita_didattica'])).strip()
+                if not cod_insegnamento:
+                    cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_insegnamento'])).strip()
+                
+                des_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['des_insegnamento'])).strip()
+                
+                # Estrai periodo e converti in semestre
+                des_periodo_raw = sheet.cell_value(row_idx, colonna_indices['des_periodo'])
+                # Gestiamo il caso in cui il valore sia vuoto o null
+                des_periodo = str(des_periodo_raw).strip() if des_periodo_raw else ""
+                semestre = periodo_to_semestre.get(des_periodo, default_semestre)
+                
+                # Estrai dati docente
+                matricola_docente = str(sheet.cell_value(row_idx, colonna_indices['matricola_docente'])).strip()
+                cognome_docente = str(sheet.cell_value(row_idx, colonna_indices['cognome_docente'])).strip()
+                nome_docente = str(sheet.cell_value(row_idx, colonna_indices['nome_docente'])).strip()
+                username_docente = str(sheet.cell_value(row_idx, colonna_indices['username_docente'])).strip()
+                
+                # Estrai informazioni sulla mutuazione dalle colonne Z e BK
+                mutuato_da_z = estrai_codice_mutuato(sheet.cell_value(row_idx, colonna_indices['mutuato_da_z']))
+                mutuato_da_bk = estrai_codice_mutuato(sheet.cell_value(row_idx, colonna_indices['mutuato_da_bk']))
+                
+                # Usa il primo codice mutuazione disponibile
+                mutuato_da = mutuato_da_z or mutuato_da_bk
+                
+                # Verifica che i dati essenziali siano presenti
+                if not cod_insegnamento or not des_insegnamento or not cod_cds or not des_cds:
+                    continue
+                
+                # Aggiungi insegnamento se non già presente
+                if cod_insegnamento not in insegnamenti_set:
+                    insegnamenti_data.append((cod_insegnamento, des_insegnamento))
+                    insegnamenti_set.add(cod_insegnamento)
+                
+                # Aggiungi CdS se non già presente
+                cds_key = (cod_cds, anno_accademico)
+                if cds_key not in cds_set:
+                    cds_data.append((cod_cds, anno_accademico, des_cds))
+                    cds_set.add(cds_key)
+                
+                # Aggiungi insegnamento_cds
+                insegnamenti_cds_key = (cod_insegnamento, anno_accademico, cod_cds)
+                if insegnamenti_cds_key not in insegnamenti_cds_data:
+                    insegnamenti_cds_data.append((cod_insegnamento, anno_accademico, cod_cds, anno_corso, semestre, mutuato_da))
+                
+                # Aggiungi utente se non già presente e se abbiamo un username
+                if username_docente and username_docente not in utenti_set:
+                    utenti_data.append((username_docente, matricola_docente, nome_docente, cognome_docente, True, False))
+                    utenti_set.add(username_docente)
+                
+                # Aggiungi insegnamento_docente se non già presente e se abbiamo un username
+                if username_docente:
+                    insegnamento_docente_key = (cod_insegnamento, username_docente, anno_accademico)
+                    if insegnamento_docente_key not in insegnamento_docente_set:
+                        insegnamento_docente_data.append((cod_insegnamento, username_docente, anno_accademico))
+                        insegnamento_docente_set.add(insegnamento_docente_key)
+            
+            except Exception as row_error:
+                print(f"Errore nell'elaborazione della riga {row_idx}: {str(row_error)}")
+                continue
+        
+        # Inserisci dati nel database
+        # 1. Cds
+        for item in cds_data:
+            try:
+                cursor.execute("""
+                    INSERT INTO cds (codice, anno_accademico, nome_corso)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (codice, anno_accademico) DO UPDATE 
+                    SET nome_corso = EXCLUDED.nome_corso
+                """, item)
+            except Exception as e:
+                print(f"Errore nell'inserimento CDS {item}: {str(e)}")
+        
+        # 2. Insegnamenti
+        for item in insegnamenti_data:
+            try:
+                cursor.execute("""
+                    INSERT INTO insegnamenti (codice, titolo)
+                    VALUES (%s, %s)
+                    ON CONFLICT (codice) DO UPDATE 
+                    SET titolo = EXCLUDED.titolo
+                """, item)
+            except Exception as e:
+                print(f"Errore nell'inserimento insegnamento {item}: {str(e)}")
+        
+        # 3. Insegnamenti_cds
+        for item in insegnamenti_cds_data:
+            try:
+                # Verifica se esiste l'insegnamento mutuato e crea un placeholder se necessario
+                mutuato_da = item[5]  # L'indice 5 contiene mutuato_da nell'array
+                if mutuato_da and mutuato_da not in insegnamenti_set:
+                    # Se l'insegnamento mutuato non esiste nel database, crealo come placeholder
+                    cursor.execute("""
+                        INSERT INTO insegnamenti (codice, titolo)
+                        VALUES (%s, %s)
+                        ON CONFLICT (codice) DO NOTHING
+                    """, (mutuato_da, f"Placeholder per insegnamento mutuato {mutuato_da}"))
+                    insegnamenti_set.add(mutuato_da)
+                    print(f"Creato placeholder per insegnamento mutuato {mutuato_da}")
+                
+                cursor.execute("""
+                    INSERT INTO insegnamenti_cds 
+                    (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (insegnamento, anno_accademico, cds) DO UPDATE 
+                    SET anno_corso = EXCLUDED.anno_corso,
+                        semestre = EXCLUDED.semestre,
+                        mutuato_da = EXCLUDED.mutuato_da
+                """, item)
+            except Exception as e:
+                print(f"Errore nell'inserimento insegnamento_cds {item}: {str(e)}")
+        
+        # 4. Utenti
+        for item in utenti_data:
+            try:
+                cursor.execute("""
+                    INSERT INTO utenti (username, matricola, nome, cognome, permessi_docente, permessi_admin)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (username) DO UPDATE 
+                    SET matricola = EXCLUDED.matricola,
+                        nome = EXCLUDED.nome,
+                        cognome = EXCLUDED.cognome,
+                        permessi_docente = EXCLUDED.permessi_docente
+                """, item)
+            except Exception as e:
+                print(f"Errore nell'inserimento utente {item}: {str(e)}")
+        
+        # 5. Insegnamento_docente
+        for item in insegnamento_docente_data:
+            try:
+                cursor.execute("""
+                    INSERT INTO insegnamento_docente (insegnamento, docente, annoaccademico)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (insegnamento, docente, annoaccademico) DO NOTHING
+                """, item)
+            except Exception as e:
+                print(f"Errore nell'inserimento insegnamento_docente {item}: {str(e)}")
+        
+        # Commit delle modifiche
+        conn.commit()
+        
+        # Statistiche sull'importazione
+        stats = {
+            'cds': len(cds_data),
+            'insegnamenti': len(insegnamenti_data),
+            'insegnamenti_cds': len(insegnamenti_cds_data),
+            'utenti': len(utenti_data),
+            'insegnamento_docente': len(insegnamento_docente_data)
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Importazione completata con successo.',
+            'details': f"""
+                Importati:
+                - {stats['cds']} corsi di studio
+                - {stats['insegnamenti']} insegnamenti
+                - {stats['insegnamenti_cds']} assegnazioni insegnamento-CDS
+                - {stats['utenti']} docenti
+                - {stats['insegnamento_docente']} assegnazioni docente-insegnamento
+            """
+        })
+    
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'status': 'error', 'message': f'Errore durante l\'importazione: {str(e)}'}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if conn:
+            release_connection(conn)
+
 @admin_bp.route('/downloadFileESSE3')
-def download_csv():
+def download_esse3():
     if 'admin' not in request.cookies:
         return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
         
@@ -160,132 +463,6 @@ def download_csv():
         if 'conn' in locals() and conn:
             release_connection(conn)
 
-@admin_bp.route('/upload-teachings', methods=['POST'])
-def upload_teachings():
-    if 'admin' not in request.cookies:
-        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
-    
-    conn = None
-    try:
-        if 'file' not in request.files:
-            return jsonify({'status': 'error', 'message': 'Nessun file selezionato'}), 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'status': 'error', 'message': 'Nessun file selezionato'}), 400
-            
-        if not file.filename.endswith(('.csv', '.tsv', '.txt')):
-            return jsonify({'status': 'error', 'message': 'Formato file non supportato. Usare CSV, TSV o TXT'}), 400
-        
-        # Lettura del file
-        stream = io.StringIO(file.stream.read().decode("UTF-8"), newline=None)
-        reader = csv.reader(stream)
-        
-        # Skip header row if present
-        next(reader, None)
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Elimina i dati esistenti
-        cursor.execute("DELETE FROM insegnamenti")
-        
-        # Inserisci i nuovi dati
-        inserted_count = 0
-        for row in reader:
-            if len(row) >= 7:  # Verifica che ci siano tutti i campi necessari
-                codice = row[0]
-                titolo = row[1]
-                cds = row[2]
-                anno = int(row[3]) if row[3].isdigit() else 0
-                annocorso = int(row[4]) if row[4].isdigit() else 0
-                semestre = int(row[5]) if row[5].isdigit() else 0
-                docente = row[6]
-                
-                cursor.execute("""
-                    INSERT INTO insegnamenti (codice, titolo, cds, anno, annocorso, semestre, docente)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (codice, titolo, cds, anno, annocorso, semestre, docente))
-                inserted_count += 1
-        
-        conn.commit()
-        return jsonify({
-            'status': 'success', 
-            'message': f'Caricamento completato con successo. {inserted_count} insegnamenti importati.'
-        })
-    
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if conn:
-            release_connection(conn)
-
-@admin_bp.route('/upload-teachers', methods=['POST'])
-def upload_teachers():
-    if 'admin' not in request.cookies:
-        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
-    
-    conn = None
-    try:
-        if 'file' not in request.files:
-            return jsonify({'status': 'error', 'message': 'Nessun file selezionato'}), 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'status': 'error', 'message': 'Nessun file selezionato'}), 400
-            
-        if not file.filename.endswith(('.csv', '.tsv', '.txt')):
-            return jsonify({'status': 'error', 'message': 'Formato file non supportato. Usare CSV, TSV o TXT'}), 400
-        
-        # Lettura del file
-        stream = io.StringIO(file.stream.read().decode("UTF-8"), newline=None)
-        reader = csv.reader(stream)
-        
-        # Skip header row if present
-        next(reader, None)
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Elimina i dati esistenti
-        cursor.execute("DELETE FROM utenti")
-        
-        # Inserisci i nuovi dati
-        inserted_count = 0
-        for row in reader:
-            if len(row) >= 5:  # Verifica che ci siano tutti i campi necessari
-                codicefiscale = row[0]
-                matricola = row[1]
-                email = row[2]
-                nome = row[3]
-                cognome = row[4]
-                
-                cursor.execute("""
-                    INSERT INTO utenti (codicefiscale, matricola, email, nome, cognome)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (codicefiscale, matricola, email, nome, cognome))
-                inserted_count += 1
-        
-        conn.commit()
-        return jsonify({
-            'status': 'success', 
-            'message': f'Caricamento completato con successo. {inserted_count} utenti importati.'
-        })
-    
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if conn:
-            release_connection(conn)
-
 @admin_bp.route('/save-cds-dates', methods=['POST'])
 def save_cds_dates():
     if 'admin' not in request.cookies:
@@ -298,7 +475,6 @@ def save_cds_dates():
         codice_cds = data.get('codice_cds')
         anno_accademico = int(data.get('anno_accademico'))
         nome_corso = data.get('nome_corso')
-        durata = int(data.get('durata'))
         
         # Date del primo semestre
         inizio_primo = data.get('inizio_primo')
@@ -324,7 +500,7 @@ def save_cds_dates():
         
         # Verifica che tutti i campi obbligatori siano presenti per la tabella CDS
         required_fields_cds = [
-            codice_cds, anno_accademico, nome_corso, durata,
+            codice_cds, anno_accademico, nome_corso,
             inizio_primo, fine_primo, inizio_secondo, fine_secondo
         ]
         
@@ -357,14 +533,13 @@ def save_cds_dates():
             cursor.execute("""
                 UPDATE cds SET 
                 nome_corso = %s,
-                durata = %s,
                 inizio_lezioni_primo_semestre = %s,
                 fine_lezioni_primo_semestre = %s,
                 inizio_lezioni_secondo_semestre = %s,
                 fine_lezioni_secondo_semestre = %s
                 WHERE codice = %s AND anno_accademico = %s
             """, (
-                nome_corso, durata,
+                nome_corso,
                 inizio_primo, fine_primo,
                 inizio_secondo, fine_secondo,
                 codice_cds, anno_accademico
@@ -374,15 +549,15 @@ def save_cds_dates():
             # Inserisci un nuovo record nella tabella cds
             cursor.execute("""
                 INSERT INTO cds (
-                    codice, anno_accademico, nome_corso, durata,
+                    codice, anno_accademico, nome_corso,
                     inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
                     inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre
                 ) VALUES (
-                    %s, %s, %s, %s, 
+                    %s, %s, %s, 
                     %s, %s, %s, %s
                 )
             """, (
-                codice_cds, anno_accademico, nome_corso, durata,
+                codice_cds, anno_accademico, nome_corso,
                 inizio_primo, fine_primo,
                 inizio_secondo, fine_secondo
             ))
@@ -502,155 +677,98 @@ def get_cds_distinct():
 # API per ottenere i dati del calendario esami
 @admin_bp.route('/getCalendarioEsami')
 def get_calendario_esami():
-    cds = request.args.get('cds')
-    anno = request.args.get('anno')
-    
-    if not cds or not anno:
-        return jsonify({"error": "Parametri mancanti"}), 400
-    
     try:
-        anno = int(anno)
+        cds_code = request.args.get('cds')
+        anno_accademico = request.args.get('anno')
+        
+        if not cds_code or not anno_accademico:
+            return jsonify({'error': 'Parametri mancanti'})
+        
+        # Connessione al database
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=DictCursor)
         
-        # Ottieni la durata del corso
-        cursor.execute("SELECT durata FROM cds WHERE codice = %s AND anno_accademico = %s", (cds, anno))
-        durata_result = cursor.fetchone()
-        if not durata_result:
-            return jsonify({"error": "Corso di studi non trovato"}), 404
-            
-        durata = durata_result[0]
-        
-        # Ottieni le date delle sessioni d'esame e delle pause didattiche dalla nuova tabella periodi_esame
+        # Ottieni i dettagli del corso di studi
         cursor.execute("""
-            SELECT tipo_periodo, inizio, fine, max_esami
-            FROM periodi_esame 
-            WHERE cds = %s AND anno_accademico = %s
-            ORDER BY inizio
-        """, (cds, anno))
+            SELECT nome_corso
+            FROM cds
+            WHERE codice = %s AND anno_accademico = %s
+        """, (cds_code, anno_accademico))
         
-        periodi_results = cursor.fetchall()
+        cds_info = cursor.fetchone()
+        if not cds_info:
+            return jsonify({'error': 'Corso di studi non trovato'})
         
-        # Mappa per convertire i tipi di periodo dal database ai nomi visualizzati
-        tipo_periodo_map = {
-            'ESTIVA': 'Sessione Estiva',
-            'AUTUNNALE': 'Sessione Autunnale',
-            'INVERNALE': 'Sessione Invernale',
-            'PAUSA_AUTUNNALE': 'Pausa Didattica Primo Semestre',
-            'PAUSA_PRIMAVERILE': 'Pausa Didattica Secondo Semestre'
-        }
-        
-        # Crea una lista di tutte le sessioni e pause didattiche
-        sessioni = []
-        periodi_map = {}
-        
-        # Dizionario per mappare numeri di mese ai nomi abbreviati
-        mesi_nomi = {
-            '01': 'GEN', '02': 'FEB', '03': 'MAR', '04': 'APR',
-            '05': 'MAG', '06': 'GIU', '07': 'LUG', '08': 'AGO',
-            '09': 'SET', '10': 'OTT', '11': 'NOV', '12': 'DIC'
-        }
-        
-        for tipo_periodo, inizio, fine, max_esami in periodi_results:
-            # Aggiungi alla lista delle sessioni
-            nome_sessione = tipo_periodo_map.get(tipo_periodo, tipo_periodo)
-            sessioni.append({
-                "nome": nome_sessione,
-                "inizio": inizio.isoformat(),
-                "fine": fine.isoformat()
-            })
-            
-            # Aggiungi i mesi di questo periodo ai periodi
-            add_months_to_periods(periodi_map, inizio, fine, mesi_nomi)
-        
-        # Ottieni tutti gli insegnamenti per questo CdS con i relativi esami
+        # Ottieni tutti gli insegnamenti per il CdS e anno accademico specificati
         cursor.execute("""
-            WITH insegnamenti_cds AS (
-                SELECT 
-                    i.codice, 
-                    i.titolo, 
-                    ic.anno_corso, 
-                    ic.semestre
-                FROM insegnamenti i
-                JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento
-                WHERE ic.cds = %s AND ic.anno_accademico = %s
-            )
-            SELECT 
-                ic.codice, 
-                ic.titolo, 
-                ic.anno_corso, 
-                ic.semestre,
-                e.data_appello,
-                EXTRACT(DAY FROM e.data_appello) as giorno,
-                to_char(e.data_appello, 'MM') as mese,
-                to_char(e.data_appello, 'YYYY') as anno,
-                e.durata_appello
-            FROM insegnamenti_cds ic
-            LEFT JOIN esami e ON ic.codice = e.insegnamento
-            ORDER BY ic.anno_corso, ic.semestre, ic.titolo
-        """, (cds, anno))
+            SELECT i.codice, i.titolo, ic.anno_corso, ic.semestre,
+                   COALESCE(e.data_appello, NULL) as data_appello,
+                   EXTRACT(MONTH FROM e.data_appello) as mese,
+                   EXTRACT(YEAR FROM e.data_appello) as anno,
+                   EXTRACT(DAY FROM e.data_appello) as giorno
+            FROM insegnamenti i
+            JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento
+            LEFT JOIN esami e ON i.codice = e.insegnamento AND e.data_appello >= %s
+            WHERE ic.cds = %s AND ic.anno_accademico = %s
+            ORDER BY ic.anno_corso, i.titolo
+        """, (f"{anno_accademico}-01-01", cds_code, anno_accademico))
         
-        # Crea una struttura dati per organizzare gli insegnamenti e i loro esami
+        insegnamenti_raw = cursor.fetchall()
+        
+        # Raggruppa gli insegnamenti per evitare duplicazioni
         insegnamenti = []
-        insegnamenti_map = {}
+        esami_per_insegnamento = {}
         
-        for row in cursor.fetchall():
-            codice, titolo, anno_corso, semestre, data_appello, giorno, mese_numero, anno_str, durata_appello = row
+        for row in insegnamenti_raw:
+            codice = row['codice']
+            if codice not in esami_per_insegnamento:
+                insegnamenti.append({
+                    'codice': codice,
+                    'titolo': row['titolo'],
+                    'anno_corso': row['anno_corso'],
+                    'semestre': row['semestre'],
+                    'esami': []
+                })
+                esami_per_insegnamento[codice] = insegnamenti[-1]['esami']
             
-            # Crea o recupera l'insegnamento
-            if codice not in insegnamenti_map:
-                insegnamento = {
-                    "codice": codice,
-                    "titolo": titolo,
-                    "anno_corso": anno_corso,
-                    "semestre": semestre,
-                    "esami": []
-                }
-                insegnamenti_map[codice] = insegnamento
-                insegnamenti.append(insegnamento)
-            else:
-                insegnamento = insegnamenti_map[codice]
-            
-            # Aggiungi l'esame se esiste
-            if data_appello:
-                # Crea un nome di periodo standardizzato
-                nome_mese = mesi_nomi.get(mese_numero, f"M{mese_numero}")
-                periodo_nome = f"{nome_mese} {anno_str}"
-                
-                # Aggiungi l'esame alla lista degli esami dell'insegnamento
-                insegnamento["esami"].append({
-                    "data": data_appello.isoformat(),
-                    "giorno": int(giorno),
-                    "periodo": periodo_nome,
-                    "mese": int(mese_numero),
-                    "anno": int(anno_str),
-                    "durata": durata_appello
+            # Aggiungi l'esame se c'è una data
+            if row['data_appello']:
+                esami_per_insegnamento[codice].append({
+                    'data': row['data_appello'].strftime('%Y-%m-%d'),
+                    'mese': int(row['mese']),
+                    'anno': int(row['anno']),
+                    'giorno': int(row['giorno'])
                 })
         
-        # Aggiungi periodi da tutti gli esami (nel caso non fossero già inclusi)
-        for insegnamento in insegnamenti:
-            for esame in insegnamento.get("esami", []):
-                key = f"{esame['mese']:02d}-{esame['anno']}"
-                if key not in periodi_map:
-                    nome_mese = mesi_nomi.get(f"{esame['mese']:02d}", f"Mese {esame['mese']}")
-                    periodi_map[key] = {
-                        "nome": f"{nome_mese} {esame['anno']}",
-                        "mese": esame['mese'],
-                        "anno": esame['anno']
-                    }
+        # Ottieni i periodi di esame per questo CdS
+        cursor.execute("""
+            SELECT tipo_periodo, inizio, fine
+            FROM periodi_esame
+            WHERE cds = %s AND anno_accademico = %s
+            ORDER BY inizio
+        """, (cds_code, anno_accademico))
         
-        # Converte il dizionario in lista e ordina i periodi per data
-        periodi = list(periodi_map.values())
-        periodi.sort(key=lambda x: (x["anno"], x["mese"]))
+        periodi = cursor.fetchall()
         
-        # Costruisci e restituisci la risposta
+        # Calcola i mesi con esami per il calendario
+        mesi_periodi = {}
+        nomi_mesi = {
+            "01": "GEN", "02": "FEB", "03": "MAR", 
+            "04": "APR", "05": "MAG", "06": "GIU",
+            "07": "LUG", "08": "AGO", "09": "SETT",
+            "10": "OTT", "11": "NOV", "12": "DIC"
+        }
+        
+        # Processa ogni periodo per aggiungere i mesi
+        for periodo in periodi:
+            tipo_periodo, inizio, fine = periodo
+            mesi_periodi = add_months_to_periods(mesi_periodi, inizio, fine, nomi_mesi)
+        
         return jsonify({
-            "durata": durata,
-            "sessioni": sessioni,
-            "periodi": periodi,
-            "insegnamenti": insegnamenti
+            'nome_corso': cds_info['nome_corso'],
+            'insegnamenti': insegnamenti,
+            'periodi': list(mesi_periodi.values())
         })
-    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
@@ -684,6 +802,8 @@ def add_months_to_periods(periodi_map, start_date, end_date, mesi_nomi):
             month = 1
             year += 1
         current = datetime(year, month, 1)
+    
+    return periodi_map
 
 # API per ottenere i dettagli di un corso di studio
 @admin_bp.route('/getCdsDetails')
@@ -704,7 +824,7 @@ def get_cds_details():
         # Query per ottenere le informazioni di base del CdS
         query_cds = """
             SELECT 
-                codice, anno_accademico, nome_corso, durata,
+                codice, anno_accademico, nome_corso,
                 inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
                 inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre
             FROM cds 
