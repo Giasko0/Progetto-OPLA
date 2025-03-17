@@ -95,7 +95,6 @@ def acs():
       attributes = auth.get_attributes()
       
       # Estrai informazioni dall'attributo, adatta secondo l'implementazione SAML
-      email = attributes.get('email', [''])[0] if attributes.get('email') else ''
       nome = attributes.get('firstName', [''])[0] if attributes.get('firstName') else ''
       cognome = attributes.get('lastName', [''])[0] if attributes.get('lastName') else ''
       
@@ -105,9 +104,9 @@ def acs():
         # Crea un nuovo utente con permessi visitatore di default
         cursor.execute(
           """INSERT INTO utenti 
-             (username, email, nome, cognome, permessi_visitatore, permessi_docente, permessi_admin) 
-             VALUES (%s, %s, %s, %s, %s, %s, %s)""", 
-          (username, email, nome, cognome, True, False, False)
+             (username, nome, cognome, permessi_docente, permessi_admin) 
+             VALUES (%s, %s, %s, %s, %s)""", 
+          (username, nome, cognome, True, False, False)
         )
         conn.commit()
     

@@ -29,7 +29,7 @@ def api_login():
   try:
     # Verifica le credenziali nel database
     cursor.execute("""
-        SELECT username, permessi_admin, permessi_docente, permessi_visitatore 
+        SELECT username, permessi_admin, permessi_docente 
         FROM utenti 
         WHERE username = %s AND nome = %s
     """, (username, password))
@@ -38,7 +38,7 @@ def api_login():
     
     if user:
       # Ottieni i permessi dell'utente
-      username, is_admin, is_docente, is_visitatore = user
+      username, is_admin, is_docente = user
       
       # Crea la risposta JSON con i dati dell'utente
       response = jsonify({
@@ -46,7 +46,6 @@ def api_login():
           'message': 'Login effettuato con successo',
           'admin': bool(is_admin),
           'docente': bool(is_docente), 
-          'visitatore': bool(is_visitatore)
       })
       
       # Imposta i cookie appropriati
@@ -93,8 +92,8 @@ def get_user_data():
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            SELECT username, matricola, email, nome, cognome, 
-                   permessi_visitatore, permessi_docente, permessi_admin 
+            SELECT username, matricola, nome, cognome, 
+                   permessi_docente, permessi_admin 
             FROM utenti 
             WHERE username = %s
         """, (username,))
@@ -105,12 +104,10 @@ def get_user_data():
             user_data = {
                 'username': user_record[0],
                 'matricola': user_record[1],
-                'email': user_record[2],
-                'nome': user_record[3],
-                'cognome': user_record[4],
-                'permessi_visitatore': user_record[5],
-                'permessi_docente': user_record[6],
-                'permessi_admin': user_record[7]
+                'nome': user_record[2],
+                'cognome': user_record[3],
+                'permessi_docente': user_record[4],
+                'permessi_admin': user_record[5]
             }
         else:
             user_data = None

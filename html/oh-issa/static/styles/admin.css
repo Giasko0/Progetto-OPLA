@@ -301,3 +301,75 @@ input[type="number"] {
         align-items: stretch;
     }
 }
+
+/* Info container */
+.info-container {
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.info-container h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #343a40;
+    font-size: 1.1rem;
+}
+
+.info-row {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.info-label {
+    font-weight: bold;
+    width: 150px;
+}
+
+/* Stile per layout a colonne */
+.columns-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 1.5rem;
+}
+
+.column {
+    flex: 1;
+    min-width: 300px;
+}
+
+.column .form-group {
+    margin-bottom: 0.5rem;
+}
+
+/* Miglioramenti per la sezione selettore */
+.selector-section {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 30px;
+    border: 1px solid #eee;
+}
+
+.selector-section .columns-container {
+    gap: 30px;
+    align-items: flex-end;
+}
+
+.selector-section select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    background-color: white;
+}
+
+.selector-section label {
+    font-weight: bold;
+    margin-bottom: 8px;
+    display: block;
+}

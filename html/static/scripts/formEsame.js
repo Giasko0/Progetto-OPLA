@@ -90,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const nomeCompleto = userData.nome && userData.cognome ? 
             `${userData.nome} ${userData.cognome}` : 
             userData.username;
-          titolo.textContent = `Benvenuto, ${nomeCompleto}!`;
+          titolo.textContent = `Benvenuto/a, ${nomeCompleto}!`;
         }
       }
     }).catch(error => {

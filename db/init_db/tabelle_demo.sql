@@ -14,7 +14,7 @@ INSERT INTO aule (nome, sede, edificio, posti) VALUES
   ('Aula riunioni', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 25);
 
 -- Inserimento utenti (i permessi sono cumulativi)
-INSERT INTO utenti (username, matricola, email, nome, cognome, permessi_visitatore, permessi_docente, permessi_admin) VALUES
+INSERT INTO utenti (username, matricola, nome, cognome, permessi_docente, permessi_admin) VALUES
     ('ad020022', '011876', 'Amedeo', 'Di Biase', true, true),  -- Admin: ha permessi docente e admin
     ('av790001', '011875', 'Anna', 'Verdi', true, false),          -- Docente: ha solo permessi docente
     ('gn900001', '011874', 'Giulia', 'Neri', true, false),         -- Docente: ha solo permessi docente

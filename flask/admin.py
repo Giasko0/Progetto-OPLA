@@ -471,10 +471,31 @@ def save_cds_dates():
     try:
         data = request.get_json()
         
+        # Log dei dati ricevuti per debug
+        print("Dati ricevuti nel backend:", data)
+        
         # Estrai i parametri dal JSON ricevuto
         codice_cds = data.get('codice_cds')
-        anno_accademico = int(data.get('anno_accademico'))
+        print("Codice CdS estratto:", codice_cds)
+        
+        if not codice_cds:
+            return jsonify({'status': 'error', 'message': 'Codice CdS mancante'}), 400
+        
+        # Gestisci correttamente la conversione dell'anno accademico
+        anno_acc_raw = data.get('anno_accademico')
+        print("Anno accademico ricevuto:", anno_acc_raw, "tipo:", type(anno_acc_raw))
+        
+        if anno_acc_raw is None:
+            return jsonify({'status': 'error', 'message': 'Anno accademico mancante'}), 400
+        
+        try:
+            anno_accademico = int(anno_acc_raw)
+        except (ValueError, TypeError) as e:
+            return jsonify({'status': 'error', 'message': f'Anno accademico non valido: {anno_acc_raw}. Errore: {str(e)}'}), 400
+            
         nome_corso = data.get('nome_corso')
+        if not nome_corso:
+            return jsonify({'status': 'error', 'message': 'Nome corso mancante'}), 400
         
         # Date del primo semestre
         inizio_primo = data.get('inizio_primo')
@@ -485,66 +506,69 @@ def save_cds_dates():
         fine_secondo = data.get('fine_secondo')
         
         # Date di pausa didattica
-        pausa_primo_inizio = data.get('pausa_primo_inizio') or None
-        pausa_primo_fine = data.get('pausa_primo_fine') or None
-        pausa_secondo_inizio = data.get('pausa_secondo_inizio') or None
-        pausa_secondo_fine = data.get('pausa_secondo_fine') or None
+        pausa_primo_inizio = data.get('pausa_primo_inizio') if data.get('pausa_primo_inizio') != "" else None
+        pausa_primo_fine = data.get('pausa_primo_fine') if data.get('pausa_primo_fine') != "" else None
+        pausa_secondo_inizio = data.get('pausa_secondo_inizio') if data.get('pausa_secondo_inizio') != "" else None
+        pausa_secondo_fine = data.get('pausa_secondo_fine') if data.get('pausa_secondo_fine') != "" else None
         
         # Date delle sessioni d'esame
-        estiva_inizio = data.get('estiva_inizio')
-        estiva_fine = data.get('estiva_fine')
-        autunnale_inizio = data.get('autunnale_inizio')
-        autunnale_fine = data.get('autunnale_fine')
-        invernale_inizio = data.get('invernale_inizio')
-        invernale_fine = data.get('invernale_fine')
+        estiva_inizio = data.get('estiva_inizio') if data.get('estiva_inizio') != "" else None
+        estiva_fine = data.get('estiva_fine') if data.get('estiva_fine') != "" else None
+        autunnale_inizio = data.get('autunnale_inizio') if data.get('autunnale_inizio') != "" else None
+        autunnale_fine = data.get('autunnale_fine') if data.get('autunnale_fine') != "" else None
+        invernale_inizio = data.get('invernale_inizio') if data.get('invernale_inizio') != "" else None
+        invernale_fine = data.get('invernale_fine') if data.get('invernale_fine') != "" else None
         
         # Verifica che tutti i campi obbligatori siano presenti per la tabella CDS
-        required_fields_cds = [
-            codice_cds, anno_accademico, nome_corso,
-            inizio_primo, fine_primo, inizio_secondo, fine_secondo
-        ]
-        
-        if any(field is None or field == "" for field in required_fields_cds):
+        if not codice_cds or not anno_accademico or not nome_corso or not inizio_primo or not fine_primo or not inizio_secondo or not fine_secondo:
             return jsonify({'status': 'error', 'message': 'Tutti i campi obbligatori per il CDS devono essere completati'}), 400
         
         # Verifica che i periodi d'esame abbiano date di inizio e fine
         period_pairs = [
             (estiva_inizio, estiva_fine, 'Sessione estiva'),
             (autunnale_inizio, autunnale_fine, 'Sessione autunnale'),
-            (invernale_inizio, invernale_fine, 'Sessione invernale')
+            (invernale_inizio, invernale_fine, 'Sessione invernale'),
+            (pausa_primo_inizio, pausa_primo_fine, 'Pausa primo semestre'),
+            (pausa_secondo_inizio, pausa_secondo_fine, 'Pausa secondo semestre')
         ]
         
         for start, end, name in period_pairs:
             if (start and not end) or (not start and end):
-                return jsonify({'status': 'error', 'message': f'Date di inizio e fine per {name} devono essere entrambe specificate'}), 400
+                return jsonify({'status': 'error', 'message': f'Date di inizio e fine per {name} devono essere entrambe specificate o entrambe omesse'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # Verifica se esiste già un record per questo corso e anno accademico
         cursor.execute(
-            "SELECT 1 FROM cds WHERE codice = %s AND anno_accademico = %s",
+            "SELECT nome_corso FROM cds WHERE codice = %s AND anno_accademico = %s",
             (codice_cds, anno_accademico)
         )
-        exists = cursor.fetchone()
+        existing_record = cursor.fetchone()
         
-        if exists:
-            # Aggiorna il record esistente nella tabella cds
+        if existing_record:
+            # In caso di record esistente, verifica che il nome del corso sia lo stesso
+            # per impedire la modifica di dati che non siano le date
+            if existing_record[0] != nome_corso:
+                return jsonify({
+                    'status': 'error', 
+                    'message': 'Non è possibile modificare il nome del corso, solo le date sono modificabili'
+                }), 400
+            
+            # Aggiorna il record esistente nella tabella cds con solo le date
             cursor.execute("""
                 UPDATE cds SET 
-                nome_corso = %s,
                 inizio_lezioni_primo_semestre = %s,
                 fine_lezioni_primo_semestre = %s,
                 inizio_lezioni_secondo_semestre = %s,
                 fine_lezioni_secondo_semestre = %s
                 WHERE codice = %s AND anno_accademico = %s
             """, (
-                nome_corso,
                 inizio_primo, fine_primo,
                 inizio_secondo, fine_secondo,
                 codice_cds, anno_accademico
             ))
-            message = f"Informazioni del corso {codice_cds} per l'anno accademico {anno_accademico} aggiornate con successo"
+            message = f"Date del corso {codice_cds} per l'anno accademico {anno_accademico} aggiornate con successo"
         else:
             # Inserisci un nuovo record nella tabella cds
             cursor.execute("""
@@ -663,6 +687,36 @@ def get_cds_distinct():
             WHERE rn = 1
             ORDER BY nome_corso
         """)
+        
+        cds_list = [{"codice": row[0], "nome_corso": row[1], "anno_accademico": row[2]} for row in cursor.fetchall()]
+        return jsonify(cds_list)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+# API per ottenere i corsi di studio filtrati per un anno accademico specifico
+@admin_bp.route('/getCdSByAnno')
+def get_cds_by_anno():
+    anno = request.args.get('anno')
+    
+    if not anno:
+        return jsonify({"error": "Anno accademico non specificato"}), 400
+        
+    try:
+        anno = int(anno)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT codice, nome_corso, anno_accademico
+            FROM cds
+            WHERE anno_accademico = %s
+            ORDER BY nome_corso
+        """, (anno,))
         
         cds_list = [{"codice": row[0], "nome_corso": row[1], "anno_accademico": row[2]} for row in cursor.fetchall()]
         return jsonify(cds_list)
@@ -882,14 +936,52 @@ def get_cds_details():
         cds_data.update(periodi_data)
         
         # Converti le date in stringhe
+        from datetime import date
         for key, value in cds_data.items():
-            if isinstance(value, datetime.date):
+            if isinstance(value, date):
                 cds_data[key] = value.isoformat()
                 
         return jsonify(cds_data)
         
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+# API per ottenere gli anni accademici disponibili
+@admin_bp.route('/getAnniAccademici')
+def get_anni_accademici():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Recupera tutti gli anni accademici unici dal database
+        cursor.execute("""
+            SELECT DISTINCT anno_accademico 
+            FROM cds 
+            ORDER BY anno_accademico DESC
+        """)
+        
+        # Estrae gli anni dalla query e li converte in una lista
+        anni = [row[0] for row in cursor.fetchall()]
+        
+        # Se non ci sono anni nel database, restituisci l'anno corrente
+        if not anni:
+            current_year = datetime.now().year
+            # Se siamo nel secondo semestre, mostro anche l'anno prossimo
+            if datetime.now().month > 9:
+                anni = [current_year, current_year + 1]
+            else:
+                anni = [current_year]
+        
+        return jsonify(anni)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     finally:
         if 'cursor' in locals() and cursor:
             cursor.close()
