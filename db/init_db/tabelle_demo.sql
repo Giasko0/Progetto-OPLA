@@ -239,7 +239,7 @@ INSERT INTO insegnamenti_cds (insegnamento, anno_accademico, cds, anno_corso, se
 ('A000389', 2025, 'L062', 1, 2, NULL);  -- Programmazione II invariato
 
 -- Inserimento relazioni insegnamento-docente iniziali e con cambi docente per il 2025
-INSERT INTO insegna (insegnamento, docente, annoaccademico) VALUES
+INSERT INTO insegnamento_docente (insegnamento, docente, annoaccademico) VALUES
 -- Anno 2024 (assegnazioni iniziali)
 ('A000392', 'gn900001', 2024),  -- Reti di Calcolatori: gn900001
 ('A000390', 'av790001', 2024),  -- Algoritmi e Strutture Dati: av790001

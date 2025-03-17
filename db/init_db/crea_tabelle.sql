@@ -77,8 +77,8 @@ CREATE TABLE utenti (
     permessi_admin BOOLEAN       -- Permessi admin (true/false)
 );
 
--- Creazione della tabella 'insegna' (relazione N:N tra insegnamenti e utenti)
-CREATE TABLE insegna (
+-- Creazione della tabella 'insegnamento_docente' (relazione N:N tra insegnamenti e utenti)
+CREATE TABLE insegnamento_docente (
     insegnamento TEXT,           -- Codice dell'insegnamento (chiave esterna)
     docente TEXT,                -- Username del docente (chiave esterna)
     annoaccademico INT,          -- Anno accademico
