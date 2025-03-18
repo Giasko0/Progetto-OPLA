@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const navbarContainer = document.getElementById('navbar');
   
   if (navbarContainer) {
-    // Crea la struttura base della navbar
+    // Struttura html della navbar
     const navbarHTML = `
       <div class="navbar">
         <a href="index.html"><img src="static/imgs/logo.png" alt="Logo" class="logo"></a>
