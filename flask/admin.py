@@ -1391,7 +1391,7 @@ def download_ea():
                 e.note_appello
             FROM esami e
             JOIN insegnamenti i ON e.insegnamento = i.codice
-            LEFT JOIN aule a ON e.aula = a.codice
+            LEFT JOIN aule a ON e.aula = a.nome
             LEFT JOIN utenti u ON e.docente = u.username
             LEFT JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
                 AND EXTRACT(YEAR FROM e.data_appello) - 1 = ic.anno_accademico
@@ -1435,16 +1435,17 @@ def download_ea():
             if ora_appello and durata_appello:
                 # Converti ora_appello da time a datetime
                 inizio_datetime = datetime.combine(data_appello, ora_appello)
-                # Aggiungi la durata (in ore)
-                fine_datetime = inizio_datetime + timedelta(hours=durata_appello)
+                # Aggiungi la durata (in minuti)
+                fine_datetime = inizio_datetime + timedelta(minutes=durata_appello)
             else:
+                inizio_datetime = None
                 fine_datetime = None
 
             col = 0
             # Colonna A: Codice prenotazione
             worksheet.write(row_idx, col, f"opla_{data_attuale}_{id_esame}"); col += 1
             # Colonna B: Breve descrizione
-            worksheet.write(row_idx, col, titolo or ""); col += 1
+            worksheet.write(row_idx, col, "Esame di "+titolo or ""); col += 1
             # Colonna C: Descrizione completa
             worksheet.write(row_idx, col, ""); col += 1
             # Colonna D: Tipo prenotazione
@@ -1453,7 +1454,7 @@ def download_ea():
             worksheet.write(row_idx, col, "Confermata"); col += 1
             
             # Colonna F: Prenotazione da
-            if data_appello and ora_appello:
+            if inizio_datetime:
                 worksheet.write(row_idx, col, inizio_datetime, date_format)
             else:
                 worksheet.write(row_idx, col, "")
@@ -1467,7 +1468,7 @@ def download_ea():
             col += 1
             
             # Colonna H: Durata totale da (stesso valore di Prenotazione da)
-            if data_appello and ora_appello:
+            if inizio_datetime:
                 worksheet.write(row_idx, col, inizio_datetime, date_format)
             else:
                 worksheet.write(row_idx, col, "")
@@ -1499,9 +1500,9 @@ def download_ea():
             # Colonna R: Anno accademico
             worksheet.write(row_idx, col, anno_accademico or ""); col += 1
             # Colonna S: Codice raggruppamento
-            worksheet.write(row_idx, col, ""); col += 1
+            worksheet.write(row_idx, col, ""); col += 1 # Chiedere a Bistarelli
             # Colonna T: Nome raggruppamento
-            worksheet.write(row_idx, col, ""); col += 1
+            worksheet.write(row_idx, col, ""); col += 1 # Chiedere a Bistarelli
             # Colonna U: Codice utente utilizzatore
             worksheet.write(row_idx, col, docente or ""); col += 1
             # Colonna V: Nome utente utilizzatore
@@ -1511,7 +1512,7 @@ def download_ea():
             # Colonna X: Note
             worksheet.write(row_idx, col, note_appello or ""); col += 1
             # Colonna Y: Note interne
-            worksheet.write(row_idx, col, "")
+            worksheet.write(row_idx, col, ""); col += 1
 
         # Salva il workbook in memoria
         output = io.BytesIO()
@@ -1526,7 +1527,7 @@ def download_ea():
         return response
 
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
     finally:
         if 'cursor' in locals() and cursor:
             cursor.close()
