@@ -10,10 +10,11 @@ DROP TABLE IF EXISTS esami CASCADE;
 
 -- Creazione della tabella 'aule'
 CREATE TABLE aule (
-    nome TEXT PRIMARY KEY,      -- Nome dell'aula (chiave primaria)
-    sede TEXT,                  -- Sede dell'aula
-    edificio TEXT,              -- Edificio dell'aula
-    posti INT                   -- Numero di posti disponibili
+    codice TEXT PRIMARY KEY,      -- Codice dell'aula da easyAcademy (chiave primaria)
+    nome TEXT NOT NULL,           -- Nome dell'aula
+    sede TEXT,                    -- Sede dell'aula
+    edificio TEXT,                -- Edificio dell'aula
+    posti INT                     -- Numero di posti disponibili
 );
 
 -- Creazione della tabella 'cds'
@@ -90,7 +91,7 @@ CREATE TABLE esami (
     tipo_appello TEXT NOT NULL,           -- Tipo di appello (finale o parziale)
     docente TEXT NOT NULL REFERENCES utenti(username) ON DELETE CASCADE,         -- Username del docente responsabile (chiave esterna)
     insegnamento TEXT NOT NULL REFERENCES insegnamenti(codice) ON DELETE CASCADE, -- Codice dell'insegnamento (chiave esterna)
-    aula TEXT REFERENCES aule(nome) ON DELETE SET NULL,                           -- Nome dell'aula dove si svolgerà l'esame (chiave esterna)
+    aula TEXT REFERENCES aule(codice) ON DELETE SET NULL,                        -- Codice dell'aula dove si svolgerà l'esame (chiave esterna)
     data_appello DATE NOT NULL,           -- Data dell'esame
     data_inizio_iscrizione DATE NOT NULL, -- Data di apertura iscrizioni
     data_fine_iscrizione DATE NOT NULL,   -- Data di chiusura iscrizioni
@@ -134,3 +135,5 @@ CREATE INDEX idx_esami_data_appello ON esami(data_appello);
 CREATE INDEX idx_esami_insegnamento ON esami(insegnamento);
 CREATE INDEX idx_esami_docente ON esami(docente);
 CREATE INDEX idx_esami_aula ON esami(aula);
+
+CREATE INDEX idx_aule_nome ON aule(nome);

@@ -1,17 +1,17 @@
-INSERT INTO aule (nome, sede, edificio, posti) VALUES
-  ('Studio docente DMI', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', NULL),
-  ('A0', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 120),
-  ('A2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 80),
-  ('A3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 30),
-  ('B1', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 20),
-  ('B3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 20),
-  ('C2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 15),
-  ('C3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 20),
-  ('Aula verde', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 30),
-  ('Aula gialla', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 40),
-  ('I1', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 120),
-  ('I2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 80),
-  ('Aula riunioni', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 25);
+INSERT INTO aule (codice, nome, sede, edificio, posti) VALUES
+  ('STDOCENTE', 'Studio docente DMI', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', NULL),
+  ('A0DMI', 'A0', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 120),
+  ('A2DMI', 'A2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 80),
+  ('A3DMI', 'A3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 30),
+  ('B1DMI', 'B1', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 20),
+  ('B3DMI', 'B3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 20),
+  ('C2DMI', 'C2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 15),
+  ('C3DMI', 'C3', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 20),
+  ('AVERDE', 'Aula verde', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 30),
+  ('AGIALLA', 'Aula gialla', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 40),
+  ('I1DMI', 'I1', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 120),
+  ('I2DMI', 'I2', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 80),
+  ('ARIUNIONI', 'Aula riunioni', 'Perugia', 'DIPARTIMENTO DI MATEMATICA E INFORMATICA', 25);
 
 -- Inserimento utenti (i permessi sono cumulativi)
 INSERT INTO utenti (username, matricola, nome, cognome, permessi_docente, permessi_admin) VALUES
@@ -294,7 +294,7 @@ INSERT INTO esami (
     note_appello, condizione_sql, durata_appello, periodo
 ) VALUES
 -- Esami AA 2025/2026 (solo sessione anticipata, primo semestre)
-    ('PF', 'av790001', 'A000390', 'A2',         -- ASD
+    ('PF', 'av790001', 'A000390', 'A2DMI',         -- ASD
     '2026-01-15', '2025-12-15', '2026-01-13', 
     '09:00', 'FIRMA DIGITALE', 'SO', 80,
     'STD', 'STD', 'STD',
@@ -302,35 +302,35 @@ INSERT INTO esami (
     'Portare documento identità', NULL, 150, 0),
 
 -- Esami AA 2024/2025 (tutte le sessioni)
-    ('PF', 'lb750001', 'A000394', 'A0',         -- BD
+    ('PF', 'lb750001', 'A000394', 'A0DMI',         -- BD
     '2025-06-15', '2025-05-15', '2025-06-13', 
     '14:30', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 3.0, 1),
 
-    ('PF', 'mr800001', 'A000385', 'I1',       -- PI
+    ('PF', 'mr800001', 'A000385', 'I1DMI',       -- PI
     '2025-07-10', '2025-06-10', '2025-07-08', 
     '09:00', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 2.5, 0),
 
-    ('PF', 'pg950001', 'A000401', 'A2',         -- IA
+    ('PF', 'pg950001', 'A000401', 'A2DMI',         -- IA
     '2025-06-10', '2025-05-10', '2025-06-08', 
     '09:00', 'FIRMA DIGITALE', 'O', 80,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 2.0, 0),
 
-    ('PF', 'gn900001', 'A000392', 'I1',         -- RC
+    ('PF', 'gn900001', 'A000392', 'I1DMI',         -- RC
     '2025-09-15', '2025-08-15', '2025-09-13', 
     '14:30', 'FIRMA DIGITALE', 'SO', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     NULL, NULL, 3.0, 1),
 
-    ('PF', 'mr800001', 'A000389', 'A0',       -- PII
+    ('PF', 'mr800001', 'A000389', 'A0DMI',       -- PII
     '2025-02-10', '2025-01-10', '2025-02-08', 
     '09:00', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
@@ -338,7 +338,7 @@ INSERT INTO esami (
     NULL, NULL, 150, 0),
 
 -- AA 2024/2025 (sessione invernale)
-    ('PF', 'lb750001', 'A000394', 'A0',         -- BD
+    ('PF', 'lb750001', 'A000394', 'A0DMI',         -- BD
     '2025-01-20', '2024-12-20', '2025-01-18', 
     '14:30', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
@@ -346,14 +346,14 @@ INSERT INTO esami (
     NULL, NULL, 180, 1),
 
 -- Esami per il CdS di Matematica
-    ('PF', 'av790001', 'A000450', 'A0',        -- Analisi Matematica I
+    ('PF', 'av790001', 'A000450', 'A0DMI',        -- Analisi Matematica I
     '2025-01-12', '2024-12-12', '2025-01-10', 
     '09:00', 'FIRMA DIGITALE', 'SO', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     'Portare calcolatrice', NULL, 3.0, 0),
 
-    ('PF', 'pg950001', 'A000451', 'A2',        -- Algebra Lineare
+    ('PF', 'pg950001', 'A000451', 'A2DMI',        -- Algebra Lineare
     '2025-01-22', '2024-12-22', '2025-01-20', 
     '14:00', 'FIRMA DIGITALE', 'S', 80,
     'STD', 'STD', 'STD',
@@ -361,14 +361,14 @@ INSERT INTO esami (
     NULL, NULL, 2.5, 0),
 
 -- Sessione estiva
-    ('PF', 'mr800001', 'A000452', 'I1',        -- Analisi Matematica II
+    ('PF', 'mr800001', 'A000452', 'I1DMI',        -- Analisi Matematica II
     '2025-06-20', '2025-05-20', '2025-06-18', 
     '09:00', 'FIRMA DIGITALE', 'S', 120,
     'STD', 'STD', 'STD',
     NULL, NULL, NULL, false,
     'Portare calcolatrice scientifica', NULL, 210, 0),
 
-    ('PF', 'mr800001', 'A000455', 'B1',        -- Calcolo Numerico
+    ('PF', 'mr800001', 'A000455', 'B1DMI',        -- Calcolo Numerico
     '2025-07-05', '2025-06-05', '2025-07-03', 
     '14:30', 'FIRMA DIGITALE', 'SO', 20,
     'STD', 'STD', 'STD',

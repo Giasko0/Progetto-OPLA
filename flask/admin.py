@@ -338,7 +338,7 @@ def download_esse3():
                 e.tipo_iscrizione,          -- Tipo Iscr.
                 e.tipo_esame,               -- Tipo Esa.
                 a.edificio,                 -- Edificio
-                e.aula,                     -- Aula
+                a.nome,                     -- Nome Aula (modificato da e.aula)
                 d.matricola,                -- Matricola Docente
                 a.sede,                     -- Sede
                 e.condizione_sql,           -- Condizione SQL
@@ -351,7 +351,7 @@ def download_esse3():
             JOIN insegnamenti i ON e.insegnamento = i.codice
             LEFT JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
                 AND ic.anno_accademico = EXTRACT(YEAR FROM e.data_appello) - 1
-            LEFT JOIN aule a ON e.aula = a.nome
+            LEFT JOIN aule a ON e.aula = a.codice
             LEFT JOIN utenti d ON e.docente = d.username
             ORDER BY e.data_appello, e.insegnamento
         """)
@@ -1010,7 +1010,7 @@ def upload_aule():
         
         for aula in aule:
             # Verifica che tutti i campi richiesti siano presenti
-            if not all(key in aula for key in ['nome', 'sede', 'edificio', 'posti']):
+            if not all(key in aula for key in ['codice', 'nome', 'sede', 'edificio', 'posti']):
                 continue
                 
             try:
@@ -1018,23 +1018,23 @@ def upload_aule():
                 posti = int(aula['posti']) if aula['posti'] else 0
                 
                 # Verifica se l'aula esiste già
-                cursor.execute("SELECT nome FROM aule WHERE nome = %s", (aula['nome'],))
+                cursor.execute("SELECT codice FROM aule WHERE codice = %s", (aula['codice'],))
                 exists = cursor.fetchone()
                 
                 if exists:
                     # Aggiorna l'aula esistente
                     cursor.execute("""
                         UPDATE aule 
-                        SET sede = %s, edificio = %s, posti = %s 
-                        WHERE nome = %s
-                    """, (aula['sede'], aula['edificio'], posti, aula['nome']))
+                        SET nome = %s, sede = %s, edificio = %s, posti = %s 
+                        WHERE codice = %s
+                    """, (aula['nome'], aula['sede'], aula['edificio'], posti, aula['codice']))
                     updated_count += 1
                 else:
                     # Inserisci nuova aula
                     cursor.execute("""
-                        INSERT INTO aule (nome, sede, edificio, posti)
-                        VALUES (%s, %s, %s, %s)
-                    """, (aula['nome'], aula['sede'], aula['edificio'], posti))
+                        INSERT INTO aule (codice, nome, sede, edificio, posti)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (aula['codice'], aula['nome'], aula['sede'], aula['edificio'], posti))
                     inserted_count += 1
             except Exception as e:
                 print(f"Errore durante l'inserimento dell'aula {aula['nome']}: {str(e)}")
@@ -1094,6 +1094,7 @@ def load_aule_easy_academy():
         # Prepara i dati delle aule
         for aula in aule_dmi:
             aule_data.append({
+                'codice': aula['value'],
                 'nome': aula['label'],
                 'sede': 'Perugia',
                 'edificio': 'DIPARTIMENTO DI MATEMATICA E INFORMATICA',
@@ -1102,13 +1103,13 @@ def load_aule_easy_academy():
             
         # Aggiungi lo studio docente
         aule_data.append({
+            'codice': 'STDOCENTE', # Codice studio docente
             'nome': 'Studio docente DMI',
             'sede': 'Perugia',
             'edificio': 'DIPARTIMENTO DI MATEMATICA E INFORMATICA',
             'posti': 9999
         })
         
-        # Connessione al database
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -1122,23 +1123,23 @@ def load_aule_easy_academy():
                 posti = int(aula['posti']) if aula['posti'] else 0
                 
                 # Verifica se l'aula esiste già
-                cursor.execute("SELECT nome FROM aule WHERE nome = %s", (aula['nome'],))
+                cursor.execute("SELECT codice FROM aule WHERE codice = %s", (aula['codice'],))
                 exists = cursor.fetchone()
                 
                 if exists:
                     # Aggiorna l'aula esistente
                     cursor.execute("""
                         UPDATE aule 
-                        SET sede = %s, edificio = %s, posti = %s 
-                        WHERE nome = %s
-                    """, (aula['sede'], aula['edificio'], posti, aula['nome']))
+                        SET nome = %s, sede = %s, edificio = %s, posti = %s 
+                        WHERE codice = %s
+                    """, (aula['nome'], aula['sede'], aula['edificio'], posti, aula['codice']))
                     updated_count += 1
                 else:
                     # Inserisci nuova aula
                     cursor.execute("""
-                        INSERT INTO aule (nome, sede, edificio, posti)
-                        VALUES (%s, %s, %s, %s)
-                    """, (aula['nome'], aula['sede'], aula['edificio'], posti))
+                        INSERT INTO aule (codice, nome, sede, edificio, posti)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (aula['codice'], aula['nome'], aula['sede'], aula['edificio'], posti))
                     inserted_count += 1
             except Exception as e:
                 print(f"Errore durante l'inserimento dell'aula {aula['nome']}: {str(e)}")
