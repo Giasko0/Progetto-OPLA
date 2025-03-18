@@ -11,35 +11,6 @@
   <script src="static/scripts/authCheck.js"></script>
   <script src="static/scripts/navbarAdmin.js"></script>
   <script src="static/scripts/calendarioEsami.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Carica i corsi di studio
-      fetch('/api/getCdSDistinct')
-        .then(response => response.json())
-        .then(data => {
-          const cdsSelector = document.getElementById('cdsSelector');
-          data.forEach(cds => {
-            const option = document.createElement('option');
-            option.value = cds.codice;
-            option.textContent = `${cds.nome_corso} (${cds.codice})`;
-            cdsSelector.appendChild(option);
-          });
-        });
-      
-      // Carica gli anni accademici
-      fetch('/api/getAnniAccademici')
-        .then(response => response.json())
-        .then(data => {
-          const annoSelector = document.getElementById('annoAccademicoSelector');
-          data.forEach(anno => {
-            const option = document.createElement('option');
-            option.value = anno;
-            option.textContent = `${anno}/${anno+1}`;
-            annoSelector.appendChild(option);
-          });
-        });
-    });
-  </script>
 </head>
 
 <body>
@@ -48,32 +19,32 @@
   <main>
     <h1>Calendario Esami</h1>
 
-    <div class="form-row">
-      <div class="form-col">
-        <div class="form-group">
-          <label for="cdsSelector">Seleziona Corso di Studi:</label>
-          <select class="form-control" id="cdsSelector">
-            <option value="">Seleziona un CdS</option>
+    <!-- Sezione per selezionare anno e corso in due colonne -->
+    <section class="selector-section">
+      <div class="columns-container">
+        <div class="column">
+          <label for="selectAnnoAccademico">Anno Accademico:</label>
+          <select id="selectAnnoAccademico" onchange="loadCorsiForAnno(this.value)">
+            <option value="">Seleziona anno accademico</option>
+            <!-- Opzioni caricate dinamicamente -->
+          </select>
+        </div>
+        <div class="column">
+          <label for="selectCds">Corso di Studio:</label>
+          <select id="selectCds" onchange="cdsSelected(this.value)">
+            <option value="">Seleziona un corso</option>
+            <!-- Opzioni caricate dinamicamente -->
           </select>
         </div>
       </div>
-      <div class="form-col">
-        <div class="form-group">
-          <label for="annoAccademicoSelector">Anno Accademico:</label>
-          <select class="form-control" id="annoAccademicoSelector">
-            <option value="">Seleziona un Anno Accademico</option>
-          </select>
-        </div>
+      <div class="actions">
+        <button id="btnGeneraCalendario" class="btn primary">Genera Calendario</button>
       </div>
-      <div class="form-col" style="display: flex; align-items: flex-end;">
-        <button id="btnGeneraCalendario" class="btn btn-primary">Genera Calendario</button>
-      </div>
-    </div>
+    </section>
 
     <div id="calendarioContainer" class="calendar-container">
       <!-- Il calendario sarà generato qui dinamicamente -->
-      <p style="text-align: center;">Seleziona un corso di studi e un anno accademico per visualizzare il calendario
-        degli esami.</p>
+      <p>Seleziona un corso di studi e un anno accademico per visualizzare il calendario degli esami.</p>
     </div>
   </main>
 </body>
