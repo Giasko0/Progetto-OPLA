@@ -513,6 +513,8 @@ def save_cds_dates():
         pausa_secondo_fine = data.get('pausa_secondo_fine') if data.get('pausa_secondo_fine') != "" else None
         
         # Date delle sessioni d'esame
+        anticipata_inizio = data.get('anticipata_inizio') if data.get('anticipata_inizio') != "" else None
+        anticipata_fine = data.get('anticipata_fine') if data.get('anticipata_fine') != "" else None
         estiva_inizio = data.get('estiva_inizio') if data.get('estiva_inizio') != "" else None
         estiva_fine = data.get('estiva_fine') if data.get('estiva_fine') != "" else None
         autunnale_inizio = data.get('autunnale_inizio') if data.get('autunnale_inizio') != "" else None
@@ -526,6 +528,7 @@ def save_cds_dates():
         
         # Verifica che i periodi d'esame abbiano date di inizio e fine
         period_pairs = [
+            (anticipata_inizio, anticipata_fine, 'Sessione anticipata'),
             (estiva_inizio, estiva_fine, 'Sessione estiva'),
             (autunnale_inizio, autunnale_fine, 'Sessione autunnale'),
             (invernale_inizio, invernale_fine, 'Sessione invernale'),
@@ -598,6 +601,48 @@ def save_cds_dates():
         # Definizione dei periodi da inserire
         periodi = []
         
+        # Aggiungi la sessione anticipata se presente
+        if anticipata_inizio and anticipata_fine:
+            periodi.append(('ANTICIPATA', anticipata_inizio, anticipata_fine, 3))
+            
+            # Se la sessione anticipata è fornita, copiala anche come sessione invernale dell'anno precedente
+            try:
+                # Controlla se esiste già il record per l'anno accademico precedente
+                anno_precedente = anno_accademico - 1
+                cursor.execute(
+                    "SELECT 1 FROM cds WHERE codice = %s AND anno_accademico = %s",
+                    (codice_cds, anno_precedente)
+                )
+                exists_previous_year = cursor.fetchone() is not None
+                
+                if not exists_previous_year:
+                    # Crea un record minimo per l'anno precedente se non esiste
+                    cursor.execute("""
+                        INSERT INTO cds (
+                            codice, anno_accademico, nome_corso
+                        ) VALUES (
+                            %s, %s, %s
+                        ) ON CONFLICT DO NOTHING
+                    """, (
+                        codice_cds, anno_precedente, nome_corso
+                    ))
+                
+                # Elimina eventuali periodi invernali esistenti per l'anno precedente
+                cursor.execute("""
+                    DELETE FROM periodi_esame 
+                    WHERE cds = %s AND anno_accademico = %s AND tipo_periodo = 'INVERNALE'
+                """, (codice_cds, anno_precedente))
+                
+                # Inserisci la sessione anticipata come invernale dell'anno precedente
+                cursor.execute("""
+                    INSERT INTO periodi_esame (cds, anno_accademico, tipo_periodo, inizio, fine, max_esami)
+                    VALUES (%s, %s, 'INVERNALE', %s, %s, %s)
+                """, (codice_cds, anno_precedente, anticipata_inizio, anticipata_fine, 3))
+                
+                print(f"Aggiunta sessione invernale per l'anno precedente {anno_precedente}")
+            except Exception as e:
+                print(f"Errore nell'aggiungere la sessione invernale per l'anno precedente: {str(e)}")
+            
         # Aggiungi la sessione estiva se presente
         if estiva_inizio and estiva_fine:
             periodi.append(('ESTIVA', estiva_inizio, estiva_fine, 3))
@@ -908,7 +953,7 @@ def get_cds_details():
         # Otteniamo l'anno accademico per recuperare i periodi d'esame
         anno_accademico = cds_data['anno_accademico']
         
-        # Query per ottenere i periodi d'esame
+        # Query per ottenere i periodi d'esame dell'anno corrente
         cursor.execute("""
             SELECT tipo_periodo, inizio, fine, max_esami
             FROM periodi_esame
@@ -919,6 +964,7 @@ def get_cds_details():
         
         # Mappa per convertire i tipi di periodo dal database ai nomi dei campi nella risposta
         tipo_periodo_field_map = {
+            'ANTICIPATA': ('anticipata_inizio', 'anticipata_fine'),
             'ESTIVA': ('estiva_inizio', 'estiva_fine'),
             'AUTUNNALE': ('autunnale_inizio', 'autunnale_fine'),
             'INVERNALE': ('invernale_inizio', 'invernale_fine'),
@@ -932,6 +978,25 @@ def get_cds_details():
                 inizio_field, fine_field = tipo_periodo_field_map[tipo_periodo]
                 periodi_data[inizio_field] = inizio.isoformat() if inizio else None
                 periodi_data[fine_field] = fine.isoformat() if fine else None
+        
+        # Se non c'è una sessione anticipata, cerca la sessione invernale dell'anno precedente
+        if 'anticipata_inizio' not in periodi_data or not periodi_data['anticipata_inizio']:
+            try:
+                anno_precedente = anno_accademico - 1
+                cursor.execute("""
+                    SELECT inizio, fine
+                    FROM periodi_esame
+                    WHERE cds = %s AND anno_accademico = %s AND tipo_periodo = 'INVERNALE'
+                """, (codice, anno_precedente))
+                
+                prev_winter = cursor.fetchone()
+                if prev_winter:
+                    inizio, fine = prev_winter
+                    periodi_data['anticipata_inizio'] = inizio.isoformat() if inizio else None
+                    periodi_data['anticipata_fine'] = fine.isoformat() if fine else None
+                    print(f"Recuperata sessione invernale dell'anno precedente {anno_precedente} come sessione anticipata")
+            except Exception as e:
+                print(f"Errore nel recupero della sessione invernale dell'anno precedente: {str(e)}")
         
         # Combina i dati del CdS con i periodi d'esame
         cds_data.update(periodi_data)
@@ -1094,7 +1159,7 @@ def load_aule_easy_academy():
         # Prepara i dati delle aule
         for aula in aule_dmi:
             aule_data.append({
-                'codice': aula['value'],
+                'codice': aula['valore'],
                 'nome': aula['label'],
                 'sede': 'Perugia',
                 'edificio': 'DIPARTIMENTO DI MATEMATICA E INFORMATICA',
@@ -1292,6 +1357,175 @@ def delete_user():
     except Exception as e:
         if 'conn' in locals() and conn:
             conn.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+@admin_bp.route('/downloadFileEA')
+def download_ea():
+    if 'admin' not in request.cookies:
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Recupera dati degli esami con informazioni correlate sulle aule, insegnamenti e docenti
+        cursor.execute("""
+            SELECT 
+                e.id,
+                i.titolo,
+                e.data_appello,
+                e.ora_appello,
+                e.durata_appello,
+                a.codice AS aula_codice,
+                a.nome AS aula_nome,
+                e.insegnamento,
+                ic.anno_accademico,
+                e.docente,
+                u.nome AS docente_nome,
+                u.cognome AS docente_cognome,
+                e.note_appello
+            FROM esami e
+            JOIN insegnamenti i ON e.insegnamento = i.codice
+            LEFT JOIN aule a ON e.aula = a.codice
+            LEFT JOIN utenti u ON e.docente = u.username
+            LEFT JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
+                AND EXTRACT(YEAR FROM e.data_appello) - 1 = ic.anno_accademico
+            ORDER BY e.data_appello, e.insegnamento
+        """)
+        
+        esami = cursor.fetchall()
+
+        # Crea il file Excel in memoria
+        workbook = xlwt.Workbook()
+        worksheet = workbook.add_sheet('Prenotazioni')
+
+        # Formattazione per le date
+        date_format = xlwt.XFStyle()
+        date_format.num_format_str = 'DD-MM-YYYY, HH:MM'
+        
+        # Data attuale per il suffisso del codice prenotazione
+        data_attuale = datetime.now().strftime('%Y%m%d')
+
+        # Intestazioni
+        headers = [
+            'Codice prenotazione', 'Breve descrizione', 'Descrizione completa', 'Tipo prenotazione',
+            'Status', 'Prenotazione da', 'Prenotazione a', 'Durata totale da', 'Durata totale a',
+            'Tipo ripetizione', 'Codice aula', 'Nome aula', 'Codice sede', 'Sede',
+            'Aula virtuale', 'Etichetta aula virtuale', 'Codice insegnamento', 'Anno accademico',
+            'Codice raggruppamento', 'Nome raggruppamento', 'Codice utente utilizzatore',
+            'Nome utente utilizzatore', 'Cognome utente utilizzatore', 'Note', 'Note interne'
+        ]
+
+        # Scrivi le intestazioni
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header)
+
+        # Scrivi i dati
+        for row_idx, esame in enumerate(esami, start=1):
+            (id_esame, titolo, data_appello, ora_appello, durata_appello, 
+             aula_codice, aula_nome, insegnamento, anno_accademico,
+             docente, docente_nome, docente_cognome, note_appello) = esame
+
+            # Calcola l'orario di fine esame
+            if ora_appello and durata_appello:
+                # Converti ora_appello da time a datetime
+                inizio_datetime = datetime.combine(data_appello, ora_appello)
+                # Aggiungi la durata (in ore)
+                fine_datetime = inizio_datetime + timedelta(hours=durata_appello)
+            else:
+                fine_datetime = None
+
+            col = 0
+            # Colonna A: Codice prenotazione
+            worksheet.write(row_idx, col, f"opla_{id_esame}_{data_attuale}"); col += 1
+            # Colonna B: Breve descrizione
+            worksheet.write(row_idx, col, titolo or ""); col += 1
+            # Colonna C: Descrizione completa
+            worksheet.write(row_idx, col, ""); col += 1
+            # Colonna D: Tipo prenotazione
+            worksheet.write(row_idx, col, "esame"); col += 1
+            # Colonna E: Status
+            worksheet.write(row_idx, col, "Confermata"); col += 1
+            
+            # Colonna F: Prenotazione da
+            if data_appello and ora_appello:
+                worksheet.write(row_idx, col, inizio_datetime, date_format)
+            else:
+                worksheet.write(row_idx, col, "")
+            col += 1
+            
+            # Colonna G: Prenotazione a
+            if fine_datetime:
+                worksheet.write(row_idx, col, fine_datetime, date_format)
+            else:
+                worksheet.write(row_idx, col, "")
+            col += 1
+            
+            # Colonna H: Durata totale da (stesso valore di Prenotazione da)
+            if data_appello and ora_appello:
+                worksheet.write(row_idx, col, inizio_datetime, date_format)
+            else:
+                worksheet.write(row_idx, col, "")
+            col += 1
+            
+            # Colonna I: Durata totale a (stesso valore di Prenotazione a)
+            if fine_datetime:
+                worksheet.write(row_idx, col, fine_datetime, date_format)
+            else:
+                worksheet.write(row_idx, col, "")
+            col += 1
+            
+            # Colonna J: Tipo ripetizione
+            worksheet.write(row_idx, col, "Una volta"); col += 1
+            # Colonna K: Codice aula
+            worksheet.write(row_idx, col, aula_codice or ""); col += 1
+            # Colonna L: Nome aula
+            worksheet.write(row_idx, col, aula_nome or ""); col += 1
+            # Colonna M: Codice sede
+            worksheet.write(row_idx, col, "P02E04"); col += 1
+            # Colonna N: Sede
+            worksheet.write(row_idx, col, "Matematica e Informatica"); col += 1
+            # Colonna O: Aula virtuale
+            worksheet.write(row_idx, col, ""); col += 1
+            # Colonna P: Etichetta aula virtuale
+            worksheet.write(row_idx, col, ""); col += 1
+            # Colonna Q: Codice insegnamento
+            worksheet.write(row_idx, col, insegnamento or ""); col += 1
+            # Colonna R: Anno accademico
+            worksheet.write(row_idx, col, anno_accademico or ""); col += 1
+            # Colonna S: Codice raggruppamento
+            worksheet.write(row_idx, col, ""); col += 1
+            # Colonna T: Nome raggruppamento
+            worksheet.write(row_idx, col, ""); col += 1
+            # Colonna U: Codice utente utilizzatore
+            worksheet.write(row_idx, col, docente or ""); col += 1
+            # Colonna V: Nome utente utilizzatore
+            worksheet.write(row_idx, col, docente_nome or ""); col += 1
+            # Colonna W: Cognome utente utilizzatore
+            worksheet.write(row_idx, col, docente_cognome or ""); col += 1
+            # Colonna X: Note
+            worksheet.write(row_idx, col, note_appello or ""); col += 1
+            # Colonna Y: Note interne
+            worksheet.write(row_idx, col, "")
+
+        # Salva il workbook in memoria
+        output = io.BytesIO()
+        workbook.save(output)
+        output.seek(0)
+
+        # Prepara la risposta
+        response = make_response(output.getvalue())
+        response.headers['Content-Disposition'] = 'attachment; filename=Prenotazioni.xls'
+        response.headers['Content-type'] = 'application/vnd.ms-excel'
+        
+        return response
+
+    except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         if 'cursor' in locals() and cursor:

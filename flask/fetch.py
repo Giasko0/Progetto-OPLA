@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from db import get_db_connection, release_connection
 from datetime import datetime
-from utils.sessions import get_valid_years
 from auth import get_user_data
 
 fetch_bp = Blueprint('fetch', __name__)
@@ -345,29 +344,166 @@ def ottieniSessioni():
             else:
                 return jsonify({'error': 'Nessun corso di studi trovato'}), 404
 
-        # Ottieni i periodi d'esame dalla nuova tabella
-        cursor.execute("""
-            SELECT tipo_periodo, inizio, fine, max_esami
-            FROM periodi_esame
-            WHERE cds = %s AND anno_accademico = %s
-            ORDER BY inizio
-        """, (cds_code, anno_accademico))
+        # Ottieni i periodi d'esame usando la funzione centralizzata
+        from utils.sessions import get_all_sessions_for_cds
+        sessions = get_all_sessions_for_cds(cds_code, anno_accademico)
         
-        periodi = cursor.fetchall()
-        
-        if not periodi:
+        if not sessions:
             return jsonify({'error': 'Nessuna sessione trovata per il corso di studi selezionato'}), 404
         
         # Costruisci il risultato
         result = {}
-        for periodo, inizio, fine, max_esami in periodi:
-            result[periodo.lower()] = {
-                'start': inizio.isoformat(),
-                'end': fine.isoformat(),
-                'max_esami': max_esami
+        for session in sessions:
+            result[session['tipo']] = {
+                'start': session['inizio'].isoformat(),
+                'end': session['fine'].isoformat(),
+                'max_esami': session['max_esami'],
+                'nome': session['nome']
             }
         
         return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+# API per ottenere le sessioni d'esame specifiche per un corso di studio
+@fetch_bp.route('/api/ottieniSessioniCds', methods=['GET'])
+def ottieniSessioniCds():
+    cds = request.args.get('cds')
+    anno = request.args.get('anno')
+    
+    if not cds or not anno:
+        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
+        
+    try:
+        # Usa la funzione centralizzata
+        from utils.sessions import get_all_sessions_for_cds
+        sessions = get_all_sessions_for_cds(cds, int(anno))
+        
+        if not sessions:
+            return jsonify({'error': 'Nessuna sessione trovata per il corso di studi selezionato'}), 404
+        
+        # Costruisci il risultato
+        result = {}
+        for session in sessions:
+            result[session['tipo']] = {
+                'start': session['inizio'].isoformat(),
+                'end': session['fine'].isoformat(),
+                'max_esami': session['max_esami'],
+                'nome': session['nome']
+            }
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+# API per ottenere l'intersezione delle sessioni d'esame di tutti i CdS di un docente
+@fetch_bp.route('/api/ottieniIntersessioniCds', methods=['GET'])
+def ottieniIntersessioniCds():
+    docente = request.args.get('docente')
+    anno = request.args.get('anno')
+    
+    if not docente or not anno:
+        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
+        
+    try:
+        from utils.sessions import get_session_intersection_for_docente
+        
+        # Usa la funzione centralizzata per calcolare le intersezioni
+        sessions = get_session_intersection_for_docente(docente, int(anno))
+        
+        # Costruisci il risultato
+        result = {}
+        for session in sessions:
+            result[session['tipo']] = {
+                'start': session['inizio'].isoformat(),
+                'end': session['fine'].isoformat(),
+                'max_esami': session['max_esami'],
+                'nome': session['nome']
+            }
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+# Nuovo endpoint che fornisce date valide già formattate per il calendario
+@fetch_bp.route('/api/getDateValide', methods=['GET'])
+def getDateValide():
+    docente = request.args.get('docente')
+    anno = request.args.get('anno')
+    cds = request.args.get('cds')
+    
+    try:
+        current_date = datetime.now()
+        anno_accademico = int(anno) if anno else (current_date.year if current_date.month >= 9 else current_date.year - 1)
+        
+        from utils.sessions import get_all_sessions_for_cds, get_session_intersection_for_docente, format_session_name
+        
+        # Ottieni le sessioni in base ai parametri
+        if cds:
+            # Date specifiche per un CdS
+            sessions = get_all_sessions_for_cds(cds, anno_accademico)
+        elif docente:
+            # Intersezione tra CdS del docente
+            sessions = get_session_intersection_for_docente(docente, anno_accademico)
+        else:
+            # Fallback: ottieni le sessioni di un qualsiasi CdS
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT codice FROM cds WHERE anno_accademico = %s LIMIT 1", (anno_accademico,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return jsonify({'error': 'Nessun corso di studi trovato'}), 404
+            
+            cds_code = result[0]
+            sessions = get_all_sessions_for_cds(cds_code, anno_accademico)
+            
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+            if 'conn' in locals() and conn:
+                release_connection(conn)
+        
+        # Formatta le date per il frontend
+        date_valide = []
+        for session in sessions:
+            date_valide.append([
+                session['inizio'].isoformat(),
+                session['fine'].isoformat(),
+                session['nome'],
+                session['tipo']
+            ])
+        
+        # Ordina le date secondo la logica di ordinamento delle sessioni
+        ordine_sessioni = {
+            'anticipata': 1,
+            'pausa_autunnale': 2,
+            'estiva': 3,
+            'autunnale': 4, 
+            'pausa_primaverile': 5,
+            'invernale': 6
+        }
+        
+        date_valide.sort(key=lambda x: ordine_sessioni.get(x[3], 99))
+        
+        # Rimuovi il campo tipo usato solo per l'ordinamento
+        date_valide = [item[:3] for item in date_valide]
+        
+        return jsonify(date_valide)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -460,137 +596,6 @@ def ottieniCdSDocente():
         return jsonify(cds_list)
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            release_connection(conn)
-
-# API per ottenere le sessioni d'esame specifiche per un corso di studio
-@fetch_bp.route('/api/ottieniSessioniCds', methods=['GET'])
-def ottieniSessioniCds():
-    cds = request.args.get('cds')
-    anno = request.args.get('anno')
-    
-    if not cds or not anno:
-        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
-        
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Recupera i periodi d'esame per il CdS specificato
-        cursor.execute("""
-            SELECT tipo_periodo, inizio, fine, max_esami
-            FROM periodi_esame
-            WHERE cds = %s AND anno_accademico = %s
-            ORDER BY inizio
-        """, (cds, anno))
-        
-        periodi = cursor.fetchall()
-        
-        if not periodi:
-            # Se non ci sono periodi specifici per il CdS, usa quelli di default
-            return ottieniSessioni()
-        
-        # Costruisci il risultato
-        result = {}
-        for periodo, inizio, fine, max_esami in periodi:
-            result[periodo.lower()] = {
-                'start': inizio.isoformat(),
-                'end': fine.isoformat(),
-                'max_esami': max_esami
-            }
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            release_connection(conn)
-
-# API per ottenere l'intersezione delle sessioni d'esame di tutti i CdS di un docente
-@fetch_bp.route('/api/ottieniIntersessioniCds', methods=['GET'])
-def ottieniIntersessioniCds():
-    docente = request.args.get('docente')
-    anno = request.args.get('anno')
-    
-    if not docente or not anno:
-        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
-        
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Recupera tutti i CdS associati al docente
-        cursor.execute("""
-            SELECT DISTINCT c.codice
-            FROM cds c
-            JOIN insegnamenti_cds ic ON c.codice = ic.cds AND c.anno_accademico = ic.anno_accademico
-            JOIN insegnamento_docente id ON ic.insegnamento = id.insegnamento AND ic.anno_accademico = id.annoaccademico
-            WHERE id.docente = %s 
-            AND ic.anno_accademico = %s
-        """, (docente, anno))
-        
-        cds_list = [row[0] for row in cursor.fetchall()]
-        
-        if not cds_list:
-            return jsonify({'error': 'Nessun corso di studi trovato per il docente'}), 404
-        
-        # Recupera i periodi d'esame di tutti i CdS
-        periodi_per_tipo = {}
-        
-        for cds_code in cds_list:
-            cursor.execute("""
-                SELECT tipo_periodo, inizio, fine, max_esami
-                FROM periodi_esame
-                WHERE cds = %s AND anno_accademico = %s
-                ORDER BY inizio
-            """, (cds_code, anno))
-            
-            for periodo, inizio, fine, max_esami in cursor.fetchall():
-                if periodo not in periodi_per_tipo:
-                    periodi_per_tipo[periodo] = {
-                        'start': inizio,
-                        'end': fine,
-                        'max_esami': max_esami,
-                        'cds_count': 1
-                    }
-                else:
-                    # Calcola l'intersezione
-                    current_start = periodi_per_tipo[periodo]['start']
-                    current_end = periodi_per_tipo[periodo]['end']
-                    
-                    # L'inizio dell'intersezione è il massimo tra gli inizi
-                    new_start = max(current_start, inizio)
-                    # La fine dell'intersezione è il minimo tra le fini
-                    new_end = min(current_end, fine)
-                    
-                    # Conserva il minimo numero di esami consentiti
-                    min_max_esami = min(periodi_per_tipo[periodo]['max_esami'], max_esami)
-                    
-                    periodi_per_tipo[periodo].update({
-                        'start': new_start,
-                        'end': new_end,
-                        'max_esami': min_max_esami,
-                        'cds_count': periodi_per_tipo[periodo]['cds_count'] + 1
-                    })
-        
-        # Filtra solo i periodi comuni a tutti i CdS
-        result = {}
-        for periodo, dati in periodi_per_tipo.items():
-            if dati['cds_count'] == len(cds_list) and dati['start'] <= dati['end']:
-                result[periodo.lower()] = {
-                    'start': dati['start'].isoformat(),
-                    'end': dati['end'].isoformat(),
-                    'max_esami': dati['max_esami']
-                }
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
     finally:
         if 'cursor' in locals() and cursor:
             cursor.close()

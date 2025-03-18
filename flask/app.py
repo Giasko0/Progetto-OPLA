@@ -6,7 +6,7 @@ import os
 # Config DB
 from db import get_db_connection, release_connection, init_db, close_all_connections
 # Funzioni per la gestione delle date/sessioni
-from utils.sessions import get_session_for_date, get_valid_years
+from utils.sessions import get_session_for_date
 # Auth stupida e SAML
 from auth import auth_bp
 from saml_auth import saml_bp, require_auth
@@ -98,13 +98,6 @@ def inserisciEsame():
 
     # Verifica che l'anno sia valido
     data_esame = datetime.fromisoformat(data_appello)
-    anno_valido_inizio, anno_valido_fine = get_valid_years()
-    
-    if not (anno_valido_inizio <= data_esame.year <= anno_valido_fine):
-      return jsonify({
-        'status': 'error',
-        'message': f'È possibile inserire esami solo per gli anni {anno_valido_inizio}-{anno_valido_fine}'
-      }), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()

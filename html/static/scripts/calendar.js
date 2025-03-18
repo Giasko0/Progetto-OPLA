@@ -4,7 +4,7 @@ import {
   createDropdown,
   populateInsegnamentiDropdown, 
   fetchCalendarEvents,
-  getDateValideFromSessioni,
+  loadDateValide,
   createInsegnamentoTag,
   updateHiddenSelect
 } from './calendarProps.js';
@@ -37,19 +37,28 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  // Carica le date delle sessioni e verifica i permessi
+  // Ottieni il docente loggato per riutilizzarlo
+  const loggedDocente = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('username='))
+    ?.split('=')[1];
+
+  // Carica le date valide e verifica i permessi in modo ottimizzato
   Promise.all([
-    fetch('/api/ottieniSessioni').then(response => response.json()),
+    loadDateValide(loggedDocente, planningYear), // Uso della nuova funzione
     checkAdminPermissions()
   ])
-    .then(([sessioni]) => {
-      // Converti in array di date
-      dateValide = getDateValideFromSessioni(sessioni);
+    .then(([dateValideResponse]) => {
+      // Salva le date valide
+      dateValide = dateValideResponse;
 
-      // Crea dropdown
-      const dropdownSessioni = createDropdown('sessioni', sessioni);
+      // Crea dropdown una sola volta
+      const dropdownSessioni = createDropdown('sessioni');
       const dropdownInsegnamenti = createDropdown('insegnamenti');
       const dropdownCds = createDropdown('cds');
+
+      // Popola dropdown sessioni
+      updateSessioniDropdown(dropdownSessioni, dateValide);
 
       // Determina quali pulsanti mostrare in base ai permessi
       const rightButtons = isAdmin ? 
@@ -90,15 +99,9 @@ document.addEventListener("DOMContentLoaded", function () {
               dropdownSessioni.classList.remove('show');
               dropdownInsegnamenti.classList.remove('show');
               
-              // Docente loggato
-              const docente = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('username='))
-                ?.split('=')[1];
-                
-              if (docente) {
-                // Recupera i CdS associati al docente
-                fetch(`/api/ottieniCdSDocente?docente=${docente}&anno=${planningYear}`)
+              // Recupera i CdS associati al docente
+              if (loggedDocente) {
+                fetch(`/api/ottieniCdSDocente?docente=${loggedDocente}&anno=${planningYear}`)
                   .then(response => response.json())
                   .then(data => {
                     // Pulisci il dropdown
@@ -162,14 +165,10 @@ document.addEventListener("DOMContentLoaded", function () {
               dropdownSessioni.classList.remove('show');
               dropdownCds.classList.remove('show');
               
-              // Docente loggato
-              const docente = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('username='))
-                ?.split('=')[1];
-                
               // Popola dropdown
-              populateInsegnamentiDropdown(dropdownInsegnamenti, docente, planningYear, selectedCds);
+              if (loggedDocente) {
+                populateInsegnamentiDropdown(dropdownInsegnamenti, loggedDocente, planningYear, selectedCds);
+              }
             }
           },
           // Debug: tutti gli esami (solo admin)
@@ -281,49 +280,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 
                 // Pre-popola insegnamenti nel form
-                if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
-                  // Prepara contenitore
-                  const multiSelectBox = document.getElementById('insegnamentoBox');
-                  if (multiSelectBox) {
-                    // Salva placeholder
-                    const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
-                    
-                    // Svuota contenitore
-                    multiSelectBox.innerHTML = '';
-                    
-                    // Ripristina placeholder se necessario
-                    if (placeholder && window.InsegnamentiManager.getSelectedCodes().length === 0) {
-                      multiSelectBox.appendChild(placeholder.cloneNode(true));
-                    }
-                  
-                    // Carica insegnamenti selezionati
-                    window.InsegnamentiManager.loadSelectedInsegnamenti(username, function(data) {
-                      if (data.length > 0) {
-                        // Rimuovi placeholder
-                        const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
-                        if (placeholder) {
-                          placeholder.remove();
-                        }
-                        
-                        // Crea tag per insegnamenti
-                        data.forEach(ins => {
-                          createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
-                        });
-                        
-                        // Aggiorna select nascosta
-                        updateHiddenSelect(multiSelectBox);
-                        
-                        // Aggiorna opzioni nel dropdown
-                        const options = document.querySelectorAll('#insegnamentoOptions .multi-select-option');
-                        options.forEach(option => {
-                          if (window.InsegnamentiManager.isSelected(option.dataset.value)) {
-                            option.classList.add('selected');
-                          }
-                        });
-                      }
-                    });
-                  }
-                }
+                preloadSelectedInsegnamenti();
                 
                 // Mostra l'overlay del form
                 document.getElementById('overlay').style.display = 'flex';
@@ -343,56 +300,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 
                 // Pre-popola insegnamenti nel form
-                if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
-                  const username = document.cookie
-                    .split('; ')
-                    .find(row => row.startsWith('username='))
-                    ?.split('=')[1];
-                  
-                  if (username) {
-                    // Prepara contenitore
-                    const multiSelectBox = document.getElementById('insegnamentoBox');
-                    if (multiSelectBox) {
-                      // Salva placeholder
-                      const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
-                      
-                      // Svuota contenitore
-                      multiSelectBox.innerHTML = '';
-                      
-                      // Ripristina placeholder se necessario
-                      if (placeholder && window.InsegnamentiManager.getSelectedCodes().length === 0) {
-                        multiSelectBox.appendChild(placeholder.cloneNode(true));
-                      }
-                    
-                      // Carica insegnamenti selezionati
-                      window.InsegnamentiManager.loadSelectedInsegnamenti(username, function(data) {
-                        if (data.length > 0) {
-                          // Rimuovi placeholder
-                          const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
-                          if (placeholder) {
-                            placeholder.remove();
-                          }
-                          
-                          // Crea tag per insegnamenti
-                          data.forEach(ins => {
-                            createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
-                          });
-                          
-                          // Aggiorna select nascosta
-                          updateHiddenSelect(multiSelectBox);
-                          
-                          // Aggiorna opzioni nel dropdown
-                          const options = document.querySelectorAll('#insegnamentoOptions .multi-select-option');
-                          options.forEach(option => {
-                            if (window.InsegnamentiManager.isSelected(option.dataset.value)) {
-                              option.classList.add('selected');
-                            }
-                          });
-                        }
-                      });
-                    }
-                  }
-                }
+                preloadSelectedInsegnamenti();
                 
                 // Mostra form
                 document.getElementById('popupOverlay').style.display = 'flex';
@@ -418,12 +326,6 @@ document.addEventListener("DOMContentLoaded", function () {
         eventDidMount: function(info) {
           // Tooltip
           info.el.title = info.event.extendedProps.description;
-          
-          // Docente loggato
-          const loggedDocente = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('username='))
-            ?.split('=')[1];
           
           // Colori differenziati
           const eventColor = info.event.extendedProps.docente === loggedDocente 
@@ -489,6 +391,53 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
 
+      // Funzione helper per precaricare gli insegnamenti selezionati nel form
+      function preloadSelectedInsegnamenti() {
+        if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
+          // Prepara contenitore
+          const multiSelectBox = document.getElementById('insegnamentoBox');
+          if (multiSelectBox) {
+            // Salva placeholder
+            const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
+            
+            // Svuota contenitore
+            multiSelectBox.innerHTML = '';
+            
+            // Ripristina placeholder se necessario
+            if (placeholder && window.InsegnamentiManager.getSelectedCodes().length === 0) {
+              multiSelectBox.appendChild(placeholder.cloneNode(true));
+            }
+          
+            // Carica insegnamenti selezionati
+            window.InsegnamentiManager.loadSelectedInsegnamenti(loggedDocente, function(data) {
+              if (data.length > 0) {
+                // Rimuovi placeholder
+                const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
+                if (placeholder) {
+                  placeholder.remove();
+                }
+                
+                // Crea tag per insegnamenti
+                data.forEach(ins => {
+                  createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
+                });
+                
+                // Aggiorna select nascosta
+                updateHiddenSelect(multiSelectBox);
+                
+                // Aggiorna opzioni nel dropdown
+                const options = document.querySelectorAll('#insegnamentoOptions .multi-select-option');
+                options.forEach(option => {
+                  if (window.InsegnamentiManager.isSelected(option.dataset.value)) {
+                    option.classList.add('selected');
+                  }
+                });
+              }
+            });
+          }
+        }
+      }
+
       // Gestione click sui dropdown
       
       // Dropdown CdS
@@ -507,85 +456,33 @@ document.addEventListener("DOMContentLoaded", function () {
         // Salva il CdS selezionato
         selectedCds = item.dataset.codice || null;
         
-        // Ottieni il docente loggato
-        const docente = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('username='))
-          ?.split('=')[1];
-          
-        if (!docente) {
-          console.error('Impossibile determinare il docente loggato');
-          return;
-        }
-        
-        // Aggiorna le sessioni in base al CdS selezionato
-        if (selectedCds) {
-          fetch(`/api/ottieniSessioniCds?cds=${selectedCds}&anno=${planningYear}`)
-            .then(response => response.json())
-            .then(sessioniCds => {
-              // Aggiorna le date valide con quelle specifiche del CdS
-              dateValide = getDateValideFromSessioni(sessioniCds);
-              
-              // Aggiorna il calendario con le nuove date valide
-              updateCalendarWithDates(calendar, dateValide);
-              
-              // Aggiorna gli eventi
-              calendar.setOption('events', (info, successCallback) => 
-                fetchCalendarEvents(calendar, planningYear, info, successCallback, selectedCds)
-              );
-              
-              // Chiudi il dropdown
-              dropdownCds.classList.remove('show');
-              
-              // Ricarica il calendario e ridisegna
-              calendar.refetchEvents();
-              
-              // Aggiorna anche il dropdown delle sessioni
-              updateSessioniDropdown(dropdownSessioni, dateValide);
-            })
-            .catch(error => {
-              console.error('Errore nel caricamento delle sessioni del CdS:', error);
-            });
-        } else {
-          // Per "Tutti i CdS" utilizziamo l'intersezione delle date di sessione
-          fetch(`/api/ottieniIntersessioniCds?docente=${docente}&anno=${planningYear}`)
-            .then(response => response.json())
-            .then(sessioniIntersection => {
-              // Aggiorna le date valide con l'intersezione
-              dateValide = getDateValideFromSessioni(sessioniIntersection);
-              
-              // Aggiorna il calendario con le nuove date valide
-              updateCalendarWithDates(calendar, dateValide);
-              
-              // Aggiorna gli eventi
-              calendar.setOption('events', (info, successCallback) => 
-                fetchCalendarEvents(calendar, planningYear, info, successCallback)
-              );
-              
-              // Aggiorna anche il dropdown delle sessioni
-              updateSessioniDropdown(dropdownSessioni, dateValide);
-              
-              // Chiudi il dropdown
-              dropdownCds.classList.remove('show');
-              
-              // Ricarica il calendario
-              calendar.refetchEvents();
-            })
-            .catch(error => {
-              console.error('Errore nel caricamento dell\'intersezione delle sessioni:', error);
-              
-              // In caso di errore, ritorna alle sessioni di default
-              fetch('/api/ottieniSessioni')
-                .then(response => response.json())
-                .then(sessioniDefault => {
-                  // Ripristina le date valide di default
-                  dateValide = getDateValideFromSessioni(sessioniDefault);
-                  updateCalendarWithDates(calendar, dateValide);
-                  updateSessioniDropdown(dropdownSessioni, dateValide);
-                  calendar.refetchEvents();
-                });
-            });
-        }
+        // Ottieni le nuove date valide e aggiorna il calendario
+        loadDateValide(loggedDocente, planningYear, selectedCds)
+          .then(newDates => {
+            // Aggiorna le date valide
+            dateValide = newDates;
+            
+            // Aggiorna il calendario con le nuove date
+            updateCalendarWithDates(calendar, dateValide);
+            
+            // Aggiorna gli eventi
+            calendar.setOption('events', (info, successCallback) => 
+              fetchCalendarEvents(calendar, planningYear, info, successCallback, selectedCds)
+            );
+            
+            // Aggiorna anche il dropdown delle sessioni
+            updateSessioniDropdown(dropdownSessioni, dateValide);
+            
+            // Chiudi il dropdown
+            dropdownCds.classList.remove('show');
+            
+            // Ricarica il calendario
+            calendar.refetchEvents();
+          })
+          .catch(error => {
+            console.error('Errore nel caricamento delle date valide:', error);
+            // In caso di errore, mantieni le date precedenti
+          });
       });
 
       // Funzione helper per aggiornare il calendario con nuove date

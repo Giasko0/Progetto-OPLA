@@ -19,32 +19,19 @@ export function getPlanningYear() {
     return currentDate.getMonth() >= 9 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
 }
 
-// Crea un dropdown per sessioni, insegnamenti o cds
-export function createDropdown(type, data, calendar) {
+// Crea un dropdown unificato per sessioni, insegnamenti o cds
+export function createDropdown(type) {
     const dropdown = document.createElement('div');
     dropdown.className = 'calendar-dropdown';
     if (type === 'sessioni') dropdown.id = 'sessioniDropdown';
+    if (type === 'insegnamenti') dropdown.id = 'insegnamentiDropdown'; 
     if (type === 'cds') dropdown.id = 'cdsDropdown';
     document.body.appendChild(dropdown);
-    
-    if (type === 'sessioni') {
-        // Popola il dropdown con le sessioni disponibili
-        dropdown.innerHTML = '';
-        
-        // Aggiungi le voci di menu per ogni tipo di sessione
-        for (const [nome, periodo] of Object.entries(data)) {
-            const item = document.createElement('div');
-            item.className = 'dropdown-item';
-            item.dataset.data = periodo.start;
-            item.textContent = formatSessionName(nome);
-            dropdown.appendChild(item);
-        }
-    }
     
     return dropdown;
 }
 
-// Popola il dropdown degli insegnamenti raggruppandoli per CdS
+// Popola il dropdown degli insegnamenti raggrup
 export function populateInsegnamentiDropdown(dropdownInsegnamenti, docente, planningYear, cdsFiltro = null) {
     // Parametri per la richiesta
     let url = `/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`;
@@ -121,7 +108,7 @@ export function populateInsegnamentiDropdown(dropdownInsegnamenti, docente, plan
         });
 }
 
-// Aggiorna gli eventi del calendario con i dati filtrati
+// Aggiorna gli eventi del calendario utilizzando il backend ottimizzato
 export function fetchCalendarEvents(calendar, planningYear, info = null, successCallback = null, cdsFiltro = null) {
     // Ottieni docente dai cookie
     const loggedDocente = document.cookie
@@ -145,27 +132,6 @@ export function fetchCalendarEvents(calendar, planningYear, info = null, success
             // Filtra per insegnamenti selezionati
             const codici = Array.from(selected.keys());
             params.append('insegnamenti', codici.join(','));
-            
-            // Raccogli metadati per filtri aggiuntivi
-            const metadata = {anniCorso: new Set(), semestri: new Set(), cds: new Set()};
-            
-            // Estrai metadati
-            selected.forEach(ins => {
-                if (ins.anno_corso) metadata.anniCorso.add(ins.anno_corso);
-                if (ins.semestre) metadata.semestri.add(ins.semestre);
-                if (ins.cds) metadata.cds.add(ins.cds);
-            });
-            
-            // Aggiungi parametri di filtro
-            for (const [key, set] of Object.entries({
-                'anni_corso': metadata.anniCorso,
-                'semestri': metadata.semestri,
-                'cds': metadata.cds
-            })) {
-                if (set.size > 0) {
-                    params.append(key, Array.from(set).join(','));
-                }
-            }
         }
     } else {
         // Fallback: solo esami docente
@@ -225,56 +191,56 @@ export function createInsegnamentoTag(codice, titolo, container) {
         }
         
         // Aggiorna select nascosto
-        if (window.updateHiddenSelect) {
-            window.updateHiddenSelect();
-        }
+        updateHiddenSelect(container);
     });
     
     container.appendChild(tag);
     return tag;
 }
 
-// Converti le sessioni in array di date valide per esami
+// Carica le date valide per esami dal backend
 export function getDateValideFromSessioni(sessioni) {
+    // Funzione temporanea di compatibilità, ora usiamo il backend per questo
     const dateValide = [];
     
-    // Iteriamo su tutti i periodi presenti nella risposta
-    for (const [nome, periodo] of Object.entries(sessioni)) {
-        // Assicuriamoci che le date siano nel formato corretto
-        // La data di inizio a mezzanotte e la data di fine a fine giornata
-        const startDate = periodo.start;
-        const endDate = periodo.end;
-        
-        dateValide.push([
-            startDate, 
-            endDate, 
-            formatSessionName(nome)
-        ]);
+    for (const [tipo, dati] of Object.entries(sessioni)) {
+        if (dati && dati.start && dati.end) {
+            const nome = dati.nome || formatSessionName(tipo);
+            dateValide.push([dati.start, dati.end, nome]);
+        }
     }
     
     return dateValide;
 }
 
+// Carica le date valide direttamente dal backend
+export function loadDateValide(docente, anno, cds = null) {
+    // Costruisce i parametri della richiesta
+    const params = new URLSearchParams();
+    
+    if (docente) params.append('docente', docente);
+    if (anno) params.append('anno', anno);
+    if (cds) params.append('cds', cds);
+    
+    // Ritorna una Promise
+    return fetch('/api/getDateValide?' + params.toString())
+        .then(response => response.json());
+}
+
 // Formatta il nome della sessione per la visualizzazione
-function formatSessionName(nome) {
-    // Gestisce la formattazione dei nomi dei periodi
-    switch(nome) {
-        case 'estiva': 
-            return 'Sessione Estiva';
-        case 'autunnale': 
-            return 'Sessione Autunnale';
-        case 'invernale': 
-            return 'Sessione Invernale';
-        case 'anticipata': 
-            return 'Sessione Anticipata';
-        case 'pausa_autunnale': 
-            return 'Pausa Didattica (1° sem)';
-        case 'pausa_primaverile': 
-            return 'Pausa Didattica (2° sem)';
-        default:
-            // Capitalizza il nome se non riconosciuto
-            return nome.charAt(0).toUpperCase() + nome.slice(1).replace('_', ' ');
-    }
+export function formatSessionName(nome) {
+    // Questa funzione è ora implementata nel backend
+    // La teniamo qui per retrocompatibilità
+    const mapping = {
+        'estiva': 'Sessione Estiva',
+        'autunnale': 'Sessione Autunnale',
+        'invernale': 'Sessione Invernale',
+        'anticipata': 'Sessione Anticipata',
+        'pausa_autunnale': 'Pausa Didattica (1° sem)',
+        'pausa_primaverile': 'Pausa Didattica (2° sem)'
+    };
+    
+    return mapping[nome.toLowerCase()] || nome.charAt(0).toUpperCase() + nome.slice(1).replace('_', ' ');
 }
 
 // Aggiorna la select nascosta con i valori dei tag

@@ -25,6 +25,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Inizializza il modal per copiare le date
+    initCopyDatesModal();
+    
+    // Pulsante per copiare le date
+    const copyDatesBtn = document.getElementById('copyDatesBtn');
+    if (copyDatesBtn) {
+        copyDatesBtn.addEventListener('click', function() {
+            showCopyDatesModal();
+        });
+    }
 });
 
 /**
@@ -167,6 +178,8 @@ function loadCdsDetails(value) {
             document.getElementById('pausa_secondo_fine').value = formatDateForInput(data.pausa_secondo_fine);
             
             // Date sessioni d'esame
+            document.getElementById('anticipata_inizio').value = formatDateForInput(data.anticipata_inizio);
+            document.getElementById('anticipata_fine').value = formatDateForInput(data.anticipata_fine);
             document.getElementById('estiva_inizio').value = formatDateForInput(data.estiva_inizio);
             document.getElementById('estiva_fine').value = formatDateForInput(data.estiva_fine);
             document.getElementById('autunnale_inizio').value = formatDateForInput(data.autunnale_inizio);
@@ -225,6 +238,8 @@ function saveCdsData() {
     cdsData.pausa_secondo_fine = formData.get('pausa_secondo_fine') || null;
     
     // Date sessioni esame
+    cdsData.anticipata_inizio = formData.get('anticipata_inizio') || null;
+    cdsData.anticipata_fine = formData.get('anticipata_fine') || null;
     cdsData.estiva_inizio = formData.get('estiva_inizio') || null;
     cdsData.estiva_fine = formData.get('estiva_fine') || null;
     cdsData.autunnale_inizio = formData.get('autunnale_inizio') || null;
@@ -242,6 +257,7 @@ function saveCdsData() {
     const datesPairs = [
         {inizio: cdsData.pausa_primo_inizio, fine: cdsData.pausa_primo_fine, name: 'pausa primo semestre'},
         {inizio: cdsData.pausa_secondo_inizio, fine: cdsData.pausa_secondo_fine, name: 'pausa secondo semestre'},
+        {inizio: cdsData.anticipata_inizio, fine: cdsData.anticipata_fine, name: 'sessione anticipata'},
         {inizio: cdsData.estiva_inizio, fine: cdsData.estiva_fine, name: 'sessione estiva'},
         {inizio: cdsData.autunnale_inizio, fine: cdsData.autunnale_fine, name: 'sessione autunnale'},
         {inizio: cdsData.invernale_inizio, fine: cdsData.invernale_fine, name: 'sessione invernale'}
@@ -312,4 +328,148 @@ function formatDateForInput(dateStr) {
         console.error('Errore nella formattazione della data:', e);
         return '';
     }
+}
+
+/**
+ * Inizializza il modal per copiare le date
+ */
+function initCopyDatesModal() {
+    const modal = document.getElementById('copyDatesModal');
+    const cancelButton = document.getElementById('cancelCopy');
+    const confirmButton = document.getElementById('confirmCopy');
+    const sourceCdsYearSelect = document.getElementById('sourceCdsYear');
+    
+    // Carica gli anni accademici nel modal
+    fetch('/oh-issa/api/getAnniAccademici')
+        .then(response => response.json())
+        .then(data => {
+            data.sort((a, b) => b - a);
+            sourceCdsYearSelect.innerHTML = '<option value="">Seleziona anno accademico</option>';
+            
+            data.forEach(anno => {
+                const option = document.createElement('option');
+                option.value = anno;
+                option.textContent = `${anno}/${anno+1}`;
+                sourceCdsYearSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento degli anni accademici:', error);
+        });
+    
+    // Gestione cambiamento anno accademico nel modal
+    sourceCdsYearSelect.addEventListener('change', function() {
+        loadCorsiForAnnoModal(this.value);
+    });
+    
+    // Chiusura del modal
+    cancelButton.addEventListener('click', function() {
+        modal.style.display = 'none';
+    });
+    
+    // Click fuori dal modal per chiuderlo
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+    
+    // Conferma copia
+    confirmButton.addEventListener('click', function() {
+        copyDatesFromSource();
+    });
+}
+
+/**
+ * Mostra il modal per copiare le date
+ */
+function showCopyDatesModal() {
+    const modal = document.getElementById('copyDatesModal');
+    modal.style.display = 'flex';
+}
+
+/**
+ * Carica i corsi di studio per un anno specifico nel modal
+ */
+function loadCorsiForAnnoModal(anno) {
+    if (!anno) {
+        document.getElementById('sourceCds').innerHTML = '<option value="">Seleziona un corso</option>';
+        return;
+    }
+    
+    fetch(`/oh-issa/api/getCdSByAnno?anno=${anno}`)
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('sourceCds');
+            select.innerHTML = '<option value="">Seleziona un corso</option>';
+            
+            if (data.length === 0) {
+                const option = document.createElement('option');
+                option.disabled = true;
+                option.textContent = "Nessun corso disponibile per questo anno";
+                select.appendChild(option);
+            } else {
+                data.forEach(cds => {
+                    const option = document.createElement('option');
+                    option.value = `${cds.codice}_${anno}`;
+                    option.textContent = `${cds.codice} - ${cds.nome_corso}`;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento dei corsi:', error);
+        });
+}
+
+/**
+ * Copia le date dal CdS selezionato
+ */
+function copyDatesFromSource() {
+    const sourceCdsValue = document.getElementById('sourceCds').value;
+    if (!sourceCdsValue) {
+        showMessage('error', 'Seleziona un corso di studio di origine');
+        return;
+    }
+    
+    const [sourceCode, sourceYear] = sourceCdsValue.split('_');
+    
+    fetch(`/oh-issa/api/getCdsDetails?codice=${sourceCode}&anno=${sourceYear}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showMessage('error', data.error);
+                return;
+            }
+            
+            // Date primo semestre
+            document.getElementById('inizio_primo').value = formatDateForInput(data.inizio_lezioni_primo_semestre);
+            document.getElementById('fine_primo').value = formatDateForInput(data.fine_lezioni_primo_semestre);
+            document.getElementById('pausa_primo_inizio').value = formatDateForInput(data.pausa_primo_inizio);
+            document.getElementById('pausa_primo_fine').value = formatDateForInput(data.pausa_primo_fine);
+            
+            // Date secondo semestre
+            document.getElementById('inizio_secondo').value = formatDateForInput(data.inizio_lezioni_secondo_semestre);
+            document.getElementById('fine_secondo').value = formatDateForInput(data.fine_lezioni_secondo_semestre);
+            document.getElementById('pausa_secondo_inizio').value = formatDateForInput(data.pausa_secondo_inizio);
+            document.getElementById('pausa_secondo_fine').value = formatDateForInput(data.pausa_secondo_fine);
+            
+            // Date sessioni d'esame
+            document.getElementById('anticipata_inizio').value = formatDateForInput(data.anticipata_inizio);
+            document.getElementById('anticipata_fine').value = formatDateForInput(data.anticipata_fine);
+            document.getElementById('estiva_inizio').value = formatDateForInput(data.estiva_inizio);
+            document.getElementById('estiva_fine').value = formatDateForInput(data.estiva_fine);
+            document.getElementById('autunnale_inizio').value = formatDateForInput(data.autunnale_inizio);
+            document.getElementById('autunnale_fine').value = formatDateForInput(data.autunnale_fine);
+            document.getElementById('invernale_inizio').value = formatDateForInput(data.invernale_inizio);
+            document.getElementById('invernale_fine').value = formatDateForInput(data.invernale_fine);
+            
+            // Chiudi il modal e mostra messaggio di successo
+            document.getElementById('copyDatesModal').style.display = 'none';
+            showMessage('success', `Date copiate con successo dal corso ${sourceCode} (${data.nome_corso})`);
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento dei dettagli del corso:', error);
+            showMessage('error', 'Impossibile caricare i dettagli del corso selezionato');
+        });
 }

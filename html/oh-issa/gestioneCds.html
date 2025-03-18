@@ -112,6 +112,15 @@
           <small class="form-text">Per ogni sessione, entrambe le date devono essere specificate o entrambe lasciate vuote</small>
 
           <div class="session-group">
+            <label for="anticipata_inizio">Inizio sessione anticipata:</label>
+            <input type="date" id="anticipata_inizio" name="anticipata_inizio">
+
+            <label for="anticipata_fine">Fine sessione anticipata:</label>
+            <input type="date" id="anticipata_fine" name="anticipata_fine">
+            <small class="form-text">Corrisponde alla sessione invernale dell'anno accademico precedente</small>
+          </div>
+
+          <div class="session-group">
             <label for="estiva_inizio">Inizio sessione estiva:</label>
             <input type="date" id="estiva_inizio" name="estiva_inizio">
 
@@ -139,12 +148,42 @@
         <div class="actions">
           <button type="submit" class="btn primary">Salva</button>
           <button type="button" id="resetForm" class="btn">Reset</button>
+          <button type="button" id="copyDatesBtn" class="btn">Copia date da altro CdS</button>
         </div>
       </form>
     </section>
 
     <div id="responseMessages"></div>
   </main>
+
+  <!-- Modal per copiare date da altro CdS -->
+  <div id="copyDatesModal" class="modal">
+    <div class="modal-content">
+      <h2>Copia date da altro CdS</h2>
+      <p>Seleziona il Corso di Studio da cui copiare le date:</p>
+      
+      <div class="form-group">
+        <label for="sourceCdsYear">Anno Accademico:</label>
+        <select id="sourceCdsYear">
+          <option value="">Seleziona anno accademico</option>
+          <!-- Opzioni caricate dinamicamente -->
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="sourceCds">Corso di Studio:</label>
+        <select id="sourceCds">
+          <option value="">Seleziona un corso</option>
+          <!-- Opzioni caricate dinamicamente -->
+        </select>
+      </div>
+      
+      <div class="modal-actions">
+        <button id="confirmCopy" class="btn primary">Copia</button>
+        <button id="cancelCopy" class="btn">Annulla</button>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>
