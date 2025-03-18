@@ -402,6 +402,8 @@ def ottieniSessioniCds():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
         if 'conn' in locals() and conn:
             release_connection(conn)
 

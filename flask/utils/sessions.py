@@ -130,87 +130,54 @@ def get_session_intersection_for_docente(docente, anno_acc):
         if not cds_list:
             return []
         
-        # Recupera i periodi d'esame di tutti i CdS
+        # Recupera i periodi d'esame di tutti i CdS in una singola query
+        # Inclusi sia i periodi normali che la sessione anticipata
         result = {}
         
-        for cds_code in cds_list:
-            # Recupera periodi normali
-            cursor.execute("""
-                SELECT tipo_periodo, inizio, fine, max_esami
-                FROM periodi_esame
-                WHERE cds = %s AND anno_accademico = %s
-                ORDER BY inizio
-            """, (cds_code, anno_acc))
+        # Prepara la query per recuperare tutti i periodi normali
+        query = """
+            SELECT cds, tipo_periodo, inizio, fine, max_esami
+            FROM periodi_esame
+            WHERE cds IN ({}) AND anno_accademico = %s
             
-            for tipo_periodo, inizio, fine, max_esami in cursor.fetchall():
-                if tipo_periodo not in result:
-                    result[tipo_periodo] = {
-                        'inizio': inizio,
-                        'fine': fine,
-                        'max_esami': max_esami,
-                        'cds_count': 1
-                    }
-                else:
-                    # Calcola l'intersezione
-                    current_start = result[tipo_periodo]['inizio']
-                    current_end = result[tipo_periodo]['fine']
-                    
-                    # L'inizio dell'intersezione è il massimo tra gli inizi
-                    new_start = max(current_start, inizio)
-                    # La fine dell'intersezione è il minimo tra le fini
-                    new_end = min(current_end, fine)
-                    
-                    # Conserva il minimo numero di esami consentiti
-                    min_max_esami = min(result[tipo_periodo]['max_esami'], max_esami)
-                    
-                    result[tipo_periodo].update({
-                        'inizio': new_start,
-                        'fine': new_end,
-                        'max_esami': min_max_esami,
-                        'cds_count': result[tipo_periodo]['cds_count'] + 1
-                    })
+            UNION ALL
             
-            # Recupera sessione anticipata (sessione invernale dell'anno precedente)
-            cursor.execute("""
-                SELECT 'ANTICIPATA' as tipo_periodo, inizio, fine, max_esami
-                FROM periodi_esame
-                WHERE cds = %s AND anno_accademico = %s AND tipo_periodo = 'INVERNALE'
-            """, (cds_code, anno_acc - 1))
-            
-            anticipata = cursor.fetchone()
-            if anticipata:
-                tipo_periodo, inizio, fine, max_esami = anticipata
-                if tipo_periodo not in result:
-                    result[tipo_periodo] = {
-                        'inizio': inizio,
-                        'fine': fine,
-                        'max_esami': max_esami,
-                        'cds_count': 1
-                    }
-                else:
-                    # Calcola l'intersezione
-                    current_start = result[tipo_periodo]['inizio']
-                    current_end = result[tipo_periodo]['fine']
-                    
-                    # L'inizio dell'intersezione è il massimo tra gli inizi
-                    new_start = max(current_start, inizio)
-                    # La fine dell'intersezione è il minimo tra le fini
-                    new_end = min(current_end, fine)
-                    
-                    # Conserva il minimo numero di esami consentiti
-                    min_max_esami = min(result[tipo_periodo]['max_esami'], max_esami)
-                    
-                    result[tipo_periodo].update({
-                        'inizio': new_start,
-                        'fine': new_end,
-                        'max_esami': min_max_esami,
-                        'cds_count': result[tipo_periodo]['cds_count'] + 1
-                    })
+            SELECT cds, 'ANTICIPATA' as tipo_periodo, inizio, fine, max_esami
+            FROM periodi_esame
+            WHERE cds IN ({}) AND anno_accademico = %s AND tipo_periodo = 'INVERNALE'
+        """.format(','.join(['%s'] * len(cds_list)), ','.join(['%s'] * len(cds_list)))
         
-        # Filtra solo i periodi comuni a tutti i CdS
+        # Prepara i parametri: prima per la query normale, poi per la query della sessione anticipata
+        params = cds_list + [anno_acc] + cds_list + [anno_acc - 1]
+        
+        cursor.execute(query, params)
+        
+        # Elabora i risultati e calcola le intersezioni
+        for cds, tipo_periodo, inizio, fine, max_esami in cursor.fetchall():
+            if tipo_periodo not in result:
+                result[tipo_periodo] = {
+                    'inizio': inizio,
+                    'fine': fine,
+                    'max_esami': max_esami,
+                    'cds_count': 1,
+                    'cds_con_periodo': set([cds])  # Teniamo traccia dei CdS che hanno questo periodo
+                }
+            else:
+                # Aggiorna il conteggio solo se questo CdS non è già stato contato
+                if cds not in result[tipo_periodo]['cds_con_periodo']:
+                    result[tipo_periodo]['cds_count'] += 1
+                    result[tipo_periodo]['cds_con_periodo'].add(cds)
+                
+                # Calcola l'intersezione delle date
+                result[tipo_periodo]['inizio'] = max(result[tipo_periodo]['inizio'], inizio)
+                result[tipo_periodo]['fine'] = min(result[tipo_periodo]['fine'], fine)
+                result[tipo_periodo]['max_esami'] = min(result[tipo_periodo]['max_esami'], max_esami)
+        
+        # Filtra solo i periodi con date valide e comuni a tutti i CdS
         sessions = []
         for tipo_periodo, dati in result.items():
-            if dati['cds_count'] == len(cds_list) and dati['inizio'] <= dati['fine']:
+            # Verifica che le date siano valide e che il periodo sia comune a tutti i CdS
+            if dati['inizio'] <= dati['fine'] and dati['cds_count'] == len(cds_list):
                 sessions.append({
                     'tipo': tipo_periodo.lower(),
                     'inizio': dati['inizio'],
