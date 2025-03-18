@@ -14,6 +14,11 @@ from saml_auth import saml_bp, require_auth
 from admin import admin_bp
 # API fetch
 from fetch import fetch_bp
+# Import per gestione esami
+from utils.examUtils import (
+    raccogliDatiForm, verificaConflittiAula, verificaInsegnamenti,
+    inserisciEsami, costruisciRispostaParziale
+)
 
 app = Flask(__name__)
 # Chiave super segreta per SAML
@@ -35,297 +40,43 @@ app.config['SAML_ENABLED'] = False
 @app.route('/api/inserisciEsame', methods=['POST'])
 # API per verificare e inserire nuovi esami
 def inserisciEsame():
-  try:
-    # Raccogli i dati dal form
-    data = request.form
-    docente = data.get('docente')
-    
-    # Gestione di insegnamenti multipli
-    insegnamenti = request.form.getlist('insegnamento')
-    if not insegnamenti:
-      return jsonify({'status': 'error', 'message': 'Nessun insegnamento selezionato'}), 400
-    
-    aula = data.get('aula')
-    data_appello = data.get('dataora')
-    ora_appello = data.get('ora')
-    durata_appello = data.get('durata')
-    inizio_iscrizione = data.get('inizioIscrizione')
-    fine_iscrizione = data.get('fineIscrizione')
-    tipo_esame = data.get('tipoEsame')
-    verbalizzazione = data.get('verbalizzazione', 'STD')  # Default: Standard
-    note_appello = data.get('note')
-    posti = data.get('posti')
-    anno_accademico = data.get('anno_accademico')  # Nuovo campo
-    # Converti ora_appello in intero per il confronto
-    ora_int = int(ora_appello.split(':')[0])
-    periodo = 1 if ora_int > 13 else 0
-
-    # Campi obbligatori
-    if not all([docente, aula, data_appello, ora_appello]):
-      return jsonify({'status': 'error', 'message': 'Dati incompleti'}), 400
-
-    # Validazione ora appello
     try:
-      ora_parts = ora_appello.split(':')
-      ora_int = int(ora_parts[0])
-      if ora_int < 8 or ora_int > 23:
-        return jsonify({'status': 'error', 'message': 'L\'ora dell\'appello deve essere compresa tra le 08:00 e le 23:00'}), 400
-    except (ValueError, IndexError):
-      return jsonify({'status': 'error', 'message': 'Formato ora non valido'}), 400
-
-    # Converti ora_appello in intero per il confronto
-    periodo = 1 if ora_int > 13 else 0
-
-    # Valori standard per i campi mancanti
-    tipo_appello = 'PF'
-    definizione_appello = 'STD'
-    gestione_prenotazione = 'STD'
-    riservato = False  # 0 in SQL
-    tipo_iscrizione = 'STD'
-    
-    # Gestione tipo_esame - Se è vuoto impostiamo NULL
-    if not tipo_esame or tipo_esame.strip() == '':
-      tipo_esame = None
-    
-    # Converti posti in intero se presente
-    if posti:
-      try:
-        posti = int(posti)
-      except ValueError:
-        posti = None
-    else:
-      posti = None
-
-    # Verifica che l'anno sia valido
-    data_esame = datetime.fromisoformat(data_appello)
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Liste per tenere traccia degli esami validi e non validi
-    esami_validi = []
-    esami_invalidi = []
-
-    # Verifica aule/giorni/periodo - facciamo questa verifica una sola volta per tutti gli esami
-    cursor.execute("""
-      SELECT COUNT(*) FROM esami 
-      WHERE data_appello = %s AND aula = %s AND periodo = %s
-    """, (data_appello, aula, periodo))
-    if cursor.fetchone()[0] > 0:
-      # C'è un conflitto con altre prenotazioni
-      return jsonify({
-        'status': 'error', 
-        'message': 'Aula già occupata in questo periodo'
-      }), 400
-
-    # Ciclo su tutti gli insegnamenti selezionati per verificarli
-    for insegnamento in insegnamenti:
-      try:
-        # Ottieni il titolo dell'insegnamento per mostrarlo nei messaggi di errore
-        cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
-        titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
+        # 1. Raccolta e validazione dei dati base
+        dati_comuni = raccogliDatiForm()
+        if "status" in dati_comuni and dati_comuni["status"] == "error":
+            return jsonify(dati_comuni), 400
+            
+        # 2. Verifica conflitti di aula
+        conflitto_aula = verificaConflittiAula(dati_comuni)
+        if conflitto_aula:
+            return jsonify(conflitto_aula), 400
+            
+        # 3. Verifica ogni insegnamento (validazione)
+        validi, invalidi = verificaInsegnamenti(dati_comuni)
         
-        # Ottieni le informazioni del CDS dall'insegnamento per l'anno corrente
-        # Query modificata per risolvere il problema
-        cursor.execute("""
-          SELECT ic.cds, ic.anno_accademico 
-          FROM insegnamenti_cds ic
-          WHERE ic.insegnamento = %s 
-            AND ic.anno_accademico = %s
-        """, (insegnamento, anno_accademico))
+        # 4. Decide se inserire direttamente o mostrare popup di conferma
+        if not invalidi and validi:
+            # Inserimento diretto di tutti gli esami validi
+            esami_inseriti, errori = inserisciEsami(dati_comuni, validi)
+            if errori:
+                return jsonify(costruisciRispostaParziale(esami_inseriti, errori)), 207
+            return jsonify({
+                'status': 'direct_insert',
+                'message': 'Tutti gli esami sono stati inseriti con successo',
+                'inserted': esami_inseriti
+            }), 200
         
-        cds_info = cursor.fetchone()
-          
-        if not cds_info:
-          esami_invalidi.append({
-            'codice': insegnamento,
-            'titolo': titolo_insegnamento,
-            'errore': "Insegnamento non trovato"
-          })
-          continue
-        
-        cds_code, anno_acc = cds_info
-
-        # Verifica limite esami per sessione
-        sessione_info = get_session_for_date(data_esame, cds_code, anno_acc)
-        if not sessione_info:
-          esami_invalidi.append({
-            'codice': insegnamento,
-            'titolo': titolo_insegnamento,
-            'errore': "La data selezionata non rientra in nessuna sessione d'esame valida"
-          })
-          continue
-
-        sessione, limite_max, data_inizio_sessione = sessione_info
-
-        # Imposta valori predefiniti per i campi obbligatori
-        data_inizio_iscrizione = inizio_iscrizione if inizio_iscrizione else (data_inizio_sessione - timedelta(days=20)).strftime("%Y-%m-%d")
-        data_fine_iscrizione = fine_iscrizione if fine_iscrizione else (data_esame - timedelta(days=1)).strftime("%Y-%m-%d")
-
-        # Conta esami nella stessa sessione
-        cursor.execute("""
-          SELECT COUNT(*) 
-          FROM esami e
-          JOIN periodi_esame pe ON pe.cds = %s 
-                              AND pe.anno_accademico = %s
-                              AND pe.tipo_periodo = %s
-          WHERE e.docente = %s 
-            AND e.insegnamento = %s
-            AND e.data_appello BETWEEN pe.inizio AND pe.fine
-        """, (cds_code, anno_acc, sessione, docente, insegnamento))
-
-        if cursor.fetchone()[0] >= limite_max:
-          esami_invalidi.append({
-            'codice': insegnamento,
-            'titolo': titolo_insegnamento,
-            'errore': f"Limite di {limite_max} esami nella sessione {sessione} raggiunto"
-          })
-          continue
-
-        # Verifica vincolo dei 14 giorni
-        data_min = data_esame - timedelta(days=14)
-        data_max = data_esame + timedelta(days=14)
-        
-        cursor.execute("""
-          SELECT data_appello FROM esami 
-          WHERE insegnamento = %s AND data_appello BETWEEN %s AND %s
-        """, (insegnamento, data_min, data_max))
-        
-        esami_vicini = cursor.fetchall()
-        if esami_vicini:
-          date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
-          esami_invalidi.append({
-            'codice': insegnamento,
-            'titolo': titolo_insegnamento,
-            'errore': f"Non puoi inserire esami a meno di 14 giorni di distanza. Hai già esami nelle date: {', '.join(date_esami)}"
-          })
-          continue
-
-        # Ottieni il titolo dell'insegnamento per mostrarlo nell'interfaccia utente
-        cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
-        titolo = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
-        
-        # L'esame è valido, aggiungi alla lista
-        esami_validi.append({
-          'codice': insegnamento,
-          'titolo': titolo,
-          'data_inizio_iscrizione': data_inizio_iscrizione,
-          'data_fine_iscrizione': data_fine_iscrizione
-        })
-
-      except Exception as e:
-        # Se avviene un errore in questa fase, cerca comunque di ottenere il titolo dell'insegnamento
-        try:
-          cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
-          titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
-        except:
-          titolo_insegnamento = insegnamento
-          
-        esami_invalidi.append({
-          'codice': insegnamento,
-          'titolo': titolo_insegnamento,
-          'errore': f"Errore nella verifica dell'esame: {str(e)}"
-        })
-
-    # Costruisci i dati comuni della richiesta
-    dati_comuni = {
-      'docente': docente,
-      'aula': aula,
-      'data_appello': data_appello,
-      'ora_appello': ora_appello,
-      'periodo': periodo,
-      'durata_appello': durata_appello,
-      'verbalizzazione': verbalizzazione,
-      'tipo_esame': tipo_esame,
-      'posti': posti,
-      'note_appello': note_appello,
-      'tipo_appello': tipo_appello,
-      'definizione_appello': definizione_appello,
-      'gestione_prenotazione': gestione_prenotazione,
-      'riservato': riservato,
-      'tipo_iscrizione': tipo_iscrizione
-    }
-    
-    # Se non ci sono esami invalidi, inserisci direttamente gli esami validi
-    if not esami_invalidi and esami_validi:
-      # Copiato il codice di confermaEsami
-      conn = get_db_connection()
-      cursor = conn.cursor()
-      
-      esami_inseriti = []
-      errori = []
-      
-      # Inserimento diretto degli esami validi
-      for esame in esami_validi:
-        try:
-          insegnamento = esame['codice']
-          inizio_iscrizione = esame.get('data_inizio_iscrizione')
-          fine_iscrizione = esame.get('data_fine_iscrizione')
-          
-          # Inserimento nel database
-          cursor.execute(
-            """INSERT INTO esami 
-               (docente, insegnamento, aula, data_appello, ora_appello, 
-                data_inizio_iscrizione, data_fine_iscrizione, 
-                tipo_esame, verbalizzazione, note_appello, posti,
-                tipo_appello, definizione_appello, gestione_prenotazione, 
-                riservato, tipo_iscrizione, periodo, durata_appello)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (dati_comuni['docente'], insegnamento, dati_comuni['aula'], 
-             dati_comuni['data_appello'], dati_comuni['ora_appello'], 
-             inizio_iscrizione, fine_iscrizione, 
-             dati_comuni['tipo_esame'], dati_comuni['verbalizzazione'], 
-             dati_comuni['note_appello'], dati_comuni['posti'],
-             dati_comuni['tipo_appello'], dati_comuni['definizione_appello'], 
-             dati_comuni['gestione_prenotazione'], dati_comuni['riservato'], 
-             dati_comuni['tipo_iscrizione'], dati_comuni['periodo'], 
-             dati_comuni['durata_appello'])
-          )
-          esami_inseriti.append(esame['titolo'])
-        except Exception as e:
-          errori.append({
-            'codice': insegnamento,
-            'titolo': esame['titolo'],
-            'errore': f"Errore nell'inserimento dell'esame: {str(e)}"
-          })
-      
-      # Commit delle modifiche
-      if esami_inseriti:
-        conn.commit()
-      
-      # Gestisci i risultati
-      if errori:
+        # 5. Costruisci risposta per conferma utente
         return jsonify({
-          'status': 'partial', 
-          'message': 'Alcuni esami sono stati inseriti con successo', 
-          'inserted': esami_inseriti, 
-          'errors': errori
-        }), 207
-      
-      return jsonify({
-        'status': 'direct_insert',
-        'message': 'Tutti gli esami sono stati inseriti con successo',
-        'inserted': esami_inseriti
-      }), 200
-    
-    # Costruisci risposta per la validazione se ci sono esami invalidi
-    risposta = {
-      'status': 'validation',
-      'message': 'Verifica completata',
-      'dati_comuni': dati_comuni,
-      'esami_validi': esami_validi,
-      'esami_invalidi': esami_invalidi
-    }
-    
-    return jsonify(risposta), 200
+            'status': 'validation',
+            'message': 'Verifica completata',
+            'dati_comuni': dati_comuni,
+            'esami_validi': validi,
+            'esami_invalidi': invalidi
+        }), 200
 
-  except Exception as e:
-    return jsonify({'status': 'error', 'message': str(e)}), 500
-  finally:
-    if 'cursor' in locals() and cursor:
-      cursor.close()
-    if 'conn' in locals() and conn:
-      release_connection(conn)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/confermaEsami', methods=['POST'])
 def confermaEsami():
@@ -388,13 +139,19 @@ def confermaEsami():
       conn.commit()
     
     # Se ci sono stati errori ma almeno un esame è stato inserito, restituisci avviso
-    if errori:
+    if errori and esami_inseriti:
       return jsonify({
         'status': 'partial', 
         'message': 'Alcuni esami sono stati inseriti con successo', 
         'inserted': esami_inseriti, 
         'errors': errori
       }), 207
+    elif errori and not esami_inseriti:
+      return jsonify({
+        'status': 'error',
+        'message': 'Nessun esame è stato inserito a causa di errori',
+        'errors': errori
+      }), 400
     
     return jsonify({
       'status': 'success', 

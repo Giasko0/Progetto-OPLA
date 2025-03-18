@@ -69,7 +69,7 @@ def ottieniAule():
     if data and periodo is not None:
       # Recupera solo le aule disponibili nella data e periodo specificati
       cursor.execute("""
-        SELECT DISTINCT a.nome 
+        SELECT DISTINCT a.nome
         FROM aule a
         WHERE NOT EXISTS (
           SELECT 1 FROM esami e
@@ -82,8 +82,8 @@ def ottieniAule():
     else:
       # Se non sono specificate data e periodo, restituisci tutte le aule
       cursor.execute("SELECT nome FROM aule ORDER BY nome")
-      
-    aule = [row[0] for row in cursor.fetchall()]
+    
+    aule = [{"nome": row[0]} for row in cursor.fetchall()]
     return jsonify(aule)
   except Exception as e:
     return jsonify({'status': 'error', 'message': str(e)}), 500

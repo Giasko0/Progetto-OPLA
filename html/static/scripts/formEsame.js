@@ -460,26 +460,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     const periodo = determinaPeriodo(ora);
-    const studioDocente = "Studio docente DMI";
+    const studioDocenteNome = "Studio docente DMI";
     
     fetch(`/api/ottieniAule?data=${data}&periodo=${periodo}`)
       .then((response) => response.json())
       .then((aule) => {
         selectAula.innerHTML = '<option value="" disabled selected hidden>Scegli l\'aula</option>';
         
-        let studioDocentePresente = aule.includes(studioDocente);
+        let studioDocentePresente = aule.some(aula => aula.nome === studioDocenteNome);
         
         if (!studioDocentePresente) {
-          aule.push(studioDocente);
-          aule.sort();
+          aule.push({ nome: studioDocenteNome });
+          // Riordina le aule per nome
+          aule.sort((a, b) => a.nome.localeCompare(b.nome));
         }
         
         aule.forEach((aula) => {
           let option = document.createElement("option");
-          option.value = aula;
-          option.textContent = aula;
+          option.value = aula.nome;
+          option.textContent = aula.nome;
           
-          if (aula === studioDocente && aule.length === 1) {
+          if (aula.nome === studioDocenteNome && aule.length === 1) {
             option.selected = true;
           }
           
@@ -491,12 +492,13 @@ document.addEventListener("DOMContentLoaded", () => {
         selectAula.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
         
         let option = document.createElement("option");
-        option.value = studioDocente;
-        option.textContent = studioDocente;
+        option.value = studioDocenteNome;
+        option.textContent = studioDocenteNome;
+        
         selectAula.appendChild(option);
       });
   }
-  
+
   // Funzione per determinare periodo (mattina/pomeriggio) in base all'ora
   function determinaPeriodo(ora) {
     if (!ora) return null;
@@ -724,6 +726,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btnConferma.addEventListener('click', () => {
         // Raccogli gli esami selezionati
         const checkboxes = document.querySelectorAll('.esame-checkbox:checked');
+        
         const esamiSelezionati = Array.from(checkboxes).map(checkbox => ({
           codice: checkbox.dataset.codice,
           data_inizio_iscrizione: checkbox.dataset.inizio,
@@ -747,7 +750,12 @@ document.addEventListener("DOMContentLoaded", () => {
             esami_da_inserire: esamiSelezionati
           }),
         })
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Errore HTTP: ${response.status}`);
+          }
+          return response.json();
+        })
         .then(response => {
           // Rimuovi il popup
           document.body.removeChild(popupContainer);
