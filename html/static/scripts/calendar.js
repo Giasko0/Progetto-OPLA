@@ -1,23 +1,23 @@
-import { 
-  getValidDateRange, 
+import {
+  getValidDateRange,
   getPlanningYear,
   createDropdown,
-  populateInsegnamentiDropdown, 
+  populateInsegnamentiDropdown,
   fetchCalendarEvents,
   loadDateValide,
   createInsegnamentoTag,
-  updateHiddenSelect
-} from './calendarProps.js';
+  updateHiddenSelect,
+} from "./calendarProps.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   // Inizializzazione
   const planningYear = getPlanningYear();
   const dateRange = getValidDateRange();
   var calendarEl = document.getElementById("calendar");
-  
+
   // Variabile per tener traccia del CdS selezionato
   let selectedCds = null;
-  
+
   // Variabile per memorizzare le date valide correnti
   let dateValide = [];
 
@@ -27,43 +27,44 @@ document.addEventListener("DOMContentLoaded", function () {
   // Funzione per verificare i permessi di amministratore
   function checkAdminPermissions() {
     return getUserData()
-      .then(data => {
-        isAdmin = data.authenticated && data.user_data && data.user_data.permessi_admin;
+      .then((data) => {
+        isAdmin =
+          data.authenticated && data.user_data && data.user_data.permessi_admin;
         return isAdmin;
       })
-      .catch(error => {
-        console.error('Errore nella verifica dei permessi:', error);
+      .catch((error) => {
+        console.error("Errore nella verifica dei permessi:", error);
         return false;
       });
   }
 
   // Ottieni il docente loggato per riutilizzarlo
   const loggedDocente = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('username='))
-    ?.split('=')[1];
+    .split("; ")
+    .find((row) => row.startsWith("username="))
+    ?.split("=")[1];
 
   // Carica le date valide e verifica i permessi in modo ottimizzato
   Promise.all([
     loadDateValide(loggedDocente, planningYear), // Uso della nuova funzione
-    checkAdminPermissions()
+    checkAdminPermissions(),
   ])
     .then(([dateValideResponse]) => {
       // Salva le date valide
       dateValide = dateValideResponse;
 
       // Crea dropdown una sola volta
-      const dropdownSessioni = createDropdown('sessioni');
-      const dropdownInsegnamenti = createDropdown('insegnamenti');
-      const dropdownCds = createDropdown('cds');
+      const dropdownSessioni = createDropdown("sessioni");
+      const dropdownInsegnamenti = createDropdown("insegnamenti");
+      const dropdownCds = createDropdown("cds");
 
       // Popola dropdown sessioni
       updateSessioniDropdown(dropdownSessioni, dateValide);
 
       // Determina quali pulsanti mostrare in base ai permessi
-      const rightButtons = isAdmin ? 
-        'pulsanteCds pulsanteSessioni pulsanteInsegnamenti pulsanteDebug prev,next today' : 
-        'pulsanteCds pulsanteSessioni pulsanteInsegnamenti prev,next today';
+      const rightButtons = isAdmin
+        ? "pulsanteCds pulsanteSessioni pulsanteInsegnamenti pulsanteDebug prev,next today"
+        : "pulsanteCds pulsanteSessioni pulsanteInsegnamenti prev,next today";
 
       // Configurazione calendario
       var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -73,240 +74,259 @@ document.addEventListener("DOMContentLoaded", function () {
         initialView: "dayGridMonth",
         selectable: true,
         // Eventi dal server
-        events: (info, successCallback) => fetchCalendarEvents(calendar, planningYear, info, successCallback, selectedCds),
+        events: (info, successCallback) =>
+          fetchCalendarEvents(
+            calendar,
+            planningYear,
+            info,
+            successCallback,
+            selectedCds
+          ),
         validRange: getValidDateRange,
 
         headerToolbar: {
-          left: 'title',
-          center: '',
-          right: rightButtons
+          left: "title",
+          center: "",
+          right: rightButtons,
         },
 
         // Pulsanti personalizzati
         customButtons: {
           // Corso di Studio
           pulsanteCds: {
-            text: 'Corso di Studio',
-            click: function(e) {
+            text: "Corso di Studio",
+            click: function (e) {
               // Mostra dropdown CdS
               const button = e.currentTarget;
               const rect = button.getBoundingClientRect();
               dropdownCds.style.top = `${rect.bottom}px`;
               dropdownCds.style.left = `${rect.left}px`;
-              dropdownCds.classList.toggle('show');
-              
+              dropdownCds.classList.toggle("show");
+
               // Chiudi altri dropdown
-              dropdownSessioni.classList.remove('show');
-              dropdownInsegnamenti.classList.remove('show');
-              
+              dropdownSessioni.classList.remove("show");
+              dropdownInsegnamenti.classList.remove("show");
+
               // Recupera i CdS associati al docente
               if (loggedDocente) {
-                fetch(`/api/ottieniCdSDocente?docente=${loggedDocente}&anno=${planningYear}`)
-                  .then(response => response.json())
-                  .then(data => {
+                fetch(
+                  `/api/ottieniCdSDocente?docente=${loggedDocente}&anno=${planningYear}`
+                )
+                  .then((response) => response.json())
+                  .then((data) => {
                     // Pulisci il dropdown
-                    dropdownCds.innerHTML = '';
-                    
+                    dropdownCds.innerHTML = "";
+
                     // Aggiungi l'opzione "Tutti i CdS"
-                    const itemAll = document.createElement('div');
-                    itemAll.className = 'dropdown-item';
-                    itemAll.dataset.codice = '';
-                    itemAll.textContent = 'Tutti i CdS';
+                    const itemAll = document.createElement("div");
+                    itemAll.className = "dropdown-item";
+                    itemAll.dataset.codice = "";
+                    itemAll.textContent = "Tutti i CdS";
                     if (!selectedCds) {
-                      itemAll.classList.add('selected');
+                      itemAll.classList.add("selected");
                     }
                     dropdownCds.appendChild(itemAll);
-                    
+
                     // Aggiungi le opzioni per ogni CdS
-                    data.forEach(cds => {
-                      const item = document.createElement('div');
-                      item.className = 'dropdown-item';
+                    data.forEach((cds) => {
+                      const item = document.createElement("div");
+                      item.className = "dropdown-item";
                       item.dataset.codice = cds.codice;
                       item.textContent = `${cds.nome_corso} (${cds.codice})`;
                       if (selectedCds === cds.codice) {
-                        item.classList.add('selected');
+                        item.classList.add("selected");
                       }
                       dropdownCds.appendChild(item);
                     });
                   })
-                  .catch(error => {
-                    console.error('Errore nel caricamento dei CdS:', error);
+                  .catch((error) => {
+                    console.error("Errore nel caricamento dei CdS:", error);
                   });
               }
-            }
+            },
           },
           // Sessioni d'esame
           pulsanteSessioni: {
-            text: 'Sessioni',
-            click: function(e) {
+            text: "Sessioni",
+            click: function (e) {
               // Mostra dropdown sessioni
               const button = e.currentTarget;
               const rect = button.getBoundingClientRect();
               dropdownSessioni.style.top = `${rect.bottom}px`;
               dropdownSessioni.style.left = `${rect.left}px`;
-              dropdownSessioni.classList.toggle('show');
-              
+              dropdownSessioni.classList.toggle("show");
+
               // Chiudi altri dropdown
-              dropdownInsegnamenti.classList.remove('show');
-              dropdownCds.classList.remove('show');
-            }
+              dropdownInsegnamenti.classList.remove("show");
+              dropdownCds.classList.remove("show");
+            },
           },
           // Filtro insegnamenti
           pulsanteInsegnamenti: {
-            text: 'Insegnamenti',
-            click: function(e) {
+            text: "Insegnamenti",
+            click: function (e) {
               // Mostra dropdown insegnamenti
               const button = e.currentTarget;
               const rect = button.getBoundingClientRect();
               dropdownInsegnamenti.style.top = `${rect.bottom}px`;
               dropdownInsegnamenti.style.left = `${rect.left}px`;
-              
+
               // Chiudi altri dropdown
-              dropdownSessioni.classList.remove('show');
-              dropdownCds.classList.remove('show');
-              
+              dropdownSessioni.classList.remove("show");
+              dropdownCds.classList.remove("show");
+
               // Popola dropdown
               if (loggedDocente) {
-                populateInsegnamentiDropdown(dropdownInsegnamenti, loggedDocente, planningYear, selectedCds);
+                populateInsegnamentiDropdown(
+                  dropdownInsegnamenti,
+                  loggedDocente,
+                  planningYear,
+                  selectedCds
+                );
               }
-            }
+            },
           },
           // Debug: tutti gli esami (solo admin)
           pulsanteDebug: {
-            text: '(Debug) Tutti gli esami',
-            click: function() {
+            text: "(Debug) Tutti gli esami",
+            click: function () {
               // Rimuovi eventi esistenti
-              calendar.getEventSources().forEach(source => source.remove());
-              
+              calendar.getEventSources().forEach((source) => source.remove());
+
               // Carica tutti gli esami
-              fetch('/api/getEsami?all=true')
-                .then(response => response.json())
-                .then(data => {
+              fetch("/api/getEsami?all=true")
+                .then((response) => response.json())
+                .then((data) => {
                   calendar.addEventSource(data);
                 })
-                .catch(error => {
-                  console.error('Errore nel caricamento degli esami:', error);
+                .catch((error) => {
+                  console.error("Errore nel caricamento degli esami:", error);
                 });
-            }
-          }
+            },
+          },
         },
 
         // Testo pulsanti
         buttonText: {
-          today: 'Oggi',
+          today: "Oggi",
         },
 
         // Impostazioni visualizzazione
         weekends: false,
         displayEventTime: true,
-        eventDisplay: 'block',
+        eventDisplay: "block",
         eventTimeFormat: {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
         },
         showNonCurrentDates: false,
         fixedWeekCount: false,
-        slotMinTime: '08:00:00',
-        slotMaxTime: '19:00:00',
+        slotMinTime: "08:00:00",
+        slotMaxTime: "19:00:00",
         allDaySlot: false,
-        slotDuration: '05:00:00',
-        slotLabelContent: function(arg) {
-          return arg.date.getHours() < 13 ? 'Mattina' : 'Pomeriggio';
+        slotDuration: "05:00:00",
+        slotLabelContent: function (arg) {
+          return arg.date.getHours() < 13 ? "Mattina" : "Pomeriggio";
         },
 
         // Aggiorna titolo con mese e sessione
         datesSet: function (info) {
           const currentDate = info.view.currentStart;
-          const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-          const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-          
+          const monthStart = new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth(),
+            1
+          );
+          const monthEnd = new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth() + 1,
+            0
+          );
+
           // Trova la sessione corrente
-          let sessioneCorrente = '';
+          let sessioneCorrente = "";
           for (let [start, end, nome] of dateValide) {
-              const sessioneStart = new Date(start);
-              const sessioneEnd = new Date(end);
-              
-              // Controlla sovrapposizione
-              if (monthStart <= sessioneEnd && monthEnd >= sessioneStart) {
-                  sessioneCorrente = ` - ${nome}`;
-                  break;
-              }
+            const sessioneStart = new Date(start);
+            const sessioneEnd = new Date(end);
+
+            // Controlla sovrapposizione
+            if (monthStart <= sessioneEnd && monthEnd >= sessioneStart) {
+              sessioneCorrente = ` - ${nome}`;
+              break;
+            }
           }
 
           // Formatta titolo
-          const monthName = currentDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' });
-          const title = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)}${sessioneCorrente}`;
-          
+          const monthName = currentDate.toLocaleString("it-IT", {
+            month: "long",
+            year: "numeric",
+          });
+          const title = `${
+            monthName.charAt(0).toUpperCase() + monthName.slice(1)
+          }${sessioneCorrente}`;
+
           // Aggiorna titolo
-          document.querySelector('.fc-toolbar-title').textContent = title;
+          document.querySelector(".fc-toolbar-title").textContent = title;
         },
 
         // Click su data per nuovo esame
         dateClick: function (info) {
           const dataClick = new Date(info.dateStr);
           // Periodo: mattina/pomeriggio
-          const periodo = info.view.type === 'timeGrid' ? 
-            (info.date.getHours() < 14 ? '0' : '1') : 
-            null;
-          
+          const periodo =
+            info.view.type === "timeGrid"
+              ? info.date.getHours() < 14
+                ? "0"
+                : "1"
+              : null;
+
           // Verifica data in sessione valida
           const dataValida = dateValide.some(([start, end]) => {
-              const startDate = new Date(start);
-              // Reset delle ore per la data di inizio per un confronto corretto
-              startDate.setHours(0, 0, 0, 0);
-              
-              const endDate = new Date(end);
-              endDate.setHours(23, 59, 59, 999);
-              
-              return dataClick >= startDate && dataClick <= endDate;
+            const startDate = new Date(start);
+            // Reset delle ore per la data di inizio per un confronto corretto
+            startDate.setHours(0, 0, 0, 0);
+
+            const endDate = new Date(end);
+            endDate.setHours(23, 59, 59, 999);
+
+            return dataClick >= startDate && dataClick <= endDate;
           });
 
           // Blocca date fuori sessione
           if (!dataValida) {
-            alert('Non è possibile inserire esami al di fuori delle sessioni o delle pause didattiche');
+            alert(
+              "Non è possibile inserire esami al di fuori delle sessioni o delle pause didattiche"
+            );
             return;
           }
 
           // Controlla login usando il sistema di cache
           getUserData()
-            .then(data => {
+            .then((data) => {
               if (data.authenticated) {
                 // Formatta data per form
-                const formattedDate = dataClick.toISOString().split('T')[0];
-                document.getElementById('dataora').value = formattedDate;
+                const formattedDate = dataClick.toISOString().split("T")[0];
+                document.getElementById("dataora").value = formattedDate;
                 if (periodo !== null) {
-                  document.getElementById('periodo').value = periodo;
+                  document.getElementById("periodo").value = periodo;
                 }
-                
+
                 // Pre-popola insegnamenti nel form
                 preloadSelectedInsegnamenti();
-                
+
                 // Mostra l'overlay del form
-                document.getElementById('overlay').style.display = 'flex';
+                document.getElementById("overlay").style.display = "flex";
               } else {
-                alert('Effettua il login per inserire un esame');
+                alert("Effettua il login per inserire un esame");
               }
             })
-            .catch(error => {
-              console.error('Errore nella verifica dell\'autenticazione:', error);
-              // Fallback al vecchio metodo
-              if (document.cookie.split(';').some(cookie => cookie.trim().startsWith('username='))) {
-                // Formatta data per form
-                const formattedDate = dataClick.toISOString().split('T')[0];
-                document.getElementById('dataora').value = formattedDate;
-                if (periodo !== null) {
-                  document.getElementById('periodo').value = periodo;
-                }
-                
-                // Pre-popola insegnamenti nel form
-                preloadSelectedInsegnamenti();
-                
-                // Mostra form
-                document.getElementById('popupOverlay').style.display = 'flex';
-              } else {
-                alert("Devi essere loggato per inserire un esame.");
-              }
+            .catch((error) => {
+              console.error(
+                "Errore nella verifica dell'autenticazione:",
+                error
+              );
+              alert("Devi essere loggato per inserire un esame.");
             });
         },
 
@@ -314,41 +334,52 @@ document.addEventListener("DOMContentLoaded", function () {
         eventClick: function (info) {
           // Formatta data
           let dataEvento = calendar.formatDate(info.event.start, {
-            month: 'long',
-            year: 'numeric',
-            day: 'numeric',
-            locale: 'it'
+            month: "long",
+            year: "numeric",
+            day: "numeric",
+            locale: "it",
           });
-          alert('Titolo: ' + info.event.title + '\n' + 'Data: ' + dataEvento + '\n' + 'Aula: ' + info.event.extendedProps.aula);
+          alert(
+            "Titolo: " +
+              info.event.title +
+              "\n" +
+              "Data: " +
+              dataEvento +
+              "\n" +
+              "Aula: " +
+              info.event.extendedProps.aula
+          );
         },
 
         // Stile eventi
-        eventDidMount: function(info) {
+        eventDidMount: function (info) {
           // Tooltip
           info.el.title = info.event.extendedProps.description;
-          
+
           // Colori differenziati
-          const eventColor = info.event.extendedProps.docente === loggedDocente 
-            ? '#0A58CA'   // blu: propri esami
-            : '#FFD700';  // giallo: altri esami
-          
-          const textColor = info.event.extendedProps.docente === loggedDocente
-            ? 'white'     // testo bianco
-            : 'black';    // testo nero
-          
+          const eventColor =
+            info.event.extendedProps.docente === loggedDocente
+              ? "#0A58CA" // blu: propri esami
+              : "#FFD700"; // giallo: altri esami
+
+          const textColor =
+            info.event.extendedProps.docente === loggedDocente
+              ? "white" // testo bianco
+              : "black"; // testo nero
+
           // Applica colori
           info.el.style.backgroundColor = eventColor;
           info.el.style.borderColor = eventColor;
-          
+
           // Colora testo interno
-          const innerDivs = info.el.querySelectorAll('div');
-          innerDivs.forEach(div => {
+          const innerDivs = info.el.querySelectorAll("div");
+          innerDivs.forEach((div) => {
             div.style.color = textColor;
           });
         },
 
         // Contenuto HTML eventi
-        eventContent: function(arg) {
+        eventContent: function (arg) {
           const event = arg.event;
           const annoCorso = event.extendedProps.annoCorso;
           const semestre = event.extendedProps.semestre;
@@ -360,160 +391,189 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div class="fc-event-title-container">
                   <div class="fc-event-title fc-sticky">${event.title}</div>
                   <div class="fc-event-description">
-                    A.A. ${annoAcc}/${parseInt(annoAcc)+1}
+                    A.A. ${annoAcc}/${parseInt(annoAcc) + 1}
                     - Anno ${annoCorso}° 
                     - ${semestre}° sem.
                   </div>
                 </div>
               </div>
-            `
+            `,
           };
         },
 
         // Disabilita date fuori sessione
-        dayCellClassNames: function(arg) {
+        dayCellClassNames: function (arg) {
           const dataCorrente = arg.date;
-          
+
           // Verifica data in sessione
           const dataValida = dateValide.some(([start, end]) => {
-              const startDate = new Date(start);
-              // Reset delle ore per la data di inizio per un confronto corretto
-              startDate.setHours(0, 0, 0, 0);
-              
-              const endDate = new Date(end);
-              endDate.setHours(23, 59, 59, 999);
-              
-              return dataCorrente >= startDate && dataCorrente <= endDate;
+            const startDate = new Date(start);
+            // Reset delle ore per la data di inizio per un confronto corretto
+            startDate.setHours(0, 0, 0, 0);
+
+            const endDate = new Date(end);
+            endDate.setHours(23, 59, 59, 999);
+
+            return dataCorrente >= startDate && dataCorrente <= endDate;
           });
-          
+
           // Applica classe per date non valide
-          return dataValida ? [] : ['fc-disabled-day'];
-        }
+          return dataValida ? [] : ["fc-disabled-day"];
+        },
       });
 
       // Funzione helper per precaricare gli insegnamenti selezionati nel form
       function preloadSelectedInsegnamenti() {
-        if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
+        if (
+          window.InsegnamentiManager &&
+          window.InsegnamentiManager.getSelectedCodes().length > 0
+        ) {
           // Prepara contenitore
-          const multiSelectBox = document.getElementById('insegnamentoBox');
+          const multiSelectBox = document.getElementById("insegnamentoBox");
           if (multiSelectBox) {
             // Salva placeholder
-            const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
-            
+            const placeholder = multiSelectBox.querySelector(
+              ".multi-select-placeholder"
+            );
+
             // Svuota contenitore
-            multiSelectBox.innerHTML = '';
-            
+            multiSelectBox.innerHTML = "";
+
             // Ripristina placeholder se necessario
-            if (placeholder && window.InsegnamentiManager.getSelectedCodes().length === 0) {
+            if (
+              placeholder &&
+              window.InsegnamentiManager.getSelectedCodes().length === 0
+            ) {
               multiSelectBox.appendChild(placeholder.cloneNode(true));
             }
-          
+
             // Carica insegnamenti selezionati
-            window.InsegnamentiManager.loadSelectedInsegnamenti(loggedDocente, function(data) {
-              if (data.length > 0) {
-                // Rimuovi placeholder
-                const placeholder = multiSelectBox.querySelector('.multi-select-placeholder');
-                if (placeholder) {
-                  placeholder.remove();
-                }
-                
-                // Crea tag per insegnamenti
-                data.forEach(ins => {
-                  createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
-                });
-                
-                // Aggiorna select nascosta
-                updateHiddenSelect(multiSelectBox);
-                
-                // Aggiorna opzioni nel dropdown
-                const options = document.querySelectorAll('#insegnamentoOptions .multi-select-option');
-                options.forEach(option => {
-                  if (window.InsegnamentiManager.isSelected(option.dataset.value)) {
-                    option.classList.add('selected');
+            window.InsegnamentiManager.loadSelectedInsegnamenti(
+              loggedDocente,
+              function (data) {
+                if (data.length > 0) {
+                  // Rimuovi placeholder
+                  const placeholder = multiSelectBox.querySelector(
+                    ".multi-select-placeholder"
+                  );
+                  if (placeholder) {
+                    placeholder.remove();
                   }
-                });
+
+                  // Crea tag per insegnamenti
+                  data.forEach((ins) => {
+                    createInsegnamentoTag(
+                      ins.codice,
+                      ins.titolo,
+                      multiSelectBox
+                    );
+                  });
+
+                  // Aggiorna select nascosta
+                  updateHiddenSelect(multiSelectBox);
+
+                  // Aggiorna opzioni nel dropdown
+                  const options = document.querySelectorAll(
+                    "#insegnamentoOptions .multi-select-option"
+                  );
+                  options.forEach((option) => {
+                    if (
+                      window.InsegnamentiManager.isSelected(
+                        option.dataset.value
+                      )
+                    ) {
+                      option.classList.add("selected");
+                    }
+                  });
+                }
               }
-            });
+            );
           }
         }
       }
 
       // Gestione click sui dropdown
-      
+
       // Dropdown CdS
-      dropdownCds.addEventListener('click', (e) => {
-        const item = e.target.closest('.dropdown-item');
+      dropdownCds.addEventListener("click", (e) => {
+        const item = e.target.closest(".dropdown-item");
         if (!item) return;
-        
+
         // Rimuovi selezione precedente
-        dropdownCds.querySelectorAll('.dropdown-item').forEach(el => {
-          el.classList.remove('selected');
+        dropdownCds.querySelectorAll(".dropdown-item").forEach((el) => {
+          el.classList.remove("selected");
         });
-        
+
         // Aggiungi selezione al nuovo item
-        item.classList.add('selected');
-        
+        item.classList.add("selected");
+
         // Salva il CdS selezionato
         selectedCds = item.dataset.codice || null;
-        
+
         // Ottieni le nuove date valide e aggiorna il calendario
         loadDateValide(loggedDocente, planningYear, selectedCds)
-          .then(newDates => {
+          .then((newDates) => {
             // Aggiorna le date valide
             dateValide = newDates;
-            
+
             // Aggiorna il calendario con le nuove date
             updateCalendarWithDates(calendar, dateValide);
-            
+
             // Aggiorna gli eventi
-            calendar.setOption('events', (info, successCallback) => 
-              fetchCalendarEvents(calendar, planningYear, info, successCallback, selectedCds)
+            calendar.setOption("events", (info, successCallback) =>
+              fetchCalendarEvents(
+                calendar,
+                planningYear,
+                info,
+                successCallback,
+                selectedCds
+              )
             );
-            
+
             // Aggiorna anche il dropdown delle sessioni
             updateSessioniDropdown(dropdownSessioni, dateValide);
-            
+
             // Chiudi il dropdown
-            dropdownCds.classList.remove('show');
-            
+            dropdownCds.classList.remove("show");
+
             // Ricarica il calendario
             calendar.refetchEvents();
           })
-          .catch(error => {
-            console.error('Errore nel caricamento delle date valide:', error);
+          .catch((error) => {
+            console.error("Errore nel caricamento delle date valide:", error);
             // In caso di errore, mantieni le date precedenti
           });
       });
 
       // Funzione helper per aggiornare il calendario con nuove date
       function updateCalendarWithDates(calendar, dates) {
-        calendar.setOption('dayCellClassNames', function(arg) {
+        calendar.setOption("dayCellClassNames", function (arg) {
           const dataCorrente = arg.date;
-          
+
           // Verifica data in sessione
           const dataValida = dates.some(([start, end]) => {
             const startDate = new Date(start);
             startDate.setHours(0, 0, 0, 0);
-            
+
             const endDate = new Date(end);
             endDate.setHours(23, 59, 59, 999);
-            
+
             return dataCorrente >= startDate && dataCorrente <= endDate;
           });
-          
+
           // Applica classe per date non valide
-          return dataValida ? [] : ['fc-disabled-day'];
+          return dataValida ? [] : ["fc-disabled-day"];
         });
       }
-      
+
       // Funzione helper per aggiornare il dropdown delle sessioni
       function updateSessioniDropdown(dropdown, dates) {
         if (dropdown) {
-          dropdown.innerHTML = '';
+          dropdown.innerHTML = "";
           // Aggiungi le voci di menu per ogni tipo di sessione
           for (const [start, end, nome] of dates) {
-            const item = document.createElement('div');
-            item.className = 'dropdown-item';
+            const item = document.createElement("div");
+            item.className = "dropdown-item";
             item.dataset.data = start;
             item.textContent = nome;
             dropdown.appendChild(item);
@@ -522,46 +582,48 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       // Dropdown sessioni
-      dropdownSessioni.addEventListener('click', (e) => {
-        const item = e.target.closest('.dropdown-item');
+      dropdownSessioni.addEventListener("click", (e) => {
+        const item = e.target.closest(".dropdown-item");
         if (item) {
           const data = item.dataset.data;
           if (data) {
             // Naviga alla data
             calendar.gotoDate(data);
-            dropdownSessioni.classList.remove('show');
+            dropdownSessioni.classList.remove("show");
           }
         }
       });
 
       // Dropdown insegnamenti
-      dropdownInsegnamenti.addEventListener('click', (e) => {
+      dropdownInsegnamenti.addEventListener("click", (e) => {
         // Trova l'elemento dropdown-item o dropdown-item-indented più vicino
-        const item = e.target.closest('.dropdown-item, .dropdown-item-indented');
+        const item = e.target.closest(
+          ".dropdown-item, .dropdown-item-indented"
+        );
         if (!item) return;
-        
+
         const checkbox = item.querySelector('input[type="checkbox"]');
         if (!checkbox) return;
-        
+
         // Se l'elemento cliccato è il checkbox, lascia che il browser gestisca lo stato
         // altrimenti inverti manualmente lo stato del checkbox
-        if (e.target.type !== 'checkbox') {
+        if (e.target.type !== "checkbox") {
           e.preventDefault(); // Previene comportamenti predefiniti di altri elementi
           checkbox.checked = !checkbox.checked;
         }
-        
+
         // Aggiorna InsegnamentiManager in base allo stato finale del checkbox
         if (window.InsegnamentiManager) {
           const codice = item.dataset.codice;
           const semestre = parseInt(item.dataset.semestre);
           const annoCorso = parseInt(item.dataset.annoCorso) || 1;
           const cds = item.dataset.cds;
-          
+
           if (checkbox.checked) {
-            window.InsegnamentiManager.selectInsegnamento(codice, { 
-              semestre: semestre, 
+            window.InsegnamentiManager.selectInsegnamento(codice, {
+              semestre: semestre,
               anno_corso: annoCorso,
-              cds: cds
+              cds: cds,
             });
           } else {
             window.InsegnamentiManager.deselectInsegnamento(codice);
@@ -570,20 +632,29 @@ document.addEventListener("DOMContentLoaded", function () {
       });
 
       // Chiusura dropdown su click fuori
-      document.addEventListener('click', (e) => {
+      document.addEventListener("click", (e) => {
         // Dropdown CdS
-        if (!e.target.closest('.fc-pulsanteCds-button') && !e.target.closest('#cdsDropdown')) {
-          dropdownCds.classList.remove('show');
+        if (
+          !e.target.closest(".fc-pulsanteCds-button") &&
+          !e.target.closest("#cdsDropdown")
+        ) {
+          dropdownCds.classList.remove("show");
         }
-        
+
         // Dropdown insegnamenti
-        if (!e.target.closest('.fc-pulsanteInsegnamenti-button') && !e.target.closest('.calendar-dropdown')) {
-          dropdownInsegnamenti.classList.remove('show');
+        if (
+          !e.target.closest(".fc-pulsanteInsegnamenti-button") &&
+          !e.target.closest(".calendar-dropdown")
+        ) {
+          dropdownInsegnamenti.classList.remove("show");
         }
-        
+
         // Dropdown sessioni
-        if (!e.target.closest('.fc-pulsanteSessioni-button') && !e.target.closest('#sessioniDropdown')) {
-          dropdownSessioni.classList.remove('show');
+        if (
+          !e.target.closest(".fc-pulsanteSessioni-button") &&
+          !e.target.closest("#sessioniDropdown")
+        ) {
+          dropdownSessioni.classList.remove("show");
         }
       });
 
@@ -593,10 +664,16 @@ document.addEventListener("DOMContentLoaded", function () {
         window.InsegnamentiManager.onChange(() => {
           // Cancella timer precedente
           if (debounceTimer) clearTimeout(debounceTimer);
-          
+
           // Aggiorna dopo breve delay
           debounceTimer = setTimeout(() => {
-            fetchCalendarEvents(calendar, planningYear, null, null, selectedCds);
+            fetchCalendarEvents(
+              calendar,
+              planningYear,
+              null,
+              null,
+              selectedCds
+            );
           }, 100);
         });
       }
@@ -604,17 +681,23 @@ document.addEventListener("DOMContentLoaded", function () {
       // Inizializza calendario
       calendar.render();
       window.calendar = calendar;
-      
+
       // Esponi funzione globale
-      window.updateHiddenSelect = (multiSelectBox) => updateHiddenSelect(multiSelectBox);
+      window.updateHiddenSelect = (multiSelectBox) =>
+        updateHiddenSelect(multiSelectBox);
     })
-    .catch(error => console.error('Errore nel caricamento delle sessioni o verifica permessi:', error));
-  
+    .catch((error) =>
+      console.error(
+        "Errore nel caricamento delle sessioni o verifica permessi:",
+        error
+      )
+    );
+
   // Gestione chiusura form esami
   const setupCloseHandlers = () => {
-    const closeButton = document.getElementById('closeOverlay');
-    const popupOverlay = document.getElementById('popupOverlay');
-    
+    const closeButton = document.getElementById("closeOverlay");
+    const popupOverlay = document.getElementById("popupOverlay");
+
     // Reset e aggiorna calendario
     const resetAndRefreshCalendar = () => {
       window.preselectedInsegnamenti = [];
@@ -622,22 +705,22 @@ document.addEventListener("DOMContentLoaded", function () {
         fetchCalendarEvents(window.calendar, planningYear);
       }
     };
-    
+
     // Handler pulsante chiusura
     if (closeButton) {
-      closeButton.addEventListener('click', resetAndRefreshCalendar);
+      closeButton.addEventListener("click", resetAndRefreshCalendar);
     }
-    
+
     // Handler click fuori dal form
     if (popupOverlay) {
-      popupOverlay.addEventListener('click', function(event) {
+      popupOverlay.addEventListener("click", function (event) {
         if (event.target === popupOverlay) {
           resetAndRefreshCalendar();
         }
       });
     }
   };
-  
+
   // Inizializza handler
   setupCloseHandlers();
 });
