@@ -80,11 +80,11 @@ function loadCorsiForAnno(anno) {
 /**
  * Azione quando viene selezionato un CdS
  * In questo caso non facciamo nulla, ma manteniamo la funzione
- * per mantenere lo stesso pattern di gestisciCds.js
+ * per mantenere lo stesso pattern di gestioneCds.js
  */
 function cdsSelected(value) {
     // In questo caso non facciamo nulla di speciale quando viene selezionato il CdS
-    // Ma manteniamo la funzione per coerenza con gestisciCds.js
+    // Ma manteniamo la funzione per coerenza con gestioneCds.js
 }
 
 /**

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
+  <title>Gestione Utenti - OH-ISSA</title>
+  <link rel="stylesheet" href="static/styles/admin.css">
+  <script src="static/scripts/common.js"></script>
+  <script src="static/scripts/authCheck.js"></script>
+  <script src="static/scripts/navbarAdmin.js"></script>
+  <script src="static/scripts/gestioneUtenti.js"></script>
+</head>
+
+<body>
+  <div id="navbar"></div>
+
+  <main>
+    <h1>Gestione Utenti</h1>
+
+    <section class="actions-bar">
+      <div class="search-box">
+        <input type="text" id="searchUser" placeholder="Cerca utente..." class="search-input">
+      </div>
+      <div class="filter-options">
+        <label>
+          <input type="checkbox" id="showOnlyAdmins" class="filter-checkbox">
+          Mostra solo amministratori
+        </label>
+      </div>
+    </section>
+
+    <section class="users-section">
+      <div class="table-container">
+        <table id="usersTable" class="users-table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Matricola</th>
+              <th>Nome</th>
+              <th>Cognome</th>
+              <th>Permessi Docente</th>
+              <th>Permessi Admin</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- I dati degli utenti verranno caricati qui dinamicamente dal JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="loadingIndicator" class="loading-indicator">
+        <span class="loading-text">Caricamento utenti...</span>
+      </div>
+
+      <div id="noUsersFound" class="no-results-message" style="display: none;">
+        Nessun utente trovato con i criteri di ricerca attuali.
+      </div>
+    </section>
+
+    <div id="responseMessages"></div>
+  </main>
+
+  <!-- Modal per la conferma dell'eliminazione -->
+  <div id="deleteConfirmModal" class="modal">
+    <div class="modal-content">
+      <h2>Conferma Eliminazione</h2>
+      <p>Sei sicuro di voler eliminare questo utente?</p>
+      <p id="deleteUserInfo" class="important-text"></p>
+      <p class="warning-text">Questa operazione non può essere annullata.</p>
+      <div class="modal-actions">
+        <button id="confirmDelete" class="btn danger">Elimina</button>
+        <button id="cancelDelete" class="btn">Annulla</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal per la conferma dei permessi admin -->
+  <div id="adminConfirmModal" class="modal">
+    <div class="modal-content">
+      <h2>Conferma Permessi Amministratore</h2>
+      <p id="adminActionText">Sei sicuro di voler concedere i permessi di amministratore?</p>
+      <p id="adminUserInfo" class="important-text"></p>
+      <p class="warning-text">Gli amministratori hanno accesso completo alla gestione del sistema.</p>
+      <div class="modal-actions">
+        <button id="confirmAdmin" class="btn primary">Conferma</button>
+        <button id="cancelAdmin" class="btn">Annulla</button>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
