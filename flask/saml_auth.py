@@ -101,12 +101,12 @@ def acs():
       # Verifica se l'utente esiste
       cursor.execute("SELECT 1 FROM utenti WHERE username = %s", (username,))
       if not cursor.fetchone():
-        # Crea un nuovo utente con permessi visitatore di default
+        # Crea un nuovo utente con permessi docente
         cursor.execute(
           """INSERT INTO utenti 
              (username, nome, cognome, permessi_docente, permessi_admin) 
              VALUES (%s, %s, %s, %s, %s)""", 
-          (username, nome, cognome, True, False, False)
+          (username, nome, cognome, True, False)
         )
         conn.commit()
     
@@ -140,5 +140,4 @@ def sls():
   if len(errors) == 0:
     if url is not None:
       return redirect(url)
-    return redirect(url_for('home'))
-  return render_template('error.html', errors=errors)
+    return redirect('/')
