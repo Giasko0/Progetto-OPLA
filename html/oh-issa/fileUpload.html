@@ -49,6 +49,26 @@
           showMessage('error', `Errore durante l'import: ${error.message}`);
         });
       });
+      
+      // Gestione caricamento aule da EasyAcademy (semplificato)
+      document.getElementById('loadRoomsBtn').addEventListener('click', function() {
+        showMessage('info', 'Caricamento aule da EasyAcademy in corso...');
+        
+        fetch('/oh-issa/api/loadAuleEasyAcademy', {
+          method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            showMessage('success', data.message, data.details);
+          } else {
+            showMessage('error', data.message);
+          }
+        })
+        .catch(error => {
+          showMessage('error', `Errore durante il caricamento delle aule: ${error.message}`);
+        });
+      });
     });
     
     function showMessage(type, text, details) {
@@ -79,7 +99,7 @@
   <div id="navbar"></div>
 
   <main>
-    <h1>Importazione Dati U-GOV</h1>
+    <h1>Carica Dati</h1>
 
     <section class="upload-section">
       <form id="uploadForm" action="/oh-issa/api/uploadFileUGOV" method="post" enctype="multipart/form-data">
@@ -90,6 +110,14 @@
           <button type="submit" class="btn primary">Importa dati</button>
         </fieldset>
       </form>
+    </section>
+    
+    <section class="upload-section">
+      <fieldset>
+        <legend>Import Aule</legend>
+        <p>Carica le aule dal sistema EasyAcademy dell'università</p>
+        <button id="loadRoomsBtn" type="button" class="btn primary">Carica Aule da EasyAcademy</button>
+      </fieldset>
     </section>
 
     <div id="responseMessages"></div>

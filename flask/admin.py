@@ -7,6 +7,7 @@ import xlwt
 import xlrd
 from psycopg2.extras import DictCursor
 import re
+import requests
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/oh-issa/api')
 
@@ -982,6 +983,191 @@ def get_anni_accademici():
         return jsonify(anni)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+@admin_bp.route('/uploadAule', methods=['POST'])
+def upload_aule():
+    if 'admin' not in request.cookies:
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+    
+    try:
+        data = request.get_json()
+        
+        if not data or 'aule' not in data or not isinstance(data['aule'], list):
+            return jsonify({'status': 'error', 'message': 'Formato dati non valido'}), 400
+        
+        aule = data['aule']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        inserted_count = 0
+        updated_count = 0
+        
+        for aula in aule:
+            # Verifica che tutti i campi richiesti siano presenti
+            if not all(key in aula for key in ['nome', 'sede', 'edificio', 'posti']):
+                continue
+                
+            try:
+                # Converte il numero di posti in intero
+                posti = int(aula['posti']) if aula['posti'] else 0
+                
+                # Verifica se l'aula esiste già
+                cursor.execute("SELECT nome FROM aule WHERE nome = %s", (aula['nome'],))
+                exists = cursor.fetchone()
+                
+                if exists:
+                    # Aggiorna l'aula esistente
+                    cursor.execute("""
+                        UPDATE aule 
+                        SET sede = %s, edificio = %s, posti = %s 
+                        WHERE nome = %s
+                    """, (aula['sede'], aula['edificio'], posti, aula['nome']))
+                    updated_count += 1
+                else:
+                    # Inserisci nuova aula
+                    cursor.execute("""
+                        INSERT INTO aule (nome, sede, edificio, posti)
+                        VALUES (%s, %s, %s, %s)
+                    """, (aula['nome'], aula['sede'], aula['edificio'], posti))
+                    inserted_count += 1
+            except Exception as e:
+                print(f"Errore durante l'inserimento dell'aula {aula['nome']}: {str(e)}")
+        
+        conn.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Caricamento aule completato con successo.',
+            'details': f"""
+                Aule elaborate:
+                - {inserted_count} nuove aule inserite
+                - {updated_count} aule aggiornate
+                - {len(aule)} totali
+            """
+        })
+        
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.rollback()
+        return jsonify({'status': 'error', 'message': f"Errore durante l'importazione delle aule: {str(e)}"}), 500
+    
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+@admin_bp.route('/loadAuleEasyAcademy', methods=['POST'])
+def load_aule_easy_academy():
+    if 'admin' not in request.cookies:
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+    
+    try:
+        # Chiamata all'API di EasyAcademy
+        response = requests.get('https://easyacademy.unipg.it/agendaweb/combo.php?sw=rooms_&only_json=1')
+        
+        if not response.ok:
+            return jsonify({
+                'status': 'error', 
+                'message': f'Errore nella risposta dal server EasyAcademy: {response.status_code}'
+            }), 500
+            
+        data = response.json()
+        
+        # Verifica che i dati abbiano la struttura attesa
+        if not data or 'elenco_aule' not in data or 'P02E04' not in data['elenco_aule']:
+            return jsonify({
+                'status': 'error',
+                'message': 'Formato dati non valido o aule DMI non trovate nella risposta'
+            }), 500
+        
+        # Estrai le aule del DMI
+        aule_dmi = data['elenco_aule']['P02E04']
+        aule_data = []
+        
+        # Prepara i dati delle aule
+        for aula in aule_dmi:
+            aule_data.append({
+                'nome': aula['label'],
+                'sede': 'Perugia',
+                'edificio': 'DIPARTIMENTO DI MATEMATICA E INFORMATICA',
+                'posti': aula['capacity'] if 'capacity' in aula else 0
+            })
+            
+        # Aggiungi lo studio docente
+        aule_data.append({
+            'nome': 'Studio docente DMI',
+            'sede': 'Perugia',
+            'edificio': 'DIPARTIMENTO DI MATEMATICA E INFORMATICA',
+            'posti': 9999
+        })
+        
+        # Connessione al database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        inserted_count = 0
+        updated_count = 0
+        
+        # Elaborazione delle aule
+        for aula in aule_data:
+            try:
+                # Converte il numero di posti in intero
+                posti = int(aula['posti']) if aula['posti'] else 0
+                
+                # Verifica se l'aula esiste già
+                cursor.execute("SELECT nome FROM aule WHERE nome = %s", (aula['nome'],))
+                exists = cursor.fetchone()
+                
+                if exists:
+                    # Aggiorna l'aula esistente
+                    cursor.execute("""
+                        UPDATE aule 
+                        SET sede = %s, edificio = %s, posti = %s 
+                        WHERE nome = %s
+                    """, (aula['sede'], aula['edificio'], posti, aula['nome']))
+                    updated_count += 1
+                else:
+                    # Inserisci nuova aula
+                    cursor.execute("""
+                        INSERT INTO aule (nome, sede, edificio, posti)
+                        VALUES (%s, %s, %s, %s)
+                    """, (aula['nome'], aula['sede'], aula['edificio'], posti))
+                    inserted_count += 1
+            except Exception as e:
+                print(f"Errore durante l'inserimento dell'aula {aula['nome']}: {str(e)}")
+        
+        conn.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Caricamento aule completato con successo.',
+            'details': f"""
+                Aule elaborate:
+                - {inserted_count} nuove aule inserite
+                - {updated_count} aule aggiornate
+                - {len(aule_data)} totali (incluso Studio docente DMI)
+            """
+        })
+        
+    except requests.RequestException as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Errore nella comunicazione con EasyAcademy: {str(e)}'
+        }), 500
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f"Errore durante l'importazione delle aule: {str(e)}"
+        }), 500
     finally:
         if 'cursor' in locals() and cursor:
             cursor.close()
