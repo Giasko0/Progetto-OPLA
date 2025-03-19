@@ -535,13 +535,17 @@ def getAnniAccademici():
 def getInsegnamentiDocente():
     anno = request.args.get('anno')
     docente = request.args.get('docente')
+    cds = request.args.get('cds')  # Nuovo parametro per filtrare per CdS
+    
     if not anno or not docente:
         return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
     
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("""
+        
+        # Query di base
+        query = """
             WITH insegnamenti_unici AS (
                 SELECT DISTINCT ON (i.codice, ic.cds)
                        i.codice, i.titolo, ic.semestre, ic.anno_corso, ic.cds, c.nome_corso
@@ -552,11 +556,22 @@ def getInsegnamentiDocente():
                 WHERE id.docente = %s 
                 AND id.annoaccademico = %s
                 AND ic.anno_accademico = %s
+        """
+        params = [docente, anno, anno]
+        
+        # Aggiungi filtro per CdS se specificato
+        if cds:
+            query += " AND ic.cds = %s"
+            params.append(cds)
+            
+        query += """
                 ORDER BY i.codice, ic.cds, ic.anno_accademico DESC
             )
             SELECT * FROM insegnamenti_unici
             ORDER BY nome_corso, titolo
-        """, (docente, anno, anno))
+        """
+        
+        cursor.execute(query, tuple(params))
         
         insegnamenti = [{'codice': row[0], 'titolo': row[1], 'semestre': row[2], 'anno_corso': row[3], 
                         'cds_codice': row[4], 'cds_nome': row[5]} 

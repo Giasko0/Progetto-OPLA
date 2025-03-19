@@ -63,8 +63,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Determina quali pulsanti mostrare in base ai permessi
       const rightButtons = isAdmin
-        ? "pulsanteCds pulsanteSessioni pulsanteInsegnamenti pulsanteDebug prev,next today"
-        : "pulsanteCds pulsanteSessioni pulsanteInsegnamenti prev,next today";
+        ? "pulsanteCds pulsanteInsegnamenti pulsanteSessioni pulsanteDebug prev,next today"
+        : "pulsanteCds pulsanteInsegnamenti pulsanteSessioni prev,next today";
 
       // Configurazione calendario
       var calendar = new FullCalendar.Calendar(calendarEl, {

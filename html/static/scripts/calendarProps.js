@@ -75,7 +75,7 @@ export function populateInsegnamentiDropdown(
       // Genera HTML per ogni CdS
       Object.keys(insegnamentiPerCds).forEach((cdsCodice) => {
         const cds = insegnamentiPerCds[cdsCodice];
-        dropdownHTML += `<div class="dropdown-cds-title">${cds.nome}</div>`;
+        dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
 
         cds.insegnamenti.forEach((ins) => {
           const isSelected =
