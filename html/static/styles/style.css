@@ -668,6 +668,7 @@ table {
   overflow: hidden;
   border: 1px solid var(--table-border);
   background-color: var(--table-bg);
+  color: var(--color-text);
 }
 
 thead th {
@@ -746,6 +747,7 @@ tbody tr:hover td {
   text-align: center;
   cursor: pointer;
   transition: transform 0.2s ease-in-out;
+  color: var(--color-text);
 }
 
 .session-card h4 {
@@ -782,10 +784,11 @@ tbody tr:hover td {
   cursor: pointer;
   font-weight: bold;
   transition: all 0.3s ease;
+  color: var(--color-text);
 }
 
 .tab-button:hover {
-  background: #27348b;
+  background: var(--color-primary);
   color: white;
 }
 
