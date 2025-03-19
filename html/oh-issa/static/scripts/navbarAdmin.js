@@ -13,7 +13,12 @@ document.addEventListener('DOMContentLoaded', function() {
   if (navbarContainer) {
     // Crea la struttura base della navbar
     const navbarHTML = `
-      <a class="navbar-brand">OH-ISSA</a>
+      <a class="navbar-brand" href="/oh-issa/">OH-ISSA</a>
+      <button class="hamburger-menu" aria-label="Menu di navigazione">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
       <ul class="navbar-nav">
         <li><a href="/oh-issa/">Dashboard</a></li>
         <li><a href="/oh-issa/fileUpload.html">Upload U-GOV</a></li>
@@ -30,8 +35,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inserisci la navbar nel container
     navbarContainer.innerHTML = navbarHTML;
     
-    // Recupera il container per il login/logout
+    // Recupera il container per il login/logout e il pulsante hamburger
     const loginLogoutItem = document.getElementById('loginLogoutItem');
+    const hamburgerMenu = document.querySelector('.hamburger-menu');
+    const navbarNav = document.querySelector('.navbar-nav');
+    
+    // Aggiungi event listener al pulsante hamburger
+    hamburgerMenu.addEventListener('click', function() {
+      navbarNav.classList.toggle('open');
+    });
     
     // Verifica se l'utente è autenticato controllando il cookie 'admin'
     const adminCookie = getCookie('admin');
@@ -50,5 +62,15 @@ document.addEventListener('DOMContentLoaded', function() {
       loginLink.innerHTML = 'Login';
       loginLogoutItem.appendChild(loginLink);
     }
+    
+    // Chiudi il menu quando si clicca su un link (solo su mobile)
+    const navLinks = navbarNav.querySelectorAll('a');
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          navbarNav.classList.remove('open');
+        }
+      });
+    });
   }
 });

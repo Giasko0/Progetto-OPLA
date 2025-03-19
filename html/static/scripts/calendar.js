@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Configurazione calendario
       var calendar = new FullCalendar.Calendar(calendarEl, {
-        contentHeight: 700,
+        contentHeight: "60dvh",
         locale: "it",
         initialDate: dateRange.start,
         initialView: "dayGridMonth",

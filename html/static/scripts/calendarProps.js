@@ -30,6 +30,9 @@ export function createDropdown(type) {
   if (type === "cds") dropdown.id = "cdsDropdown";
   document.body.appendChild(dropdown);
 
+  // Aggiungi classe per stile responsive
+  dropdown.classList.add('calendar-dropdown-mobile');
+
   return dropdown;
 }
 

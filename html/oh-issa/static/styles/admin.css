@@ -31,10 +31,11 @@ section {
 #navbar {
     background-color: #24292e;
     color: white;
-    padding: 1rem 2rem;
+    padding: 0 2rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    height: 10vh; /* Stessa altezza della navbar principale */
 }
 
 .navbar-brand {
@@ -47,6 +48,8 @@ section {
 .navbar-nav {
     display: flex;
     list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
 .navbar-nav li {
@@ -68,6 +71,29 @@ section {
 
 .nav-right {
     margin-left: auto;
+}
+
+/* Menu hamburger per navbar admin */
+.hamburger-menu {
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 2rem;
+    height: 2rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.hamburger-menu span {
+    width: 2rem;
+    height: 0.25rem;
+    background: white;
+    border-radius: 10px;
+    transition: all 0.3s linear;
+    position: relative;
+    transform-origin: 1px;
 }
 
 /* Typography */
@@ -556,19 +582,44 @@ input[type="number"] {
 
 /* Responsive styles */
 @media (max-width: 768px) {
-    .navbar {
-        flex-direction: column;
-        padding: 1rem;
+    #navbar {
+        position: relative;
+        padding: 0 1rem;
+        flex-direction: row; /* Mantiene layout orizzontale */
+        height: auto;
+        min-height: 10vh;
+    }
+    
+    .hamburger-menu {
+        display: flex;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        right: 1rem;
+        z-index: 20;
     }
     
     .navbar-nav {
-        margin-top: 1rem;
+        position: absolute;
+        top: 100%;
+        left: 0;
         width: 100%;
+        background-color: #24292e;
         flex-direction: column;
+        align-items: center;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-in-out;
+        z-index: 15;
+    }
+    
+    .navbar-nav.open {
+        max-height: 300px; /* Altezza sufficiente per i menu */
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
     }
     
     .navbar-nav li {
-        margin: 0.25rem 0;
+        margin: 0.5rem 0;
         width: 100%;
         text-align: center;
     }
@@ -576,7 +627,7 @@ input[type="number"] {
     .nav-right {
         margin-left: 0;
     }
-    
+
     .session-group {
         grid-template-columns: 1fr;
     }

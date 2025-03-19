@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const navbarHTML = `
       <div class="navbar">
         <a href="index.html"><img src="static/imgs/logo.png" alt="Logo" class="logo"></a>
+        <button class="hamburger-menu" aria-label="Menu di navigazione">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
         <div class="navlinks">
           <a href="index.html">Home</a>
           <a href="mieiEsami.html">I miei esami</a>
@@ -20,8 +25,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inserisci la navbar nel container
     navbarContainer.innerHTML = navbarHTML;
     
-    // Recupera il container dei link della navbar
+    // Recupera il container dei link della navbar e il pulsante hamburger
     const navlinksDiv = document.querySelector('.navlinks');
+    const hamburgerMenu = document.querySelector('.hamburger-menu');
+    
+    // Aggiungi event listener al pulsante hamburger
+    hamburgerMenu.addEventListener('click', function() {
+      navlinksDiv.classList.toggle('open');
+    });
     
     // Verifica se l'utente è un admin per aggiungere il pulsante OH-ISSA
     const isAdmin = getCookie('admin') === 'true';
@@ -69,5 +80,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         navlinksDiv.appendChild(link);
       });
+      
+    // Chiudi il menu quando si clicca su un link (solo su mobile)
+    const navLinks = navlinksDiv.querySelectorAll('a');
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          navlinksDiv.classList.remove('open');
+        }
+      });
+    });
   }
 });
