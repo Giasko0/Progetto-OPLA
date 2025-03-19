@@ -3,6 +3,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const navbarContainer = document.getElementById('navbar');
   
   if (navbarContainer) {
+    // Determina lo stato attuale per l'aria-label
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const darkModeLabel = isDarkMode ? 'Passa alla modalità chiara' : 'Passa alla modalità scura';
+    const darkModeIcon = isDarkMode ? 'light_mode' : 'dark_mode';
+    
     // Struttura html della navbar
     const navbarHTML = `
       <div class="navbar">
@@ -17,8 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <a href="mieiEsami.html">I miei esami</a>
           <!-- Il link di login/logout e altri link verranno aggiunti qui dinamicamente -->
         </div>
-        <!-- Pulsante dark mode commentato per consistenza con i file originali -->
-        <!--<span id="darkModeButton" class="material-symbols-outlined" onclick="darkMode()">dark_mode</span>-->
+        <span id="darkModeButton" class="material-symbols-outlined" onclick="toggleDarkMode()" aria-label="${darkModeLabel}">${darkModeIcon}</span>
       </div>
     `;
     
