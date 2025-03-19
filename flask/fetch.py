@@ -94,7 +94,7 @@ def ottieniAule():
       release_connection(conn)
 
 # API per ottenere tutti gli esami. Usato per gli eventi del calendario
-@fetch_bp.route('/api/getEsami', methods=['GET'])
+@fetch_bp.route('/api/ottieniEsami', methods=['GET'])
 def getEsami():
     # Parametri di input
     show_all = request.args.get('all', 'false').lower() == 'true'
@@ -219,7 +219,7 @@ def getEsami():
             release_connection(conn)
 
 # API per ottenere gli esami di un docente. Usato in mieiEsami.html
-@fetch_bp.route('/api/mieiEsami', methods=['GET'])
+@fetch_bp.route('/api/ottieniMieiEsami', methods=['GET'])
 def miei_esami():
     # Ottieni i dati dell'utente usando la nuova funzione
     user_data = get_user_data().get_json()

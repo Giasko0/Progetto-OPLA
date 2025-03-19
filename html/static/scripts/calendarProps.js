@@ -166,7 +166,7 @@ export function fetchCalendarEvents(
   }
 
   // Richiesta API
-  fetch("/api/getEsami?" + params.toString())
+  fetch("/api/ottieniEsami?" + params.toString())
     .then((response) => response.json())
     .then((data) => {
       if (successCallback) {

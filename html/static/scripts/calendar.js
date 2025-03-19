@@ -194,7 +194,7 @@ document.addEventListener("DOMContentLoaded", function () {
               calendar.getEventSources().forEach((source) => source.remove());
 
               // Carica tutti gli esami
-              fetch("/api/getEsami?all=true")
+              fetch("/api/ottieniEsami?all=true")
                 .then((response) => response.json())
                 .then((data) => {
                   calendar.addEventSource(data);

@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       // Carica gli esami dell'utente usando l'API
-      fetch(`/api/mieiEsami?docente=${encodeURIComponent(userData.username)}`)
+      fetch(`/api/ottieniMieiEsami?docente=${encodeURIComponent(userData.username)}`)
         .then(response => {
           if (!response.ok) {
             throw new Error('Errore nel caricamento degli esami');
@@ -71,7 +71,7 @@ function visualizzaEsami(esami) {
 }
 
 function fetchAndDisplayEsami() {
-  fetch("/api/mieiEsami")
+  fetch("/api/ottieniMieiEsami")
     .then((response) => response.json())
     .then((data) => {
       const tabsHeader = document.getElementById("tabsHeader");
