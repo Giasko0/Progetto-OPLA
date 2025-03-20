@@ -117,6 +117,16 @@ CREATE TABLE esami (
     CONSTRAINT check_posti CHECK (posti > 0)
 );
 
+-- Creazione della tabella 'eventi' (Importati da EasyAcademy)
+CREATE TABLE eventi (
+  id SERIAL PRIMARY KEY,
+  aula VARCHAR(255) NOT NULL,
+  data_evento DATE NOT NULL,
+  ora_inizio TIME NOT NULL,
+  ora_fine TIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Creazione degli indici per velocizzare le query (forse sono troppi, levarne qualcuno se necessario)
 CREATE INDEX idx_cds_nome_corso ON cds(nome_corso);
 

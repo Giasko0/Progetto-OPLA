@@ -11,83 +11,103 @@
   <script src="static/scripts/authCheck.js"></script>
   <script src="static/scripts/navbarAdmin.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       // Gestione upload file U-GOV
-      document.getElementById('uploadForm').addEventListener('submit', function(e) {
+      document.getElementById('uploadForm').addEventListener('submit', function (e) {
         e.preventDefault();
         const fileInput = document.getElementById('ugovFile');
         const file = fileInput.files[0];
-        
+
         if (!file) {
           showMessage('error', 'Nessun file selezionato.');
           return;
         }
-        
+
         if (!file.name.toLowerCase().endsWith('.xls') && !file.name.toLowerCase().endsWith('.xlsx')) {
           showMessage('error', 'Formato file non supportato. Usare file Excel (.xls, .xlsx)');
           return;
         }
-        
+
         const formData = new FormData();
         formData.append('file', file);
-        
+
         showMessage('info', 'Caricamento in corso...');
-        
+
         fetch('/oh-issa/api/uploadFileUGOV', {
           method: 'POST',
           body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-          if (data.status === 'success') {
-            showMessage('success', data.message, data.details);
-          } else {
-            showMessage('error', data.message);
-          }
-        })
-        .catch(error => {
-          showMessage('error', `Errore durante l'import: ${error.message}`);
-        });
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              showMessage('success', data.message, data.details);
+            } else {
+              showMessage('error', data.message);
+            }
+          })
+          .catch(error => {
+            showMessage('error', `Errore durante l'import: ${error.message}`);
+          });
       });
-      
+
       // Gestione caricamento aule da EasyAcademy (semplificato)
-      document.getElementById('loadRoomsBtn').addEventListener('click', function() {
+      document.getElementById('loadRoomsBtn').addEventListener('click', function () {
         showMessage('info', 'Caricamento aule da EasyAcademy in corso...');
-        
+
         fetch('/oh-issa/api/loadAuleEasyAcademy', {
           method: 'POST'
         })
-        .then(response => response.json())
-        .then(data => {
-          if (data.status === 'success') {
-            showMessage('success', data.message, data.details);
-          } else {
-            showMessage('error', data.message);
-          }
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              showMessage('success', data.message, data.details);
+            } else {
+              showMessage('error', data.message);
+            }
+          })
+          .catch(error => {
+            showMessage('error', `Errore durante il caricamento delle aule: ${error.message}`);
+          });
+      });
+
+      // Gestione caricamento eventi di domani da EasyAcademy
+      document.getElementById('loadEventsBtn').addEventListener('click', function () {
+        showMessage('info', 'Caricamento eventi di domani da EasyAcademy in corso...');
+
+        fetch('/oh-issa/api/caricaEventiEA', {
+          method: 'POST'
         })
-        .catch(error => {
-          showMessage('error', `Errore durante il caricamento delle aule: ${error.message}`);
-        });
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              showMessage('success', data.message, data.details);
+            } else {
+              showMessage('error', data.message);
+            }
+          })
+          .catch(error => {
+            showMessage('error', `Errore durante il caricamento degli eventi: ${error.message}`);
+          });
       });
     });
-    
+
     function showMessage(type, text, details) {
       const messagesDiv = document.getElementById('responseMessages');
       messagesDiv.innerHTML = '';
-      
+
       const messageDiv = document.createElement('div');
       messageDiv.className = `alert alert-${type === 'success' ? 'success' : type === 'info' ? 'info' : 'danger'}`;
       messageDiv.textContent = text;
-      
+
       if (details) {
         const detailsDiv = document.createElement('pre');
         detailsDiv.className = 'import-details';
         detailsDiv.textContent = details;
         messageDiv.appendChild(detailsDiv);
       }
-      
+
       messagesDiv.appendChild(messageDiv);
-      
+
       if (type === 'info') {
         setTimeout(() => messageDiv.remove(), 5000);
       }
@@ -111,12 +131,13 @@
         </fieldset>
       </form>
     </section>
-    
+
     <section class="upload-section">
       <fieldset>
         <legend>Import Aule</legend>
         <p>Carica le aule dal sistema EasyAcademy dell'università</p>
         <button id="loadRoomsBtn" type="button" class="btn primary">Carica Aule da EasyAcademy</button>
+        <button id="loadEventsBtn" type="button" class="btn primary">Carica Eventi di domani da EasyAcademy</button>
       </fieldset>
     </section>
 
