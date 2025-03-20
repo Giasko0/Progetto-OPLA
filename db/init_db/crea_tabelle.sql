@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
 DROP TABLE IF EXISTS utenti CASCADE;
 DROP TABLE IF EXISTS insegnamento_docente CASCADE;
 DROP TABLE IF EXISTS esami CASCADE;
+DROP TABLE IF EXISTS eventi CASCADE;
 
 -- Creazione della tabella 'aule'
 CREATE TABLE aule (
@@ -44,6 +45,14 @@ CREATE TABLE periodi_esame (
         'PAUSA_AUTUNNALE', 'PAUSA_PRIMAVERILE'
     ))
 );
+
+INSERT INTO periodi_esame (cds, anno_accademico, tipo_periodo, inizio, fine, max_esami) VALUES
+('L062', 2024, 'ANTICIPATA', '2025-01-07', '2024-02-22', 3),
+('L062', 2024, 'ESTIVA', '2025-06-10', '2025-07-25', 3),
+('L062', 2024, 'AUTUNNALE', '2025-09-01', '2025-9-30', 2),
+('L062', 2024, 'INVERNALE', '2026-01-10', '2026-02-25', 3),
+('L062', 2024, 'PAUSA_AUTUNNALE', '2025-11-04', '2025-11-08', 1),
+('L062', 2024, 'PAUSA_PRIMAVERILE', '2026-03-31', '2026-04-04', 1);
 
 -- Creazione della tabella 'insegnamenti' (generici, possono essere usati da qualsiasi corso di studio)
 CREATE TABLE insegnamenti (

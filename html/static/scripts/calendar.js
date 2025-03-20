@@ -270,9 +270,9 @@ document.addEventListener("DOMContentLoaded", function () {
           document.querySelector(".fc-toolbar-title").textContent = title;
         },
 
-        // Click su data per nuovo esame
+        // Click su una data
         dateClick: function (info) {
-          const dataClick = new Date(info.dateStr);
+          const dataClick = info.date;
           // Periodo: mattina/pomeriggio
           const periodo =
             info.view.type === "timeGrid"
@@ -305,9 +305,8 @@ document.addEventListener("DOMContentLoaded", function () {
           getUserData()
             .then((data) => {
               if (data.authenticated) {
-                // Formatta data per form
-                const formattedDate = dataClick.toISOString().split("T")[0];
-                document.getElementById("dataora").value = formattedDate;
+                // Formatta data per form (usa info.dateStr che è già nel formato corretto YYYY-MM-DD)
+                document.getElementById("dataora").value = info.dateStr;
                 if (periodo !== null) {
                   document.getElementById("periodo").value = periodo;
                 }
@@ -316,7 +315,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 preloadSelectedInsegnamenti();
 
                 // Mostra l'overlay del form
-                document.getElementById("overlay").style.display = "flex";
+                document.getElementById("popupOverlay").style.display = "flex";
               } else {
                 alert("Effettua il login per inserire un esame");
               }
