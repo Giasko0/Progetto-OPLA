@@ -29,8 +29,8 @@
 
 /* Dark mode variables - attivate quando l'html ha la classe 'dark' */
 html.dark {
-  --color-primary: #5a6ccc;
-  --color-primary-light: #4a78e2;
+  --color-primary: #6790d3;
+  --color-primary-light: #adbee6;
   --color-secondary: #2a2a4a;
   --color-red: #e63946;
   --color-dark-gray: #e0e0e0;
@@ -284,6 +284,10 @@ html.dark .fc-event {
   margin: 5px 0;
 }
 
+.footer-section a {
+  color: var(--color-primary);
+}
+
 /*---------BANNER AVVISI---------*/
 .banner-avviso {
   background-color: #ffebcc;
@@ -376,6 +380,12 @@ html.dark .fc-event {
   background-color: var(--color-white);
   color: var(--color-text);
   border: 1px solid var(--color-gray);
+  border-radius: var(--radius);
+}
+
+.popup input[type="checkbox"] {
+  width: auto;
+  margin-right: 5px;
 }
 
 .invia {

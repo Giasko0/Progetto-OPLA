@@ -701,21 +701,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const resetAndRefreshCalendar = () => {
       window.preselectedInsegnamenti = [];
       if (window.calendar) {
-        fetchCalendarEvents(window.calendar, planningYear);
+        window.calendar.refetchEvents();
       }
     };
 
     // Handler pulsante chiusura
     if (closeButton) {
-      closeButton.addEventListener("click", resetAndRefreshCalendar);
-    }
-
-    // Handler click fuori dal form
-    if (popupOverlay) {
-      popupOverlay.addEventListener("click", function (event) {
-        if (event.target === popupOverlay) {
-          resetAndRefreshCalendar();
-        }
+      closeButton.addEventListener("click", function() {
+        popupOverlay.style.display = "none";
       });
     }
   };

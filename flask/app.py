@@ -115,8 +115,8 @@ def confermaEsami():
               data_inizio_iscrizione, data_fine_iscrizione, 
               tipo_esame, verbalizzazione, note_appello, posti,
               tipo_appello, definizione_appello, gestione_prenotazione, 
-              riservato, tipo_iscrizione, periodo, durata_appello)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+              riservato, tipo_iscrizione, periodo, durata_appello, descrizione)
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
           (dati_comuni['docente'], insegnamento, dati_comuni['aula'], 
            dati_comuni['data_appello'], dati_comuni['ora_appello'], 
            inizio_iscrizione, fine_iscrizione, 
@@ -125,7 +125,7 @@ def confermaEsami():
            dati_comuni['tipo_appello'], dati_comuni['definizione_appello'], 
            dati_comuni['gestione_prenotazione'], dati_comuni['riservato'], 
            dati_comuni['tipo_iscrizione'], dati_comuni['periodo'], 
-           dati_comuni['durata_appello'])
+           dati_comuni['durata_appello'], dati_comuni['descrizione'])
         )
         esami_inseriti.append(insegnamento)
       except Exception as e:

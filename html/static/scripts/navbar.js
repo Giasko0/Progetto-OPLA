@@ -7,11 +7,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const isDarkMode = document.documentElement.classList.contains('dark');
     const darkModeLabel = isDarkMode ? 'Passa alla modalità chiara' : 'Passa alla modalità scura';
     const darkModeIcon = isDarkMode ? 'light_mode' : 'dark_mode';
+    const logoPath = isDarkMode ? "static/imgs/logo-dark.png" : "static/imgs/logo.png";
     
     // Struttura html della navbar
     const navbarHTML = `
       <div class="navbar">
-        <a href="index.html"><img src="static/imgs/logo.png" alt="Logo" class="logo"></a>
+        <a href="index.html"><img src="${logoPath}" alt="Logo" class="logo" id="navLogo"></a>
         <button class="hamburger-menu" aria-label="Menu di navigazione">
           <span></span>
           <span></span>

@@ -50,6 +50,16 @@
           <input type="text" id="docente" name="docente" hidden>
           <input type="text" id="anno_accademico" name="anno_accademico" hidden>
 
+          <div class="checkbox-container">
+            <input type="checkbox" id="provaParziale" name="provaParziale">
+            <label for="provaParziale">Prova Parziale</label>
+          </div>
+
+          <div>
+            <label class="formEsame-label" for="descrizione">Descrizione*</label>
+            <input type="text" id="descrizione" name="descrizione" placeholder="Inserisci una descrizione" required>
+          </div>
+
           <label class="formEsame-label" for="insegnamento">Insegnamento*</label>
           <div class="multi-select-container">
             <div id="insegnamentoBox" class="multi-select-box">
@@ -67,7 +77,7 @@
           <label class="formEsame-label" for="ora">Ora Appello*</label>
           <input type="time" id="ora" name="ora" min="08:00" max="23:00" step="300" required>
 
-          <label class="formEsame-label" for="aula">Aula*</label>
+          <label class="formEsame-label" for="aula">Aule disponibili*</label>
           <select id="aula" name="aula" required>
             <option value="" disabled selected hidden>Seleziona prima data e ora</option>
           </select>
@@ -78,11 +88,8 @@
           <div>
             <label class="formEsame-label" for="verbalizzazione">Verbalizzazione*</label>
             <select id="verbalizzazione" name="verbalizzazione">
-              <option value="STD" selected disabled>Standard</option>
-              <option value="FWP">Firma doppia</option>
-              <option value="FSS">Firma singola</option>
-              <option value="PAR" disabled>Prova parziale</option>
-              <option value="PPP" disabled>Prova parziale con pubblicazione</option>
+              <option value="FSS" selected>Firma digitale singola</option>
+              <option value="FWP">Firma digitale con pubblicazione</option>
             </select>
           </div>
 

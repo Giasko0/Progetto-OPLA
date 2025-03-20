@@ -100,6 +100,7 @@ CREATE TABLE insegnamento_docente (
 -- Creazione della tabella 'esami'
 CREATE TABLE esami (
     id SERIAL PRIMARY KEY,                -- Identificativo univoco dell'esame (chiave primaria)
+    descrizione TEXT,                     -- Descrizione dell'esame
     tipo_appello TEXT NOT NULL,           -- Tipo di appello (finale o parziale)
     docente TEXT NOT NULL REFERENCES utenti(username) ON DELETE CASCADE,         -- Username del docente responsabile (chiave esterna)
     insegnamento TEXT NOT NULL REFERENCES insegnamenti(codice) ON DELETE CASCADE, -- Codice dell'insegnamento (chiave esterna)

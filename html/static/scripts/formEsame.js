@@ -38,6 +38,12 @@ document.addEventListener("DOMContentLoaded", () => {
       pulsanteAdv.addEventListener("click", toggleOpzioniAvanzate);
     }
     
+    // Gestione prova parziale
+    const provaParzialeCheckbox = document.getElementById("provaParziale");
+    if (provaParzialeCheckbox) {
+      provaParzialeCheckbox.addEventListener("change", aggiornaVerbalizzazione);
+    }
+    
     // Gestione submit del form
     const form = document.getElementById("formEsame");
     if (form) {
@@ -49,14 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (closeOverlay) {
       closeOverlay.addEventListener('click', closePopupOverlay);
     }
-    
-    // Chiusura overlay su click esterno
-    window.addEventListener('click', function(event) {
-      const popupOverlay = document.getElementById('popupOverlay');
-      if (event.target === popupOverlay) {
-        closePopupOverlay();
-      }
-    });
   }
   
   // Funzione per inizializzare la UI
@@ -585,10 +583,8 @@ document.addEventListener("DOMContentLoaded", () => {
           
           showPopup(data.message || "Esami inseriti con successo", "Operazione completata", {
             type: 'success',
-            callback: function() {
-              window.location.reload();
-            }
           });
+          document.getElementById("popupOverlay").style.display = 'none';
         }
       })
       .catch((error) => {
@@ -770,7 +766,12 @@ document.addEventListener("DOMContentLoaded", () => {
             showPopup(response.message, response.status === 'success' ? 'Operazione completata' : 'Inserimento parziale', {
               type: response.status === 'success' ? 'success' : 'warning',
               callback: function() {
-                window.location.reload();
+                // Aggiorna calendario invece di ricaricare la pagina
+                if (window.calendar) {
+                  window.calendar.refetchEvents();
+                  document.body.removeChild(popupContainer);
+                  document.getElementById("popupOverlay").style.display = "none";
+                }
               }
             });
           } else {
@@ -791,4 +792,52 @@ document.addEventListener("DOMContentLoaded", () => {
   window.updateHiddenSelect = updateHiddenSelect;
   window.toggleOption = toggleOption;
   window.createInsegnamentoTag = createInsegnamentoTag;
+  
+  // Funzione per aggiornare le opzioni di verbalizzazione in base al checkbox di prova parziale
+  function aggiornaVerbalizzazione() {
+    const provaParzialeCheckbox = document.getElementById("provaParziale");
+    const verbalizzazioneSelect = document.getElementById("verbalizzazione");
+    
+    if (!provaParzialeCheckbox || !verbalizzazioneSelect) return;
+    
+    // Salva il valore corrente se possibile
+    const currentValue = verbalizzazioneSelect.value;
+    
+    // Svuota le opzioni attuali
+    verbalizzazioneSelect.innerHTML = '';
+    
+    if (provaParzialeCheckbox.checked) {
+      // Opzioni per prova parziale
+      const options = [
+        { value: 'PAR', text: 'Prova parziale' },
+        { value: 'PPP', text: 'Prova parziale con pubblicazione' }
+      ];
+      
+      options.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.value;
+        optionElement.textContent = option.text;
+        verbalizzazioneSelect.appendChild(optionElement);
+      });
+      
+      // Seleziona la prima opzione
+      verbalizzazioneSelect.value = 'PAR';
+    } else {
+      // Opzioni standard
+      const options = [
+        { value: 'FSS', text: 'Firma digitale singola' },
+        { value: 'FWP', text: 'Firma digitale con pubblicazione' }
+      ];
+      
+      options.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.value;
+        optionElement.textContent = option.text;
+        verbalizzazioneSelect.appendChild(optionElement);
+      });
+      
+      // Seleziona la prima opzione
+      verbalizzazioneSelect.value = 'FSS';
+    }
+  }
 });

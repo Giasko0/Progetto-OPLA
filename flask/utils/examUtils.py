@@ -16,6 +16,8 @@ def raccogliDatiForm():
       return {'status': 'error', 'message': 'Nessun insegnamento selezionato'}
     
     # Campi base dell'esame
+    descrizione = data.get('descrizione', '')
+    prova_parziale = data.get('provaParziale') == 'on'
     aula = data.get('aula')
     data_appello = data.get('dataora')
     ora_appello = data.get('ora')
@@ -23,7 +25,7 @@ def raccogliDatiForm():
     inizio_iscrizione = data.get('inizioIscrizione')
     fine_iscrizione = data.get('fineIscrizione')
     tipo_esame = data.get('tipoEsame')
-    verbalizzazione = data.get('verbalizzazione', 'FIRMA DIGITALE')
+    verbalizzazione = data.get('verbalizzazione')
     note_appello = data.get('note')
     posti = data.get('posti')
     anno_accademico = data.get('anno_accademico')
@@ -44,12 +46,16 @@ def raccogliDatiForm():
     # Periodo (mattina/pomeriggio)
     periodo = 1 if ora_int > 13 else 0
     
+    # Tipo appello
+    tipo_appello = 'PP' if prova_parziale else 'PF'
+
+    # Tipo iscrizione (Questo campo è strano nel file export. Che confusione, sarà perché ti amo)
+    tipo_iscrizione = tipo_esame if tipo_esame!='SO' else 'SOC'
+
     # Valori standard per campi opzionali
-    tipo_appello = 'PF'
     definizione_appello = 'STD'
     gestione_prenotazione = 'STD'
     riservato = False
-    tipo_iscrizione = 'STD'
     
     # Gestione tipo_esame (se vuoto, impostiamo NULL)
     if not tipo_esame or tipo_esame.strip() == '':
@@ -88,6 +94,8 @@ def raccogliDatiForm():
       'periodo': periodo,
       'tipo_esame': tipo_esame,
       'verbalizzazione': verbalizzazione,
+      'descrizione': descrizione,
+      'prova_parziale': prova_parziale,
       'note_appello': note_appello,
       'posti': posti,
       'anno_accademico': anno_accademico,
@@ -300,19 +308,19 @@ def inserisciEsami(dati_comuni, esami_validi):
           """INSERT INTO esami 
              (docente, insegnamento, aula, data_appello, ora_appello, 
             data_inizio_iscrizione, data_fine_iscrizione, 
-            tipo_esame, verbalizzazione, note_appello, posti,
+            tipo_esame, verbalizzazione, descrizione, note_appello, posti,
             tipo_appello, definizione_appello, gestione_prenotazione, 
             riservato, tipo_iscrizione, periodo, durata_appello)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
           (dati_comuni['docente'], insegnamento, dati_comuni['aula'], 
            dati_comuni['data_appello'], dati_comuni['ora_appello'], 
            inizio_iscrizione, fine_iscrizione, 
-           dati_comuni['tipo_esame'], dati_comuni['verbalizzazione'], 
-           dati_comuni['note_appello'], dati_comuni['posti'],
-           dati_comuni['tipo_appello'], dati_comuni['definizione_appello'], 
-           dati_comuni['gestione_prenotazione'], dati_comuni['riservato'], 
-           dati_comuni['tipo_iscrizione'], dati_comuni['periodo'], 
-           dati_comuni['durata_appello'])
+           dati_comuni['tipo_esame'], dati_comuni['verbalizzazione'],
+           dati_comuni['descrizione'], dati_comuni['note_appello'],
+           dati_comuni['posti'], dati_comuni['tipo_appello'],
+           dati_comuni['definizione_appello'], dati_comuni['gestione_prenotazione'],
+           dati_comuni['riservato'], dati_comuni['tipo_iscrizione'],
+           dati_comuni['periodo'], dati_comuni['durata_appello'])
         )
         esami_inseriti.append(esame['titolo'])
       except Exception as e:

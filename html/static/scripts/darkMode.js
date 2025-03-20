@@ -9,6 +9,7 @@ function toggleDarkMode() {
   localStorage.setItem('darkTheme', isDark ? 'dark' : 'light');
   
   updateDarkModeIcon(isDark);
+  updateLogo(isDark);
 }
 
 // Aggiorna l'icona e label del pulsante
@@ -17,6 +18,14 @@ function updateDarkModeIcon(isDark) {
   if (icon) {
     icon.textContent = isDark ? 'light_mode' : 'dark_mode';
     icon.setAttribute('aria-label', isDark ? 'Passa alla modalità chiara' : 'Passa alla modalità scura');
+  }
+}
+
+// Aggiorna il logo in base alla modalità
+function updateLogo(isDark) {
+  const logo = document.getElementById('navLogo');
+  if (logo) {
+    logo.src = isDark ? "static/imgs/logo-dark.png" : "static/imgs/logo.png";
   }
 }
 
@@ -33,12 +42,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   updateDarkModeIcon(shouldBeDark);
+  updateLogo(shouldBeDark);
   
   // Ascolta cambiamenti nelle preferenze di sistema (solo se non c'è preferenza esplicita)
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
     if (localStorage.getItem('darkTheme') === null) {
       document.documentElement.classList.toggle('dark', e.matches);
       updateDarkModeIcon(e.matches);
+      updateLogo(e.matches);
     }
   });
 });

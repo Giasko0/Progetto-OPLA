@@ -326,7 +326,7 @@ def download_esse3():
         ic.anno_accademico,       -- Anno
         ic.cds,                   -- CDS
         i.codice,                 -- AD
-        i.titolo,                 -- Des. Appello
+        e.descrizione,            -- Des. Appello
         e.data_appello,           -- Data Appello
         e.data_inizio_iscrizione, -- Data inizio iscrizione
         e.data_fine_iscrizione,   -- Data fine iscrizione
@@ -429,8 +429,8 @@ def download_esse3():
       worksheet.write(row_idx, col, def_appello or ""); col += 1
       worksheet.write(row_idx, col, gest_prenotazione or ""); col += 1
       worksheet.write(row_idx, col, "1" if riservato else "0"); col += 1
-      worksheet.write(row_idx, col, tipo_iscr or ""); col += 1
       worksheet.write(row_idx, col, tipo_esame or ""); col += 1
+      worksheet.write(row_idx, col, tipo_iscr or ""); col += 1
       worksheet.write(row_idx, col, edificio or ""); col += 1
       worksheet.write(row_idx, col, aula or ""); col += 1
       worksheet.write(row_idx, col, matricola or ""); col += 1
