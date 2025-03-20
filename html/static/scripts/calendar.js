@@ -7,7 +7,7 @@ import {
   loadDateValide,
   createInsegnamentoTag,
   updateHiddenSelect,
-} from "./calendarProps.js";
+} from "./calendarUtils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   // Inizializzazione
