@@ -75,6 +75,9 @@ CREATE TABLE utenti (
     permessi_admin BOOLEAN       -- Permessi admin (true/false)
 );
 
+-- Inserimento dell'utente 'admin' con permessi di amministratore
+INSERT INTO utenti (username, matricola, nome, cognome, permessi_docente, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', true, true);
+
 -- Creazione della tabella 'insegnamento_docente' (relazione N:N tra insegnamenti e utenti)
 CREATE TABLE insegnamento_docente (
     insegnamento TEXT,           -- Codice dell'insegnamento (chiave esterna)
