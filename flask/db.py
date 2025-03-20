@@ -19,7 +19,7 @@ def init_db():
         try:
             db_pool = ThreadedConnectionPool(
                 minconn=1,
-                maxconn=10,  # Regola questo valore in base ai requisiti
+                maxconn=10,
                 host=DB_HOST,
                 database=DB_NAME,
                 user=DB_USER,
