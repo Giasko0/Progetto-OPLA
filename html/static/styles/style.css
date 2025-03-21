@@ -808,7 +808,6 @@ html.dark .fc-event {
 
 /*---------MIEI ESAMI---------*/
 table {
-  width: clamp(500px, 50vw, 1000px);
   border-collapse: collapse;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
@@ -949,6 +948,7 @@ tbody tr:hover td {
 .tab-content {
   display: none;
   /* Nascosto di default, controllo tramite JavaScript */
+  width: clamp(300px, 50vw, 1000px);
 }
 
 .all-exams-button {
@@ -1118,7 +1118,7 @@ tbody tr:hover td {
   }
 
   .message-sidebar {
-    width: 80vw; /* Più ampia sui dispositivi mobili */
+    width: 80vw;
     top: 0;
     bottom: 0;
     height: 100vh;
@@ -1158,5 +1158,23 @@ tbody tr:hover td {
     font-size: 13px;
     top: -8px;
     right: -8px;
+  }
+
+  /* Miei esami */
+  #contenitoreEsami {
+    width: 100%;
+  }
+
+  .tab-content {
+    width: 100%;
+  }
+
+  .tab-button {
+    margin-bottom: 10px;
+  }
+
+  td, th {
+    font-size: .6rem;
+    padding: 2px;
   }
 }
