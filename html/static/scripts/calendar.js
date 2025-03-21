@@ -295,8 +295,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Blocca date fuori sessione
           if (!dataValida) {
-            alert(
-              "Non è possibile inserire esami al di fuori delle sessioni o delle pause didattiche"
+            showNotification(
+              "Non è possibile inserire esami al di fuori delle sessioni o delle pause didattiche",
+              "Informazione"
             );
             return;
           }
@@ -305,19 +306,20 @@ document.addEventListener("DOMContentLoaded", function () {
           getUserData()
             .then((data) => {
               if (data.authenticated) {
-                // Formatta data per form (usa info.dateStr che è già nel formato corretto YYYY-MM-DD)
-                document.getElementById("dataora").value = info.dateStr;
-                if (periodo !== null) {
-                  document.getElementById("periodo").value = periodo;
-                }
-
-                // Pre-popola insegnamenti nel form
-                preloadSelectedInsegnamenti();
-
-                // Mostra l'overlay del form
-                document.getElementById("popupOverlay").style.display = "flex";
+                // Importa il modulo esameFormModule.js e usa la funzione showEsameForm
+                import('./esameFormModule.js')
+                  .then(module => {
+                    module.showEsameForm(info);
+                  })
+                  .catch(error => {
+                    console.error('Errore nell\'importazione del modulo form:', error);
+                    // Fallback al metodo tradizionale
+                    const dataElement = document.getElementById('dataora');
+                    if (dataElement) dataElement.value = info.dateStr;
+                    document.getElementById('popupOverlay').style.display = 'flex';
+                  });
               } else {
-                alert("Effettua il login per inserire un esame");
+                showNotification("Effettua il login per inserire un esame", "Informazione");
               }
             })
             .catch((error) => {
@@ -325,7 +327,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "Errore nella verifica dell'autenticazione:",
                 error
               );
-              alert("Devi essere loggato per inserire un esame.");
+              showNotification("Devi essere loggato per inserire un esame.", "Errore");
             });
         },
 
@@ -338,7 +340,7 @@ document.addEventListener("DOMContentLoaded", function () {
             day: "numeric",
             locale: "it",
           });
-          alert(
+          showAlert(
             "Titolo: " +
               info.event.title +
               "\n" +
@@ -346,7 +348,8 @@ document.addEventListener("DOMContentLoaded", function () {
               dataEvento +
               "\n" +
               "Aula: " +
-              info.event.extendedProps.aula
+              info.event.extendedProps.aula,
+            "Dettagli evento"
           );
         },
 
@@ -716,3 +719,35 @@ document.addEventListener("DOMContentLoaded", function () {
   // Inizializza handler
   setupCloseHandlers();
 });
+
+// Modifica il gestore di eventi per usare la sidebar invece dei popup
+function handleCalendarEvents() {
+  // ...existing code...
+  
+  // Modifica la gestione degli errori per usare la sidebar
+  fetch('/api/checkPermissions')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Errore nella verifica dei permessi');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (!data.canInsertExams) {
+        // Al posto di showAlert, usa showNotification
+        showNotification("Non hai i permessi per inserire esami. Contatta l'amministratore.", "Informazione");
+        return;
+      }
+      
+      // ...existing code...
+    })
+    .catch(error => {
+      console.error('Errore:', error);
+      showNotification("Si è verificato un errore. Riprova più tardi.", "Errore di sistema");
+    });
+}
+
+// Sostituisci le chiamate di alert in tutto il file
+// Esempio: 
+// Da: alert("Messaggio di errore");
+// A: showNotification("Messaggio di errore", "Errore");

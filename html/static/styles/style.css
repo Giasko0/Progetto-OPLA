@@ -14,6 +14,8 @@
   
   /* Layout constants */
   --nav-height: 10dvh;
+  --foot-height: 9dvh;
+  --sidebar-width: 10dvw;
   --body-width: clamp(300px, 80vw, 2000px);
   --radius: 8px;
   
@@ -46,7 +48,7 @@ html.dark {
   --table-bg: #292929;
   --table-border: #444;
   --table-hover: #3a3a3a;
-  --header-bg: #27348b;
+  --header-bg: #3e488c;
   --header-text: #fff;
 }
 
@@ -83,6 +85,11 @@ body {
   align-items: center;
   text-align: left;
   flex: 1;
+  margin: 0 auto;
+}
+
+.content.sidebar-visible {
+  transform: translateX(calc((var(--sidebar-width) * -1)/2));
 }
 
 .titolo {
@@ -168,7 +175,7 @@ body {
 /*---------CALENDARIO---------*/
 #calendar {
   width: 100%;
-  /*height: clamp(300px, 80vh, 2000px);*/
+  margin: 0 auto;
 }
 
 .fc-daygrid-day {
@@ -261,6 +268,7 @@ html.dark .fc-event {
 #footer {
   background-color: var(--color-light-gray);
   color: var(--color-dark-gray);
+  height: var(--foot-height);
   padding: 20px 0;
   width: 100%;
   text-align: center;
@@ -555,119 +563,242 @@ html.dark .fc-event {
   color: #155724;
 }
 
-/*---------MEDIA QUERIES---------*/
-@media (max-width: 768px) {
-  .content {
-    width: 90vw;
-  }
+/*---------SIDEBAR PER MESSAGGI---------*/
+.message-sidebar {
+  position: fixed;
+  top: var(--nav-height);
+  bottom: var(--foot-height);
+  right: 0;
+  width: var(--sidebar-width);
+  background-color: var(--popup-bg);
+  border-left: 1px solid var(--color-light-gray);
+  z-index: 90;
+  overflow-x: hidden;
+  overflow-y: auto;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  transform: translateX(100%);
+}
 
-  .titolo {
-    font-size: 1.5rem;
-  }
+.message-sidebar.visible {
+  transform: translateX(0); /* Visibile quando ha classe visible */
+}
 
-  .banner-avviso {
-    width: 95%;
-    bottom: 5%;
-  }
+.sidebar-header {
+  display: flex;
+  justify-content: space-between; /* Cambiato per allineare titolo e pulsante chiusura */
+  align-items: center;
+  padding: 15px;
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--color-light-gray);
+  border-top-left-radius: 12px;
+}
 
-  /* Stili navbar */
-  .navbar {
-    position: relative;
-    padding: 0 1rem;
-  }
+.sidebar-header h3 {
+  color: var(--header-text);
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 500;
+}
 
-  .navbar .logo {
-    height: calc(var(--nav-height) * .8);
-    margin-left: -1rem;
-  }
-  
-  .hamburger-menu {
-    display: flex;
-    z-index: 20;
-    position: absolute;
-    right: 1rem;
-  }
+/* Pulsante chiusura nel header */
+.close-sidebar-btn {
+  color: var(--header-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  transition: background-color 0.2s ease;
+}
 
-  .navlinks {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    background-color: var(--color-light-gray);
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-in-out;
-    z-index: 15;
-  }
+.close-sidebar-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
 
-  .navlinks.open {
-    max-height: 300px; /* Altezza sufficiente per contenere tutti i link */
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
-  }
+/* Pulsante fluttuante per aprire la sidebar */
+.toggle-sidebar-float {
+  position: fixed;
+  top: calc(var(--nav-height) + 15px);
+  right: 25px;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 91;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease, background-color 0.2s ease, right 0.3s ease;
+}
 
-  .navlinks a {
-    margin: .5rem 0;
-    padding: .5rem 0;
-    font-size: 1.2rem;
-  }
-  
-  #darkModeButton {
-    position: absolute;
-    right: 4rem;
-    top: 50%;
-    transform: translateY(-50%);
-    margin-left: 0;
-  }
-  
-  /* Stili footer */
-  .footer-content {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  #footer {
-    margin-top: 60px; /* Margine ancora maggiore su schermi piccoli */
-  }
+.toggle-sidebar-float.sidebar-open {
+  right: calc(var(--sidebar-width) + 25px);
+}
 
-  /* Stili responsive per il calendario */
-  .fc .fc-toolbar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .fc .fc-toolbar-chunk {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 0.5rem;
-    width: 100%;
-    flex-wrap: wrap;
-  }
-  
-  .fc .fc-toolbar-title {
-    font-size: 1.2em;
-    margin: 0.5rem 0;
-    text-align: center;
-    width: 100%;
-  }
-  
-  .fc .fc-button {
-    font-size: 0.8em;
-    padding: 0.3em;
-  }
-  
-  .fc .fc-view-harness {
-    height: auto !important; /* Forza l'adattamento dell'altezza */
-    min-height: 400px;
-  }
-  
-  /* Riduci la dimensione del testo negli eventi */
-  .fc-event-time, .fc-event-title, .fc-event-description {
-    font-size: 0.8em !important;
-  }
+.toggle-sidebar-float:hover {
+  transform: scale(1.05);
+  background-color: var(--color-primary-light);
+}
+
+.toggle-sidebar-float:active {
+  transform: scale(0.95);
+}
+
+.toggle-sidebar-float .material-symbols-outlined {
+  font-size: 22px;
+}
+
+/* Badge di notifica */
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: var(--color-red);
+  color: white;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.notification-badge.has-notifications {
+  opacity: 1;
+}
+
+.sidebar-content {
+  padding: 15px;
+}
+
+.sidebar-section {
+  margin-bottom: 25px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-icon {
+  margin-right: 8px;
+  font-size: 20px;
+  color: var(--color-dark-gray);
+}
+
+.sidebar-section h4 {
+  margin: 0;
+  color: var(--color-dark-gray);
+  font-size: 1em;
+  font-weight: 500;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background-color: var(--color-light-gray);
+  margin: 20px 0;
+  opacity: 0.5;
+}
+
+.alerts-container, .notifications-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-item, .notification-item {
+  padding: 12px;
+  border-radius: 10px;
+  background-color: var(--table-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.alert-item:hover, .notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+}
+
+.alert-item {
+  border-left: 3px solid var(--color-red);
+}
+
+.notification-item {
+  border-left: 3px solid var(--color-primary);
+  animation: fadeIn 0.3s ease-in;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-item.fading {
+  animation: fadeOutRight 0.5s ease-out forwards;
+}
+
+/* Barra di avanzamento per notifiche temporanee */
+.notification-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background-color: var(--color-primary);
+  opacity: 0.7;
+  transform-origin: left center;
+}
+
+.alert-close, .notification-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  cursor: pointer;
+  color: var(--color-gray);
+  font-size: 0.9em;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.alert-close:hover, .notification-close:hover {
+  color: var(--color-dark-gray);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(100%); }
+}
+
+/* Animazione per la barra di progresso delle notifiche */
+@keyframes shrinkWidth {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 
 /*---------MIEI ESAMI---------*/
@@ -727,7 +858,7 @@ tbody tr:hover td {
 }
 
 .selezione-anno-item:hover {
-  background-color: var(--table-hover);
+  background-color: var (--table-hover);
 }
 
 .exam-container {

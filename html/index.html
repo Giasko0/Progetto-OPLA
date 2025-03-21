@@ -14,14 +14,50 @@
   <script src="static/scripts/navbar.js"></script> <!-- Script per generare la navbar -->
   <script src="static/scripts/footer.js"></script> <!-- Script per generare il footer -->
   <script src="static/scripts/esamiMinimi.js"></script> <!-- Script per verificare esami minimi -->
-  <script src="static/scripts/calendar.js" type="module"></script> <!-- Carica il calendario -->
-  <script src="static/scripts/insegnamentiManager.js"></script>
+  <script src="static/scripts/insegnamentiManager.js"></script> <!-- Manager per insegnamenti -->
   <script src="static/scripts/popup.js"></script> <!-- Script per la gestione dei popup -->
   <script src="static/scripts/formEsame.js"></script> <!-- Script per gestire la form di inserimento esami -->
+  <script src="static/scripts/sidebar.js"></script> <!-- Script per gestire la sidebar -->
+  <script src="static/scripts/calendar.js" type="module"></script> <!-- Script calendario -->
 </head>
 
 <body>
-  <div id="navbar"></div> <!-- Contenitore per la navbar generata da JavaScript -->
+  <div id="navbar"></div>
+
+  <button id="toggleSidebarFloat" class="toggle-sidebar-float" aria-label="Apri centro messaggi">
+    <span class="material-symbols-outlined">notifications</span>
+    <span class="notification-badge" id="notificationBadge">0</span>
+  </button>
+
+  <div class="message-sidebar" id="messageSidebar">
+    <div class="sidebar-header">
+      <h3>Centro Messaggi</h3>
+      <button id="closeSidebar" class="close-sidebar-btn" aria-label="Chiudi sidebar">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="sidebar-content">
+      <div class="sidebar-section">
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">warning</span>
+          <h4>Avvisi</h4>
+        </div>
+        <div id="alertsContainer" class="alerts-container">
+          <!-- Qui verranno inseriti gli avvisi -->
+        </div>
+      </div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-section">
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">notifications</span>
+          <h4>Notifiche</h4>
+        </div>
+        <div id="notificationsContainer" class="notifications-container">
+          <!-- Qui verranno inserite le notifiche -->
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="content">
     <h1 class="titolo">Benvenuto, utente! - Fai il login per iniziare.</h1>
@@ -33,130 +69,108 @@
     </div>
 
     <div id="calendar"></div>
-  </div>
+    
+    <!-- Contenitore popup per form esami -->
+    <div id="popupOverlay" class="popup-overlay">
+      <div class="popup">
+        <div class="popup-header">
+          <h2>Inserimento Esame</h2>
+          <span id="closeOverlay" class="popup-close">&times;</span>
+        </div>
+        <div class="popup-content">
+          <form id="formEsame" method="POST" action="/api/inserisciEsame">
+            <p style="margin: 0; float: right">* Campi obbligatori</p>
 
-  <div id="popupOverlay" class="popup-overlay">
-    <div class="popup">
-      <div class="popup-header">
-        <h2>Inserisci un esame</h2>
-        <span id="closeOverlay" class="popup-close">&times;</span>
-      </div>
+            <!-- Hidden values -->
+            <input type="text" id="docente" name="docente" hidden>
+            <input type="text" id="anno_accademico" name="anno_accademico" hidden>
 
-      <div class="popup-content">
-        <form id="formEsame" method="POST" action="/api/inserisciEsame">
-          <p style="margin: 0; float: right">* Campi obbligatori</p>
-
-          <!-- Hidden values -->
-          <input type="text" id="docente" name="docente" hidden>
-          <input type="text" id="anno_accademico" name="anno_accademico" hidden>
-
-          <div class="checkbox-container">
-            <input type="checkbox" id="provaParziale" name="provaParziale">
-            <label for="provaParziale">Prova Parziale</label>
-          </div>
-
-          <div>
-            <label class="formEsame-label" for="descrizione">Descrizione*</label>
-            <input type="text" id="descrizione" name="descrizione" placeholder="Inserisci una descrizione" required>
-          </div>
-
-          <label class="formEsame-label" for="insegnamento">Insegnamento*</label>
-          <div class="multi-select-container">
-            <div id="insegnamentoBox" class="multi-select-box">
-              <span class="multi-select-placeholder">Seleziona gli insegnamenti</span>
+            <div class="checkbox-container">
+              <input type="checkbox" id="provaParziale" name="provaParziale">
+              <label for="provaParziale">Prova Parziale</label>
             </div>
-            <div id="insegnamentoDropdown" class="multi-select-dropdown">
-              <div id="insegnamentoOptions"></div>
+
+            <div>
+              <label class="formEsame-label" for="descrizione">Descrizione*</label>
+              <input type="text" id="descrizione" name="descrizione" placeholder="Inserisci una descrizione" required>
             </div>
-            <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden" required></select>
-          </div>
 
-          <label class="formEsame-label" for="dataora">Data Appello*</label>
-          <input type="date" id="dataora" name="dataora" required>
+            <label class="formEsame-label" for="insegnamento">Insegnamento*</label>
+            <div class="multi-select-container">
+              <div id="insegnamentoBox" class="multi-select-box">
+                <span class="multi-select-placeholder">Seleziona gli insegnamenti</span>
+              </div>
+              <div id="insegnamentoDropdown" class="multi-select-dropdown">
+                <div id="insegnamentoOptions"></div>
+              </div>
+              <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden" required></select>
+            </div>
 
-          <label class="formEsame-label" for="ora">Ora Appello*</label>
-          <input type="time" id="ora" name="ora" min="08:00" max="23:00" step="900" required>
+            <label class="formEsame-label" for="dataora">Data Appello*</label>
+            <input type="date" id="dataora" name="dataora" required>
 
-          <label class="formEsame-label" for="aula">Aule disponibili*</label>
-          <select id="aula" name="aula" required>
-            <option value="" disabled selected hidden>Seleziona prima data e ora</option>
-          </select>
+            <label class="formEsame-label" for="ora">Ora Appello*</label>
+            <input type="time" id="ora" name="ora" min="08:00" max="23:00" step="900" required>
 
-          <label class="formEsame-label" for="durata">Durata (in minuti)*</label>
-          <input type="number" id="durata" name="durata" min="30" step="15" value="120" required>
-
-          <div>
-            <label class="formEsame-label" for="verbalizzazione">Verbalizzazione*</label>
-            <select id="verbalizzazione" name="verbalizzazione">
-              <option value="FSS" selected>Firma digitale singola</option>
-              <option value="FWP">Firma digitale con pubblicazione</option>
+            <label class="formEsame-label" for="aula">Aule disponibili*</label>
+            <select id="aula" name="aula" required>
+              <option value="" disabled selected hidden>Seleziona prima data e ora</option>
             </select>
-          </div>
 
-          <span id="buttonOpzioniAvanzate">Opzioni avanzate &#x25BA;</span>
-
-          <!-- Opzioni avanzate -->
-          <div id="opzioniAvanzate">
-            <div>
-              <label class="formEsame-label" for="inizioIscrizione">Data inizio iscrizione</label>
-              <input type="date" id="inizioIscrizione"
-                name="inizioIscrizione"><!-- Funzione js per inizio/fine iscrizione-->
-            </div>
+            <label class="formEsame-label" for="durata">Durata (in minuti)*</label>
+            <input type="number" id="durata" name="durata" min="30" step="15" value="120" required>
 
             <div>
-              <label class="formEsame-label" for="fineIscrizione">Data fine iscrizione</label>
-              <input type="date" id="fineIscrizione" name="fineIscrizione">
-            </div>
-
-            <div>
-              <label class="formEsame-label" for="tipoEsame">Tipo esame</label>
-              <select id="tipoEsame" name="tipoEsame">
-                <option value="" disabled selected hidden>Non definito</option>
-                <option value="S">Scritto</option>
-                <option value="O">Orale</option>
-                <option value="SO">Scritto e orale</option>
+              <label class="formEsame-label" for="verbalizzazione">Verbalizzazione*</label>
+              <select id="verbalizzazione" name="verbalizzazione">
+                <option value="FSS" selected>Firma digitale singola</option>
+                <option value="FWP">Firma digitale con pubblicazione</option>
               </select>
             </div>
 
-            <div>
-              <label class="formEsame-label" for="posti">Posti</label>
-              <input type="number" id="posti" name="posti" min="1">
+            <span id="buttonOpzioniAvanzate">Opzioni avanzate &#x25BA;</span>
+
+            <!-- Opzioni avanzate -->
+            <div id="opzioniAvanzate">
+              <div>
+                <label class="formEsame-label" for="inizioIscrizione">Data inizio iscrizione</label>
+                <input type="date" id="inizioIscrizione" name="inizioIscrizione">
+              </div>
+
+              <div>
+                <label class="formEsame-label" for="fineIscrizione">Data fine iscrizione</label>
+                <input type="date" id="fineIscrizione" name="fineIscrizione">
+              </div>
+
+              <div>
+                <label class="formEsame-label" for="tipoEsame">Tipo esame</label>
+                <select id="tipoEsame" name="tipoEsame">
+                  <option value="" disabled selected hidden>Non definito</option>
+                  <option value="S">Scritto</option>
+                  <option value="O">Orale</option>
+                  <option value="SO">Scritto e orale</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="formEsame-label" for="posti">Posti</label>
+                <input type="number" id="posti" name="posti" min="1">
+              </div>
+
+              <div>
+                <label class="formEsame-label" for="note">Note</label>
+                <textarea id="note" name="note" rows="2"></textarea>
+              </div>
+
+              <span> Se non si inseriscono date inizio/fine iscrizione, il sistema le imposterà automaticamente a 20 giorni dall'inizio sessione fino al giorno prima dell'esame</span>
             </div>
 
-            <div>
-              <label class="formEsame-label" for="note">Note</label>
-              <textarea id="note" name="note" rows="2"></textarea>
+            <div class="form-actions">
+              <button class="invia" type="submit">Invia</button>
+              <button class="annulla" type="button" id="btnAnnulla">Annulla</button>
             </div>
-
-            <span> Se non si inseriscono date inizio/fine iscrizione, il sistema le imposterà automaticamente a 20
-              giorni dall'inizio sessione fino al giorno prima dell'esame</span>
-
-            <!--<div>
-            <label class="formEsame-label" for="tipoAppello">Tipo appello</label>
-            <select id="tipoAppello" name="tipoAppello">
-              <option value="PF" selected>PF</option>
-            </select>
-          </div>
-          <div>
-            <label class="formEsame-label" for="riservato">Riservato</label>
-            <input type="checkbox" id="riservato" name="riservato">  
-          </div>
-          <div>
-            <label class="formEsame-label" for="definizioneAppello">Definizione appello</label>
-            <select id="definizioneAppello" name="definizioneAppello">
-              <option value="STD" selected>Standard</option>
-            </select>
-          </div>
-          <div>
-            <label class="formEsame-label" for="gestionePrenotazione">Gestione pren.</label>
-            <select id="gestionePrenotazione" name="gestionePrenotazione">
-              <option value="STD" selected>Standard</option>
-            </select>  
-          </div>-->
-          </div>
-
-          <button class="invia" type="submit">Invia</button>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   </div>

@@ -792,6 +792,8 @@ document.addEventListener("DOMContentLoaded", () => {
   window.updateHiddenSelect = updateHiddenSelect;
   window.toggleOption = toggleOption;
   window.createInsegnamentoTag = createInsegnamentoTag;
+  window.aggiornaAuleDisponibili = aggiornaAuleDisponibili;
+  window.preselectInsegnamenti = preselectInsegnamenti;
   
   // Funzione per aggiornare le opzioni di verbalizzazione in base al checkbox di prova parziale
   function aggiornaVerbalizzazione() {
@@ -841,3 +843,61 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 });
+
+// Modifica la funzione per aprire il form in un alert nella sidebar
+function openEsameForm(date, startStr) {
+  // ...existing code...
+  
+  // Invece di mostrare il popup, mostriamo il form nella sidebar
+  const formTemplate = document.getElementById('formEsameTemplate').innerHTML;
+  const alertItem = showAlert(formTemplate, "Inserisci un esame", true);
+  
+  // Ottiene il form all'interno dell'alert
+  const form = alertItem.querySelector('#formEsame');
+  
+  // Inizializza i comportamenti del form
+  setupFormHandlers(form);
+  
+  // ...existing code...
+}
+
+// Funzione per gestire l'invio del form
+function handleFormSubmit(e) {
+  e.preventDefault();
+  
+  // ...existing code...
+  
+  // Al posto di alert per errori o conferme, usiamo le funzioni della sidebar
+  if (!validazioni.valido) {
+    showAlert(validazioni.messaggio, "Errore di validazione");
+    return;
+  }
+  
+  // ...existing code...
+  
+  // Gestione delle risposte
+  fetch('/api/inserisciEsame', {
+    // ...existing code...
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showNotification("Esame inserito con successo", "Operazione completata");
+      
+      // Chiudi l'alert del form
+      const alertItem = document.querySelector('.alert-item form#formEsame')?.closest('.alert-item');
+      if (alertItem) alertItem.remove();
+      
+      // Aggiorna il calendario
+      if (window.calendar) {
+        window.calendar.refetchEvents();
+      }
+    } else {
+      showAlert(data.message || "Si è verificato un errore durante l'inserimento dell'esame", "Errore");
+    }
+  })
+  .catch(error => {
+    console.error('Errore:', error);
+    showAlert("Si è verificato un errore durante l'invio del form", "Errore");
+  });
+}

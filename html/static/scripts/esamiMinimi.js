@@ -19,10 +19,15 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Errore nel recupero degli esami minimi:', error);
+                // Usa showAlert invece di showNotification per gli errori di esami minimi
+                if (window.showAlert) {
+                    window.showAlert('Errore nel recupero degli esami minimi. Riprova più tardi.', 'Errore di sistema');
+                }
             });
     }
 
-    // Funzione per mostrare il banner di avviso
+    // Questa funzione sarà sovrascritta da sidebar.js per mostrare l'avviso nella sidebar
+    // Manteniamo questa implementazione come fallback
     function mostrareBannerAvviso(insegnamenti) {
         const banner = document.getElementById('banner-esami-minimi');
         if (!banner) return;
@@ -51,6 +56,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mostra il banner
         banner.classList.remove('hidden');
     }
+    
+    // Esporta la funzione per renderla accessibile da sidebar.js
+    window.mostrareBannerAvviso = mostrareBannerAvviso;
+    window.checkEsamiMinimi = checkEsamiMinimi;
 
     // Aggiungi listener per il pulsante di chiusura del banner
     document.addEventListener('click', function(e) {
