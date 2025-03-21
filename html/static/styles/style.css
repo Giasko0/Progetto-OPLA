@@ -272,7 +272,7 @@ html.dark .fc-event {
 #footer {
   background-color: var(--color-light-gray);
   color: var(--color-dark-gray);
-  height: var(--foot-height);
+  min-height: var(--foot-height);
   padding: 20px 0;
   width: 100%;
   text-align: center;
@@ -649,6 +649,7 @@ html.dark .fc-event {
 
 .toggle-sidebar-float.sidebar-open {
   right: calc(var(--sidebar-width) + 25px);
+  background-color: var(--color-red);
 }
 
 .toggle-sidebar-float:hover {
@@ -999,4 +1000,163 @@ tbody tr:hover td {
   font-size: 0.85em;
   margin-top: 5px;
   color: var(--color-dark-gray);
+}
+
+/*---------MEDIA QUERIES---------*/
+@media (max-width: 768px) {
+  .content {
+    width: 90vw;
+  }
+
+  .titolo {
+    font-size: 1.5rem;
+  }
+
+  .banner-avviso {
+    width: 95%;
+    bottom: 5%;
+  }
+
+  /* Stili navbar */
+  .navbar {
+    position: relative;
+    padding: 0 1rem;
+  }
+
+  .navbar .logo {
+    height: calc(var(--nav-height) * .8);
+    margin-left: -1rem;
+  }
+  
+  .hamburger-menu {
+    display: flex;
+    z-index: 20;
+    position: absolute;
+    right: 1rem;
+  }
+
+  .navlinks {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: var(--color-light-gray);
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+    z-index: 15;
+  }
+
+  .navlinks.open {
+    max-height: 300px;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .navlinks a {
+    margin: .5rem 0;
+    padding: .5rem 0;
+    font-size: 1.2rem;
+  }
+  
+  #darkModeButton {
+    position: absolute;
+    right: 4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0;
+  }
+  
+  /* Stili footer */
+  #footer {
+    min-height: auto;
+  }
+
+  .footer-content {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+
+  /* Stili responsive per il calendario */
+  .fc .fc-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .fc .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  .fc .fc-toolbar-title {
+    font-size: 1.2em;
+    margin: 0.5rem 0;
+    text-align: center;
+    width: 100%;
+  }
+  
+  .fc .fc-button {
+    font-size: 0.8em;
+    padding: 0.3em;
+  }
+  
+  .fc .fc-view-harness {
+    height: auto !important; /* Forza l'adattamento dell'altezza */
+    min-height: 400px;
+  }
+  
+  /* Riduci la dimensione del testo negli eventi */
+  .fc-event-time, .fc-event-title, .fc-event-description {
+    font-size: 0.8em !important;
+  }
+
+  .message-sidebar {
+    width: 80vw; /* Più ampia sui dispositivi mobili */
+    top: 0;
+    bottom: 0;
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: -3px 0 15px rgba(0, 0, 0, 0.2);
+  }
+
+  .message-sidebar.visible {
+    transform: translateX(0);
+  }
+
+  .content.sidebar-visible {
+    transform: translateX(-40vw);
+    opacity: 0.7;
+  }
+
+  .toggle-sidebar-float.sidebar-open {
+    right: 20px;
+  }
+
+  .sidebar-header {
+    padding: 20px 15px;
+    position: sticky;
+    top: 0;
+    background-color: var(--header-bg);
+    z-index: 2;
+    border-radius: 0;
+  }
+
+  .notifications-container, .alerts-container {
+    padding-bottom: 30px;
+  }
+
+  .notification-badge {
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+    top: -8px;
+    right: -8px;
+  }
 }
