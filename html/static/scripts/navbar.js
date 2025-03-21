@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         navlinksDiv.appendChild(link);
       });
-      
+    
     // Chiudi il menu quando si clicca su un link (solo su mobile)
     const navLinks = navlinksDiv.querySelectorAll('a');
     navLinks.forEach(link => {
