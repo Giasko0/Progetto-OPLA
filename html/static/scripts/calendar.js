@@ -66,6 +66,32 @@ document.addEventListener("DOMContentLoaded", function () {
         ? "pulsanteCds pulsanteInsegnamenti pulsanteSessioni pulsanteDebug prev,next today"
         : "pulsanteCds pulsanteInsegnamenti pulsanteSessioni prev,next today";
 
+      // Verifica se il docente ha più di un CdS
+      fetch(`/api/ottieniCdSDocente?docente=${loggedDocente}&anno=${planningYear}`)
+        .then((response) => response.json())
+        .then((data) => {
+          // Se il docente ha un solo CdS, rimuovi il pulsante CdS
+          const hasMultipleCds = data.length > 1;
+          const finalRightButtons = hasMultipleCds 
+            ? rightButtons 
+            : rightButtons.replace('pulsanteCds ', '');
+
+          // Aggiorna la configurazione del calendario
+          calendar.setOption('headerToolbar', {
+            left: "title",
+            center: "",
+            right: finalRightButtons + ' aggiungiEsame'
+          });
+
+          // Se c'è un solo CdS, impostalo come selezionato
+          if (data.length === 1) {
+            selectedCds = data[0].codice;
+          }
+        })
+        .catch((error) => {
+          console.error("Errore nel caricamento dei CdS:", error);
+        });
+
       // Configurazione calendario
       var calendar = new FullCalendar.Calendar(calendarEl, {
         contentHeight: "60dvh",
@@ -87,7 +113,7 @@ document.addEventListener("DOMContentLoaded", function () {
         headerToolbar: {
           left: "title",
           center: "",
-          right: rightButtons,
+          right: rightButtons + ' aggiungiEsame' // Aggiungi il pulsante alla toolbar
         },
 
         // Pulsanti personalizzati
@@ -203,6 +229,32 @@ document.addEventListener("DOMContentLoaded", function () {
                   console.error("Errore nel caricamento degli esami:", error);
                 });
             },
+          },
+          aggiungiEsame: {
+            text: 'Aggiungi Esame',
+            click: function() {
+              // Controlla login usando il sistema di cache
+              getUserData()
+                .then((data) => {
+                  if (data.authenticated) {
+                    // Importa il modulo esameFormModule.js e usa la funzione showEsameForm 
+                    import('./esameFormModule.js')
+                      .then(module => {
+                        module.showEsameForm({}); // Passa un oggetto vuoto
+                      })
+                      .catch(error => {
+                        console.error('Errore nell\'importazione del modulo form:', error);
+                        document.getElementById('popupOverlay').style.display = 'flex';
+                      });
+                  } else {
+                    showNotification("Effettua il login per inserire un esame", "Informazione");
+                  }
+                })
+                .catch((error) => {
+                  console.error("Errore nella verifica dell'autenticazione:", error);
+                  showNotification("Devi essere loggato per inserire un esame.", "Errore");
+                });
+            }
           },
         },
 

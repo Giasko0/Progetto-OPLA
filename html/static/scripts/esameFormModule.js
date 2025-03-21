@@ -11,10 +11,19 @@ export function showEsameForm(dateInfo) {
     return;
   }
   
-  // Pre-compila la data selezionata dal calendario
+  // Pre-compila la data selezionata dal calendario se presente
   const dataInput = document.getElementById('dataora');
-  if (dataInput && dateInfo.dateStr) {
-    dataInput.value = dateInfo.dateStr;
+  if (dataInput) {
+    if (dateInfo.dateStr) {
+      dataInput.value = dateInfo.dateStr;
+    } else {
+      // Se non c'è una data selezionata, imposta la prima data disponibile
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      dataInput.value = `${yyyy}-${mm}-${dd}`;
+    }
   }
   
   // Imposta ora predefinita se non impostata
