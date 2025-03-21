@@ -381,6 +381,7 @@ html.dark .fc-event {
   color: var(--color-text);
   border: 1px solid var(--color-gray);
   border-radius: var(--radius);
+  font-size: 1em;
 }
 
 .popup input[type="checkbox"] {

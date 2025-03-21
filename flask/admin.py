@@ -1377,7 +1377,7 @@ def download_ea():
     cursor.execute("""
       SELECT 
         e.id,
-        i.titolo,
+        e.descrizione,
         e.data_appello,
         e.ora_appello,
         e.durata_appello,
@@ -1427,7 +1427,7 @@ def download_ea():
 
     # Scrivi i dati
     for row_idx, esame in enumerate(esami, start=1):
-      (id_esame, titolo, data_appello, ora_appello, durata_appello, 
+      (id_esame, descrizione, data_appello, ora_appello, durata_appello, 
        aula_codice, aula_nome, insegnamento, anno_accademico,
        docente, docente_nome, docente_cognome, note_appello) = esame
 
@@ -1445,11 +1445,11 @@ def download_ea():
       # Colonna A: Codice prenotazione
       worksheet.write(row_idx, col, f"opla_{data_attuale}_{id_esame}"); col += 1
       # Colonna B: Breve descrizione
-      worksheet.write(row_idx, col, "Esame di "+titolo or ""); col += 1
+      worksheet.write(row_idx, col, descrizione or ""); col += 1
       # Colonna C: Descrizione completa
       worksheet.write(row_idx, col, ""); col += 1
       # Colonna D: Tipo prenotazione
-      worksheet.write(row_idx, col, "esame"); col += 1
+      worksheet.write(row_idx, col, "Esame"); col += 1
       # Colonna E: Status
       worksheet.write(row_idx, col, "Confermata"); col += 1
       
@@ -1482,19 +1482,31 @@ def download_ea():
       col += 1
       
       # Colonna J: Tipo ripetizione
-      worksheet.write(row_idx, col, "Una volta"); col += 1
-      # Colonna K: Codice aula
-      worksheet.write(row_idx, col, aula_codice or ""); col += 1
-      # Colonna L: Nome aula
-      worksheet.write(row_idx, col, aula_nome or ""); col += 1
-      # Colonna M: Codice sede
-      worksheet.write(row_idx, col, "P02E04"); col += 1
-      # Colonna N: Sede
-      worksheet.write(row_idx, col, "Matematica e Informatica"); col += 1
+      worksheet.write(row_idx, col, "una volta"); col += 1
+
+      if aula_codice == 'STDOCENTE':
+        worksheet.write(row_idx, col, ""); col += 1
+        worksheet.write(row_idx, col, ""); col += 1
+        worksheet.write(row_idx, col, ""); col += 1
+        worksheet.write(row_idx, col, ""); col += 1
+      else:
+        worksheet.write(row_idx, col, aula_codice); col += 1                # Colonna K: Codice aula
+        worksheet.write(row_idx, col, aula_nome); col += 1                  # Colonna L: Nome aula
+        worksheet.write(row_idx, col, "P02E04"); col += 1                   # Colonna M: Codice sede
+        worksheet.write(row_idx, col, "Matematica e Informatica"); col += 1 # Colonna N: Sede
+
       # Colonna O: Aula virtuale
-      worksheet.write(row_idx, col, ""); col += 1
+      if aula_codice == 'STDOCENTE':
+        worksheet.write(row_idx, col, "1"); col += 1
+      else:
+        worksheet.write(row_idx, col, ""); col += 1
+
       # Colonna P: Etichetta aula virtuale
-      worksheet.write(row_idx, col, ""); col += 1
+      if aula_codice == 'STDOCENTE':
+        worksheet.write(row_idx, col, "Studio docente DMI"); col += 1
+      else:
+        worksheet.write(row_idx, col, ""); col += 1
+
       # Colonna Q: Codice insegnamento
       worksheet.write(row_idx, col, insegnamento or ""); col += 1
       # Colonna R: Anno accademico
