@@ -15,19 +15,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Reset del form
+    // Reset del form - mostra il modale di conferma invece di resettare subito
     const resetFormButton = document.getElementById('resetForm');
     if (resetFormButton) {
         resetFormButton.addEventListener('click', function() {
-            const cdsSelect = document.getElementById('selectCds');
-            if (cdsSelect.value) {
-                loadCdsDetails(cdsSelect.value);
-            }
+            showResetConfirmModal();
         });
     }
     
     // Inizializza il modal per copiare le date
     initCopyDatesModal();
+    
+    // Inizializza il modal per confermare il reset
+    initResetConfirmModal();
     
     // Pulsante per copiare le date
     const copyDatesBtn = document.getElementById('copyDatesBtn');
@@ -300,7 +300,20 @@ function showMessage(type, message) {
     const messageDiv = document.getElementById('responseMessages');
     if (!messageDiv) return;
     
-    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    let alertClass;
+    switch(type) {
+        case 'success':
+            alertClass = 'alert-success';
+            break;
+        case 'error':
+            alertClass = 'alert-danger';
+            break;
+        case 'info':
+            alertClass = 'alert-info';
+            break;
+        default:
+            alertClass = 'alert-info';
+    }
     
     const alert = document.createElement('div');
     alert.className = `alert ${alertClass}`;
@@ -472,4 +485,43 @@ function copyDatesFromSource() {
             console.error('Errore nel caricamento dei dettagli del corso:', error);
             showMessage('error', 'Impossibile caricare i dettagli del corso selezionato');
         });
+}
+
+/**
+ * Inizializza il modal per confermare il reset
+ */
+function initResetConfirmModal() {
+    const modal = document.getElementById('resetConfirmModal');
+    const cancelButton = document.getElementById('cancelReset');
+    const confirmButton = document.getElementById('confirmReset');
+    
+    // Gestione click su Annulla - chiude il modal
+    cancelButton.addEventListener('click', function() {
+        modal.style.display = 'none';
+    });
+    
+    // Gestione click su Conferma - esegue il reset e chiude il modal
+    confirmButton.addEventListener('click', function() {
+        const cdsSelect = document.getElementById('selectCds');
+        if (cdsSelect.value) {
+            loadCdsDetails(cdsSelect.value);
+            showMessage('info', 'Dati ripristinati allo stato originale');
+        }
+        modal.style.display = 'none';
+    });
+    
+    // Chiusura del modal cliccando fuori
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+
+/**
+ * Mostra il modal di conferma reset
+ */
+function showResetConfirmModal() {
+    const modal = document.getElementById('resetConfirmModal');
+    modal.style.display = 'flex';
 }

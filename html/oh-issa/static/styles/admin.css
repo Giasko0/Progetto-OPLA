@@ -614,6 +614,16 @@ input[type="number"] {
     border-color: #f5c6cb;
 }
 
+/* Aggiungi stile per il messaggio informativo se non già presente */
+.alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-color: #bee5eb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
 /* Footer styles */
 #footer {
     background-color: #222;
