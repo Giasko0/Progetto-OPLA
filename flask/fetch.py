@@ -67,23 +67,74 @@ def ottieniAule():
     cursor = conn.cursor()
     
     if data and periodo is not None:
-      # Recupera solo le aule disponibili nella data e periodo specificati
+      # Converti il periodo in fasce orarie
+      if periodo == '0':  # Mattina
+        inizio_fascia = '08:30:00'
+        fine_fascia = '13:30:00'
+      else:  # Pomeriggio
+        inizio_fascia = '14:00:00'
+        fine_fascia = '19:00:00'
+      
+      # Recupera tutte le aule dal database
+      cursor.execute("SELECT nome FROM aule ORDER BY nome")
+      tutte_aule = [row[0] for row in cursor.fetchall()]
+      
+      # Recupera aule già occupate da esami interni nel sistema
       cursor.execute("""
-        SELECT DISTINCT a.nome
-        FROM aule a
-        WHERE NOT EXISTS (
-          SELECT 1 FROM esami e
-          WHERE e.aula = a.nome
-          AND e.data_appello = %s
-          AND e.periodo = %s
-        )
-        ORDER BY a.nome
+        SELECT DISTINCT e.aula
+        FROM esami e
+        WHERE e.data_appello = %s
+        AND e.periodo = %s
       """, (data, periodo))
+      
+      aule_occupate_esami = {row[0] for row in cursor.fetchall()}
+      
+      # Converti la data dal formato YYYY-MM-DD al formato DD-MM-YYYY per EasyAcademy
+      data_parti = data.split('-')
+      data_ea_format = f"{data_parti[2]}-{data_parti[1]}-{data_parti[0]}"
+      
+      # Effettua la richiesta all'API di EasyAcademy per verificare disponibilità
+      import requests
+      
+      try:
+        url = f'https://easyacademy.unipg.it/agendaweb/rooms_call.php?sede=P02E04&date={data_ea_format}'
+        response = requests.get(url, timeout=5)
+        
+        aule_occupate_easyacademy = set()
+        
+        if response.ok:
+          data_ea = response.json()
+          if 'table' in data_ea:
+            for aula_code, aula_data in data_ea['table'].items():
+              for slot in aula_data:
+                # Verifica se l'evento si sovrappone alla fascia oraria richiesta
+                if isinstance(slot, dict) and 'from' in slot and 'to' in slot and 'NomeAula' in slot:
+                  ora_inizio = slot['from']
+                  ora_fine = slot['to']
+                  nome_aula = slot['NomeAula']
+                  
+                  # Verifica sovrapposizione tra l'evento e la fascia oraria richiesta
+                  if ((ora_inizio <= fine_fascia and ora_fine >= inizio_fascia) or 
+                      (ora_inizio >= inizio_fascia and ora_inizio <= fine_fascia) or 
+                      (ora_fine >= inizio_fascia and ora_fine <= fine_fascia)):
+                    aule_occupate_easyacademy.add(nome_aula)
+      except Exception as req_error:
+        # In caso di errore nella richiesta, log dell'errore ma continua con le aule disponibili nel database
+        print(f"Errore nella richiesta a EasyAcademy: {str(req_error)}")
+      
+      # Combina le aule occupate da entrambe le fonti
+      aule_occupate = aule_occupate_esami.union(aule_occupate_easyacademy)
+      
+      # Determina le aule disponibili
+      aule_disponibili = [aula for aula in tutte_aule if aula not in aule_occupate]
+      
+      # Formato per la risposta
+      aule = [{"nome": nome_aula} for nome_aula in aule_disponibili]
     else:
       # Se non sono specificate data e periodo, restituisci tutte le aule
       cursor.execute("SELECT nome FROM aule ORDER BY nome")
+      aule = [{"nome": row[0]} for row in cursor.fetchall()]
     
-    aule = [{"nome": row[0]} for row in cursor.fetchall()]
     return jsonify(aule)
   except Exception as e:
     return jsonify({'status': 'error', 'message': str(e)}), 500

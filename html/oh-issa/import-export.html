@@ -22,44 +22,43 @@
       downloadEasyAcademyButton.addEventListener('click', function() {
         window.location.href = '/oh-issa/api/downloadFileEA';
       });
-    });
-    document.addEventListener('DOMContentLoaded', function () {
-      // Gestione upload file U-GOV
-      document.getElementById('uploadForm').addEventListener('submit', function (e) {
-        e.preventDefault();
-        const fileInput = document.getElementById('ugovFile');
-        const file = fileInput.files[0];
 
-        if (!file) {
-          showMessage('error', 'Nessun file selezionato.');
-          return;
-        }
+      // Gestione caricamento file UGOV direttamente con il pulsante
+      document.getElementById('uploadFileButton').addEventListener('click', function() {
+        document.getElementById('fileInput').click();
+      });
 
-        if (!file.name.toLowerCase().endsWith('.xls') && !file.name.toLowerCase().endsWith('.xlsx')) {
-          showMessage('error', 'Formato file non supportato. Usare file Excel (.xls, .xlsx)');
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        showMessage('info', 'Caricamento in corso...');
-
-        fetch('/oh-issa/api/uploadFileUGOV', {
-          method: 'POST',
-          body: formData
-        })
-          .then(response => response.json())
-          .then(data => {
-            if (data.status === 'success') {
-              showMessage('success', data.message, data.details);
-            } else {
-              showMessage('error', data.message);
-            }
+      // Gestione selezione file e invio automatico
+      document.getElementById('fileInput').addEventListener('change', function(e) {
+        const fileInput = this;
+        const fileName = fileInput.files[0] ? fileInput.files[0].name : 'Nessun file selezionato';
+        document.getElementById('selectedFileName').textContent = fileName;
+        
+        if (fileInput.files.length) {
+          // Mostra messaggio di caricamento
+          showMessage('info', 'Caricamento in corso...');
+          
+          // Crea un FormData e carica il file
+          const formData = new FormData();
+          formData.append('file', fileInput.files[0]);
+          
+          // Invia richiesta al server
+          fetch('/oh-issa/api/uploadFileUGOV', {
+            method: 'POST',
+            body: formData
           })
-          .catch(error => {
-            showMessage('error', `Errore durante l'import: ${error.message}`);
-          });
+            .then(response => response.json())
+            .then(data => {
+              if (data.status === 'success') {
+                showMessage('success', data.message, data.details);
+              } else {
+                showMessage('error', data.message);
+              }
+            })
+            .catch(error => {
+              showMessage('error', `Errore durante l'import: ${error.message}`);
+            });
+        }
       });
 
       // Gestione caricamento aule da EasyAcademy (semplificato)
@@ -81,26 +80,6 @@
             showMessage('error', `Errore durante il caricamento delle aule: ${error.message}`);
           });
       });
-
-      // Gestione caricamento eventi di domani da EasyAcademy
-      document.getElementById('loadEventsBtn').addEventListener('click', function () {
-        showMessage('info', 'Caricamento eventi di domani da EasyAcademy in corso...');
-
-        fetch('/oh-issa/api/caricaEventiEA', {
-          method: 'POST'
-        })
-          .then(response => response.json())
-          .then(data => {
-            if (data.status === 'success') {
-              showMessage('success', data.message, data.details);
-            } else {
-              showMessage('error', data.message);
-            }
-          })
-          .catch(error => {
-            showMessage('error', `Errore durante il caricamento degli eventi: ${error.message}`);
-          });
-      });
     });
 
     function showMessage(type, text, details) {
@@ -112,17 +91,14 @@
       messageDiv.textContent = text;
 
       if (details) {
-        const detailsDiv = document.createElement('pre');
-        detailsDiv.className = 'import-details';
-        detailsDiv.textContent = details;
-        messageDiv.appendChild(detailsDiv);
+        const detailsPre = document.createElement('pre');
+        detailsPre.className = 'alert-details';
+        detailsPre.textContent = details;
+        messageDiv.appendChild(detailsPre);
       }
 
       messagesDiv.appendChild(messageDiv);
-
-      if (type === 'info') {
-        setTimeout(() => messageDiv.remove(), 5000);
-      }
+      messagesDiv.scrollIntoView({ behavior: 'smooth' });
     }
   </script>
 </head>
@@ -134,14 +110,15 @@
     <h1>Import Dati</h1>
 
     <section class="upload-section">
-      <form id="uploadForm" action="/oh-issa/api/uploadFileUGOV" method="post" enctype="multipart/form-data">
-        <fieldset>
-          <legend>Import U-GOV</legend>
-          <p>Carica un file Excel esportato da U-GOV con dati di corsi, insegnamenti e docenti</p>
-          <input type="file" id="ugovFile" name="file" accept=".xls,.xlsx">
-          <button type="submit" class="btn primary">Importa dati</button>
-        </fieldset>
-      </form>
+      <fieldset>
+        <legend>Import U-GOV</legend>
+        <p>Carica un file Excel esportato da U-GOV contenente l'elenco dei docenti e degli insegnamenti</p>
+        <div class="file-upload">
+          <input type="file" id="fileInput" name="file" accept=".xls,.xlsx" style="display: none;">
+          <button id="uploadFileButton" type="button" class="btn primary">Seleziona e Carica File</button>
+          <span id="selectedFileName">Nessun file selezionato</span>
+        </div>
+      </fieldset>
     </section>
 
     <section class="upload-section">
@@ -149,23 +126,26 @@
         <legend>Import Aule</legend>
         <p>Carica le aule dal sistema EasyAcademy dell'università</p>
         <button id="loadRoomsBtn" type="button" class="btn primary">Carica Aule da EasyAcademy</button>
-        <button id="loadEventsBtn" type="button" class="btn primary">Carica Eventi di domani da EasyAcademy</button>
       </fieldset>
     </section>
     
     <h1>Export Dati</h1>
 
-    <section class="action-section">
-      <p>Scarica il file XLS contenente tutti gli esami nel formato richiesto da ESSE3.</p>
-      <button id="downloadButton" class="btn primary">Scarica File ESSE3</button>
+    <section class="upload-section">
+      <fieldset>
+        <legend>Export ESSE3</legend>
+        <p>Scarica il file XLS contenente tutti gli esami nel formato richiesto da ESSE3.</p>
+        <button id="downloadButton" class="btn primary">Scarica File ESSE3</button>
+      </fieldset>
     </section>
 
-    <section class="action-section">
-      <p>Scarica il file XLS contenente le aule occupate nel formato richiesto da EasyAcademy.</p>
-      <button id="downloadEasyAcademyButton" class="btn primary">Scarica File EasyAcademy</button>
+    <section class="upload-section">
+      <fieldset>
+        <legend>Export EasyAcademy</legend>
+        <p>Scarica il file XLS contenente le aule occupate nel formato richiesto da EasyAcademy.</p>
+        <button id="downloadEasyAcademyButton" class="btn primary">Scarica File EasyAcademy</button>
+      </fieldset>
     </section>
-
-
 
     <div id="responseMessages"></div>
   </main>
