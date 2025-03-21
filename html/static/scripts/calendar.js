@@ -385,24 +385,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Dettagli evento al click
         eventClick: function (info) {
-          // Formatta data
-          let dataEvento = calendar.formatDate(info.event.start, {
-            month: "long",
-            year: "numeric",
-            day: "numeric",
-            locale: "it",
-          });
-          showAlert(
-            "Titolo: " +
-              info.event.title +
-              "\n" +
-              "Data: " +
-              dataEvento +
-              "\n" +
-              "Aula: " +
-              info.event.extendedProps.aula,
-            "Dettagli evento"
-          );
+          //TODO Inserire qui la modifica dell'appello
         },
 
         // Stile eventi
@@ -435,20 +418,14 @@ document.addEventListener("DOMContentLoaded", function () {
         // Contenuto HTML eventi
         eventContent: function (arg) {
           const event = arg.event;
-          const annoCorso = event.extendedProps.annoCorso;
-          const semestre = event.extendedProps.semestre;
-          const annoAcc = event.extendedProps.annoAccademico;
+          const docenteNome = event.extendedProps.docenteNome;
+          
           return {
             html: `
               <div class="fc-event-main-frame">
                 <div class="fc-event-time">${arg.timeText}</div>
-                <div class="fc-event-title-container">
-                  <div class="fc-event-title fc-sticky">${event.title}</div>
-                  <div class="fc-event-description">
-                    A.A. ${annoAcc}/${parseInt(annoAcc) + 1}
-                    - Anno ${annoCorso}° 
-                    - ${semestre}° sem.
-                  </div>
+                <div class="fc-event-title">${event.title}</div>
+                <div class="fc-event-description">${docenteNome}</div>
                 </div>
               </div>
             `,

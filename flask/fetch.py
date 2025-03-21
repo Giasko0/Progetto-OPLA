@@ -247,12 +247,13 @@ def getEsami():
         # Formattazione dei risultati
         exams = [{
             'id': idx,
-            'title': f"{row[3]} - {row[2]}" + (f" ({row[11]}/{row[11]+1})" if show_all else ""),
+            'title': row[3],
             'aula': row[4],
             'start': f"{row[5].isoformat()}T{row[6]}" if row[6] else row[5].isoformat(),
             'description': f"Tipo: {row[7] or 'Non specificato'}\nAula: {row[4]}\nAnno: {row[8]}\nPeriodo: {'Mattina' if row[9] == 0 else 'Pomeriggio'}",
             'allDay': False,
             'docente': row[0],
+            'docenteNome': f"{row[1]} {row[2]}",  # Nome completo del docente
             'periodo': row[9],
             'annoCorso': row[8],
             'semestre': row[10],

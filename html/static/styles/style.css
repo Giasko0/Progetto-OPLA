@@ -175,7 +175,10 @@ body {
 /*---------CALENDARIO---------*/
 #calendar {
   width: 100%;
-  margin: 0 auto;
+}
+
+.fc-button-primary {
+  background-color: var(--header-bg);
 }
 
 .fc-daygrid-day {
@@ -193,8 +196,8 @@ body {
   background-color: var(--color-light-gray) !important;
 }
 
-html.dark .fc-event {
-  border-color: #444;
+.fc-event-main-frame {
+  overflow: hidden;
 }
 
 .calendar-dropdown {
@@ -229,43 +232,6 @@ html.dark .fc-event {
 
 .dropdown-item input[type="checkbox"] {
   margin-right: 8px;
-}
-
-/* Stile per il pulsante anno accademico */
-.fc .fc-anno-button {
-  background: none;
-  border: none;
-  cursor: default;
-  pointer-events: none;
-  color: var(--color-dark-gray);
-}
-
-.fc .fc-anno-button:hover,
-.fc .fc-anno-button:focus,
-.fc .fc-anno-button:active {
-  background: none;
-  border: none;
-  box-shadow: none;
-}
-
-/* Stili responsivi per il calendario */
-.fc .fc-toolbar {
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.fc .fc-toolbar-title {
-  word-break: break-word;
-  text-align: center;
-}
-
-/* Controlli calendario responsive */
-.fc .fc-button-group {
-  margin: 0;
-}
-
-.fc .fc-button-primary {
-  background-color: var(--header-bg);
 }
 
 /*---------FOOTER---------*/
@@ -649,7 +615,6 @@ html.dark .fc-event {
 
 .toggle-sidebar-float.sidebar-open {
   right: calc(var(--sidebar-width) + 25px);
-  background-color: var(--color-red);
 }
 
 .toggle-sidebar-float:hover {
@@ -1115,6 +1080,7 @@ tbody tr:hover td {
   /* Riduci la dimensione del testo negli eventi */
   .fc-event-time, .fc-event-title, .fc-event-description {
     font-size: 0.8em !important;
+    overflow: hidden;
   }
 
   .message-sidebar {
