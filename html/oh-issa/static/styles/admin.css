@@ -33,7 +33,7 @@ section {
 
 /* Navbar */
 #navbar {
-    background-color: #24292e;
+    background-color: #222;
     color: white;
     padding: 1rem 2rem;
     display: flex;
@@ -616,8 +616,8 @@ input[type="number"] {
 
 /* Footer styles */
 #footer {
-    background-color: #f4f4f4;
-    color: #333;
+    background-color: #222;
+    color: white;
     padding: 20px 0;
     width: 100%;
     text-align: center;
@@ -643,7 +643,7 @@ input[type="number"] {
 }
 
 .footer-section a {
-    color: #0366d6;
+    color: #589be7;
     text-decoration: none;
 }
 
@@ -688,7 +688,7 @@ input[type="number"] {
         top: 100%;
         left: 0;
         width: 100%;
-        background-color: #24292e;
+        background-color: #222;
         flex-direction: column;
         align-items: center;
         max-height: 0;

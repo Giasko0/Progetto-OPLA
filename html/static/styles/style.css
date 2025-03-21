@@ -264,6 +264,10 @@ html.dark .fc-event {
   margin: 0;
 }
 
+.fc .fc-button-primary {
+  background-color: var(--header-bg);
+}
+
 /*---------FOOTER---------*/
 #footer {
   background-color: var(--color-light-gray);
