@@ -75,7 +75,7 @@
           <input type="date" id="dataora" name="dataora" required>
 
           <label class="formEsame-label" for="ora">Ora Appello*</label>
-          <input type="time" id="ora" name="ora" min="08:00" max="23:00" step="300" required>
+          <input type="time" id="ora" name="ora" min="08:00" max="23:00" step="900" required>
 
           <label class="formEsame-label" for="aula">Aule disponibili*</label>
           <select id="aula" name="aula" required>
@@ -83,7 +83,7 @@
           </select>
 
           <label class="formEsame-label" for="durata">Durata (in minuti)*</label>
-          <input type="number" id="durata" name="durata" min="30" step="5" value="120" required>
+          <input type="number" id="durata" name="durata" min="30" step="15" value="120" required>
 
           <div>
             <label class="formEsame-label" for="verbalizzazione">Verbalizzazione*</label>
@@ -111,8 +111,7 @@
             <div>
               <label class="formEsame-label" for="tipoEsame">Tipo esame</label>
               <select id="tipoEsame" name="tipoEsame">
-                <option value="" disabled selected hidden>Scegli il tipo di esame</option>
-                <option value="">Non definito</option>
+                <option value="" disabled selected hidden>Non definito</option>
                 <option value="S">Scritto</option>
                 <option value="O">Orale</option>
                 <option value="SO">Scritto e orale</option>

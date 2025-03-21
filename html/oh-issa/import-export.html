@@ -5,12 +5,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
-  <title>Importazione Dati - OH-ISSA</title>
+  <title>Scarica File - OH-ISSA</title>
   <link rel="stylesheet" href="static/styles/admin.css">
   <script src="static/scripts/common.js"></script>
   <script src="static/scripts/authCheck.js"></script>
   <script src="static/scripts/navbarAdmin.js"></script>
   <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const downloadButton = document.getElementById('downloadButton');
+      downloadButton.addEventListener('click', function() {
+        window.location.href = '/oh-issa/api/downloadFileESSE3';
+      });
+
+      const downloadEasyAcademyButton = document.getElementById('downloadEasyAcademyButton');
+      downloadEasyAcademyButton.addEventListener('click', function() {
+        window.location.href = '/oh-issa/api/downloadFileEA';
+      });
+    });
     document.addEventListener('DOMContentLoaded', function () {
       // Gestione upload file U-GOV
       document.getElementById('uploadForm').addEventListener('submit', function (e) {
@@ -119,7 +130,7 @@
   <div id="navbar"></div>
 
   <main>
-    <h1>Carica Dati</h1>
+    <h1>Import Dati</h1>
 
     <section class="upload-section">
       <form id="uploadForm" action="/oh-issa/api/uploadFileUGOV" method="post" enctype="multipart/form-data">
@@ -140,6 +151,20 @@
         <button id="loadEventsBtn" type="button" class="btn primary">Carica Eventi di domani da EasyAcademy</button>
       </fieldset>
     </section>
+    
+    <h1>Export Dati</h1>
+
+    <section class="action-section">
+      <p>Scarica il file XLS contenente tutti gli esami nel formato richiesto da ESSE3.</p>
+      <button id="downloadButton" class="btn primary">Scarica File ESSE3</button>
+    </section>
+
+    <section class="action-section">
+      <p>Scarica il file XLS contenente le aule occupate nel formato richiesto da EasyAcademy.</p>
+      <button id="downloadEasyAcademyButton" class="btn primary">Scarica File EasyAcademy</button>
+    </section>
+
+
 
     <div id="responseMessages"></div>
   </main>

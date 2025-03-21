@@ -252,17 +252,42 @@ input[type="number"] {
 
 .card {
   background: white;
-  border-radius: var(--radius);
+  border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
-  font-size: 1.2em;
-  padding: 20px;
+  padding: 25px;
   overflow: hidden;
+  text-align: center;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.card:hover {
+.card.clickable {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  border: 1px solid #eaeaea;
+}
+
+.card.clickable:hover {
   transform: translateY(-5px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  border-color: #444;
+}
+
+.card h3 {
+  margin: 15px 0 10px;
+  color: #0366d6;
+}
+
+.card-description {
+  margin-top: 10px;
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .welcome-section {
@@ -279,7 +304,8 @@ input[type="number"] {
 .material-symbols-outlined {
   vertical-align: middle;
   margin-right: 8px;
-  font-size: 1.2em;
+  font-size: 2.5em;
+  color: #0366d6;
 }
 
 /* Stili per il calendario esami */
@@ -656,5 +682,13 @@ input[type="number"] {
     .modal-content {
         width: 95%;
         padding: 1.5rem;
+    }
+    
+    .grid-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .card {
+        padding: 20px 15px;
     }
 }

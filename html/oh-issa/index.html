@@ -18,42 +18,36 @@
 
   <main>
     <h1>Dashboard OH-ISSA</h1>
-    
+
     <section class="info-section welcome-section">
       <p>Benvenuto nella piattaforma di gestione degli appelli d'esame dell'Università di Perugia.
         Seleziona una delle funzionalità disponibili per iniziare.</p>
     </section>
-
+    
     <section class="grid-container">
-      <div class="card">
-        <span class="material-symbols-outlined">upload_file</span>
-        Upload File U-GOV<br>
-        <a href="fileUpload.html" class="btn primary">Accedi</a>
-      </div>
+      <a href="import-export.html" class="card clickable">
+        <span class="material-symbols-outlined">sync_alt</span>
+        <h3>Import/Export Dati</h3>
+        <p class="card-description">Importa dati da U-GOV ed esporta appelli per ESSE3 ed EasyAcademy.</p>
+      </a>
 
-      <div class="card">
-        <span class="material-symbols-outlined">download</span>
-        Download File ESSE3/EasyAcademy<br>
-        <a href="fileDownload.html" class="btn primary">Accedi</a>
-      </div>
-
-      <div class="card">
+      <a href="gestioneCds.html" class="card clickable">
         <span class="material-symbols-outlined">school</span>
-        Gestione CdS<br>
-        <a href="gestioneCds.html" class="btn primary">Accedi</a>
-      </div>
+        <h3>Gestione CdS</h3>
+        <p class="card-description">Configura i periodi didattici e le sessioni d'esame per i corsi di studio.</p>
+      </a>
 
-      <div class="card">
+      <a href="calendarioEsami.html" class="card clickable">
         <span class="material-symbols-outlined">calendar_month</span>
-        Calendario Esami<br>
-        <a href="calendarioEsami.html" class="btn primary">Accedi</a>
-      </div>
+        <h3>Calendario Esami</h3>
+        <p class="card-description">Visualizza e gestisci il calendario degli appelli d'esame programmati.</p>
+      </a>
 
-      <div class="card">
+      <a href="gestioneUtenti.html" class="card clickable">
         <span class="material-symbols-outlined">manage_accounts</span>
-        Gestione Utenti<br>
-        <a href="gestioneUtenti.html" class="btn primary">Accedi</a>
-      </div>
+        <h3>Gestione Utenti</h3>
+        <p class="card-description">Amministra gli account utente e assegna i permessi di accesso al sistema.</p>
+      </a>
     </section>
   </main>
 </body>
