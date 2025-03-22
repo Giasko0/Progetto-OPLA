@@ -17,7 +17,7 @@ def ottieni_sessioni_da_cds(cds_code, year):
         (EXTRACT(YEAR FROM inizio) = %s AND EXTRACT(MONTH FROM inizio) <= 4)
       )
       ORDER BY inizio
-    """, (cds_code, year, year+1))
+    """, (cds_code, year+1, year+2))
     
     sessions = []
     for row in cursor.fetchall():
