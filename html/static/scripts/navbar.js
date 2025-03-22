@@ -18,9 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <span></span>
           <span></span>
         </button>
-        <div class="navlinks flex-container">
-          <a href="index.html">Home</a>
-        </div>
+        <div class="navlinks flex-container"></div>
         <span id="darkModeButton" class="material-symbols-outlined" onclick="toggleDarkMode()" aria-label="${darkModeLabel}">${darkModeIcon}</span>
       </div>
     `;
