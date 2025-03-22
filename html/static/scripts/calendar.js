@@ -5,8 +5,6 @@ import {
   populateInsegnamentiDropdown,
   fetchCalendarEvents,
   loadDateValide,
-  createInsegnamentoTag,
-  updateHiddenSelect,
 } from "./calendarUtils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -542,15 +540,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     // Crea tag per insegnamenti
                     data.forEach((ins) => {
-                      createInsegnamentoTag(
-                        ins.codice,
-                        ins.titolo,
-                        multiSelectBox
-                      );
+                      window.InsegnamentiManager.createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
                     });
 
                     // Aggiorna select nascosta
-                    updateHiddenSelect(multiSelectBox);
+                    window.InsegnamentiManager.updateHiddenSelect(multiSelectBox);
 
                     // Aggiorna opzioni nel dropdown
                     const options = document.querySelectorAll(
@@ -587,8 +581,11 @@ document.addEventListener("DOMContentLoaded", function () {
           // Aggiungi selezione al nuovo item
           item.classList.add("selected");
 
-          // Salva il CdS selezionato
+          // Salva il CdS selezionato sia localmente che in InsegnamentiManager
           selectedCds = item.dataset.codice || null;
+          if (window.InsegnamentiManager) {
+            window.InsegnamentiManager.setCds(selectedCds);
+          }
 
           // Ottieni le nuove date valide e aggiorna il calendario
           loadDateValide(loggedDocente, selectedCds)
@@ -678,17 +675,20 @@ document.addEventListener("DOMContentLoaded", function () {
           // Aggiorna InsegnamentiManager in base allo stato finale del checkbox
           if (window.InsegnamentiManager) {
             const codice = item.dataset.codice;
-            const semestre = parseInt(item.dataset.semestre);
+            const semestre = parseInt(item.dataset.semestre) || 1;
             const annoCorso = parseInt(item.dataset.annoCorso) || 1;
-            const cds = item.dataset.cds;
+            const cds = item.dataset.cds || "";
+            const titolo = item.querySelector('label')?.textContent || "";
 
             if (checkbox.checked) {
+              // Seleziona l'insegnamento in InsegnamentiManager
               window.InsegnamentiManager.selectInsegnamento(codice, {
                 semestre: semestre,
                 anno_corso: annoCorso,
                 cds: cds,
               });
             } else {
+              // Deseleziona l'insegnamento in InsegnamentiManager
               window.InsegnamentiManager.deselectInsegnamento(codice);
             }
 
@@ -781,9 +781,8 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         };
 
-        // Esponi funzione globale
-        window.updateHiddenSelect = (multiSelectBox) =>
-          updateHiddenSelect(multiSelectBox);
+        // Utilizziamo la funzione di InsegnamentiManager per updateHiddenSelect
+        window.updateHiddenSelect = null;
       }
     )
     .catch((error) => {

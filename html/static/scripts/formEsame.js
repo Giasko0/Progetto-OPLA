@@ -62,23 +62,46 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Funzione per inizializzare la UI
   function initUI() {
-    // Inizializza la select multipla
-    initMultiSelect();
-
+    // Imposta username nel campo docente
+    setUsernameField("docente", () => {
+      const username = document.getElementById("docente")?.value;
+      if (!username) return;
+      
+      // Inizializza la select multipla tramite InsegnamentiManager
+      if (window.InsegnamentiManager) {
+        window.InsegnamentiManager.initMultiSelect("insegnamentoBox", "insegnamentoDropdown");
+        
+        // Carica insegnamenti e inizializza il form
+        window.InsegnamentiManager.initFormInsegnamenti(username, () => {
+          // Controlla insegnamenti preselezionati dall'URL
+          checkPreselectedInsegnamenti();
+        });
+      }
+    });
+    
     // Popola le aule iniziali
     popolaAule();
-
-    // Popola gli insegnamenti
-    popolaInsegnamenti();
-
-    // Imposta username nel campo docente
-    setUsernameField("docente");
-
+    
     // Personalizza il saluto
-    window.updatePageTitle();
-
-    // Controlla insegnamenti preselezionati
-    checkPreselectedInsegnamenti();
+    if (window.updatePageTitle) {
+      window.updatePageTitle();
+    }
+    
+    // Aggiungi listener per aggiornare i tag quando cambiano gli insegnamenti selezionati
+    if (window.InsegnamentiManager) {
+      window.InsegnamentiManager.onChange(() => {
+        const username = document.getElementById("docente")?.value;
+        if (!username) return;
+        
+        const multiSelectBox = document.getElementById("insegnamentoBox");
+        if (!multiSelectBox) return;
+        
+        // Sincronizza i tag con gli insegnamenti selezionati
+        window.InsegnamentiManager.loadSelectedInsegnamenti(username, (insegnamenti) => {
+          window.InsegnamentiManager.syncTags(multiSelectBox, insegnamenti);
+        });
+      });
+    }
   }
 
   // Funzione per chiudere il popup overlay
@@ -86,6 +109,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const popupOverlay = document.getElementById("popupOverlay");
     if (popupOverlay) {
       popupOverlay.style.display = "none";
+    }
+    
+    // Assicuriamoci che il dropdown venga chiuso quando si chiude il form
+    const dropdown = document.getElementById("insegnamentoDropdown");
+    if (dropdown) {
+      dropdown.style.display = "none";
     }
   }
 
@@ -107,340 +136,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ------- Funzioni per la gestione degli insegnamenti -------
 
-  // Funzione per controllare insegnamenti preselezionati
+  // Funzione per controllare insegnamenti preselezionati dall'URL
   function checkPreselectedInsegnamenti() {
     // Controlla se c'è un parametro nell'URL che indica insegnamenti preselezionati
     const urlParams = new URLSearchParams(window.location.search);
-    const preselectedInsegnamenti = urlParams.get("insegnamenti");
-
-    if (preselectedInsegnamenti) {
-      window.preselectedInsegnamenti = preselectedInsegnamenti.split(",");
-    }
-  }
-
-  // Funzione per popolare insegnamenti
-  function popolaInsegnamenti() {
-    getUserData()
-      .then((data) => {
-        if (data && data.authenticated && data.user_data) {
-          const userData = data.user_data;
-          fetch("/api/ottieniInsegnamenti?username=" + userData.username)
-            .then((response) => response.json())
-            .then((data) => {
-              const optionsContainer = document.getElementById(
-                "insegnamentoOptions"
-              );
-              if (!optionsContainer) return;
-
-              optionsContainer.innerHTML = "";
-
-              data.forEach((ins) => {
-                const option = document.createElement("div");
-                option.className = "multi-select-option";
-                option.dataset.value = ins.codice;
-                option.textContent = ins.titolo;
-
-                option.addEventListener("click", function () {
-                  toggleOption(this);
-                });
-
-                optionsContainer.appendChild(option);
+    const preselectedParam = urlParams.get("insegnamenti");
+    
+    if (preselectedParam) {
+      const preselectedCodes = preselectedParam.split(",");
+      const username = document.getElementById("docente")?.value;
+      
+      if (username && window.InsegnamentiManager) {
+        // Carica dati insegnamenti
+        fetch(`/api/ottieniInsegnamenti?username=${username}&codici=${preselectedCodes.join(",")}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.length > 0) {
+              // Seleziona gli insegnamenti nel manager
+              data.forEach(ins => {
+                const metadata = {
+                  semestre: ins.semestre || 1,
+                  anno_corso: ins.anno_corso || 1,
+                  cds: ins.cds_codice || ""
+                };
+                
+                window.InsegnamentiManager.selectInsegnamento(ins.codice, metadata);
               });
-
-              preselectInsegnamenti();
-              setupExistingTagsRemoval();
-            })
-            .catch((error) =>
-              console.error("Errore nel caricamento degli insegnamenti:", error)
-            );
-        }
-      })
-      .catch((error) => {
-        console.error("Errore nel recupero dei dati utente:", error);
-      });
-  }
-
-  // Funzione per preselezionare insegnamenti
-  function preselectInsegnamenti() {
-    if (
-      !window.preselectedInsegnamenti ||
-      !window.preselectedInsegnamenti.length
-    )
-      return;
-
-    if (window.InsegnamentiManager) {
-      const selectedCodes = window.InsegnamentiManager.getSelectedCodes();
-      if (selectedCodes.length > 0) {
-        window.preselectedInsegnamenti = selectedCodes;
+              
+              // Sincronizza UI
+              const multiSelectBox = document.getElementById("insegnamentoBox");
+              if (multiSelectBox) {
+                window.InsegnamentiManager.syncTags(multiSelectBox, data);
+              }
+            }
+          })
+          .catch(error => console.error("Errore nel caricamento degli insegnamenti preselezionati:", error));
       }
     }
-
-    const options = document.querySelectorAll(".multi-select-option");
-    const multiSelectBox = document.getElementById("insegnamentoBox");
-    if (!multiSelectBox) return;
-
-    const placeholder = multiSelectBox.querySelector(
-      ".multi-select-placeholder"
-    );
-    if (placeholder && options.length > 0) {
-      placeholder.remove();
-    }
-
-    let preselectedCount = 0;
-
-    options.forEach((option) => {
-      if (window.preselectedInsegnamenti.includes(option.dataset.value)) {
-        const existingTag = Array.from(
-          multiSelectBox.querySelectorAll(".multi-select-tag")
-        ).find((tag) => tag.dataset.value === option.dataset.value);
-
-        if (!option.classList.contains("selected") && !existingTag) {
-          option.classList.add("selected");
-
-          const tag = document.createElement("div");
-          tag.className = "multi-select-tag";
-          tag.dataset.value = option.dataset.value;
-          tag.innerHTML =
-            option.textContent +
-            '<span class="multi-select-tag-remove">&times;</span>';
-
-          const removeHandler = createTagRemoveHandler(
-            tag,
-            option.dataset.value,
-            option
-          );
-          tag
-            .querySelector(".multi-select-tag-remove")
-            .addEventListener("click", removeHandler);
-
-          multiSelectBox.appendChild(tag);
-          preselectedCount++;
-        }
-      }
-    });
-
-    if (preselectedCount === 0 && window.preselectedInsegnamenti.length > 0) {
-      loadPreselectedFromServer(multiSelectBox);
-    } else if (preselectedCount > 0) {
-      updateHiddenSelect();
-    }
-  }
-
-  // Carica insegnamenti preselezionati dal server
-  function loadPreselectedFromServer(multiSelectBox) {
-    const username = document.getElementById("docente")?.value;
-    if (!username) return;
-
-    const insegnamentiCodes = window.preselectedInsegnamenti.join(",");
-    fetch(
-      `/api/ottieniInsegnamenti?username=${username}&codici=${insegnamentiCodes}`
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.length > 0) {
-          const placeholder = multiSelectBox.querySelector(
-            ".multi-select-placeholder"
-          );
-          if (placeholder) {
-            placeholder.remove();
-          }
-
-          data.forEach((ins) => {
-            createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
-          });
-
-          updateHiddenSelect();
-        }
-      })
-      .catch((error) =>
-        console.error(
-          "Errore nel caricamento degli insegnamenti preselezionati:",
-          error
-        )
-      );
-  }
-
-  // ------- Funzioni per la select multipla -------
-
-  // Inizializza la select multipla
-  function initMultiSelect() {
-    const multiSelectBox = document.getElementById("insegnamentoBox");
-    const multiSelectDropdown = document.getElementById("insegnamentoDropdown");
-
-    if (!multiSelectBox || !multiSelectDropdown) {
-      return;
-    }
-
-    multiSelectBox.addEventListener("click", function (e) {
-      e.stopPropagation();
-      const isActive = multiSelectDropdown.style.display === "block";
-
-      multiSelectDropdown.style.display = isActive ? "none" : "block";
-    });
-
-    document.addEventListener("click", function (e) {
-      if (
-        !multiSelectBox.contains(e.target) &&
-        !multiSelectDropdown.contains(e.target)
-      ) {
-        multiSelectDropdown.style.display = "none";
-        multiSelectBox.classList.remove("active");
-      }
-    });
-
-    multiSelectDropdown.addEventListener("click", function (e) {
-      e.stopPropagation();
-    });
-  }
-
-  // Toggle opzione nella select multipla
-  function toggleOption(option) {
-    const value = option.dataset.value;
-    const text = option.textContent;
-    const multiSelectBox = document.getElementById("insegnamentoBox");
-
-    const existingTag = Array.from(
-      multiSelectBox.querySelectorAll(".multi-select-tag")
-    ).find((tag) => tag.dataset.value === value);
-
-    if (option.classList.contains("selected") || existingTag) {
-      // Deseleziona
-      option.classList.remove("selected");
-
-      if (existingTag) {
-        existingTag.remove();
-      }
-
-      if (multiSelectBox.querySelectorAll(".multi-select-tag").length === 0) {
-        addPlaceholder(multiSelectBox);
-      }
-
-      if (window.InsegnamentiManager) {
-        window.InsegnamentiManager.deselectInsegnamento(value);
-      }
-    } else {
-      // Seleziona
-      option.classList.add("selected");
-
-      const placeholder = multiSelectBox.querySelector(
-        ".multi-select-placeholder"
-      );
-      if (placeholder) {
-        placeholder.remove();
-      }
-
-      if (!existingTag) {
-        createInsegnamentoTag(value, text, multiSelectBox);
-      }
-
-      if (window.InsegnamentiManager) {
-        const metadata = {
-          semestre: 1, // valore di default
-          anno_corso: 1, // valore di default
-        };
-
-        window.InsegnamentiManager.selectInsegnamento(value, metadata);
-      }
-    }
-
-    updateHiddenSelect();
-  }
-  // Crea tag per insegnamento
-  function createInsegnamentoTag(value, text, container) {
-    const tag = document.createElement("div");
-    tag.className = "multi-select-tag";
-    tag.dataset.value = value;
-    tag.innerHTML =
-      text + '<span class="multi-select-tag-remove">&times;</span>';
-
-    const option = document.querySelector(
-      `.multi-select-option[data-value="${value}"]`
-    );
-
-    tag
-      .querySelector(".multi-select-tag-remove")
-      .addEventListener("click", createTagRemoveHandler(tag, value, option));
-
-    container.appendChild(tag);
-
-    return tag;
-  }
-
-  // Crea handler per rimuovere un tag
-  function createTagRemoveHandler(tag, value, option) {
-    return function (e) {
-      e.stopPropagation();
-
-      tag.remove();
-
-      if (option) {
-        option.classList.remove("selected");
-      }
-
-      const multiSelectBox = document.getElementById("insegnamentoBox");
-      if (
-        multiSelectBox &&
-        multiSelectBox.querySelectorAll(".multi-select-tag").length === 0
-      ) {
-        addPlaceholder(multiSelectBox);
-      }
-
-      if (window.InsegnamentiManager) {
-        window.InsegnamentiManager.deselectInsegnamento(value);
-      }
-
-      updateHiddenSelect();
-    };
-  }
-
-  // Aggiunge placeholder alla select multipla
-  function addPlaceholder(container) {
-    const placeholder = document.createElement("span");
-    placeholder.className = "multi-select-placeholder";
-    placeholder.textContent = "Seleziona gli insegnamenti";
-    container.appendChild(placeholder);
-  }
-
-  // Configura rimozione tag esistenti
-  function setupExistingTagsRemoval() {
-    const multiSelectBox = document.getElementById("insegnamentoBox");
-    if (!multiSelectBox) return;
-
-    const existingTags = multiSelectBox.querySelectorAll(".multi-select-tag");
-    existingTags.forEach((tag) => {
-      const removeButton = tag.querySelector(".multi-select-tag-remove");
-      if (removeButton) {
-        const newRemoveButton = removeButton.cloneNode(true);
-        removeButton.parentNode.replaceChild(newRemoveButton, removeButton);
-
-        newRemoveButton.addEventListener("click", function (e) {
-          e.stopPropagation();
-
-          const value = tag.dataset.value;
-
-          tag.remove();
-
-          const option = document.querySelector(
-            `.multi-select-option[data-value="${value}"]`
-          );
-          if (option) {
-            option.classList.remove("selected");
-          }
-
-          if (
-            multiSelectBox.querySelectorAll(".multi-select-tag").length === 0
-          ) {
-            addPlaceholder(multiSelectBox);
-          }
-
-          if (window.InsegnamentiManager) {
-            window.InsegnamentiManager.deselectInsegnamento(value);
-          }
-
-          updateHiddenSelect();
-        });
-      }
-    });
   }
 
   // ------- Funzioni per gestire le aule -------
@@ -526,7 +258,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ------- Funzioni di utility -------
 
   // Imposta username in un campo
-  function setUsernameField(fieldId) {
+  function setUsernameField(fieldId, callback) {
     getUserData()
       .then((data) => {
         if (data && data.authenticated && data.user_data) {
@@ -534,6 +266,9 @@ document.addEventListener("DOMContentLoaded", () => {
           const field = document.getElementById(fieldId);
           if (field) {
             field.value = userData.username;
+            if (typeof callback === "function") {
+              callback(userData.username);
+            }
           }
         }
       })
@@ -557,7 +292,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!durataMinuti) return false;
 
     const durata = parseInt(durataMinuti, 10);
-    return durata >= 30 && durata <= 480; // Minimo 30 minuti, massimo 8 ore (480 minuti)
+    return durata >= 30 && durata <= 480;
   }
 
   // Handler submit form
@@ -607,13 +342,12 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (data.status === "validation") {
           mostraPopupConferma(data);
         } else {
-          window.preselectedInsegnamenti = [];
-
+          // Resetta selezioni usando InsegnamentiManager
           if (window.InsegnamentiManager) {
             window.InsegnamentiManager.clearSelection();
           }
 
-          // Forza aggiornamento del calendario con la nuova funzione semplificata
+          // Forza aggiornamento del calendario
           if (window.forceCalendarRefresh) {
             window.forceCalendarRefresh();
           }
@@ -870,9 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ------- Esportazione funzioni globali -------
 
   // Rendi le funzioni accessibili globalmente
-  window.toggleOption = toggleOption;
   window.aggiornaAuleDisponibili = aggiornaAuleDisponibili;
-  window.preselectInsegnamenti = preselectInsegnamenti;
 
   // Funzione per aggiornare le opzioni di verbalizzazione in base al checkbox di prova parziale
   function aggiornaVerbalizzazione() {

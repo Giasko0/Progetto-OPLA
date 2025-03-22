@@ -44,9 +44,57 @@ export function populateInsegnamentiDropdown(
   cdsFiltro = null,
   preloadedInsegnamenti = null
 ) {
-  // Verifica se il dropdown è già visibile, in caso affermativo lo nascondiamo e usciamo
-  // Questa logica è ora spostata nel chiamante per tutti i dropdown
+  // Se abbiamo InsegnamentiManager, utilizziamo quello
+  if (window.InsegnamentiManager && preloadedInsegnamenti) {
+    // Raggruppa gli insegnamenti per CDS
+    const insegnamentiPerCds = {};
+    
+    // Filtra per CdS se necessario
+    let insegnamenti = preloadedInsegnamenti;
+    if (cdsFiltro) {
+      insegnamenti = insegnamenti.filter(ins => ins.cds_codice === cdsFiltro);
+    }
 
+    // Organizza per CdS
+    insegnamenti.forEach((ins) => {
+      if (!insegnamentiPerCds[ins.cds_codice]) {
+        insegnamentiPerCds[ins.cds_codice] = {
+          nome: ins.cds_nome,
+          insegnamenti: [],
+        };
+      }
+      insegnamentiPerCds[ins.cds_codice].insegnamenti.push(ins);
+    });
+
+    // Costruisci HTML per il dropdown
+    let dropdownHTML = "";
+
+    // Genera HTML per ogni CdS
+    Object.keys(insegnamentiPerCds).forEach((cdsCodice) => {
+      const cds = insegnamentiPerCds[cdsCodice];
+      dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
+
+      cds.insegnamenti.forEach((ins) => {
+        const isSelected = window.InsegnamentiManager.isSelected(ins.codice);
+
+        dropdownHTML += `
+          <div class="dropdown-item dropdown-item-indented" data-codice="${ins.codice}" 
+               data-semestre="${ins.semestre}" data-anno-corso="${ins.anno_corso || ""}" 
+               data-cds="${ins.cds_codice}">
+            <input type="checkbox" id="ins-${ins.codice}" 
+                value="${ins.codice}"
+                ${isSelected ? "checked" : ""}>
+            <label for="ins-${ins.codice}">${ins.titolo}</label>
+          </div>
+        `;
+      });
+    });
+
+    dropdownInsegnamenti.innerHTML = dropdownHTML;
+    return;
+  }
+
+  // Implementazione di fallback per compatibilità con vecchio codice
   // Se abbiamo insegnamenti precaricati, li utilizziamo
   if (preloadedInsegnamenti) {
     processAndDisplayInsegnamenti(preloadedInsegnamenti);
@@ -135,6 +183,39 @@ export function fetchCalendarEvents(
     .find((row) => row.startsWith("username="))
     ?.split("=")[1];
 
+  // Utilizza InsegnamentiManager per generare i parametri
+  if (window.InsegnamentiManager) {
+    const params = window.InsegnamentiManager.getRequestParams(loggedDocente);
+    
+    // Aggiungi filtro CdS esplicito se fornito e non già impostato in InsegnamentiManager
+    if (cdsFiltro && cdsFiltro !== window.InsegnamentiManager.getCds()) {
+      params.set("cds", cdsFiltro);
+    }
+
+    // Richiesta API
+    fetch("/api/ottieniEsami?" + params.toString())
+      .then((response) => response.json())
+      .then((data) => {
+        if (successCallback) {
+          // Callback di FullCalendar
+          successCallback(data);
+        } else {
+          // Aggiornamento manuale
+          calendar.getEventSources().forEach((source) => source.remove());
+          calendar.addEventSource(data);
+        }
+      })
+      .catch((error) => {
+        console.error("Errore nel caricamento degli esami:", error);
+        if (successCallback) {
+          successCallback([]);
+        }
+      });
+    
+    return;
+  }
+
+  // Implementazione di fallback
   // Parametri base per API
   const params = new URLSearchParams();
   params.append("docente", loggedDocente);
@@ -183,43 +264,6 @@ export function fetchCalendarEvents(
     });
 }
 
-// Crea un tag visuale per un insegnamento selezionato
-export function createInsegnamentoTag(codice, titolo, container) {
-  // Crea elemento tag
-  const tag = document.createElement("div");
-  tag.className = "multi-select-tag";
-  tag.dataset.value = codice;
-  tag.innerHTML =
-    titolo + '<span class="multi-select-tag-remove">&times;</span>';
-
-  // Gestione rimozione
-  tag
-    .querySelector(".multi-select-tag-remove")
-    .addEventListener("click", function (e) {
-      e.stopPropagation();
-      tag.remove();
-
-      // Mostra placeholder se necessario
-      if (container.querySelectorAll(".multi-select-tag").length === 0) {
-        const placeholder = document.createElement("span");
-        placeholder.className = "multi-select-placeholder";
-        placeholder.textContent = "Seleziona gli insegnamenti";
-        container.appendChild(placeholder);
-      }
-
-      // Aggiorna InsegnamentiManager
-      if (window.InsegnamentiManager) {
-        window.InsegnamentiManager.deselectInsegnamento(codice);
-      }
-
-      // Aggiorna select nascosto
-      updateHiddenSelect(container);
-    });
-
-  container.appendChild(tag);
-  return tag;
-}
-
 // Carica le date valide direttamente dal backend
 export async function loadDateValide(docente, cds) {
   // Costruisce i parametri della richiesta
@@ -231,28 +275,4 @@ export async function loadDateValide(docente, cds) {
   // Ritorna una Promise
   const response = await fetch("/api/getDateValide?" + params.toString());
   return await response.json();
-}
-
-// Aggiorna la select nascosta con i valori dei tag
-export function updateHiddenSelect(
-  multiSelectBox,
-  hiddenSelectId = "insegnamento"
-) {
-  const hiddenSelect = document.getElementById(hiddenSelectId);
-  if (hiddenSelect && multiSelectBox) {
-    // Rimuovi opzioni esistenti
-    while (hiddenSelect.options.length > 0) {
-      hiddenSelect.remove(0);
-    }
-
-    // Aggiungi opzioni dai tag
-    const tags = multiSelectBox.querySelectorAll(".multi-select-tag");
-    tags.forEach((tag) => {
-      const option = document.createElement("option");
-      option.value = tag.dataset.value;
-      option.textContent = tag.textContent.replace("×", "").trim();
-      option.selected = true;
-      hiddenSelect.appendChild(option);
-    });
-  }
 }
