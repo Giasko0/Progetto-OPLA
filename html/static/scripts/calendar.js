@@ -586,27 +586,6 @@ document.addEventListener("DOMContentLoaded", function () {
           });
       });
 
-      // Funzione helper per aggiornare il calendario con nuove date
-      function updateCalendarWithDates(calendar, dates) {
-        calendar.setOption("dayCellClassNames", function (arg) {
-          const dataCorrente = arg.date;
-
-          // Verifica data in sessione
-          const dataValida = dates.some(([start, end]) => {
-            const startDate = new Date(start);
-            startDate.setHours(0, 0, 0, 0);
-
-            const endDate = new Date(end);
-            endDate.setHours(23, 59, 59, 999);
-
-            return dataCorrente >= startDate && dataCorrente <= endDate;
-          });
-
-          // Applica classe per date non valide
-          return dataValida ? [] : ["fc-disabled-day"];
-        });
-      }
-
       // Funzione helper per aggiornare il dropdown delle sessioni
       function updateSessioniDropdown(dropdown, dates) {
         if (dropdown) {

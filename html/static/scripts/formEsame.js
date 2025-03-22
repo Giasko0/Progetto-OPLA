@@ -307,22 +307,6 @@ document.addEventListener("DOMContentLoaded", () => {
     updateHiddenSelect();
   }
   
-  // Crea tag per insegnamento
-  function createInsegnamentoTag(value, text, container) {
-    const tag = document.createElement('div');
-    tag.className = 'multi-select-tag';
-    tag.dataset.value = value;
-    tag.innerHTML = text + '<span class="multi-select-tag-remove">&times;</span>';
-    
-    const option = document.querySelector(`.multi-select-option[data-value="${value}"]`);
-    
-    tag.querySelector('.multi-select-tag-remove').addEventListener('click', createTagRemoveHandler(tag, value, option));
-    
-    container.appendChild(tag);
-    
-    return tag;
-  }
-  
   // Crea handler per rimuovere un tag
   function createTagRemoveHandler(tag, value, option) {
     return function(e) {
@@ -393,26 +377,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   
-  // Aggiorna la select nascosta
-  function updateHiddenSelect() {
-    const hiddenSelect = document.getElementById('insegnamento');
-    if (!hiddenSelect) return;
-    
-    const tags = document.querySelectorAll('.multi-select-tag');
-    
-    while (hiddenSelect.options.length > 0) {
-      hiddenSelect.remove(0);
-    }
-    
-    tags.forEach(tag => {
-      const option = document.createElement('option');
-      option.value = tag.dataset.value;
-      option.textContent = tag.textContent.replace('×', '').trim();
-      option.selected = true;
-      hiddenSelect.appendChild(option);
-    });
-  }
-
   // ------- Funzioni per gestire le aule -------
   
   // Popola select con aule predefinite
@@ -785,9 +749,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ------- Esportazione funzioni globali -------
   
   // Rendi le funzioni accessibili globalmente
-  window.updateHiddenSelect = updateHiddenSelect;
   window.toggleOption = toggleOption;
-  window.createInsegnamentoTag = createInsegnamentoTag;
   window.aggiornaAuleDisponibili = aggiornaAuleDisponibili;
   window.preselectInsegnamenti = preselectInsegnamenti;
   

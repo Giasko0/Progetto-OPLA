@@ -326,6 +326,7 @@ body {
 
 .fc-daygrid-day {
   background-color: var(--color-bg-light);
+  cursor: pointer;
 }
 
 .fc-header-cell {
@@ -895,7 +896,6 @@ body {
 .alert-close:hover, .notification-close:hover {
   color: var(--color-text);
   background-color: var(--color-bg);
-  opacity: 0.2;
 }
 
 @keyframes fadeIn {

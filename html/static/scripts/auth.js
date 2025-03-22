@@ -134,9 +134,16 @@ function updatePageTitle() {
             titolo.textContent = `I miei esami`;
           }
         } else if (currentPage === 'calendario.html') {
-          const nomeCompleto = userData.nome && userData.cognome ? 
-            `${userData.nome} ${userData.cognome}` : userData.username;
-          titolo.textContent = `Benvenuto/a, ${nomeCompleto}!`;
+          let nomeFormattato = userData.username;
+          
+          if (userData.nome && userData.cognome) {
+            // Capitalizza solo la prima lettera di nome e cognome
+            const nome = userData.nome.charAt(0).toUpperCase() + userData.nome.slice(1).toLowerCase();
+            const cognome = userData.cognome.charAt(0).toUpperCase() + userData.cognome.slice(1).toLowerCase();
+            nomeFormattato = `${nome} ${cognome}`;
+          }
+          
+          titolo.textContent = `Benvenuto/a, ${nomeFormattato}!`;
         }
       }
     }

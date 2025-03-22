@@ -76,8 +76,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data.authenticated && data.user_data) {
           // Utente autenticato
           link.href = "/api/logout";
-          link.innerHTML = `${data.user_data.nome || ''} ${data.user_data.cognome || ''} - Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
-          if (!data.user_data.nome && !data.user_data.cognome) {
+          
+          // Capitalizza nome e cognome se esistono
+          const nome = data.user_data.nome ? data.user_data.nome.charAt(0).toUpperCase() + data.user_data.nome.slice(1).toLowerCase() : '';
+          const cognome = data.user_data.cognome ? data.user_data.cognome.charAt(0).toUpperCase() + data.user_data.cognome.slice(1).toLowerCase() : '';
+          
+          if (data.user_data.nome || data.user_data.cognome) {
+            link.innerHTML = `${nome} ${cognome} - Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
+          } else {
             link.innerHTML = `Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
           }
         } else {
@@ -90,49 +96,6 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(error => {
         console.error('Errore nel controllo dell\'autenticazione:', error);
-        
-        // Fallback al vecchio sistema in caso di errore
-        const username = getCookie('username');
-        
-        // Aggiungi i link standard alla navbar
-        const calendarLink = document.createElement('a');
-        calendarLink.textContent = 'Calendario';
-        
-        const examsLink = document.createElement('a');
-        examsLink.textContent = 'I miei esami';
-        
-        if (username) {
-          calendarLink.href = 'calendario.html';
-          examsLink.href = 'mieiEsami.html';
-        } else {
-          calendarLink.href = `login.html?redirect=${encodeURIComponent('/calendario.html')}`;
-          examsLink.href = `login.html?redirect=${encodeURIComponent('/mieiEsami.html')}`;
-        }
-        
-        navlinksDiv.appendChild(calendarLink);
-        navlinksDiv.appendChild(examsLink);
-        
-        // Se l'utente è un admin, aggiungi il pulsante OH-ISSA
-        if (isAdmin) {
-          const ohIssaLink = document.createElement('a');
-          ohIssaLink.href = "/oh-issa/index.html";
-          ohIssaLink.innerHTML = "OH-ISSA <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>admin_panel_settings</span>";
-          navlinksDiv.appendChild(ohIssaLink);
-        }
-        
-        // Link login/logout basato sul cookie
-        const link = document.createElement('a');
-        link.className = 'nav-link';
-        
-        if (username) {
-          link.href = "/api/logout";
-          link.innerHTML = "Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>";
-        } else {
-          link.href = "login.html";
-          link.innerHTML = "Accedi <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>login</span>";
-        }
-        
-        navlinksDiv.appendChild(link);
       });
     
     // Chiudi il menu quando si clicca su un link (solo su mobile)
