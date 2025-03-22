@@ -63,25 +63,6 @@ def get_all_sessions_for_cds(cds_code, anno_acc):
                 'nome': format_session_name(tipo_periodo.lower())
             })
         
-        # Verifica se aggiungere la sessione anticipata (sessione invernale dell'anno precedente)
-        if not any(s['tipo'] == 'anticipata' for s in sessions):
-            cursor.execute("""
-                SELECT inizio, fine, max_esami
-                FROM periodi_esame
-                WHERE cds = %s AND anno_accademico = %s AND tipo_periodo = 'INVERNALE'
-            """, (cds_code, anno_acc - 1))
-            
-            anticipata = cursor.fetchone()
-            if anticipata:
-                inizio, fine, max_esami = anticipata
-                sessions.append({
-                    'tipo': 'anticipata',
-                    'inizio': inizio,
-                    'fine': fine,
-                    'max_esami': max_esami,
-                    'nome': format_session_name('anticipata')
-                })
-        
         return sessions
             
     except Exception as e:

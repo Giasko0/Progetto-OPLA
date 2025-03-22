@@ -395,12 +395,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Colori differenziati
           const eventColor =
-            info.event.extendedProps.docente === loggedDocente
-              ? "#0A58CA" // blu: propri esami
+            info.event.extendedProps.docente === loggedDocente || 
+            info.event.extendedProps.insegnamentoDocente
+              ? "#0A58CA" // blu: propri esami o esami di propri insegnamenti
               : "#FFD700"; // giallo: altri esami
 
           const textColor =
-            info.event.extendedProps.docente === loggedDocente
+            info.event.extendedProps.docente === loggedDocente || 
+            info.event.extendedProps.insegnamentoDocente
               ? "white" // testo bianco
               : "black"; // testo nero
 

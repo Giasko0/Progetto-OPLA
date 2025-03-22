@@ -45,6 +45,7 @@ def upload_ugov():
       'anno_reg_did': 11,         # L
       'cod_cds': 6,               # G
       'des_cds': 8,               # I
+      'des_curriculum': 13,       # N
       'cod_insegnamento': 15,     # P
       'des_insegnamento': 16,     # Q
       'cod_unita_didattica': 28,  # AC
@@ -67,6 +68,7 @@ def upload_ugov():
         'ANNO REGOLAMENTO DIDATTICO': 'anno_reg_did',
         'COD. CORSO DI STUDIO': 'cod_cds',
         'DES. CORSO DI STUDIO': 'des_cds',
+        'DES. CURRICULUM': 'des_curriculum',
         'COD. INSEGNAMENTO': 'cod_insegnamento',
         'DES. INSEGNAMENTO': 'des_insegnamento',
         'COD. UNITÀ DIDATTICA': 'cod_unita_didattica',
@@ -135,6 +137,7 @@ def upload_ugov():
         
         cod_cds = str(sheet.cell_value(row_idx, colonna_indices['cod_cds'])).strip()
         des_cds = str(sheet.cell_value(row_idx, colonna_indices['des_cds'])).strip()
+        des_curriculum = str(sheet.cell_value(row_idx, colonna_indices['des_curriculum'])).strip()
         
         # Usa cod_unita_didattica se disponibile, altrimenti cod_insegnamento
         cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_unita_didattica'])).strip()
@@ -172,9 +175,9 @@ def upload_ugov():
           insegnamenti_set.add(cod_insegnamento)
         
         # Aggiungi CdS se non già presente
-        cds_key = (cod_cds, anno_accademico)
+        cds_key = (cod_cds, anno_accademico, des_curriculum)
         if cds_key not in cds_set:
-          cds_data.append((cod_cds, anno_accademico, des_cds))
+          cds_data.append((cod_cds, anno_accademico, des_cds, des_curriculum))
           cds_set.add(cds_key)
         
         # Aggiungi insegnamento_cds
@@ -203,8 +206,8 @@ def upload_ugov():
     for item in cds_data:
       try:
         cursor.execute("""
-          INSERT INTO cds (codice, anno_accademico, nome_corso)
-          VALUES (%s, %s, %s)
+          INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum)
+          VALUES (%s, %s, %s, %s)
           ON CONFLICT (codice, anno_accademico) DO UPDATE 
           SET nome_corso = EXCLUDED.nome_corso
         """, item)

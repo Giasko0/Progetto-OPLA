@@ -141,7 +141,7 @@ export function fetchCalendarEvents(
   // Parametri base per API
   const params = new URLSearchParams();
   params.append("docente", loggedDocente);
-  params.append("anno", planningYear);
+  //params.append("anno", planningYear); (remove)
 
   // Usa InsegnamentiManager per filtraggi
   if (window.InsegnamentiManager) {

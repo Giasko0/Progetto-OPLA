@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, session
 from db import get_db_connection, release_connection
 from datetime import datetime
 from auth import get_user_data
+from psycopg2.extras import DictCursor
 
 fetch_bp = Blueprint('fetch', __name__)
 
@@ -147,118 +148,83 @@ def ottieniAule():
 # API per ottenere tutti gli esami. Usato per gli eventi del calendario
 @fetch_bp.route('/api/ottieniEsami', methods=['GET'])
 def getEsami():
-    # Parametri di input
-    show_all = request.args.get('all', 'false').lower() == 'true'
-    anno = request.args.get('anno')
-    insegnamenti = [ins for ins in request.args.get('insegnamenti', '').split(',') if ins]
-    docente = request.args.get('docente')
-    solo_docente = request.args.get('solo_docente', 'false').lower() == 'true'
-    
-    # Parametri aggiuntivi per il filtraggio
-    anni_corso_filtro = request.args.get('anni_corso')
-    semestri_filtro = request.args.get('semestri')
-    cds_filtro = request.args.get('cds')
-    
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
-        current_date = datetime.now()
-        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
-
-        if show_all:
-            # Query per mostrare tutti gli esami (debug mode)
-            query = """
-                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
-                    d.username, d.nome, d.cognome, i.titolo, e.aula, 
-                    e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
-                    e.periodo, ic.semestre, ic.anno_accademico
-                FROM esami e
-                JOIN utenti d ON e.docente = d.username
-                JOIN insegnamenti i ON e.insegnamento = i.codice
-                JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
-                WHERE ic.anno_accademico = %s
-                ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello
-            """
-            cursor.execute(query, (planning_year,))
+        cursor = conn.cursor(cursor_factory=DictCursor)
         
-        elif solo_docente or not insegnamenti:
-            # Query per mostrare solo gli esami del docente loggato
-            query = """
-                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
-                    d.username, d.nome, d.cognome, i.titolo, e.aula, 
-                    e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
-                    e.periodo, ic.semestre, ic.anno_accademico
-                FROM esami e
-                JOIN utenti d ON e.docente = d.username
-                JOIN insegnamenti i ON e.insegnamento = i.codice
-                JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
-                    AND ic.anno_accademico = %s
-                JOIN insegnamento_docente id ON e.insegnamento = id.insegnamento 
-                    AND id.annoaccademico = ic.anno_accademico
-                WHERE e.docente = %s
-            """
-            params = [planning_year, docente]
-            
-            if anno:
-                query += " AND id.annoaccademico = %s"
-                params.append(int(anno))
-                
-            query += " ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello"
-            cursor.execute(query, tuple(params))
-            
-        else:
-            # Query per mostrare gli esami filtrati per anno/semestre/cds degli insegnamenti selezionati
-            query = """
-                WITH parametri_selezionati AS (
-                    -- Ottieni tutte le combinazioni anno_corso/semestre/cds degli insegnamenti selezionati
-                    SELECT DISTINCT ic.anno_corso, ic.semestre, ic.cds
-                    FROM insegnamenti_cds ic
-                    WHERE ic.anno_accademico = %s
-                    AND ic.insegnamento IN ({})
-                )
-                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
-                    d.username, d.nome, d.cognome, i.titolo, e.aula, 
-                    e.data_appello, e.ora_appello, e.tipo_esame, ic.anno_corso, 
-                    e.periodo, ic.semestre, ic.anno_accademico
-                FROM esami e
-                JOIN utenti d ON e.docente = d.username
-                JOIN insegnamenti i ON e.insegnamento = i.codice
-                JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
-                    AND ic.anno_accademico = %s
-                -- JOIN con le combinazioni di anno/semestre/cds degli insegnamenti selezionati
-                JOIN parametri_selezionati ps ON ic.anno_corso = ps.anno_corso 
-                    AND ic.semestre = ps.semestre
-                    AND ic.cds = ps.cds
-                JOIN insegnamento_docente id ON e.insegnamento = id.insegnamento 
-                    AND id.annoaccademico = ic.anno_accademico
-                WHERE 1=1
-            """.format(','.join(['%s'] * len(insegnamenti)))
-            
-            params = [planning_year] + insegnamenti + [planning_year]
-            
-            # Aggiungi filtri aggiuntivi se specificati
-            if anno:
-                query += " AND id.annoaccademico = %s"
-                params.append(int(anno))
-                
-            query += " ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello"
-            cursor.execute(query, tuple(params))
+        docente = request.args.get('docente', None)
+        anno = request.args.get('anno', None)
+        insegnamenti = request.args.get('insegnamenti', None)
+        cds = request.args.get('cds', None)
+        solo_docente = request.args.get('solo_docente', 'false').lower() == 'true'
+        
+        if not docente:
+            return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
 
+        # Ottieni gli insegnamenti del docente per l'anno accademico corrente
+        cursor.execute("""
+            SELECT insegnamento 
+            FROM insegnamento_docente 
+            WHERE docente = %s 
+            AND annoaccademico = date_part('year', CURRENT_DATE) - 
+                CASE WHEN date_part('month', CURRENT_DATE) >= 9 THEN 0 ELSE 1 END
+        """, (docente,))
+        
+        insegnamenti_docente = [row[0] for row in cursor.fetchall()]
+        
+        # Costruisci la query di base
+        query = """
+            SELECT e.id, e.descrizione, e.docente, 
+                   concat(u.nome, ' ', u.cognome) as docente_nome,
+                   e.insegnamento, i.titolo as insegnamento_titolo,
+                   e.aula, e.data_appello, e.ora_appello, e.durata_appello
+            FROM esami e
+            JOIN utenti u ON e.docente = u.username
+            JOIN insegnamenti i ON e.insegnamento = i.codice
+            WHERE 1=1
+        """
+        
+        params = []
+        
+        # Aggiungi filtri opzionali
+        if anno:
+            query += " AND EXTRACT(YEAR FROM e.data_appello) = %s"
+            params.append(int(anno))
+        
+        if insegnamenti:
+            insegnamenti_list = insegnamenti.split(',')
+            query += " AND e.insegnamento IN ({})".format(','.join(['%s'] * len(insegnamenti_list)))
+            params.extend(insegnamenti_list)
+        
+        if cds:
+            query += " AND e.insegnamento IN (SELECT insegnamento FROM insegnamenti_cds WHERE cds = %s)"
+            params.append(cds)
+        
+        if solo_docente:
+            query += " AND e.docente = %s"
+            params.append(docente)
+        
+        query += " ORDER BY e.data_appello, e.ora_appello"
+        
+        cursor.execute(query, tuple(params))
+        
         # Formattazione dei risultati
-        exams = [{
-            'id': idx,
-            'title': row[3],
-            'aula': row[4],
-            'start': f"{row[5].isoformat()}T{row[6]}" if row[6] else row[5].isoformat(),
-            'description': f"Tipo: {row[7] or 'Non specificato'}\nAula: {row[4]}\nAnno: {row[8]}\nPeriodo: {'Mattina' if row[9] == 0 else 'Pomeriggio'}",
-            'allDay': False,
-            'docente': row[0],
-            'docenteNome': f"{row[1]} {row[2]}",  # Nome completo del docente
-            'periodo': row[9],
-            'annoCorso': row[8],
-            'semestre': row[10],
-            'annoAccademico': row[11]
-        } for idx, row in enumerate(cursor.fetchall())]
+        exams = []
+        for row in cursor.fetchall():
+            # Controlla se l'esame è di un insegnamento del docente
+            esame_del_docente = row['insegnamento'] in insegnamenti_docente
+            
+            exams.append({
+                'id': row['id'],
+                'title': row['insegnamento_titolo'],
+                'aula': row['aula'],
+                'start': f"{row['data_appello'].isoformat()}T{row['ora_appello']}" if row['ora_appello'] else row['data_appello'].isoformat(),
+                'description': row['descrizione'],
+                'allDay': False,
+                'docente': row['docente'],
+                'docenteNome': row['docente_nome'],
+                'insegnamentoDocente': esame_del_docente
+            })
         
         return jsonify(exams)
         
@@ -377,123 +343,6 @@ def miei_esami():
             release_connection(conn)
 
 # API per ottenere le date delle sessioni d'esame
-@fetch_bp.route('/api/ottieniSessioni', methods=['GET'])
-def ottieniSessioni():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        current_date = datetime.now()
-        anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
-        
-        # Ottieni il CDS specificato o il primo disponibile
-        cds_code = request.args.get('cds')
-        if not cds_code:
-            cursor.execute("SELECT codice FROM cds WHERE anno_accademico = %s LIMIT 1", (anno_accademico,))
-            result = cursor.fetchone()
-            if result:
-                cds_code = result[0]
-            else:
-                return jsonify({'error': 'Nessun corso di studi trovato'}), 404
-
-        # Ottieni i periodi d'esame usando la funzione centralizzata
-        from utils.sessions import get_all_sessions_for_cds
-        sessions = get_all_sessions_for_cds(cds_code, anno_accademico)
-        
-        if not sessions:
-            return jsonify({'error': 'Nessuna sessione trovata per il corso di studi selezionato'}), 404
-        
-        # Costruisci il risultato
-        result = {}
-        for session in sessions:
-            result[session['tipo']] = {
-                'start': session['inizio'].isoformat(),
-                'end': session['fine'].isoformat(),
-                'max_esami': session['max_esami'],
-                'nome': session['nome']
-            }
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            release_connection(conn)
-
-# API per ottenere le sessioni d'esame specifiche per un corso di studio
-@fetch_bp.route('/api/ottieniSessioniCds', methods=['GET'])
-def ottieniSessioniCds():
-    cds = request.args.get('cds')
-    anno = request.args.get('anno')
-    
-    if not cds or not anno:
-        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
-        
-    try:
-        # Usa la funzione centralizzata
-        from utils.sessions import get_all_sessions_for_cds
-        sessions = get_all_sessions_for_cds(cds, int(anno))
-        
-        if not sessions:
-            return jsonify({'error': 'Nessuna sessione trovata per il corso di studi selezionato'}), 404
-        
-        # Costruisci il risultato
-        result = {}
-        for session in sessions:
-            result[session['tipo']] = {
-                'start': session['inizio'].isoformat(),
-                'end': session['fine'].isoformat(),
-                'max_esami': session['max_esami'],
-                'nome': session['nome']
-            }
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            release_connection(conn)
-
-# API per ottenere l'intersezione delle sessioni d'esame di tutti i CdS di un docente
-@fetch_bp.route('/api/ottieniIntersessioniCds', methods=['GET'])
-def ottieniIntersessioniCds():
-    docente = request.args.get('docente')
-    anno = request.args.get('anno')
-    
-    if not docente or not anno:
-        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
-        
-    try:
-        from utils.sessions import get_session_intersection_for_docente
-        
-        # Usa la funzione centralizzata per calcolare le intersezioni
-        sessions = get_session_intersection_for_docente(docente, int(anno))
-        
-        # Costruisci il risultato
-        result = {}
-        for session in sessions:
-            result[session['tipo']] = {
-                'start': session['inizio'].isoformat(),
-                'end': session['fine'].isoformat(),
-                'max_esami': session['max_esami'],
-                'nome': session['nome']
-            }
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            release_connection(conn)
-
-# Nuovo endpoint che fornisce date valide già formattate per il calendario
 @fetch_bp.route('/api/getDateValide', methods=['GET'])
 def getDateValide():
     docente = request.args.get('docente')
@@ -545,11 +394,11 @@ def getDateValide():
         # Ordina le date secondo la logica di ordinamento delle sessioni
         ordine_sessioni = {
             'anticipata': 1,
-            'pausa_autunnale': 2,
-            'estiva': 3,
-            'autunnale': 4, 
-            'pausa_primaverile': 5,
-            'invernale': 6
+            'estiva': 2,
+            'autunnale': 3, 
+            'pausa_autunnale': 4,
+            'invernale': 5,
+            'pausa_primaverile': 6
         }
         
         date_valide.sort(key=lambda x: ordine_sessioni.get(x[3], 99))

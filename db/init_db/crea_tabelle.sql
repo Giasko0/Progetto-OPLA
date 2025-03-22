@@ -7,7 +7,6 @@ DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
 DROP TABLE IF EXISTS utenti CASCADE;
 DROP TABLE IF EXISTS insegnamento_docente CASCADE;
 DROP TABLE IF EXISTS esami CASCADE;
-DROP TABLE IF EXISTS eventi CASCADE;
 
 -- Creazione della tabella 'aule'
 CREATE TABLE aule (
@@ -20,16 +19,18 @@ CREATE TABLE aule (
 
 -- Creazione della tabella 'cds'
 CREATE TABLE cds (
-    codice TEXT NOT NULL,                         -- Codice del corso di studio (L062)
-    anno_accademico INT NOT NULL,                 -- Anno accademico (2025 per 2025/2026)
-    nome_corso TEXT NOT NULL,            -- Nome del corso di studio (Informatica Triennale) (NOT NULL)
+    codice TEXT NOT NULL,                -- Codice del corso di studio (L062)
+    anno_accademico INT NOT NULL,        -- Anno accademico (2025 per 2025/2026)
+    nome_corso TEXT NOT NULL,            -- Nome del corso di studio (INFORMATICA) (NOT NULL)
+    curriculum TEXT,                     -- Curriculum del corso di studio (CYBERSECURITY)
     inizio_lezioni_primo_semestre DATE,  -- Inizio lezioni primo semestre
     fine_lezioni_primo_semestre DATE,    -- Fine lezioni primo semestre
     inizio_lezioni_secondo_semestre DATE,-- Inizio lezioni secondo semestre
     fine_lezioni_secondo_semestre DATE,  -- Fine lezioni secondo semestre
-    PRIMARY KEY (codice, anno_accademico),
+    PRIMARY KEY (codice, anno_accademico), -- aggiungere curriculum tra le chiavi
     CONSTRAINT check_anno_accademico CHECK (anno_accademico >= 1900 AND anno_accademico <= 2100)
 );
+
 -- Creazione della tabella "periodi_esame"
 CREATE TABLE periodi_esame (
     cds TEXT,
@@ -46,8 +47,12 @@ CREATE TABLE periodi_esame (
     ))
 );
 
+INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum, inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre, inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre) VALUES
+('L062', 2023, 'INFORMATICA', 'CYBERSECURITY', '2023-10-01', '2023-12-20', '2023-02-01', '2023-05-31'),
+('L062', 2024, 'INFORMATICA', 'CYBERSECURITY', '2024-10-01', '2024-12-20', '2025-02-01', '2025-05-31');
 INSERT INTO periodi_esame (cds, anno_accademico, tipo_periodo, inizio, fine, max_esami) VALUES
-('L062', 2024, 'ANTICIPATA', '2025-01-07', '2024-02-22', 3),
+('L062', 2023, 'INVERNALE', '2025-01-07', '2025-02-22', 3),
+('L062', 2024, 'ANTICIPATA', '2025-01-07', '2025-02-22', 3),
 ('L062', 2024, 'ESTIVA', '2025-06-10', '2025-07-25', 3),
 ('L062', 2024, 'AUTUNNALE', '2025-09-01', '2025-9-30', 2),
 ('L062', 2024, 'INVERNALE', '2026-01-10', '2026-02-25', 3),
@@ -68,6 +73,7 @@ CREATE TABLE insegnamenti_cds (
     anno_corso INT NOT NULL,    -- Anno del cds (1, 2 o 3 per triennale)
     semestre INT NOT NULL,      -- Semestre (1, 2 o 3 per annuale)
     mutuato_da TEXT,            -- Codice dell'insegnamento da cui è mutuato
+    num_unita_did INT,
     PRIMARY KEY (insegnamento, anno_accademico, cds),
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(codice) ON DELETE CASCADE,
     FOREIGN KEY (cds, anno_accademico) REFERENCES cds(codice, anno_accademico) ON DELETE CASCADE,
@@ -128,16 +134,6 @@ CREATE TABLE esami (
         AND data_fine_iscrizione <= data_appello
     ),
     CONSTRAINT check_posti CHECK (posti > 0)
-);
-
--- Creazione della tabella 'eventi' (Importati da EasyAcademy)
-CREATE TABLE eventi (
-  id SERIAL PRIMARY KEY,
-  aula VARCHAR(255) NOT NULL,
-  data_evento DATE NOT NULL,
-  ora_inizio TIME NOT NULL,
-  ora_fine TIME NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Creazione degli indici per velocizzare le query (forse sono troppi, levarne qualcuno se necessario)
