@@ -78,7 +78,7 @@ def inserisciEsame():
 
 @app.route('/api/confermaEsami', methods=['POST'])
 def confermaEsami():
-  """API per inserire gli esami selezionati dall'utente"""
+  # API per inserire gli esami selezionati dall'utente
   conn = None
   try:
     # Parse JSON della richiesta
@@ -210,11 +210,22 @@ def esamiMinimi():
                 risultati.append({
                     'codice': codice,
                     'titolo': titolo,
-                    'esami_inseriti': count
+                    'esami_inseriti': count,
+                    'esami_mancanti': 8 - count
                 })
+        
+        # Creiamo un messaggio descrittivo per la risposta
+        message = "Tutti gli insegnamenti hanno il numero minimo di esami."
+        if risultati:
+            if len(risultati) == 1:
+                ins = risultati[0]
+                message = f"L'insegnamento {ins['titolo']} ({ins['codice']}) ha solo {ins['esami_inseriti']} esami inseriti su 8 richiesti."
+            else:
+                message = f"Ci sono {len(risultati)} insegnamenti che non hanno il numero minimo di 8 esami."
         
         return jsonify({
             'status': 'success',
+            'message': message,
             'insegnamenti_sotto_minimo': risultati
         }), 200
 

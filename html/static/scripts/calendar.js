@@ -254,12 +254,12 @@ document.addEventListener("DOMContentLoaded", function () {
                         document.getElementById('popupOverlay').style.display = 'flex';
                       });
                   } else {
-                    showNotification("Effettua il login per inserire un esame", "Informazione");
+                    showMessage("Effettua il login per inserire un esame", "Informazione", "notification");
                   }
                 })
                 .catch((error) => {
                   console.error("Errore nella verifica dell'autenticazione:", error);
-                  showNotification("Devi essere loggato per inserire un esame.", "Errore");
+                  showMessage("Devi essere loggato per inserire un esame.", "Errore", "error");
                 });
             }
           },
@@ -354,9 +354,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Blocca date fuori sessione
           if (!dataValida) {
-            showNotification(
+            showMessage(
               "Non è possibile inserire esami al di fuori delle sessioni o delle pause didattiche",
-              "Informazione"
+              "Informazione",
+              "notification"
             );
             return;
           }
@@ -378,7 +379,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     document.getElementById('popupOverlay').style.display = 'flex';
                   });
               } else {
-                showNotification("Effettua il login per inserire un esame", "Informazione");
+                showMessage("Effettua il login per inserire un esame", "Informazione", "notification");
               }
             })
             .catch((error) => {
@@ -386,7 +387,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "Errore nella verifica dell'autenticazione:",
                 error
               );
-              showNotification("Devi essere loggato per inserire un esame.", "Errore");
+              showMessage("Devi essere loggato per inserire un esame.", "Errore", "error");
             });
         },
 
@@ -786,35 +787,3 @@ document.addEventListener("DOMContentLoaded", function () {
   // Inizializza handler
   setupCloseHandlers();
 });
-
-// Modifica il gestore di eventi per usare la sidebar invece dei popup
-function handleCalendarEvents() {
-  // ...existing code...
-  
-  // Modifica la gestione degli errori per usare la sidebar
-  fetch('/api/checkPermissions')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Errore nella verifica dei permessi');
-      }
-      return response.json();
-    })
-    .then(data => {
-      if (!data.canInsertExams) {
-        // Al posto di showAlert, usa showNotification
-        showNotification("Non hai i permessi per inserire esami. Contatta l'amministratore.", "Informazione");
-        return;
-      }
-      
-      // ...existing code...
-    })
-    .catch(error => {
-      console.error('Errore:', error);
-      showNotification("Si è verificato un errore. Riprova più tardi.", "Errore di sistema");
-    });
-}
-
-// Sostituisci le chiamate di alert in tutto il file
-// Esempio: 
-// Da: alert("Messaggio di errore");
-// A: showNotification("Messaggio di errore", "Errore");

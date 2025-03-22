@@ -528,19 +528,19 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const oraAppello = document.getElementById('ora')?.value;
     if (!validaOraAppello(oraAppello)) {
-      showPopup("L'ora dell'appello deve essere compresa tra le 08:00 e le 23:00", "Errore di validazione", {type: 'error'});
+      window.showMessage("L'ora dell'appello deve essere compresa tra le 08:00 e le 23:00", "Errore di validazione", 'error');
       return;
     }
     
     const aulaSelezionata = document.getElementById('aula')?.value;
     if (!aulaSelezionata) {
-      showPopup("Seleziona un'aula disponibile", "Errore di validazione", {type: 'error'});
+      window.showMessage("Seleziona un'aula disponibile", "Errore di validazione", 'error');
       return;
     }
 
     const durataEsame = document.getElementById('durata')?.value;
     if (!validaDurataEsame(durataEsame)) {
-      showPopup("La durata dell'esame deve essere di almeno 30 minuti e non superiore a 480 minuti (8 ore)", "Errore di validazione", {type: 'error'});
+      window.showMessage("La durata dell'esame deve essere di almeno 30 minuti e non superiore a 480 minuti (8 ore)", "Errore di validazione", 'error');
       return;
     }
     
@@ -553,7 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((response) => response.json())
       .then((data) => {
         if (data.status === "error") {
-          showPopup(data.message, "Errore", {type: 'error'});
+          window.showMessage(data.message, "Errore", 'error');
         } else if (data.status === "validation") {
           mostraPopupConferma(data);
         } else {
@@ -568,15 +568,13 @@ document.addEventListener("DOMContentLoaded", () => {
             window.forceCalendarRefresh();
           }
           
-          showPopup(data.message || "Esami inseriti con successo", "Operazione completata", {
-            type: 'success',
-          });
+          window.showMessage(data.message || "Esami inseriti con successo", "Operazione completata", 'notification');
           document.getElementById("popupOverlay").style.display = 'none';
         }
       })
       .catch((error) => {
         console.error("Error:", error);
-        showPopup("Si è verificato un errore durante l'inserimento dell'esame", "Errore", {type: 'error'});
+        window.showMessage("Si è verificato un errore durante l'inserimento dell'esame", "Errore", 'error');
       });
   }
 
@@ -634,10 +632,10 @@ document.addEventListener("DOMContentLoaded", () => {
           <table style="width: 100%; border-collapse: collapse;">
             <thead>
               <tr>
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd; background-color: #f2f2f2;">
+                <th>
                   <input type="checkbox" id="selectAllExams" checked> Seleziona tutti
                 </th>
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd; background-color: #f2f2f2;">Insegnamento</th>
+                <th>Insegnamento</th>
               </tr>
             </thead>
             <tbody>
@@ -718,7 +716,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // Se non ci sono esami selezionati, mostra un messaggio e non fare nulla
         if (esamiSelezionati.length === 0) {
-          showPopup('Seleziona almeno un esame da inserire', 'Attenzione', {type: 'warning'});
+          window.showMessage('Seleziona almeno un esame da inserire', 'Attenzione', 'warning');
           return;
         }
         
@@ -755,24 +753,30 @@ document.addEventListener("DOMContentLoaded", () => {
               window.forceCalendarRefresh();
             }
             
-            showPopup(response.message, response.status === 'success' ? 'Operazione completata' : 'Inserimento parziale', {
-              type: response.status === 'success' ? 'success' : 'warning',
-              callback: function() {
-                // Aggiorna calendario invece di ricaricare la pagina
-                if (window.calendar) {
-                  window.calendar.refetchEvents();
-                  document.body.removeChild(popupContainer);
-                  document.getElementById("popupOverlay").style.display = "none";
-                }
-              }
-            });
+            const messageType = response.status === 'success' ? 'notification' : 'warning';
+            const messageTitle = response.status === 'success' ? 'Operazione completata' : 'Inserimento parziale';
+            
+            window.showMessage(response.message, messageTitle, messageType);
+            
+            // Aggiorna calendario
+            if (window.calendar) {
+              window.calendar.refetchEvents();
+              document.getElementById("popupOverlay").style.display = "none";
+            }
+            
+            // Se ci sono errori specifici in caso di inserimento parziale
+            if (response.status === 'partial' && response.errors) {
+              response.errors.forEach(error => {
+                window.showMessage(`Errore per ${error.codice}: ${error.errore}`, 'Dettagli errore', 'warning');
+              });
+            }
           } else {
-            showPopup('Errore: ' + response.message, 'Errore', {type: 'error'});
+            window.showMessage('Errore: ' + response.message, 'Errore', 'error');
           }
         })
         .catch(error => {
           console.error('Error:', error);
-          showPopup('Si è verificato un errore durante l\'inserimento degli esami', 'Errore', {type: 'error'});
+          window.showMessage('Si è verificato un errore durante l\'inserimento degli esami', 'Errore', 'error');
         });
       });
     }
@@ -835,61 +839,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 });
-
-// Modifica la funzione per aprire il form in un alert nella sidebar
-function openEsameForm(date, startStr) {
-  // ...existing code...
-  
-  // Invece di mostrare il popup, mostriamo il form nella sidebar
-  const formTemplate = document.getElementById('formEsameTemplate').innerHTML;
-  const alertItem = showAlert(formTemplate, "Inserisci un esame", true);
-  
-  // Ottiene il form all'interno dell'alert
-  const form = alertItem.querySelector('#formEsame');
-  
-  // Inizializza i comportamenti del form
-  setupFormHandlers(form);
-  
-  // ...existing code...
-}
-
-// Funzione per gestire l'invio del form
-function handleFormSubmit(e) {
-  e.preventDefault();
-  
-  // ...existing code...
-  
-  // Al posto di alert per errori o conferme, usiamo le funzioni della sidebar
-  if (!validazioni.valido) {
-    showAlert(validazioni.messaggio, "Errore di validazione");
-    return;
-  }
-  
-  // ...existing code...
-  
-  // Gestione delle risposte
-  fetch('/api/inserisciEsame', {
-    // ...existing code...
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      showNotification("Esame inserito con successo", "Operazione completata");
-      
-      // Chiudi l'alert del form
-      const alertItem = document.querySelector('.alert-item form#formEsame')?.closest('.alert-item');
-      if (alertItem) alertItem.remove();
-      
-      // Aggiorna il calendario
-      if (window.calendar) {
-        window.calendar.refetchEvents();
-      }
-    } else {
-      showAlert(data.message || "Si è verificato un errore durante l'inserimento dell'esame", "Errore");
-    }
-  })
-  .catch(error => {
-    console.error('Errore:', error);
-    showAlert("Si è verificato un errore durante l'invio del form", "Errore");
-  });
-}

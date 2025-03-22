@@ -1,6 +1,4 @@
-/**
- * Gestione semplificata della sidebar per avvisi e notifiche
- */
+// Gestione della sidebar per avvisi e notifiche
 document.addEventListener('DOMContentLoaded', function() {
   // Riferimenti agli elementi DOM
   const sidebar = document.getElementById('messageSidebar');
@@ -16,9 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Inizializzazione
   initSidebar();
 
-  /**
-   * Inizializza la sidebar e configura gli event listener
-   */
+  // Inizializza la sidebar e configura gli event listener
   function initSidebar() {
     if (!sidebar || !toggleBtn || !closeBtn) return;
 
@@ -32,29 +28,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gestore chiusura su click esterno
     document.addEventListener('click', handleOutsideClicks);
 
-    // Sposta gli avvisi di esami minimi nella sidebar
-    setupEsamiMinimi();
-
     // Esponi funzioni a livello globale
-    window.showAlert = showAlert;
-    window.showNotification = showNotification;
+    window.showMessage = showMessage;
     window.clearNotifications = () => clearContainer('notificationsContainer', true);
     window.clearAlerts = () => clearContainer('alertsContainer', false);
     window.toggleSidebar = toggleSidebar;
   }
 
-  /**
-   * Aggiorna il badge di notifiche
-   */
+  // Aggiorna il badge di notifiche
   function updateBadge() {
     const total = alertCount + notificationCount;
     notificationBadge.textContent = total > 99 ? '99+' : total;
     notificationBadge.classList.toggle('has-notifications', total > 0);
   }
 
-  /**
-   * Apre/chiude la sidebar
-   */
+  // Apre/chiude la sidebar
   function toggleSidebar() {
     const isVisible = sidebar.classList.contains('visible');
     
@@ -67,28 +55,22 @@ document.addEventListener('DOMContentLoaded', function() {
       updateBadge();
     }
   }
-
-  /**
-   * Apre la sidebar
-   */
+  
+  // Apre la sidebar
   function openSidebar() {
     sidebar.classList.add('visible');
     content.classList.add('sidebar-visible');
     toggleBtn.classList.add('sidebar-open');
   }
 
-  /**
-   * Chiude la sidebar
-   */
+  // Chiude la sidebar
   function closeSidebar() {
     sidebar.classList.remove('visible');
     content.classList.remove('sidebar-visible');
     toggleBtn.classList.remove('sidebar-open');
   }
 
-  /**
-   * Gestisce i click per chiudere avvisi e notifiche
-   */
+  // Gestisce i click sui pulsanti di chiusura
   function handleCloseClicks(e) {
     // Chiusura avvisi
     if (e.target.classList.contains('alert-close')) {
@@ -102,9 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  /**
-   * Gestisce i click fuori dalla sidebar per chiuderla
-   */
+  // Gestisce i click fuori dalla sidebar per chiuderla
   function handleOutsideClicks(e) {
     if (
       sidebar.classList.contains('visible') && 
@@ -115,11 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  /**
-   * Rimuove un elemento dalla sidebar
-   * @param {HTMLElement} item - Elemento da rimuovere
-   * @param {boolean} isNotification - True se è una notifica, false se è un avviso
-   */
+  // Rimuove un elemento dalla sidebar
   function removeItem(item, isNotification) {
     item.remove();
     
@@ -132,11 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateBadge();
   }
 
-  /**
-   * Pulisce un container
-   * @param {string} containerId - ID del container
-   * @param {boolean} isNotification - True se sono notifiche, false se sono avvisi
-   */
+  // Pulisce un container
   function clearContainer(containerId, isNotification) {
     const container = document.getElementById(containerId);
     if (container) {
@@ -152,80 +124,57 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  /**
-   * Mostra un avviso nella sidebar
-   * @param {string} message - Messaggio
-   * @param {string} title - Titolo (opzionale)
-   * @param {boolean} html - Se true, il contenuto è HTML
-   * @returns {HTMLElement} L'elemento creato
-   */
-  function showAlert(message, title = '', html = false) {
-    return addMessage('alertsContainer', message, title, html, false);
-  }
-
-  /**
-   * Mostra una notifica temporanea nella sidebar
-   * @param {string} message - Messaggio
-   * @param {string} title - Titolo (opzionale)
-   * @param {number} timeout - Tempo in ms prima che scompaia
-   * @returns {HTMLElement} L'elemento creato
-   */
-  function showNotification(message, title = '', timeout = 5000) {
-    const item = addMessage('notificationsContainer', message, title, false, true);
+  // Mostra un messaggio nella sidebar
+  // Gli argomenti sono messaggio, titolo, tipo e opzioni (se è html e tempo di timeout)
+  function showMessage(message, title = '', type = 'notification', options = {}) {
+    const defaultOptions = {
+      html: false,
+      timeout: type === 'notification' ? 5000 : 0
+    };
     
-    if (!item) return null;
+    const settings = { ...defaultOptions, ...options };
     
-    // Aggiungi barra di progresso
-    const progressBar = document.createElement('div');
-    progressBar.className = 'notification-progress';
+    // Determina il container e la classe in base al tipo
+    let containerId, itemClass, isNotification, borderColor;
     
-    if (timeout > 0) {
-      progressBar.style.animation = `shrinkWidth ${timeout/1000}s linear forwards`;
+    switch(type) {
+      case 'error':
+        containerId = 'alertsContainer';
+        itemClass = 'alert-item';
+        isNotification = false;
+        borderColor = 'var(--color-error)';
+        break;
+      case 'warning':
+        containerId = 'alertsContainer';
+        itemClass = 'alert-item';
+        isNotification = false;
+        borderColor = 'var(--color-warning)';
+        break;
+      case 'notification':
+      default:
+        containerId = 'notificationsContainer';
+        itemClass = 'notification-item';
+        isNotification = true;
+        borderColor = 'var(--color-blue)';
+        break;
     }
     
-    item.appendChild(progressBar);
-    
-    // Rimuovi dopo timeout
-    if (timeout > 0) {
-      setTimeout(() => {
-        if (item.parentNode) {
-          item.classList.add('fading');
-          item.addEventListener('animationend', () => {
-            if (item.parentNode) {
-              removeItem(item, true);
-            }
-          });
-        }
-      }, timeout);
-    }
-    
-    return item;
-  }
-
-  /**
-   * Aggiunge un messaggio alla sidebar
-   * @param {string} containerId - ID del container
-   * @param {string} message - Messaggio da mostrare
-   * @param {string} title - Titolo (opzionale)
-   * @param {boolean} html - Se true, il contenuto è HTML
-   * @param {boolean} isNotification - True se è una notifica, false se è un avviso
-   * @returns {HTMLElement} L'elemento creato
-   */
-  function addMessage(containerId, message, title, html, isNotification) {
+    // Ottieni il container
     const container = document.getElementById(containerId);
     if (!container) return null;
 
+    // Crea l'elemento
     const item = document.createElement('div');
-    item.className = isNotification ? 'notification-item' : 'alert-item';
+    item.className = itemClass;
+    item.style.borderLeftColor = borderColor;
 
     // Crea contenuto
     let content = '';
     if (title) content += `<strong>${title}</strong><br>`;
-    content += html ? message : `<p>${message}</p>`;
+    content += settings.html ? message : `<p>${message}</p>`;
     content += `<span class="${isNotification ? 'notification' : 'alert'}-close material-symbols-outlined" aria-label="Chiudi">close</span>`;
     item.innerHTML = content;
 
-    // Aggiungi al container
     container.appendChild(item);
 
     // Aggiorna conteggio
@@ -236,38 +185,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     updateBadge();
 
-    // Apri sidebar
     openSidebar();
 
+    // Per le notifiche, aggiungi la barra di progresso e timeout
+    if (isNotification && settings.timeout > 0) {
+      const progressBar = document.createElement('div');
+      progressBar.className = 'notification-progress';
+      progressBar.style.animation = `shrinkWidth ${settings.timeout/1000}s linear forwards`;
+      item.appendChild(progressBar);
+      
+      // Rimuovi dopo timeout
+      setTimeout(() => {
+        if (item.parentNode) {
+          item.classList.add('fading');
+          item.addEventListener('animationend', () => {
+            if (item.parentNode) {
+              removeItem(item, isNotification);
+            }
+          });
+        }
+      }, settings.timeout);
+    }
+
     return item;
-  }
-
-  /**
-   * Configura la gestione degli esami minimi
-   */
-  function setupEsamiMinimi() {
-    if (window.checkEsamiMinimi) {
-      // Sovrascrivi la funzione di visualizzazione degli avvisi
-      window.mostrareBannerAvviso = function(insegnamenti) {
-        if (!insegnamenti || insegnamenti.length === 0) return;
-
-        // Crea contenuto formattato per gli insegnamenti
-        let content = `<strong>Insegnamenti con meno di 8 esami:</strong><ul style="margin-top:8px;margin-bottom:8px;padding-left:20px;">`;
-        insegnamenti.forEach(ins => {
-          content += `<li style="font-size:0.9em;margin-bottom:4px;">${ins.titolo}: ${ins.esami_inseriti}/8</li>`;
-        });
-        content += `</ul>`;
-        
-        // Mostra come avviso nella sidebar
-        showAlert(content, "", true);
-      };
-    }
-
-    // Nascondi il banner originale
-    const banner = document.getElementById('banner-esami-minimi');
-    if (banner) {
-      banner.classList.add('hidden');
-      banner.style.display = 'none';
-    }
   }
 });

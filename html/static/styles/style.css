@@ -24,7 +24,7 @@
   /* Layout constants */
   --nav-height: 10dvh;
   --foot-height: 9dvh;
-  --sidebar-width: 10dvw;
+  --sidebar-width: clamp(300px, 15dvw, 500px);
   --body-width: clamp(300px, 80vw, 2000px);
   --radius: 8px;
 }
@@ -389,7 +389,7 @@ body {
 #footer {
   background-color: var(--table-cell-disabled);
   color: var(--color-text);
-  min-height: var(--foot-height);
+  height: var(--foot-height);
   padding: 20px 0;
   width: 100%;
   text-align: center;
@@ -684,7 +684,7 @@ body {
 .message-sidebar {
   position: fixed;
   top: var(--nav-height);
-  bottom: var(--foot-height);
+  height: calc(100vh - var(--nav-height) - var(--foot-height));
   right: 0;
   width: var(--sidebar-width);
   background-color: var(--color-bg-light);
@@ -1194,7 +1194,7 @@ tbody tr:hover td {
   
   /* Stili footer */
   #footer {
-    min-height: auto;
+    height: auto;
   }
 
   .footer-content {
