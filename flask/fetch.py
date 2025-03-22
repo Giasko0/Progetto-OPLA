@@ -345,41 +345,29 @@ def miei_esami():
 # API per ottenere le date delle sessioni d'esame
 @fetch_bp.route('/api/getDateValide', methods=['GET'])
 def getDateValide():
-    docente = request.args.get('docente')
-    anno = request.args.get('anno')
-    cds = request.args.get('cds')
-    
     try:
+        cds = request.args.get('cds')
+        docente = request.args.get('docente')
+        
         current_date = datetime.now()
-        anno_accademico = int(anno) if anno else (current_date.year if current_date.month >= 9 else current_date.year - 1)
+        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
         
-        from utils.sessions import get_all_sessions_for_cds, get_session_intersection_for_docente, format_session_name
+        from utils.sessions import ottieni_sessioni_da_cds, ottieni_intersezione_sessioni_docente, rimuovi_sessioni_duplicate
         
-        # Ottieni le sessioni in base ai parametri
+        # Ottieni le sessioni per l'anno di pianificazione
+        sessions = []
+        
         if cds:
-            # Date specifiche per un CdS
-            sessions = get_all_sessions_for_cds(cds, anno_accademico)
+            # Se è specificato un CdS, ottieni direttamente le sessioni per quel CdS
+            sessions = ottieni_sessioni_da_cds(cds, planning_year)
         elif docente:
-            # Intersezione tra CdS del docente
-            sessions = get_session_intersection_for_docente(docente, anno_accademico)
+            # Se è specificato un docente ma non un CdS, ottieni l'intersezione delle sessioni
+            sessions = ottieni_intersezione_sessioni_docente(docente, planning_year)
         else:
-            # Fallback: ottieni le sessioni di un qualsiasi CdS
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT codice FROM cds WHERE anno_accademico = %s LIMIT 1", (anno_accademico,))
-            result = cursor.fetchone()
-            
-            if not result:
-                return jsonify({'error': 'Nessun corso di studi trovato'}), 404
-            
-            cds_code = result[0]
-            sessions = get_all_sessions_for_cds(cds_code, anno_accademico)
-            
-            if 'cursor' in locals() and cursor:
-                cursor.close()
-            if 'conn' in locals() and conn:
-                release_connection(conn)
+            return jsonify({'status': 'error', 'message': 'Inserisci almeno il docente o il cds'}), 400
+
+        # Rimuovi sessioni duplicate
+        sessions = rimuovi_sessioni_duplicate(sessions)
         
         # Formatta le date per il frontend
         date_valide = []
@@ -388,33 +376,21 @@ def getDateValide():
                 session['inizio'].isoformat(),
                 session['fine'].isoformat(),
                 session['nome'],
-                session['tipo']
+                session['tipo'],
+                session['inizio'].year,
+                session['inizio'].month
             ])
         
-        # Ordina le date secondo la logica di ordinamento delle sessioni
-        ordine_sessioni = {
-            'anticipata': 1,
-            'estiva': 2,
-            'autunnale': 3, 
-            'pausa_autunnale': 4,
-            'invernale': 5,
-            'pausa_primaverile': 6
-        }
+        # Ordina le date per anno e poi per tipo di sessione
+        date_valide.sort(key=lambda x: (x[4], x[5]))
         
-        date_valide.sort(key=lambda x: ordine_sessioni.get(x[3], 99))
-        
-        # Rimuovi il campo tipo usato solo per l'ordinamento
+        # Rimuovi il campo tipo e anno usati solo per l'ordinamento
         date_valide = [item[:3] for item in date_valide]
         
         return jsonify(date_valide)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            release_connection(conn)
 
 @fetch_bp.route('/api/getAnniAccademici', methods=['GET'])
 def getAnniAccademici():

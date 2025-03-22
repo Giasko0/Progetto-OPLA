@@ -244,7 +244,6 @@ export function loadDateValide(docente, anno, cds = null) {
   const params = new URLSearchParams();
 
   if (docente) params.append("docente", docente);
-  if (anno) params.append("anno", anno);
   if (cds) params.append("cds", cds);
 
   // Ritorna una Promise

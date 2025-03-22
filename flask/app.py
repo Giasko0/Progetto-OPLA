@@ -5,8 +5,6 @@ from datetime import datetime, timedelta
 import os
 # Config DB
 from db import get_db_connection, release_connection, init_db, close_all_connections
-# Funzioni per la gestione delle date/sessioni
-from utils.sessions import get_session_for_date
 # Auth stupida e SAML
 from auth import auth_bp
 from saml_auth import saml_bp, require_auth
