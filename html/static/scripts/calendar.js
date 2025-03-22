@@ -73,11 +73,6 @@ document.addEventListener("DOMContentLoaded", function () {
       // Memorizza nelle cache i risultati delle chiamate API
       cachedCds = cdsList;
       cachedInsegnamenti = insegnamentiList;
-      
-      console.log("Dati precaricati:", {
-        cds: cachedCds.length,
-        insegnamenti: cachedInsegnamenti.length
-      });
 
       // Crea dropdown una sola volta
       dropdowns.sessioni = createDropdown("sessioni");
