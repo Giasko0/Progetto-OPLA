@@ -99,26 +99,6 @@ export function populateInsegnamentiDropdown(
 
       dropdownInsegnamenti.innerHTML = dropdownHTML;
 
-      // Aggiungi stili CSS se necessario
-      if (!document.querySelector(".dropdown-style-added")) {
-        const style = document.createElement("style");
-        style.className = "dropdown-style-added";
-        style.textContent = `
-                    .dropdown-cds-title {
-                        font-weight: bold;
-                        padding: 8px 12px;
-                        background-color: #f8f9fa;
-                        border-bottom: 1px solid #ddd;
-                        margin-top: 5px;
-                    }
-                    .dropdown-item-indented {
-                        margin-left: 15px;
-                        border-left: 3px solid #e9ecef;
-                    }
-                `;
-        document.head.appendChild(style);
-      }
-
       // Mostra il dropdown
       dropdownInsegnamenti.classList.toggle("show");
     });
