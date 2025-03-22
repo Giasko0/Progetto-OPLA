@@ -2,19 +2,19 @@
 
 // Quando il documento è pronto
 document.addEventListener('DOMContentLoaded', function() {
-  // Usa getUserData per ottenere le informazioni sull'utente
+  // Aggiorna il titolo della pagina
+  window.updatePageTitle();
+  
+  // Ottieni i dati degli esami dell'utente
+  caricaEsami();
+});
+
+// Carica gli esami dell'utente
+function caricaEsami() {
+  // Ottiene i dati dell'utente tramite la funzione centralizzata
   getUserData().then(data => {
-    if (data && data.authenticated) {
+    if (data && data.authenticated && data.user_data) {
       const userData = data.user_data;
-      
-      // Aggiorna il titolo della pagina con il nome dell'utente
-      const titolo = document.querySelector('.titolo');
-      if (titolo && userData) {
-        titolo.textContent = `Esami di ${userData.nome || ''} ${userData.cognome || ''}`.trim();
-        if (!userData.nome && !userData.cognome) {
-          titolo.textContent = `I miei esami`;
-        }
-      }
       
       // Carica gli esami dell'utente usando l'API
       fetch(`/api/ottieniMieiEsami?docente=${encodeURIComponent(userData.username)}`)
@@ -34,15 +34,13 @@ document.addEventListener('DOMContentLoaded', function() {
           document.getElementById('contenitoreEsami').innerHTML = 
             `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
         });
-    } else {
-      // Reindirizza alla pagina di login se l'utente non è autenticato
-      window.location.href = 'login.html';
     }
   }).catch(error => {
-    console.error('Errore nell\'autenticazione:', error);
-    window.location.href = 'login.html';
+    console.error('Errore nell\'ottenimento dati utente:', error);
+    document.getElementById('contenitoreEsami').innerHTML = 
+      `<div class="error-message">Si è verificato un errore nell'ottenimento dei dati: ${error.message}</div>`;
   });
-});
+}
 
 /**
  * Visualizza gli esami nel contenitore appropriato

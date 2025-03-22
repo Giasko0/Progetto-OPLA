@@ -1,4 +1,38 @@
-// Autenticazione utente tramite cookie
+// Inizializzazione al caricamento della pagina
+document.addEventListener('DOMContentLoaded', function() {
+  // Controlla autenticazione e gestisce reindirizzamenti
+  checkAuthAndRedirect();
+  
+  // Configura i link di logout per pulire la cache
+  const logoutLinks = document.querySelectorAll('a[href="/api/logout"]');
+  logoutLinks.forEach(link => {
+    link.addEventListener('click', clearAuthCache);
+  });
+  
+  // Aggiorna elementi UI basati sull'autenticazione
+  updateUIByAuth();
+});
+
+// Controlla autenticazione e reindirizza se necessario
+function checkAuthAndRedirect() {
+  const currentPage = window.location.pathname.split('/').pop();
+  
+  // Escludi pagine pubbliche dal controllo di autenticazione
+  if (currentPage === 'index.html' || currentPage === '' || currentPage === 'login.html') {
+    return;
+  }
+
+  getUserData().then(data => {
+    if (!data || !data.authenticated) {
+      // Se non autenticato, reindirizza alla pagina di login con la pagina corrente come destinazione dopo il login
+      const currentURL = encodeURIComponent(window.location.pathname);
+      window.location.href = `login.html?redirect=${currentURL}`;
+    }
+  }).catch(error => {
+    console.error('Errore nel controllo dell\'autenticazione:', error);
+    window.location.href = 'login.html';
+  });
+}
 
 // Cache per i dati dell'utente
 let authCache = {
@@ -7,7 +41,7 @@ let authCache = {
   expiresIn: 5 * 60 * 1000 // 5 minuti in millisecondi
 };
 
-// Funzione per recuperare un cookie per nome
+// Recupera un cookie per nome
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -15,20 +49,17 @@ function getCookie(name) {
   return null;
 }
 
-// Funzione centrale per ottenere i dati dell'utente (con caching)
+// Ottiene i dati dell'utente con sistema di cache
 function getUserData() {
   const now = new Date().getTime();
   
-  // Se abbiamo dati in cache validi, usiamo quelli
   if (authCache.data && authCache.timestamp && (now - authCache.timestamp < authCache.expiresIn)) {
     return Promise.resolve(authCache.data);
   }
 
-  // Altrimenti facciamo una nuova richiesta
   return fetch('/api/check-auth')
     .then(response => response.json())
     .then(data => {
-      // Salviamo i dati nella cache
       authCache.data = data;
       authCache.timestamp = new Date().getTime();
       return data;
@@ -39,7 +70,7 @@ function getUserData() {
     });
 }
 
-// Funzione per impostare il valore dell'username in un campo di input
+// Imposta il valore dell'username in un campo di input
 function setUsernameField(fieldId) {
   getUserData().then(data => {
     if (data && data.authenticated && data.user_data) {
@@ -53,7 +84,7 @@ function setUsernameField(fieldId) {
   });
 }
 
-// Funzione per mostrare/nascondere elementi in base all'autenticazione
+// Aggiorna interfaccia in base all'autenticazione
 function updateUIByAuth() {
   getUserData().then(data => {
     const isAuthenticated = data && data.authenticated && data.user_data;
@@ -69,7 +100,6 @@ function updateUIByAuth() {
       }
     });
     
-    // Mostra il nome utente dove necessario
     const usernameElements = document.querySelectorAll('[data-username]');
     usernameElements.forEach(el => {
       if (isAuthenticated) {
@@ -81,19 +111,41 @@ function updateUIByAuth() {
   });
 }
 
-// Funzione per invalidare la cache (da chiamare dopo il logout)
+// Invalida la cache
 function clearAuthCache() {
   authCache.data = null;
   authCache.timestamp = null;
 }
 
-// Funzione di invalidazione per il logout
-document.addEventListener('DOMContentLoaded', function() {
-  // Cerca link di logout e aggiungi event listener per pulire la cache
-  const logoutLinks = document.querySelectorAll('a[href="/api/logout"]');
-  logoutLinks.forEach(link => {
-    link.addEventListener('click', function() {
-      clearAuthCache();
-    });
+// Aggiorna i titoli delle pagine con le informazioni dell'utente (funzione centralizzata)
+function updatePageTitle() {
+  getUserData().then(data => {
+    if (data && data.authenticated && data.user_data) {
+      const userData = data.user_data;
+      
+      // Aggiorna il titolo della pagina con il nome dell'utente
+      const titolo = document.querySelector('.titolo, .title-primary');
+      if (titolo && userData) {
+        const currentPage = window.location.pathname.split('/').pop();
+        
+        if (currentPage === 'mieiEsami.html') {
+          titolo.textContent = `Esami di ${userData.nome || ''} ${userData.cognome || ''}`.trim();
+          if (!userData.nome && !userData.cognome) {
+            titolo.textContent = `I miei esami`;
+          }
+        } else if (currentPage === 'calendario.html') {
+          const nomeCompleto = userData.nome && userData.cognome ? 
+            `${userData.nome} ${userData.cognome}` : userData.username;
+          titolo.textContent = `Benvenuto/a, ${nomeCompleto}!`;
+        }
+      }
+    }
+  }).catch(error => {
+    console.error('Errore nel recupero dei dati utente:', error);
   });
-});
+}
+
+// Esporre le funzioni necessarie globalmente
+window.getUserData = getUserData;
+window.getCookie = getCookie;
+window.updatePageTitle = updatePageTitle;

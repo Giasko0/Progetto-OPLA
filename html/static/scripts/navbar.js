@@ -18,10 +18,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <span></span>
           <span></span>
         </button>
-        <div class="navlinks">
+        <div class="navlinks flex-container">
           <a href="index.html">Home</a>
-          <a href="mieiEsami.html">I miei esami</a>
-          <!-- Il link di login/logout e altri link verranno aggiunti qui dinamicamente -->
         </div>
         <span id="darkModeButton" class="material-symbols-outlined" onclick="toggleDarkMode()" aria-label="${darkModeLabel}">${darkModeIcon}</span>
       </div>
@@ -42,24 +40,48 @@ document.addEventListener('DOMContentLoaded', function() {
     // Verifica se l'utente è un admin per aggiungere il pulsante OH-ISSA
     const isAdmin = getCookie('admin') === 'true';
     
-    // Se l'utente è un admin, aggiungi il pulsante OH-ISSA
-    if (isAdmin) {
-      const ohIssaLink = document.createElement('a');
-      ohIssaLink.href = "/oh-issa/index.html";
-      ohIssaLink.innerHTML = "OH-ISSA <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>admin_panel_settings</span>";
-      navlinksDiv.appendChild(ohIssaLink);
-    }
-    
     // Utilizziamo il sistema di cache per controllare l'autenticazione
     getUserData()
       .then(data => {
+        // Aggiungi i link della navbar
+        const calendarLink = document.createElement('a');
+        calendarLink.textContent = 'Calendario';
+        
+        const examsLink = document.createElement('a');
+        examsLink.textContent = 'I miei esami';
+        
+        // Controlla se l'utente è autenticato
+        if (data.authenticated) {
+          calendarLink.href = 'calendario.html';
+          examsLink.href = 'mieiEsami.html';
+        } else {
+          calendarLink.href = `login.html?redirect=${encodeURIComponent('/calendario.html')}`;
+          examsLink.href = `login.html?redirect=${encodeURIComponent('/mieiEsami.html')}`;
+        }
+        
+        // Inserisci i link nella navbar
+        navlinksDiv.appendChild(calendarLink);
+        navlinksDiv.appendChild(examsLink);
+        
+        // Se l'utente è un admin, aggiungi il pulsante OH-ISSA
+        if (isAdmin) {
+          const ohIssaLink = document.createElement('a');
+          ohIssaLink.href = "/oh-issa/index.html";
+          ohIssaLink.innerHTML = "OH-ISSA <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>admin_panel_settings</span>";
+          navlinksDiv.appendChild(ohIssaLink);
+        }
+        
+        // Aggiungi il link di login/logout
         const link = document.createElement('a');
         link.className = 'nav-link';
         
         if (data.authenticated && data.user_data) {
           // Utente autenticato
           link.href = "/api/logout";
-          link.innerHTML = `${data.user_data.nome} ${data.user_data.cognome} - Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
+          link.innerHTML = `${data.user_data.nome || ''} ${data.user_data.cognome || ''} - Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
+          if (!data.user_data.nome && !data.user_data.cognome) {
+            link.innerHTML = `Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
+          }
         } else {
           // Utente non autenticato
           link.href = "login.html";
@@ -70,8 +92,37 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(error => {
         console.error('Errore nel controllo dell\'autenticazione:', error);
-        // Fallback al vecchio sistema
+        
+        // Fallback al vecchio sistema in caso di errore
         const username = getCookie('username');
+        
+        // Aggiungi i link standard alla navbar
+        const calendarLink = document.createElement('a');
+        calendarLink.textContent = 'Calendario';
+        
+        const examsLink = document.createElement('a');
+        examsLink.textContent = 'I miei esami';
+        
+        if (username) {
+          calendarLink.href = 'calendario.html';
+          examsLink.href = 'mieiEsami.html';
+        } else {
+          calendarLink.href = `login.html?redirect=${encodeURIComponent('/calendario.html')}`;
+          examsLink.href = `login.html?redirect=${encodeURIComponent('/mieiEsami.html')}`;
+        }
+        
+        navlinksDiv.appendChild(calendarLink);
+        navlinksDiv.appendChild(examsLink);
+        
+        // Se l'utente è un admin, aggiungi il pulsante OH-ISSA
+        if (isAdmin) {
+          const ohIssaLink = document.createElement('a');
+          ohIssaLink.href = "/oh-issa/index.html";
+          ohIssaLink.innerHTML = "OH-ISSA <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>admin_panel_settings</span>";
+          navlinksDiv.appendChild(ohIssaLink);
+        }
+        
+        // Link login/logout basato sul cookie
         const link = document.createElement('a');
         link.className = 'nav-link';
         

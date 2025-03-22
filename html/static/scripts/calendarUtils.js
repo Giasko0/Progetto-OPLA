@@ -223,23 +223,8 @@ export function createInsegnamentoTag(codice, titolo, container) {
   return tag;
 }
 
-// Carica le date valide per esami dal backend
-export function getDateValideFromSessioni(sessioni) {
-  // Funzione temporanea di compatibilità, ora usiamo il backend per questo
-  const dateValide = [];
-
-  for (const [tipo, dati] of Object.entries(sessioni)) {
-    if (dati && dati.start && dati.end) {
-      const nome = dati.nome || formatSessionName(tipo);
-      dateValide.push([dati.start, dati.end, nome]);
-    }
-  }
-
-  return dateValide;
-}
-
 // Carica le date valide direttamente dal backend
-export function loadDateValide(docente, anno, cds = null) {
+export async function loadDateValide(docente, cds) {
   // Costruisce i parametri della richiesta
   const params = new URLSearchParams();
 
@@ -247,28 +232,8 @@ export function loadDateValide(docente, anno, cds = null) {
   if (cds) params.append("cds", cds);
 
   // Ritorna una Promise
-  return fetch("/api/getDateValide?" + params.toString()).then((response) =>
-    response.json()
-  );
-}
-
-// Formatta il nome della sessione per la visualizzazione
-export function formatSessionName(nome) {
-  // Questa funzione è ora implementata nel backend
-  // La teniamo qui per retrocompatibilità
-  const mapping = {
-    estiva: "Sessione Estiva",
-    autunnale: "Sessione Autunnale",
-    invernale: "Sessione Invernale",
-    anticipata: "Sessione Anticipata",
-    pausa_autunnale: "Pausa Didattica (1° sem)",
-    pausa_primaverile: "Pausa Didattica (2° sem)",
-  };
-
-  return (
-    mapping[nome.toLowerCase()] ||
-    nome.charAt(0).toUpperCase() + nome.slice(1).replace("_", " ")
-  );
+  const response = await fetch("/api/getDateValide?" + params.toString());
+  return await response.json();
 }
 
 // Aggiorna la select nascosta con i valori dei tag

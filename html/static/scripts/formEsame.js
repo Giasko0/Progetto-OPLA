@@ -72,28 +72,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setUsernameField('docente');
     
     // Personalizza il saluto
-    personalizzaSaluto();
+    window.updatePageTitle();
     
     // Controlla insegnamenti preselezionati
     checkPreselectedInsegnamenti();
-  }
-  
-  // Funzione per personalizzare il saluto
-  function personalizzaSaluto() {
-    getUserData().then(data => {
-      if (data && data.authenticated && data.user_data) {
-        const userData = data.user_data;
-        const titolo = document.querySelector('.titolo');
-        if (titolo) {
-          const nomeCompleto = userData.nome && userData.cognome ? 
-            `${userData.nome} ${userData.cognome}` : 
-            userData.username;
-          titolo.textContent = `Benvenuto/a, ${nomeCompleto}!`;
-        }
-      }
-    }).catch(error => {
-      console.error('Errore nel recupero dei dati utente:', error);
-    });
   }
   
   // Funzione per chiudere il popup overlay

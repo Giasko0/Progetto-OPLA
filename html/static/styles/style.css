@@ -100,6 +100,149 @@ body {
   color: var(--color-dark-gray);
 }
 
+.email-link {
+  color: var(--color-primary);
+}
+
+/*---------COMPONENTI COMUNI---------*/
+/* Bottoni */
+.cta-button, .tab-button, .all-exams-button {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 0 10px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.cta-button {
+  background-color: var(--color-primary);
+  color: white;
+  font-size: 1.2rem;
+  margin-top: 20px;
+  padding: 15px 30px;
+}
+
+.cta-button:hover {
+  background-color: var(--color-primary-light);
+  transform: translateY(-3px);
+}
+
+.tab-button {
+  background: var(--color-secondary);
+  color: var(--color-text);
+}
+
+.tab-button:hover, .tab-button.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+.all-exams-button {
+  background: #4CAF50;
+  color: white;
+}
+
+.all-exams-button:hover, .all-exams-button.active {
+  background: #388E3C;
+}
+
+/* Card */
+.card {
+  padding: 15px;
+  margin: 1vw;
+  border-radius: var(--radius);
+  background-color: var(--color-secondary);
+}
+
+.card-icon {
+  font-size: 48px;
+  color: var(--color-primary);
+  margin-bottom: 15px;
+}
+
+.card-title {
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+  color: var(--color-primary);
+}
+
+.alert-item, .notification-item {
+  padding: 12px;
+  border-radius: 10px;
+  background-color: var(--table-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.alert-item:hover, .notification-item:hover, .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+}
+
+.alert-item {
+  border-left: 3px solid var(--color-red);
+}
+
+.notification-item {
+  border-left: 3px solid var(--color-primary);
+  animation: fadeIn 0.3s ease-in;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Container */
+.container-panel {
+  background-color: var(--popup-bg);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  margin: 20px auto;
+  padding: 20px;
+}
+
+/* Titoli */
+.title-primary {
+  margin-bottom: 20px;
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.title-xl {
+  font-size: 2.4rem;
+}
+
+.title-lg {
+  font-size: 2rem;
+}
+
+.subtitle {
+  color: var(--color-dark-gray);
+  margin-bottom: 30px;
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+
+/* Flex Containers */
+.flex-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.flex-spaced {
+  justify-content: space-between;
+  margin: 40px 0;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.flex-gap {
+  gap: 12px;
+}
+
 /*---------NAVBAR---------*/
 .navbar {
   width: 100vw;
@@ -140,7 +283,6 @@ body {
   font-size: 2rem;
   cursor: pointer;
   user-select: none;
-  transition: color 0.3s ease;
 }
 
 #darkModeButton:hover {
@@ -167,7 +309,6 @@ body {
   height: 0.25rem;
   background: var(--color-primary);
   border-radius: 10px;
-  transition: all 0.3s linear;
   position: relative;
   transform-origin: 1px;
 }
@@ -187,7 +328,7 @@ body {
 
 .fc-header-cell {
   background-color: var(--header-bg);
-  color: white;
+  color: var(--header-text);
 }
 
 .fc-disabled-day, .fc-day-disabled {
@@ -260,10 +401,6 @@ body {
 
 .footer-section p {
   margin: 5px 0;
-}
-
-.footer-section a {
-  color: var(--color-primary);
 }
 
 /*---------BANNER AVVISI---------*/
@@ -545,7 +682,6 @@ body {
   z-index: 90;
   overflow-x: hidden;
   overflow-y: auto;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
   border-top-left-radius: 12px;
   border-bottom-left-radius: 12px;
@@ -586,7 +722,6 @@ body {
   border-radius: 50%;
   width: 32px;
   height: 32px;
-  transition: background-color 0.2s ease;
 }
 
 .close-sidebar-btn:hover {
@@ -610,7 +745,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.3s ease, background-color 0.2s ease, right 0.3s ease;
 }
 
 .toggle-sidebar-float.sidebar-open {
@@ -646,7 +780,6 @@ body {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s ease;
 }
 
 .notification-badge.has-notifications {
@@ -699,7 +832,6 @@ body {
   background-color: var(--table-bg);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .alert-item:hover, .notification-item:hover {
@@ -747,7 +879,6 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: background-color 0.2s ease;
 }
 
 .alert-close:hover, .notification-close:hover {
@@ -857,7 +988,6 @@ tbody tr:hover td {
   border-radius: var(--radius);
   text-align: center;
   cursor: pointer;
-  transition: transform 0.2s ease-in-out;
   color: var(--color-text);
 }
 
@@ -894,7 +1024,6 @@ tbody tr:hover td {
   border-radius: var(--radius);
   cursor: pointer;
   font-weight: bold;
-  transition: all 0.3s ease;
   color: var(--color-text);
 }
 
@@ -925,7 +1054,6 @@ tbody tr:hover td {
   border-radius: var(--radius);
   cursor: pointer;
   font-weight: bold;
-  transition: all 0.3s ease;
 }
 
 .all-exams-button:hover {
@@ -965,6 +1093,24 @@ tbody tr:hover td {
   font-size: 0.85em;
   margin-top: 5px;
   color: var(--color-dark-gray);
+}
+
+/*---------LANDING PAGE---------*/
+.landing-container {
+  margin: 60px auto;
+  padding: 40px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .landing-container {
+    padding: 20px;
+    margin: 30px auto;
+  }
+  
+  .title-xl {
+    font-size: 2rem;
+  }
 }
 
 /*---------MEDIA QUERIES---------*/
@@ -1011,7 +1157,6 @@ tbody tr:hover td {
     justify-content: flex-start;
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease-in-out;
     z-index: 15;
   }
 

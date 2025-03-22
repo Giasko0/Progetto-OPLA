@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Carica le date valide e verifica i permessi in modo ottimizzato
   Promise.all([
-    loadDateValide(loggedDocente, planningYear), // Uso della nuova funzione
+    loadDateValide(loggedDocente),
     checkAdminPermissions(),
   ])
     .then(([dateValideResponse]) => {
@@ -544,7 +544,7 @@ document.addEventListener("DOMContentLoaded", function () {
         selectedCds = item.dataset.codice || null;
 
         // Ottieni le nuove date valide e aggiorna il calendario
-        loadDateValide(loggedDocente, planningYear, selectedCds)
+        loadDateValide(loggedDocente, selectedCds)
           .then((newDates) => {
             // Aggiorna le date valide
             dateValide = newDates;

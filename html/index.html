@@ -5,173 +5,69 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
-  <title>Inserimento Appelli UniPG</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" /> <!-- Icone Google -->
+  <title>OPLÀ - Portale Online per Prenotare Laboratori e Aule</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <link rel="stylesheet" href="static/styles/style.css">
   <script src="static/scripts/darkMode.js"></script>
-  <script src="static/fullcalendar7/dist/index.global.min.js"></script>
-  <script src="static/scripts/auth.js"></script> <!-- Script per gestire l'autenticazione -->
-  <script src="static/scripts/navbar.js"></script> <!-- Script per generare la navbar -->
-  <script src="static/scripts/footer.js"></script> <!-- Script per generare il footer -->
-  <script src="static/scripts/esamiMinimi.js"></script> <!-- Script per verificare esami minimi -->
-  <script src="static/scripts/insegnamentiManager.js"></script> <!-- Manager per insegnamenti -->
-  <script src="static/scripts/popup.js"></script> <!-- Script per la gestione dei popup -->
-  <script src="static/scripts/formEsame.js"></script> <!-- Script per gestire la form di inserimento esami -->
-  <script src="static/scripts/sidebar.js"></script> <!-- Script per gestire la sidebar -->
-  <script src="static/scripts/calendar.js" type="module"></script> <!-- Script calendario -->
+  <script src="static/scripts/auth.js"></script>
+  <script src="static/scripts/navbar.js"></script>
+  <script src="static/scripts/footer.js"></script>
+  <script>
+    // Script per gestire il comportamento dinamico del pulsante CTA
+    document.addEventListener('DOMContentLoaded', function() {
+      const ctaButton = document.querySelector('.cta-button');
+      if (ctaButton) {
+        // Controlla lo stato di autenticazione dell'utente
+        window.getUserData().then(data => {
+          if (data && data.authenticated) {
+            // Se l'utente è già autenticato, il pulsante porta al calendario
+            ctaButton.href = 'calendario.html';
+            ctaButton.textContent = 'Vai al calendario';
+          } else {
+            // Se l'utente non è autenticato, il pulsante porta al login con redirect
+            ctaButton.href = `login.html?redirect=${encodeURIComponent('/calendario.html')}`;
+            ctaButton.textContent = 'Accedi ora';
+          }
+        }).catch(error => {
+          console.error('Errore nel controllo dell\'autenticazione:', error);
+          // In caso di errore, impostare il comportamento predefinito
+          ctaButton.href = `login.html?redirect=${encodeURIComponent('/calendario.html')}`;
+        });
+      }
+    });
+  </script>
 </head>
 
 <body>
   <div id="navbar"></div>
-
-  <button id="toggleSidebarFloat" class="toggle-sidebar-float" aria-label="Apri centro messaggi" aria-expanded="false">
-    <span class="material-symbols-outlined">notifications</span>
-    <span class="notification-badge" id="notificationBadge">0</span>
-  </button>
-
-  <div class="message-sidebar" id="messageSidebar">
-    <div class="sidebar-header">
-      <h3>Centro Messaggi</h3>
-      <button id="closeSidebar" class="close-sidebar-btn" aria-label="Chiudi sidebar">
-        <span class="material-symbols-outlined">close</span>
-      </button>
-    </div>
-    <div class="sidebar-content">
-      <div class="sidebar-section">
-        <div class="section-header">
-          <span class="material-symbols-outlined section-icon">warning</span>
-          <h4>Avvisi</h4>
-        </div>
-        <div id="alertsContainer" class="alerts-container">
-          <!-- Qui verranno inseriti gli avvisi -->
-        </div>
-      </div>
-      <div class="sidebar-divider"></div>
-      <div class="sidebar-section">
-        <div class="section-header">
-          <span class="material-symbols-outlined section-icon">notifications</span>
-          <h4>Notifiche</h4>
-        </div>
-        <div id="notificationsContainer" class="notifications-container">
-          <!-- Qui verranno inserite le notifiche -->
-        </div>
-      </div>
-    </div>
-  </div>
-
+  
   <div class="content">
-    <h1 class="titolo">Benvenuto, utente! - Fai il login per iniziare.</h1>
-
-    <!-- Banner avviso esami minimi -->
-    <div id="banner-esami-minimi" class="banner-avviso hidden">
-      <span class="banner-close">&times;</span>
-      <p class="banner-messaggio">Attenzione, non è stato inserito il numero minimo di esami per gli insegnamenti: </p>
-    </div>
-
-    <div id="calendar"></div>
-    
-    <!-- Contenitore popup per form esami -->
-    <div id="popupOverlay" class="popup-overlay">
-      <div class="popup">
-        <div class="popup-header">
-          <h2>Inserimento Esame</h2>
-          <span id="closeOverlay" class="popup-close">&times;</span>
+    <div class="container-panel landing-container">
+      <h1 class="title-primary title-xl">Benvenuto in OPLÀ</h1>
+      <p class="subtitle">Portale Online per Prenotare Laboratori e Aule dell'Università degli Studi di Perugia</p>
+      
+      <div class="flex-container flex-spaced">
+        <div class="card">
+          <span class="material-symbols-outlined card-icon">calendar_month</span>
+          <h3 class="card-title">Gestione Appelli</h3>
+          <p>Inserisci e gestisci facilmente tutti i tuoi appelli d'esame</p>
         </div>
-        <div class="popup-content">
-          <form id="formEsame" method="POST" action="/api/inserisciEsame">
-            <p style="margin: 0; float: right">* Campi obbligatori</p>
-
-            <!-- Hidden values -->
-            <input type="text" id="docente" name="docente" hidden>
-            <input type="text" id="anno_accademico" name="anno_accademico" hidden>
-
-            <div class="checkbox-container">
-              <input type="checkbox" id="provaParziale" name="provaParziale">
-              <label for="provaParziale">Prova Parziale</label>
-            </div>
-
-            <div>
-              <label class="formEsame-label" for="descrizione">Descrizione*</label>
-              <input type="text" id="descrizione" name="descrizione" placeholder="Inserisci una descrizione" value="Placeholder" required>
-            </div>
-
-            <label class="formEsame-label" for="insegnamento">Insegnamento*</label>
-            <div class="multi-select-container">
-              <div id="insegnamentoBox" class="multi-select-box">
-                <span class="multi-select-placeholder">Seleziona gli insegnamenti</span>
-              </div>
-              <div id="insegnamentoDropdown" class="multi-select-dropdown">
-                <div id="insegnamentoOptions"></div>
-              </div>
-              <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden" required></select>
-            </div>
-
-            <label class="formEsame-label" for="dataora">Data Appello*</label>
-            <input type="date" id="dataora" name="dataora" required>
-
-            <label class="formEsame-label" for="ora">Ora Appello*</label>
-            <input type="time" id="ora" name="ora" min="08:00" max="23:00" step="900" required>
-
-            <label class="formEsame-label" for="aula">Aule disponibili*</label>
-            <select id="aula" name="aula" required>
-              <option value="" disabled selected hidden>Seleziona prima data e ora</option>
-            </select>
-
-            <label class="formEsame-label" for="durata">Durata (in minuti)*</label>
-            <input type="number" id="durata" name="durata" min="30" step="15" value="120" required>
-
-            <div>
-              <label class="formEsame-label" for="verbalizzazione">Verbalizzazione*</label>
-              <select id="verbalizzazione" name="verbalizzazione">
-                <option value="FSS" selected>Firma digitale singola</option>
-                <option value="FWP">Firma digitale con pubblicazione</option>
-              </select>
-            </div>
-
-            <span id="buttonOpzioniAvanzate">Opzioni avanzate &#x25BA;</span>
-
-            <!-- Opzioni avanzate -->
-            <div id="opzioniAvanzate">
-              <div>
-                <label class="formEsame-label" for="inizioIscrizione">Data inizio iscrizione</label>
-                <input type="date" id="inizioIscrizione" name="inizioIscrizione">
-              </div>
-
-              <div>
-                <label class="formEsame-label" for="fineIscrizione">Data fine iscrizione</label>
-                <input type="date" id="fineIscrizione" name="fineIscrizione">
-              </div>
-
-              <div>
-                <label class="formEsame-label" for="tipoEsame">Tipo esame</label>
-                <select id="tipoEsame" name="tipoEsame">
-                  <option value="" disabled selected hidden>Non definito</option>
-                  <option value="S">Scritto</option>
-                  <option value="O">Orale</option>
-                  <option value="SO">Scritto e orale</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="formEsame-label" for="posti">Posti</label>
-                <input type="number" id="posti" name="posti" min="1">
-              </div>
-
-              <div>
-                <label class="formEsame-label" for="note">Note</label>
-                <textarea id="note" name="note" rows="2"></textarea>
-              </div>
-
-              <span> Se non si inseriscono date inizio/fine iscrizione, il sistema le imposterà automaticamente a 20 giorni dall'inizio sessione fino al giorno prima dell'esame</span>
-            </div>
-
-            <div class="form-actions">
-              <button class="invia" type="submit">Invia</button>
-              <button class="annulla" type="button" id="btnAnnulla">Annulla</button>
-            </div>
-          </form>
+        <div class="card">
+          <span class="material-symbols-outlined card-icon">school</span>
+          <h3 class="card-title">Organizzazione Corsi</h3>
+          <p>Visualizza e organizza i corsi e gli insegnamenti</p>
+        </div>
+        <div class="card">
+          <span class="material-symbols-outlined card-icon">meeting_room</span>
+          <h3 class="card-title">Prenotazione Aule</h3>
+          <p>Verifica la disponibilità e prenota le aule per i tuoi esami</p>
         </div>
       </div>
+      
+      <p>Accedi con le tue credenziali per utilizzare tutte le funzionalità della piattaforma</p>
+      <a href="login.html" class="cta-button">Accedi ora</a>
+      
+      <p style="margin-top: 40px; font-size: 0.9rem;">Per assistenza tecnica contattare <a class="email-link" href="mailto:opla.dmi@unipg.it">opla.dmi@unipg.it</a></p>
     </div>
   </div>
   

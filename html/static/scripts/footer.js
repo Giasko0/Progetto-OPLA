@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <div class="footer-section">
           <p>Stai riscontrando problemi?</p>
-          <p>Invia un'email a <a href="mailto:opla.dmi@unipg.it">opla.dmi@unipg.it</a></p>
+          <p>Invia un'email a <a class="email-link" href="mailto:opla.dmi@unipg.it">opla.dmi@unipg.it</a></p>
         </div>
       </div>
     `;
