@@ -36,72 +36,88 @@ export function createDropdown(type) {
   return dropdown;
 }
 
-// Popola il dropdown degli insegnamenti raggrup
+// Popola il dropdown degli insegnamenti
 export function populateInsegnamentiDropdown(
   dropdownInsegnamenti,
   docente,
   planningYear,
-  cdsFiltro = null
+  cdsFiltro = null,
+  preloadedInsegnamenti = null
 ) {
-  // Parametri per la richiesta
+  // Verifica se il dropdown è già visibile, in caso affermativo lo nascondiamo e usciamo
+  // Questa logica è ora spostata nel chiamante per tutti i dropdown
+  
+  // Se abbiamo insegnamenti precaricati, li utilizziamo
+  if (preloadedInsegnamenti) {
+    processAndDisplayInsegnamenti(preloadedInsegnamenti);
+    return;
+  }
+  
+  // Altrimenti effettua la chiamata API
   let url = `/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`;
-
-  // Aggiungi filtro CdS se presente
   if (cdsFiltro) {
     url += `&cds=${cdsFiltro}`;
   }
-
-  // Richiesta API per gli insegnamenti
+  
   fetch(url)
     .then((response) => response.json())
-    .then((insegnamenti) => {
-      // Raggruppa gli insegnamenti per CDS
-      const insegnamentiPerCds = {};
-
-      // Organizza per CdS
-      insegnamenti.forEach((ins) => {
-        if (!insegnamentiPerCds[ins.cds_codice]) {
-          insegnamentiPerCds[ins.cds_codice] = {
-            nome: ins.cds_nome,
-            insegnamenti: [],
-          };
-        }
-        insegnamentiPerCds[ins.cds_codice].insegnamenti.push(ins);
-      });
-
-      // Costruisci HTML per il dropdown
-      let dropdownHTML = "";
-
-      // Genera HTML per ogni CdS
-      Object.keys(insegnamentiPerCds).forEach((cdsCodice) => {
-        const cds = insegnamentiPerCds[cdsCodice];
-        dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
-
-        cds.insegnamenti.forEach((ins) => {
-          const isSelected =
-            window.InsegnamentiManager &&
-            window.InsegnamentiManager.isSelected(ins.codice);
-
-          dropdownHTML += `
-                        <div class="dropdown-item dropdown-item-indented" data-codice="${
-                          ins.codice
-                        }" data-semestre="${ins.semestre}" data-anno-corso="${
-            ins.anno_corso || ""
-          }" data-cds="${ins.cds_codice}">
-                            <input type="checkbox" id="ins-${ins.codice}" 
-                                value="${ins.codice}"
-                                ${isSelected ? "checked" : ""}>
-                            <label for="ins-${ins.codice}">${ins.titolo}</label>
-                        </div>
-                    `;
-        });
-      });
-
-      dropdownInsegnamenti.innerHTML = dropdownHTML;
-
-      // Mostra il dropdown
-      dropdownInsegnamenti.classList.toggle("show");
+    .then(processAndDisplayInsegnamenti)
+    .catch(error => {
+      console.error("Errore nel caricamento degli insegnamenti:", error);
+      dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Errore nel caricamento degli insegnamenti</div>";
     });
+
+  // Funzione per organizzare e visualizzare gli insegnamenti
+  function processAndDisplayInsegnamenti(insegnamenti) {
+    // Filtra per CdS se necessario
+    if (cdsFiltro) {
+      insegnamenti = insegnamenti.filter(ins => ins.cds_codice === cdsFiltro);
+    }
+
+    // Raggruppa gli insegnamenti per CDS
+    const insegnamentiPerCds = {};
+
+    // Organizza per CdS
+    insegnamenti.forEach((ins) => {
+      if (!insegnamentiPerCds[ins.cds_codice]) {
+        insegnamentiPerCds[ins.cds_codice] = {
+          nome: ins.cds_nome,
+          insegnamenti: [],
+        };
+      }
+      insegnamentiPerCds[ins.cds_codice].insegnamenti.push(ins);
+    });
+
+    // Costruisci HTML per il dropdown
+    let dropdownHTML = "";
+
+    // Genera HTML per ogni CdS
+    Object.keys(insegnamentiPerCds).forEach((cdsCodice) => {
+      const cds = insegnamentiPerCds[cdsCodice];
+      dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
+
+      cds.insegnamenti.forEach((ins) => {
+        const isSelected =
+          window.InsegnamentiManager &&
+          window.InsegnamentiManager.isSelected(ins.codice);
+
+        dropdownHTML += `
+          <div class="dropdown-item dropdown-item-indented" data-codice="${
+            ins.codice
+          }" data-semestre="${ins.semestre}" data-anno-corso="${
+          ins.anno_corso || ""
+        }" data-cds="${ins.cds_codice}">
+            <input type="checkbox" id="ins-${ins.codice}" 
+                value="${ins.codice}"
+                ${isSelected ? "checked" : ""}>
+            <label for="ins-${ins.codice}">${ins.titolo}</label>
+          </div>
+        `;
+      });
+    });
+
+    dropdownInsegnamenti.innerHTML = dropdownHTML;
+  }
 }
 
 // Aggiorna gli eventi del calendario utilizzando il backend ottimizzato

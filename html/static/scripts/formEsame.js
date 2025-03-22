@@ -563,6 +563,11 @@ document.addEventListener("DOMContentLoaded", () => {
             window.InsegnamentiManager.clearSelection();
           }
           
+          // Forza aggiornamento del calendario con la nuova funzione semplificata
+          if (window.forceCalendarRefresh) {
+            window.forceCalendarRefresh();
+          }
+          
           showPopup(data.message || "Esami inseriti con successo", "Operazione completata", {
             type: 'success',
           });
@@ -743,6 +748,11 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (window.InsegnamentiManager) {
               window.InsegnamentiManager.clearSelection();
+            }
+            
+            // Forza aggiornamento del calendario con la nuova funzione semplificata
+            if (window.forceCalendarRefresh) {
+              window.forceCalendarRefresh();
             }
             
             showPopup(response.message, response.status === 'success' ? 'Operazione completata' : 'Inserimento parziale', {

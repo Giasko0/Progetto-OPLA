@@ -20,9 +20,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Variabile per memorizzare le date valide correnti
   let dateValide = [];
-
+  
+  // Variabile per cache eventi
+  let eventsCache = [];
+  let lastFetchTime = 0;
+  
   // Controlla se l'utente è un amministratore
   let isAdmin = false;
+  
+  // Cache per CdS e insegnamenti
+  let cachedCds = [];
+  let cachedInsegnamenti = [];
+  
+  // Oggetto per gestire i dropdown
+  let dropdowns = {
+    cds: null,
+    insegnamenti: null,
+    sessioni: null
+  };
 
   // Funzione per verificare i permessi di amministratore
   function checkAdminPermissions() {
@@ -44,22 +59,33 @@ document.addEventListener("DOMContentLoaded", function () {
     .find((row) => row.startsWith("username="))
     ?.split("=")[1];
 
-  // Carica le date valide e verifica i permessi in modo ottimizzato
+  // Carica le date valide, verifica i permessi, e precarica CdS e insegnamenti
   Promise.all([
     loadDateValide(loggedDocente),
     checkAdminPermissions(),
+    fetch(`/api/ottieniCdSDocente?docente=${loggedDocente}&anno=${planningYear}`).then(r => r.json()),
+    fetch(`/api/getInsegnamentiDocente?anno=${planningYear}&docente=${loggedDocente}`).then(r => r.json())
   ])
-    .then(([dateValideResponse]) => {
+    .then(([dateValideResponse, adminPermissions, cdsList, insegnamentiList]) => {
       // Salva le date valide
       dateValide = dateValideResponse;
+      
+      // Memorizza nelle cache i risultati delle chiamate API
+      cachedCds = cdsList;
+      cachedInsegnamenti = insegnamentiList;
+      
+      console.log("Dati precaricati:", {
+        cds: cachedCds.length,
+        insegnamenti: cachedInsegnamenti.length
+      });
 
       // Crea dropdown una sola volta
-      const dropdownSessioni = createDropdown("sessioni");
-      const dropdownInsegnamenti = createDropdown("insegnamenti");
-      const dropdownCds = createDropdown("cds");
+      dropdowns.sessioni = createDropdown("sessioni");
+      dropdowns.insegnamenti = createDropdown("insegnamenti");
+      dropdowns.cds = createDropdown("cds");
 
       // Popola dropdown sessioni
-      updateSessioniDropdown(dropdownSessioni, dateValide);
+      updateSessioniDropdown(dropdowns.sessioni, dateValide);
 
       // Determina quali pulsanti mostrare in base ai permessi
       const rightButtons = isAdmin
@@ -67,30 +93,15 @@ document.addEventListener("DOMContentLoaded", function () {
         : "pulsanteCds pulsanteInsegnamenti pulsanteSessioni prev,next today";
 
       // Verifica se il docente ha più di un CdS
-      fetch(`/api/ottieniCdSDocente?docente=${loggedDocente}&anno=${planningYear}`)
-        .then((response) => response.json())
-        .then((data) => {
-          // Se il docente ha un solo CdS, rimuovi il pulsante CdS
-          const hasMultipleCds = data.length > 1;
-          const finalRightButtons = hasMultipleCds 
-            ? rightButtons 
-            : rightButtons.replace('pulsanteCds ', '');
+      const hasMultipleCds = cachedCds.length > 1;
+      const finalRightButtons = hasMultipleCds 
+        ? rightButtons 
+        : rightButtons.replace('pulsanteCds ', '');
 
-          // Aggiorna la configurazione del calendario
-          calendar.setOption('headerToolbar', {
-            left: "title",
-            center: "",
-            right: finalRightButtons + ' aggiungiEsame'
-          });
-
-          // Se c'è un solo CdS, impostalo come selezionato
-          if (data.length === 1) {
-            selectedCds = data[0].codice;
-          }
-        })
-        .catch((error) => {
-          console.error("Errore nel caricamento dei CdS:", error);
-        });
+      // Se c'è un solo CdS, impostalo come selezionato
+      if (cachedCds.length === 1) {
+        selectedCds = cachedCds[0].codice;
+      }
 
       // Configurazione calendario
       var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -99,21 +110,50 @@ document.addEventListener("DOMContentLoaded", function () {
         initialDate: dateRange.start,
         initialView: "dayGridMonth",
         selectable: true,
-        // Eventi dal server
-        events: (info, successCallback) =>
-          fetchCalendarEvents(
-            calendar,
-            planningYear,
-            info,
-            successCallback,
-            selectedCds
-          ),
+        
+        // Funzione per caricare gli eventi con cache
+        events: function(info, successCallback) {
+          // Se abbiamo eventi in cache e sono stati caricati meno di 5 minuti fa, usali
+          const currentTime = new Date().getTime();
+          if (eventsCache.length > 0 && (currentTime - lastFetchTime) < 300000) { // 5 minuti
+            successCallback(eventsCache);
+            return;
+          }
+          
+          // Altrimenti, carica gli eventi
+          let params = new URLSearchParams();
+          params.append('docente', loggedDocente);
+          
+          // Includi filtri solo se necessario
+          if (selectedCds) {
+            params.append('cds', selectedCds);
+          }
+          
+          if (window.InsegnamentiManager && window.InsegnamentiManager.getSelectedCodes().length > 0) {
+            params.append('insegnamenti', window.InsegnamentiManager.getSelectedCodes().join(','));
+          }
+          
+          // Carica gli eventi
+          fetch(`/api/ottieniEsami?${params.toString()}`)
+            .then(response => response.json())
+            .then(events => {
+              // Memorizza gli eventi nella cache
+              eventsCache = events;
+              lastFetchTime = currentTime;
+              successCallback(events);
+            })
+            .catch(error => {
+              console.error("Errore nel caricamento degli esami:", error);
+              successCallback([]);
+            });
+        },
+        
         validRange: getValidDateRange,
 
         headerToolbar: {
           left: "title",
           center: "",
-          right: rightButtons + ' aggiungiEsame' // Aggiungi il pulsante alla toolbar
+          right: finalRightButtons + ' aggiungiEsame' // Aggiungi il pulsante alla toolbar
         },
 
         // Pulsanti personalizzati
@@ -122,94 +162,66 @@ document.addEventListener("DOMContentLoaded", function () {
           pulsanteCds: {
             text: "Corso di Studio",
             click: function (e) {
-              // Mostra dropdown CdS
-              const button = e.currentTarget;
-              const rect = button.getBoundingClientRect();
-              dropdownCds.style.top = `${rect.bottom}px`;
-              dropdownCds.style.left = `${rect.left}px`;
-              dropdownCds.classList.toggle("show");
+              handleDropdownButtonClick(e, 'cds', () => {
+                // Popola il dropdown con i dati dalla cache
+                dropdowns.cds.innerHTML = "";
 
-              // Chiudi altri dropdown
-              dropdownSessioni.classList.remove("show");
-              dropdownInsegnamenti.classList.remove("show");
+                // Aggiungi l'opzione "Tutti i CdS"
+                const itemAll = document.createElement("div");
+                itemAll.className = "dropdown-item";
+                itemAll.dataset.codice = "";
+                itemAll.textContent = "Tutti i CdS";
+                if (!selectedCds) {
+                  itemAll.classList.add("selected");
+                }
+                dropdowns.cds.appendChild(itemAll);
 
-              // Recupera i CdS associati al docente
-              if (loggedDocente) {
-                fetch(
-                  `/api/ottieniCdSDocente?docente=${loggedDocente}&anno=${planningYear}`
-                )
-                  .then((response) => response.json())
-                  .then((data) => {
-                    // Pulisci il dropdown
-                    dropdownCds.innerHTML = "";
-
-                    // Aggiungi l'opzione "Tutti i CdS"
-                    const itemAll = document.createElement("div");
-                    itemAll.className = "dropdown-item";
-                    itemAll.dataset.codice = "";
-                    itemAll.textContent = "Tutti i CdS";
-                    if (!selectedCds) {
-                      itemAll.classList.add("selected");
-                    }
-                    dropdownCds.appendChild(itemAll);
-
-                    // Aggiungi le opzioni per ogni CdS
-                    data.forEach((cds) => {
-                      const item = document.createElement("div");
-                      item.className = "dropdown-item";
-                      item.dataset.codice = cds.codice;
-                      item.textContent = `${cds.nome_corso} (${cds.codice})`;
-                      if (selectedCds === cds.codice) {
-                        item.classList.add("selected");
-                      }
-                      dropdownCds.appendChild(item);
-                    });
-                  })
-                  .catch((error) => {
-                    console.error("Errore nel caricamento dei CdS:", error);
-                  });
-              }
+                // Aggiungi le opzioni per ogni CdS dalla cache
+                cachedCds.forEach((cds) => {
+                  const item = document.createElement("div");
+                  item.className = "dropdown-item";
+                  item.dataset.codice = cds.codice;
+                  item.textContent = `${cds.nome_corso} (${cds.codice})`;
+                  if (selectedCds === cds.codice) {
+                    item.classList.add("selected");
+                  }
+                  dropdowns.cds.appendChild(item);
+                });
+              });
             },
           },
           // Sessioni d'esame
           pulsanteSessioni: {
             text: "Sessioni",
             click: function (e) {
-              // Mostra dropdown sessioni
-              const button = e.currentTarget;
-              const rect = button.getBoundingClientRect();
-              dropdownSessioni.style.top = `${rect.bottom}px`;
-              dropdownSessioni.style.left = `${rect.left}px`;
-              dropdownSessioni.classList.toggle("show");
-
-              // Chiudi altri dropdown
-              dropdownInsegnamenti.classList.remove("show");
-              dropdownCds.classList.remove("show");
+              handleDropdownButtonClick(e, 'sessioni');
             },
           },
           // Filtro insegnamenti
           pulsanteInsegnamenti: {
             text: "Insegnamenti",
             click: function (e) {
-              // Mostra dropdown insegnamenti
-              const button = e.currentTarget;
-              const rect = button.getBoundingClientRect();
-              dropdownInsegnamenti.style.top = `${rect.bottom}px`;
-              dropdownInsegnamenti.style.left = `${rect.left}px`;
-
-              // Chiudi altri dropdown
-              dropdownSessioni.classList.remove("show");
-              dropdownCds.classList.remove("show");
-
-              // Popola dropdown
-              if (loggedDocente) {
-                populateInsegnamentiDropdown(
-                  dropdownInsegnamenti,
-                  loggedDocente,
-                  planningYear,
-                  selectedCds
-                );
-              }
+              handleDropdownButtonClick(e, 'insegnamenti', () => {
+                // Verifica se abbiamo gli insegnamenti in cache
+                if (cachedInsegnamenti && cachedInsegnamenti.length > 0) {
+                  // Usa i dati precaricati per popolare il dropdown o chiuderlo se è già aperto
+                  populateInsegnamentiDropdown(
+                    dropdowns.insegnamenti,
+                    loggedDocente,
+                    planningYear,
+                    selectedCds,
+                    cachedInsegnamenti
+                  );
+                } else {
+                  // Fallback alla chiamata API
+                  populateInsegnamentiDropdown(
+                    dropdowns.insegnamenti,
+                    loggedDocente,
+                    planningYear,
+                    selectedCds
+                  );
+                }
+              });
             },
           },
           // Debug: tutti gli esami (solo admin)
@@ -524,12 +536,12 @@ document.addEventListener("DOMContentLoaded", function () {
       // Gestione click sui dropdown
 
       // Dropdown CdS
-      dropdownCds.addEventListener("click", (e) => {
+      dropdowns.cds.addEventListener("click", (e) => {
         const item = e.target.closest(".dropdown-item");
         if (!item) return;
 
         // Rimuovi selezione precedente
-        dropdownCds.querySelectorAll(".dropdown-item").forEach((el) => {
+        dropdowns.cds.querySelectorAll(".dropdown-item").forEach((el) => {
           el.classList.remove("selected");
         });
 
@@ -560,10 +572,14 @@ document.addEventListener("DOMContentLoaded", function () {
             );
 
             // Aggiorna anche il dropdown delle sessioni
-            updateSessioniDropdown(dropdownSessioni, dateValide);
+            updateSessioniDropdown(dropdowns.sessioni, dateValide);
 
             // Chiudi il dropdown
-            dropdownCds.classList.remove("show");
+            dropdowns.cds.classList.remove("show");
+
+            // Invalida la cache quando cambia il filtro
+            eventsCache = [];
+            lastFetchTime = 0;
 
             // Ricarica il calendario
             calendar.refetchEvents();
@@ -611,20 +627,20 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       // Dropdown sessioni
-      dropdownSessioni.addEventListener("click", (e) => {
+      dropdowns.sessioni.addEventListener("click", (e) => {
         const item = e.target.closest(".dropdown-item");
         if (item) {
           const data = item.dataset.data;
           if (data) {
             // Naviga alla data
             calendar.gotoDate(data);
-            dropdownSessioni.classList.remove("show");
+            dropdowns.sessioni.classList.remove("show");
           }
         }
       });
 
       // Dropdown insegnamenti
-      dropdownInsegnamenti.addEventListener("click", (e) => {
+      dropdowns.insegnamenti.addEventListener("click", (e) => {
         // Trova l'elemento dropdown-item o dropdown-item-indented più vicino
         const item = e.target.closest(
           ".dropdown-item, .dropdown-item-indented"
@@ -657,34 +673,59 @@ document.addEventListener("DOMContentLoaded", function () {
           } else {
             window.InsegnamentiManager.deselectInsegnamento(codice);
           }
+          
+          // Invalida la cache quando cambia il filtro
+          eventsCache = [];
+          lastFetchTime = 0;
         }
       });
 
+      // Funzione unificata per gestire i click sui pulsanti dei dropdown
+      function handleDropdownButtonClick(e, type, populateCallback = null) {
+        // Ottieni riferimenti al button e al dropdown
+        const button = e.currentTarget;
+        const dropdown = dropdowns[type];
+        
+        // Posiziona il dropdown
+        const rect = button.getBoundingClientRect();
+        dropdown.style.top = `${rect.bottom}px`;
+        dropdown.style.left = `${rect.left}px`;
+        
+        // Chiudi gli altri dropdown
+        Object.entries(dropdowns).forEach(([key, value]) => {
+          if (key !== type && value) {
+            value.classList.remove("show");
+          }
+        });
+        
+        // Per il dropdown CdS e Sessioni, utilizziamo sempre un toggle semplice
+        // ma invochiamo prima la callback se necessario
+        if (populateCallback) {
+          populateCallback();
+        }
+        
+        // Toggle della visibilità
+        dropdown.classList.toggle("show");
+      }
+
       // Chiusura dropdown su click fuori
       document.addEventListener("click", (e) => {
-        // Dropdown CdS
-        if (
-          !e.target.closest(".fc-pulsanteCds-button") &&
-          !e.target.closest("#cdsDropdown")
-        ) {
-          dropdownCds.classList.remove("show");
-        }
-
-        // Dropdown insegnamenti
-        if (
-          !e.target.closest(".fc-pulsanteInsegnamenti-button") &&
-          !e.target.closest(".calendar-dropdown")
-        ) {
-          dropdownInsegnamenti.classList.remove("show");
-        }
-
-        // Dropdown sessioni
-        if (
-          !e.target.closest(".fc-pulsanteSessioni-button") &&
-          !e.target.closest("#sessioniDropdown")
-        ) {
-          dropdownSessioni.classList.remove("show");
-        }
+        // Gestione unificata per tutti i dropdown
+        const dropdownTypes = [
+          { button: '.fc-pulsanteCds-button', dropdown: '#cdsDropdown' },
+          { button: '.fc-pulsanteInsegnamenti-button', dropdown: '#insegnamentiDropdown' },
+          { button: '.fc-pulsanteSessioni-button', dropdown: '#sessioniDropdown' }
+        ];
+        
+        // Chiudi i dropdown se il click è fuori dai relativi elementi
+        dropdownTypes.forEach(({ button, dropdown }) => {
+          if (!e.target.closest(button) && !e.target.closest(dropdown)) {
+            const dropdownElement = document.querySelector(dropdown);
+            if (dropdownElement) {
+              dropdownElement.classList.remove("show");
+            }
+          }
+        });
       });
 
       // InsegnamentiManager con debounce
@@ -694,16 +735,12 @@ document.addEventListener("DOMContentLoaded", function () {
           // Cancella timer precedente
           if (debounceTimer) clearTimeout(debounceTimer);
 
-          // Aggiorna dopo breve delay
+          // Aggiorna dopo breve delay e invalida cache
           debounceTimer = setTimeout(() => {
-            fetchCalendarEvents(
-              calendar,
-              planningYear,
-              null,
-              null,
-              selectedCds
-            );
-          }, 100);
+            eventsCache = [];
+            lastFetchTime = 0;
+            calendar.refetchEvents();
+          }, 500); // Aumentato a 500ms per dare più tempo
         });
       }
 
@@ -711,16 +748,24 @@ document.addEventListener("DOMContentLoaded", function () {
       calendar.render();
       window.calendar = calendar;
 
+      // Aggiungi funzione per forzare il refresh
+      window.forceCalendarRefresh = function() {
+        eventsCache = [];
+        lastFetchTime = 0;
+        if (calendar) {
+          calendar.refetchEvents();
+        }
+      };
+
       // Esponi funzione globale
       window.updateHiddenSelect = (multiSelectBox) =>
         updateHiddenSelect(multiSelectBox);
     })
-    .catch((error) =>
-      console.error(
-        "Errore nel caricamento delle sessioni o verifica permessi:",
-        error
-      )
-    );
+    .catch((error) => {
+      console.error("Errore durante l'inizializzazione:", error);
+      document.getElementById("calendar").innerHTML = 
+        "Si è verificato un errore durante il caricamento del calendario.";
+    });
 
   // Gestione chiusura form esami
   const setupCloseHandlers = () => {
