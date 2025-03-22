@@ -31,7 +31,7 @@ export function createDropdown(type) {
   document.body.appendChild(dropdown);
 
   // Aggiungi classe per stile responsive
-  dropdown.classList.add('calendar-dropdown-mobile');
+  dropdown.classList.add("calendar-dropdown-mobile");
 
   return dropdown;
 }
@@ -46,32 +46,33 @@ export function populateInsegnamentiDropdown(
 ) {
   // Verifica se il dropdown è già visibile, in caso affermativo lo nascondiamo e usciamo
   // Questa logica è ora spostata nel chiamante per tutti i dropdown
-  
+
   // Se abbiamo insegnamenti precaricati, li utilizziamo
   if (preloadedInsegnamenti) {
     processAndDisplayInsegnamenti(preloadedInsegnamenti);
     return;
   }
-  
+
   // Altrimenti effettua la chiamata API
   let url = `/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`;
   if (cdsFiltro) {
     url += `&cds=${cdsFiltro}`;
   }
-  
+
   fetch(url)
     .then((response) => response.json())
     .then(processAndDisplayInsegnamenti)
-    .catch(error => {
+    .catch((error) => {
       console.error("Errore nel caricamento degli insegnamenti:", error);
-      dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Errore nel caricamento degli insegnamenti</div>";
+      dropdownInsegnamenti.innerHTML =
+        "<div class='dropdown-error'>Errore nel caricamento degli insegnamenti</div>";
     });
 
   // Funzione per organizzare e visualizzare gli insegnamenti
   function processAndDisplayInsegnamenti(insegnamenti) {
     // Filtra per CdS se necessario
     if (cdsFiltro) {
-      insegnamenti = insegnamenti.filter(ins => ins.cds_codice === cdsFiltro);
+      insegnamenti = insegnamenti.filter((ins) => ins.cds_codice === cdsFiltro);
     }
 
     // Raggruppa gli insegnamenti per CDS

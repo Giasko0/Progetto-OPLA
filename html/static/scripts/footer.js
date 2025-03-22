@@ -1,7 +1,7 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener("DOMContentLoaded", function () {
   // Trova il div con id 'footer'
-  const footer = document.getElementById('footer');
-  
+  const footer = document.getElementById("footer");
+
   if (footer) {
     // Struttura html del footer
     footer.innerHTML = `

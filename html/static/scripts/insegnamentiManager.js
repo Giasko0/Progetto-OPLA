@@ -1,13 +1,13 @@
 /**
  * Sistema centralizzato per la gestione degli insegnamenti tra calendario e form
  */
-const InsegnamentiManager = (function() {
+const InsegnamentiManager = (function () {
   // Mappa degli insegnamenti selezionati: codice -> {codice, anno_corso, semestre, cds}
   let selectedInsegnamenti = new Map();
-  
+
   // Callbacks da chiamare quando cambia la selezione degli insegnamenti
   let onChangeCallbacks = [];
-  
+
   /**
    * Seleziona un insegnamento
    * @param {string} codice - Codice dell'insegnamento
@@ -16,11 +16,11 @@ const InsegnamentiManager = (function() {
   function selectInsegnamento(codice, metadata) {
     selectedInsegnamenti.set(codice, {
       codice: codice,
-      ...metadata
+      ...metadata,
     });
     notifyChange();
   }
-  
+
   /**
    * Deseleziona un insegnamento
    * @param {string} codice - Codice dell'insegnamento
@@ -29,7 +29,7 @@ const InsegnamentiManager = (function() {
     selectedInsegnamenti.delete(codice);
     notifyChange();
   }
-  
+
   /**
    * Controlla se un insegnamento è selezionato
    * @param {string} codice - Codice dell'insegnamento
@@ -38,7 +38,7 @@ const InsegnamentiManager = (function() {
   function isSelected(codice) {
     return selectedInsegnamenti.has(codice);
   }
-  
+
   /**
    * Ottiene tutti i codici degli insegnamenti selezionati
    * @returns {string[]} - Array di codici degli insegnamenti selezionati
@@ -46,7 +46,7 @@ const InsegnamentiManager = (function() {
   function getSelectedCodes() {
     return Array.from(selectedInsegnamenti.keys());
   }
-  
+
   /**
    * Ottiene tutti gli insegnamenti selezionati
    * @returns {Map} - Mappa degli insegnamenti selezionati
@@ -54,7 +54,7 @@ const InsegnamentiManager = (function() {
   function getSelected() {
     return new Map(selectedInsegnamenti);
   }
-  
+
   /**
    * Svuota la selezione
    */
@@ -62,24 +62,24 @@ const InsegnamentiManager = (function() {
     selectedInsegnamenti.clear();
     notifyChange();
   }
-  
+
   /**
    * Aggiunge una callback da chiamare quando cambia la selezione
    * @param {Function} callback - Callback da chiamare
    */
   function onChange(callback) {
-    if (typeof callback === 'function') {
+    if (typeof callback === "function") {
       onChangeCallbacks.push(callback);
     }
   }
-  
+
   /**
    * Notifica tutti i listener del cambiamento
    */
   function notifyChange() {
-    onChangeCallbacks.forEach(callback => callback(getSelectedCodes()));
+    onChangeCallbacks.forEach((callback) => callback(getSelectedCodes()));
   }
-  
+
   /**
    * Carica gli insegnamenti selezionati dal server
    * @param {string} username - Username del docente
@@ -87,21 +87,25 @@ const InsegnamentiManager = (function() {
    */
   function loadSelectedInsegnamenti(username, callback) {
     if (!username || getSelectedCodes().length === 0) {
-      if (typeof callback === 'function') callback([]);
+      if (typeof callback === "function") callback([]);
       return;
     }
-    
-    fetch(`/api/ottieniInsegnamenti?username=${username}&codici=${getSelectedCodes().join(',')}`)
-      .then(response => response.json())
-      .then(data => {
-        if (typeof callback === 'function') callback(data);
+
+    fetch(
+      `/api/ottieniInsegnamenti?username=${username}&codici=${getSelectedCodes().join(
+        ","
+      )}`
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        if (typeof callback === "function") callback(data);
       })
-      .catch(error => {
-        console.error('Errore nel caricamento degli insegnamenti:', error);
-        if (typeof callback === 'function') callback([]);
+      .catch((error) => {
+        console.error("Errore nel caricamento degli insegnamenti:", error);
+        if (typeof callback === "function") callback([]);
       });
   }
-  
+
   /**
    * Sincronizza lo stato con i componenti UI
    * @param {string} username - Username del docente
@@ -109,17 +113,17 @@ const InsegnamentiManager = (function() {
    * @param {Function} updateForm - Funzione per aggiornare il form
    */
   function syncState(username, updateCalendar, updateForm) {
-    if (typeof updateCalendar === 'function') {
+    if (typeof updateCalendar === "function") {
       updateCalendar(getSelectedCodes());
     }
-    
-    if (typeof updateForm === 'function') {
-      loadSelectedInsegnamenti(username, data => {
+
+    if (typeof updateForm === "function") {
+      loadSelectedInsegnamenti(username, (data) => {
         updateForm(data);
       });
     }
   }
-  
+
   // API pubblica
   return {
     selectInsegnamento,
@@ -130,7 +134,7 @@ const InsegnamentiManager = (function() {
     clearSelection,
     onChange,
     loadSelectedInsegnamenti,
-    syncState
+    syncState,
   };
 })();
 
