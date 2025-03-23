@@ -257,20 +257,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 getUserData()
                   .then((data) => {
                     if (data.authenticated) {
-                      // Importa il modulo esameFormModule.js e usa la funzione showEsameForm
-                      import("./esameFormModule.js")
-                        .then((module) => {
-                          module.showEsameForm({}); // Passa un oggetto vuoto
-                        })
-                        .catch((error) => {
-                          console.error(
-                            "Errore nell'importazione del modulo form:",
-                            error
-                          );
-                          document.getElementById(
-                            "popupOverlay"
-                          ).style.display = "flex";
-                        });
+                      // Utilizza direttamente EsameForm
+                      if (window.EsameForm) {
+                        window.EsameForm.showForm({});
+                      } else {
+                        console.error("EsameForm non disponibile");
+                      }
                     } else {
                       showMessage(
                         "Effettua il login per inserire un esame",
@@ -395,22 +387,12 @@ document.addEventListener("DOMContentLoaded", function () {
             getUserData()
               .then((data) => {
                 if (data.authenticated) {
-                  // Importa il modulo esameFormModule.js e usa la funzione showEsameForm
-                  import("./esameFormModule.js")
-                    .then((module) => {
-                      module.showEsameForm(info);
-                    })
-                    .catch((error) => {
-                      console.error(
-                        "Errore nell'importazione del modulo form:",
-                        error
-                      );
-                      // Fallback al metodo tradizionale
-                      const dataElement = document.getElementById("dataora");
-                      if (dataElement) dataElement.value = info.dateStr;
-                      document.getElementById("popupOverlay").style.display =
-                        "flex";
-                    });
+                  // Utilizza direttamente EsameForm passando la data del click
+                  if (window.EsameForm) {
+                    window.EsameForm.showForm({ date: info.dateStr });
+                  } else {
+                    console.error("EsameForm non disponibile");
+                  }
                 } else {
                   showMessage(
                     "Effettua il login per inserire un esame",

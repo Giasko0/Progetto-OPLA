@@ -11,6 +11,9 @@ const InsegnamentiManager = (function () {
   // Callbacks da chiamare quando cambia il CdS selezionato
   let onCdsChangeCallbacks = [];
 
+  // Variabile per tenere traccia degli eventi già aggiunti
+  let eventListenersAdded = new Set();
+
   // Seleziona un insegnamento
   function selectInsegnamento(codice, metadata) {
     selectedInsegnamenti.set(codice, {
@@ -264,50 +267,77 @@ const InsegnamentiManager = (function () {
     return params;
   }
 
-  // Inizializza il box di selezione multipla
-  function initMultiSelect(boxId, dropdownId) {
-    const multiSelectBox = document.getElementById(boxId);
-    const multiSelectDropdown = document.getElementById(dropdownId);
-  
-    if (!multiSelectBox || !multiSelectDropdown) {
+  // Modifica la funzione initMultiSelect per gestire correttamente gli eventi di click e prevenire duplicazioni
+  function initMultiSelect(boxId, dropdownId, optionsId = null) {
+    let box = document.getElementById(boxId);
+    const dropdown = document.getElementById(dropdownId);
+    
+    if (!box || !dropdown) {
+      console.error(`Elementi multi-select non trovati: box=${!!box}, dropdown=${!!dropdown}`);
       return;
     }
-  
-    // Assicurati che il dropdown abbia il display impostato correttamente all'inizio
-    multiSelectDropdown.style.display = "none";
-  
-    // Rimuovi tutti gli event listener precedenti clonando l'elemento
-    const oldBox = multiSelectBox;
-    const newBox = oldBox.cloneNode(true);
-    if (oldBox.parentNode) {
-      oldBox.parentNode.replaceChild(newBox, oldBox);
+    
+    
+    // Se è stato fornito optionsId, usa quell'elemento per le opzioni
+    const optionsContainer = optionsId ? 
+      document.getElementById(optionsId) : 
+      dropdown.querySelector('.multi-select-options') || 
+      document.createElement('div');
+    
+    // Se abbiamo creato un nuovo elemento, aggiungiamo classe e appendiamo al dropdown
+    if (!optionsId && !dropdown.querySelector('.multi-select-options')) {
+      optionsContainer.className = 'multi-select-options';
+      dropdown.appendChild(optionsContainer);
     }
-  
-    // Aggiungi il nuovo event listener
-    newBox.addEventListener("click", function (e) {
+    
+    // Associa l'ID opzionale se fornito e non già presente
+    if (optionsId && !optionsContainer.id) {
+      optionsContainer.id = optionsId;
+    }
+    
+    // Rimuovi eventuali click handler precedenti
+    const newBox = box.cloneNode(true);
+    if (box.parentNode) {
+      box.parentNode.replaceChild(newBox, box);
+    }
+    box = newBox;
+    
+    // Aggiungi evento click al box per mostrare/nascondere il dropdown
+    box.addEventListener('click', function(e) {
       e.stopPropagation();
-      const isActive = multiSelectDropdown.style.display === "block";
-      multiSelectDropdown.style.display = isActive ? "none" : "block";
+      
+      console.log("Box clicked, toggling dropdown visibility");
+      
+      // Aggiungi/rimuovi classe active per styling
+      this.classList.toggle('active');
+      
+      // Mostra/nascondi dropdown
+      const isVisible = dropdown.style.display === 'block';
+      dropdown.style.display = isVisible ? 'none' : 'block';
+      
+      // Posiziona il dropdown sotto il box
+      if (!isVisible) {
+        // Usa la posizione relativa al container
+        dropdown.style.left = '0';
+        dropdown.style.top = '100%'; // Posiziona esattamente sotto il box
+        dropdown.style.width = '100%';
+      }
     });
-  
-    // Gestisci click all'esterno per chiudere il dropdown
-    const closeDropdownHandler = function (e) {
-      if (
-        !newBox.contains(e.target) &&
-        !multiSelectDropdown.contains(e.target)
-      ) {
-        multiSelectDropdown.style.display = "none";
+    
+    // Rimuovi tutti i vecchi handler a livello di documento
+    if (window._insegnamentiManagerDocClickHandler) {
+      document.removeEventListener('click', window._insegnamentiManagerDocClickHandler);
+    }
+    
+    // Aggiungi nuovo handler per i click esterni
+    window._insegnamentiManagerDocClickHandler = function(e) {
+      if (!box.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+        box.classList.remove('active');
       }
     };
-  
-    // Rimuovi il vecchio handler se esiste e aggiungi quello nuovo
-    document.removeEventListener("click", closeDropdownHandler);
-    document.addEventListener("click", closeDropdownHandler);
-  
-    // Impedisci che i click dentro il dropdown si propaghino
-    multiSelectDropdown.addEventListener("click", function (e) {
-      e.stopPropagation();
-    });
+    
+    document.addEventListener('click', window._insegnamentiManagerDocClickHandler);
   }
 
   // Popola le opzioni del dropdown di selezione insegnamenti
@@ -418,6 +448,29 @@ const InsegnamentiManager = (function () {
     });
   }
 
+  // Pulisci gli eventi quando il form viene chiuso - versione migliorata
+  function cleanupEventListeners() {
+    // Rimuovi gli event listener globali
+    if (window._insegnamentiManagerDocClickHandler) {
+      document.removeEventListener('click', window._insegnamentiManagerDocClickHandler);
+      window._insegnamentiManagerDocClickHandler = null;
+    }
+    
+    // Resetta lo stato di qualsiasi dropdown aperto
+    const dropdowns = document.querySelectorAll('.multi-select-dropdown');
+    dropdowns.forEach(dropdown => {
+      dropdown.style.display = 'none';
+    });
+    
+    const boxes = document.querySelectorAll('.multi-select-box');
+    boxes.forEach(box => {
+      box.classList.remove('active');
+    });
+    
+    // Svuota il set di event listener tracciati
+    eventListenersAdded.clear();
+  }
+
   // API pubblica
   return {
     // Gestione selezione insegnamenti
@@ -447,6 +500,7 @@ const InsegnamentiManager = (function () {
     populateInsegnamentiOptions,
     toggleInsegnamentoSelection,
     initFormInsegnamenti,
+    cleanupEventListeners,
     
     // Utility
     getRequestParams

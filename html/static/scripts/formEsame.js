@@ -1,93 +1,196 @@
-document.addEventListener("DOMContentLoaded", () => {
-  // ------- Inizializzazione e variabili -------
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth() + 1; // getMonth() returns 0-11
-  const anno_accademico =
-    currentMonth >= 9
-      ? currentDate.getFullYear()
-      : currentDate.getFullYear() - 1;
-
-  // Imposta l'anno accademico nel campo hidden
-  const annoAccademicoField = document.getElementById("anno_accademico");
-  if (annoAccademicoField) {
-    annoAccademicoField.value = anno_accademico;
+// Script per la gestione del form di inserimento esame
+const EsameForm = (function() {
+  // Variabili private
+  let isLoaded = false;
+  let isLoading = false;
+  let formElement = null;
+  let popupOverlay = null;
+  
+  // Carica il form HTML dinamicamente
+  async function loadForm() {
+    if (isLoaded || isLoading) return Promise.resolve(formElement);
+    
+    isLoading = true;
+    
+    try {
+      // Verifica se l'overlay esiste già, altrimenti crealo
+      if (!popupOverlay) {
+        popupOverlay = document.getElementById('popupOverlay');
+        
+        if (!popupOverlay) {
+          popupOverlay = document.createElement('div');
+          popupOverlay.id = 'popupOverlay';
+          popupOverlay.className = 'popup-overlay';
+          document.body.appendChild(popupOverlay);
+        }
+      }
+      
+      // Carica il form tramite fetch
+      const response = await fetch('/formEsame.html');
+      if (!response.ok) {
+        throw new Error(`Errore nel caricamento del form: ${response.status}`);
+      }
+      
+      const html = await response.text();
+      popupOverlay.innerHTML = html;
+      formElement = document.getElementById('formEsameContainer');
+      
+      isLoaded = true;
+      isLoading = false;
+      
+      return formElement;
+    } catch (error) {
+      console.error('Errore nel caricamento del form:', error);
+      isLoading = false;
+      throw error;
+    }
+  }
+  
+  // Mostra il form di inserimento esame
+  async function showForm(options = {}) {
+    try {
+      await loadForm();
+      popupOverlay.style.display = 'flex';
+      
+      // Reset dello stato precedente
+      isLoaded = false;
+      
+      initForm(options);
+      return true;
+    } catch (error) {
+      console.error('Errore nel mostrare il form:', error);
+      return false;
+    }
+  }
+  
+  // Nasconde il form e pulisce gli handler degli eventi
+  function hideForm() {
+    if (popupOverlay) {
+      popupOverlay.style.display = 'none';
+      
+      // Resetta il dropdown
+      const dropdown = document.getElementById('insegnamentoDropdown');
+      if (dropdown) {
+        dropdown.style.display = 'none';
+      }
+      
+      // Pulisci gli event listener per evitare duplicazioni
+      if (window.InsegnamentiManager && window.InsegnamentiManager.cleanupEventListeners) {
+        window.InsegnamentiManager.cleanupEventListeners();
+      }
+      
+      // Forziamo la ricarica del form la prossima volta
+      isLoaded = false;
+    }
   }
 
-  // ------- Funzioni per gestire gli elementi della UI -------
-
-  // Inizializza ascoltatori eventi
-  initEventListeners();
-
-  // Inizializza la UI
-  initUI();
-
-  // Funzione per inizializzare gli ascoltatori di eventi
+  // Inizializza il form con gli eventi e i valori predefiniti
+  function initForm(options = {}) {
+    // Imposta l'anno accademico
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1;
+    const anno_accademico = currentMonth >= 9 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
+    
+    const anno_field = document.getElementById("anno_accademico");
+    if (anno_field) {
+      anno_field.value = anno_accademico;
+    }
+    
+    initEventListeners();
+    initUI(options);
+  }
+  
+  // Inizializza gli ascoltatori di eventi
   function initEventListeners() {
     // Ascoltatori per filtro aule
     const dataoraInput = document.getElementById("dataora");
     const oraInput = document.getElementById("ora");
 
-    if (dataoraInput) {
-      dataoraInput.addEventListener("change", aggiornaAuleDisponibili);
-    }
-
-    if (oraInput) {
-      oraInput.addEventListener("change", aggiornaAuleDisponibili);
-    }
+    dataoraInput?.addEventListener("change", aggiornaAuleDisponibili);
+    oraInput?.addEventListener("change", aggiornaAuleDisponibili);
 
     // Gestione opzioni avanzate
     const pulsanteAdv = document.getElementById("buttonOpzioniAvanzate");
-    if (pulsanteAdv) {
-      pulsanteAdv.addEventListener("click", toggleOpzioniAvanzate);
-    }
+    pulsanteAdv?.addEventListener("click", toggleOpzioniAvanzate);
 
     // Gestione prova parziale
     const provaParzialeCheckbox = document.getElementById("provaParziale");
-    if (provaParzialeCheckbox) {
-      provaParzialeCheckbox.addEventListener("change", aggiornaVerbalizzazione);
-    }
+    provaParzialeCheckbox?.addEventListener("change", aggiornaVerbalizzazione);
 
     // Gestione submit del form
     const form = document.getElementById("formEsame");
-    if (form) {
-      form.addEventListener("submit", handleFormSubmit);
-    }
+    form?.addEventListener("submit", handleFormSubmit);
 
     // Gestione chiusura overlay
     const closeOverlay = document.getElementById("closeOverlay");
-    if (closeOverlay) {
-      closeOverlay.addEventListener("click", closePopupOverlay);
-    }
+    closeOverlay?.addEventListener("click", hideForm);
   }
-
-  // Funzione per inizializzare la UI
-  function initUI() {
+  
+  // Inizializza l'interfaccia utente del form
+  function initUI(options = {}) {
+    // Pre-compilazione date
+    if (options.date) {
+      const dataElement = document.getElementById('dataora');
+      if (dataElement) dataElement.value = options.date;
+    }
+    
     // Imposta username nel campo docente
-    setUsernameField("docente", () => {
-      const username = document.getElementById("docente")?.value;
-      if (!username) return;
-      
-      // Inizializza la select multipla tramite InsegnamentiManager
-      if (window.InsegnamentiManager) {
-        window.InsegnamentiManager.initMultiSelect("insegnamentoBox", "insegnamentoDropdown");
-        
-        // Carica insegnamenti e inizializza il form
-        window.InsegnamentiManager.initFormInsegnamenti(username, () => {
-          // Controlla insegnamenti preselezionati dall'URL
-          checkPreselectedInsegnamenti();
-        });
-      }
-    });
+    getUserData()
+      .then((data) => {
+        if (data?.authenticated && data?.user_data) {
+          const field = document.getElementById("docente");
+          if (field) {
+            field.value = data.user_data.username;
+            const username = field.value;
+            
+            // Debug
+            console.log("Username: ", username);
+            console.log("InsegnamentiManager disponibile: ", !!window.InsegnamentiManager);
+            
+            // Inizializza la select multipla tramite InsegnamentiManager
+            if (window.InsegnamentiManager) {
+              try {
+                // Inizializza solo se gli elementi esistono
+                const boxElement = document.getElementById("insegnamentoBox");
+                const dropdownElement = document.getElementById("insegnamentoDropdown");
+                const optionsElement = document.getElementById("insegnamentoOptions");
+                
+                if (boxElement && dropdownElement) {
+                  console.log("Elementi trovati, inizializzazione multi-select");
+                  
+                  // Prima pulizia
+                  window.InsegnamentiManager.cleanupEventListeners();
+                  
+                  // Poi inizializzazione
+                  window.InsegnamentiManager.initMultiSelect("insegnamentoBox", "insegnamentoDropdown", "insegnamentoOptions");
+                  window.InsegnamentiManager.initFormInsegnamenti(username, () => {
+                    checkPreselectedInsegnamenti();
+                  });
+                } else {
+                  console.error("Elementi DOM per multi-select non trovati");
+                }
+              } catch (error) {
+                console.error("Errore nell'inizializzazione multi-select:", error);
+              }
+            }
+          }
+        }
+      })
+      .catch((error) => {
+        console.error("Errore nel recupero dei dati utente:", error);
+      });
     
     // Popola le aule iniziali
-    popolaAule();
-    
-    // Personalizza il saluto
-    if (window.updatePageTitle) {
-      window.updatePageTitle();
+    const selectAula = document.getElementById("aula");
+    if (selectAula) {
+      selectAula.innerHTML =
+        '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
     }
     
-    // Aggiungi listener per aggiornare i tag quando cambiano gli insegnamenti selezionati
+    // Personalizza il saluto
+    window.updatePageTitle?.();
+    
+    // Aggiungi listener per aggiornare i tag
     if (window.InsegnamentiManager) {
       window.InsegnamentiManager.onChange(() => {
         const username = document.getElementById("docente")?.value;
@@ -96,97 +199,119 @@ document.addEventListener("DOMContentLoaded", () => {
         const multiSelectBox = document.getElementById("insegnamentoBox");
         if (!multiSelectBox) return;
         
-        // Sincronizza i tag con gli insegnamenti selezionati
         window.InsegnamentiManager.loadSelectedInsegnamenti(username, (insegnamenti) => {
           window.InsegnamentiManager.syncTags(multiSelectBox, insegnamenti);
+          
+          // Aggiorna anche la select nascosta per il submit
+          const hiddenSelect = document.getElementById("insegnamento");
+          if (hiddenSelect) {
+            hiddenSelect.innerHTML = '';
+            window.InsegnamentiManager.getSelectedCodes().forEach(code => {
+              const option = document.createElement('option');
+              option.value = code;
+              option.selected = true;
+              hiddenSelect.appendChild(option);
+            });
+          }
         });
       });
     }
   }
 
-  // Funzione per chiudere il popup overlay
-  function closePopupOverlay() {
-    const popupOverlay = document.getElementById("popupOverlay");
-    if (popupOverlay) {
-      popupOverlay.style.display = "none";
-    }
-    
-    // Assicuriamoci che il dropdown venga chiuso quando si chiude il form
-    const dropdown = document.getElementById("insegnamentoDropdown");
-    if (dropdown) {
-      dropdown.style.display = "none";
-    }
-  }
-
-  // Funzione per mostrare/nascondere opzioni avanzate
+  // Mostra/nasconde le opzioni avanzate
   function toggleOpzioniAvanzate() {
     const opzioni = document.getElementById("opzioniAvanzate");
     const button = document.getElementById("buttonOpzioniAvanzate");
 
     if (!opzioni || !button) return;
 
-    if (opzioni.style.display === "grid") {
-      opzioni.style.display = "none";
-      button.innerHTML = "Opzioni avanzate &#x25BA;"; // freccia verso destra
-    } else {
-      opzioni.style.display = "grid";
-      button.innerHTML = "Opzioni avanzate &#x25BC;"; // freccia verso il basso
-    }
+    const isVisible = opzioni.style.display === "grid";
+    opzioni.style.display = isVisible ? "none" : "grid";
+    button.innerHTML = isVisible 
+      ? "Opzioni avanzate &#x25BA;" // freccia verso destra
+      : "Opzioni avanzate &#x25BC;"; // freccia verso il basso
+  }
+  
+  // Aggiorna le opzioni di verbalizzazione in base al checkbox di prova parziale
+  function aggiornaVerbalizzazione() {
+    const provaParzialeCheckbox = document.getElementById("provaParziale");
+    const verbalizzazioneSelect = document.getElementById("verbalizzazione");
+
+    if (!provaParzialeCheckbox || !verbalizzazioneSelect) return;
+
+    verbalizzazioneSelect.innerHTML = "";
+
+    const options = provaParzialeCheckbox.checked
+      ? [
+          { value: "PAR", text: "Prova parziale" },
+          { value: "PPP", text: "Prova parziale con pubblicazione" },
+        ]
+      : [
+          { value: "FSS", text: "Firma digitale singola" },
+          { value: "FWP", text: "Firma digitale con pubblicazione" },
+        ];
+
+    options.forEach((option) => {
+      const optionElement = document.createElement("option");
+      optionElement.value = option.value;
+      optionElement.textContent = option.text;
+      verbalizzazioneSelect.appendChild(optionElement);
+    });
+
+    verbalizzazioneSelect.value = provaParzialeCheckbox.checked ? "PAR" : "FSS";
   }
 
-  // ------- Funzioni per la gestione degli insegnamenti -------
-
-  // Funzione per controllare insegnamenti preselezionati dall'URL
+  // Controlla e carica insegnamenti preselezionati dall'URL
   function checkPreselectedInsegnamenti() {
-    // Controlla se c'è un parametro nell'URL che indica insegnamenti preselezionati
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedParam = urlParams.get("insegnamenti");
     
-    if (preselectedParam) {
-      const preselectedCodes = preselectedParam.split(",");
-      const username = document.getElementById("docente")?.value;
-      
-      if (username && window.InsegnamentiManager) {
-        // Carica dati insegnamenti
-        fetch(`/api/ottieniInsegnamenti?username=${username}&codici=${preselectedCodes.join(",")}`)
-          .then(response => response.json())
-          .then(data => {
-            if (data.length > 0) {
-              // Seleziona gli insegnamenti nel manager
+    if (!preselectedParam) return;
+    
+    const preselectedCodes = preselectedParam.split(",");
+    const username = document.getElementById("docente")?.value;
+    
+    if (!username || !window.InsegnamentiManager) return;
+    
+    console.log("Caricamento insegnamenti preselezionati:", preselectedCodes);
+    
+    fetch(`/api/ottieniInsegnamenti?username=${username}&codici=${preselectedCodes.join(",")}`)
+      .then(response => response.json())
+      .then(data => {
+        console.log("Dati insegnamenti ricevuti:", data);
+        if (data.length > 0) {
+          data.forEach(ins => {
+            const metadata = {
+              semestre: ins.semestre || 1,
+              anno_corso: ins.anno_corso || 1,
+              cds: ins.cds_codice || ""
+            };
+            
+            window.InsegnamentiManager.selectInsegnamento(ins.codice, metadata);
+          });
+          
+          const multiSelectBox = document.getElementById("insegnamentoBox");
+          if (multiSelectBox) {
+            window.InsegnamentiManager.syncTags(multiSelectBox, data);
+            
+            // Aggiorna anche la select nascosta
+            const hiddenSelect = document.getElementById("insegnamento");
+            if (hiddenSelect) {
+              hiddenSelect.innerHTML = '';
               data.forEach(ins => {
-                const metadata = {
-                  semestre: ins.semestre || 1,
-                  anno_corso: ins.anno_corso || 1,
-                  cds: ins.cds_codice || ""
-                };
-                
-                window.InsegnamentiManager.selectInsegnamento(ins.codice, metadata);
+                const option = document.createElement('option');
+                option.value = ins.codice;
+                option.selected = true;
+                hiddenSelect.appendChild(option);
               });
-              
-              // Sincronizza UI
-              const multiSelectBox = document.getElementById("insegnamentoBox");
-              if (multiSelectBox) {
-                window.InsegnamentiManager.syncTags(multiSelectBox, data);
-              }
             }
-          })
-          .catch(error => console.error("Errore nel caricamento degli insegnamenti preselezionati:", error));
-      }
-    }
+          }
+        }
+      })
+      .catch(error => console.error("Errore nel caricamento degli insegnamenti preselezionati:", error));
   }
 
-  // ------- Funzioni per gestire le aule -------
-
-  // Popola select con aule predefinite
-  function popolaAule() {
-    const selectAula = document.getElementById("aula");
-    if (selectAula) {
-      selectAula.innerHTML =
-        '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
-    }
-  }
-
-  // Aggiorna aule disponibili in base a data e ora
+  // Aggiorna le aule disponibili in base a data e ora
   function aggiornaAuleDisponibili() {
     const dataoraInput = document.getElementById("dataora");
     const oraInput = document.getElementById("ora");
@@ -201,6 +326,14 @@ document.addEventListener("DOMContentLoaded", () => {
       selectAula.innerHTML =
         '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
       return;
+    }
+
+    // Determina il periodo (mattina/pomeriggio) in base all'ora
+    function determinaPeriodo(ora) {
+      if (!ora) return null;
+      const oreParts = ora.split(":");
+      const oreInt = parseInt(oreParts[0], 10);
+      return oreInt > 13 ? 1 : 0; // 1 pomeriggio, 0 mattina
     }
 
     const periodo = determinaPeriodo(ora);
@@ -218,7 +351,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!studioDocentePresente) {
           aule.push({ nome: studioDocenteNome });
-          // Riordina le aule per nome
           aule.sort((a, b) => a.nome.localeCompare(b.nome));
         }
 
@@ -239,63 +371,28 @@ document.addEventListener("DOMContentLoaded", () => {
         selectAula.innerHTML =
           '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
 
-        let option = document.createElement("option");
+        const option = document.createElement("option");
         option.value = studioDocenteNome;
         option.textContent = studioDocenteNome;
-
         selectAula.appendChild(option);
       });
   }
 
-  // Funzione per determinare periodo (mattina/pomeriggio) in base all'ora
-  function determinaPeriodo(ora) {
-    if (!ora) return null;
-    const oreParts = ora.split(":");
-    const oreInt = parseInt(oreParts[0], 10);
-    return oreInt > 13 ? 1 : 0; // 1 pomeriggio, 0 mattina
-  }
-
-  // ------- Funzioni di utility -------
-
-  // Imposta username in un campo
-  function setUsernameField(fieldId, callback) {
-    getUserData()
-      .then((data) => {
-        if (data && data.authenticated && data.user_data) {
-          const userData = data.user_data;
-          const field = document.getElementById(fieldId);
-          if (field) {
-            field.value = userData.username;
-            if (typeof callback === "function") {
-              callback(userData.username);
-            }
-          }
-        }
-      })
-      .catch((error) => {
-        console.error("Errore nel recupero dei dati utente:", error);
-      });
-  }
-
-  // ------- Gestione form e validazione -------
-
-  // Validazione ora appello
+  // Valida l'ora dell'appello
   function validaOraAppello(ora) {
     if (!ora) return false;
-
     const [hours, minutes] = ora.split(":").map(Number);
     return hours >= 8 && hours <= 23;
   }
 
-  // Funzione per validare la durata dell'esame
+  // Valida la durata dell'esame
   function validaDurataEsame(durataMinuti) {
     if (!durataMinuti) return false;
-
     const durata = parseInt(durataMinuti, 10);
     return durata >= 30 && durata <= 480;
   }
 
-  // Handler submit form
+  // Gestisce l'invio del form
   function handleFormSubmit(e) {
     e.preventDefault();
 
@@ -342,22 +439,15 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (data.status === "validation") {
           mostraPopupConferma(data);
         } else {
-          // Resetta selezioni usando InsegnamentiManager
-          if (window.InsegnamentiManager) {
-            window.InsegnamentiManager.clearSelection();
-          }
-
-          // Forza aggiornamento del calendario
-          if (window.forceCalendarRefresh) {
-            window.forceCalendarRefresh();
-          }
+          window.InsegnamentiManager?.clearSelection();
+          window.forceCalendarRefresh?.();
 
           window.showMessage(
             data.message || "Esami inseriti con successo",
             "Operazione completata",
             "notification"
           );
-          document.getElementById("popupOverlay").style.display = "none";
+          hideForm();
         }
       })
       .catch((error) => {
@@ -370,7 +460,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  // Mostra popup di conferma per validazione esami
+  // Mostra il popup di conferma per la validazione degli esami
   function mostraPopupConferma(data) {
     // Crea il contenitore del popup
     const popupContainer = document.createElement("div");
@@ -475,16 +565,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Aggiungi il popup al DOM
     document.body.appendChild(popupContainer);
 
-    // Aggiungi event listeners
-    document.getElementById("closeConferma")?.addEventListener("click", () => {
-      document.body.removeChild(popupContainer);
-    });
+    // Funzione per rimuovere il popup
+    const removePopup = () => document.body.removeChild(popupContainer);
 
-    document
-      .getElementById("btnAnnullaEsami")
-      ?.addEventListener("click", () => {
-        document.body.removeChild(popupContainer);
-      });
+    // Aggiungi event listeners
+    document.getElementById("closeConferma")?.addEventListener("click", removePopup);
+    document.getElementById("btnAnnullaEsami")?.addEventListener("click", removePopup);
 
     // Event listener per "Seleziona tutti"
     const selectAllCheckbox = document.getElementById("selectAllExams");
@@ -539,36 +625,25 @@ document.addEventListener("DOMContentLoaded", () => {
           })
           .then((response) => {
             // Rimuovi il popup
-            document.body.removeChild(popupContainer);
+            removePopup();
 
             if (
               response.status === "success" ||
               response.status === "partial"
             ) {
               window.preselectedInsegnamenti = [];
+              window.InsegnamentiManager?.clearSelection();
+              window.forceCalendarRefresh?.();
 
-              if (window.InsegnamentiManager) {
-                window.InsegnamentiManager.clearSelection();
-              }
-
-              // Forza aggiornamento del calendario con la nuova funzione semplificata
-              if (window.forceCalendarRefresh) {
-                window.forceCalendarRefresh();
-              }
-
-              const messageType =
-                response.status === "success" ? "notification" : "warning";
-              const messageTitle =
-                response.status === "success"
-                  ? "Operazione completata"
-                  : "Inserimento parziale";
+              const messageType = response.status === "success" ? "notification" : "warning";
+              const messageTitle = response.status === "success" ? "Operazione completata" : "Inserimento parziale";
 
               window.showMessage(response.message, messageTitle, messageType);
 
               // Aggiorna calendario
               if (window.calendar) {
                 window.calendar.refetchEvents();
-                document.getElementById("popupOverlay").style.display = "none";
+                hideForm();
               }
 
               // Se ci sono errori specifici in caso di inserimento parziale
@@ -601,56 +676,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ------- Esportazione funzioni globali -------
+  // Interfaccia pubblica
+  return {
+    loadForm,
+    showForm,
+    hideForm,
+    isFormLoaded: () => isLoaded
+  };
+})();
 
-  // Rendi le funzioni accessibili globalmente
-  window.aggiornaAuleDisponibili = aggiornaAuleDisponibili;
-
-  // Funzione per aggiornare le opzioni di verbalizzazione in base al checkbox di prova parziale
-  function aggiornaVerbalizzazione() {
-    const provaParzialeCheckbox = document.getElementById("provaParziale");
-    const verbalizzazioneSelect = document.getElementById("verbalizzazione");
-
-    if (!provaParzialeCheckbox || !verbalizzazioneSelect) return;
-
-    // Salva il valore corrente se possibile
-    const currentValue = verbalizzazioneSelect.value;
-
-    // Svuota le opzioni attuali
-    verbalizzazioneSelect.innerHTML = "";
-
-    if (provaParzialeCheckbox.checked) {
-      // Opzioni per prova parziale
-      const options = [
-        { value: "PAR", text: "Prova parziale" },
-        { value: "PPP", text: "Prova parziale con pubblicazione" },
-      ];
-
-      options.forEach((option) => {
-        const optionElement = document.createElement("option");
-        optionElement.value = option.value;
-        optionElement.textContent = option.text;
-        verbalizzazioneSelect.appendChild(optionElement);
-      });
-
-      // Seleziona la prima opzione
-      verbalizzazioneSelect.value = "PAR";
-    } else {
-      // Opzioni standard
-      const options = [
-        { value: "FSS", text: "Firma digitale singola" },
-        { value: "FWP", text: "Firma digitale con pubblicazione" },
-      ];
-
-      options.forEach((option) => {
-        const optionElement = document.createElement("option");
-        optionElement.value = option.value;
-        optionElement.textContent = option.text;
-        verbalizzazioneSelect.appendChild(optionElement);
-      });
-
-      // Seleziona la prima opzione
-      verbalizzazioneSelect.value = "FSS";
-    }
-  }
-});
+// Esportazione globale (solo l'oggetto EsameForm)
+window.EsameForm = EsameForm;
