@@ -75,8 +75,8 @@ const EsameForm = (function() {
       }
       
       // Pulisci gli event listener per evitare duplicazioni
-      if (window.InsegnamentiManager && window.InsegnamentiManager.cleanupEventListeners) {
-        window.InsegnamentiManager.cleanupEventListeners();
+      if (window.InsegnamentiManager && window.InsegnamentiManager.cleanup) {
+        window.InsegnamentiManager.cleanup();
       }
       
       // Forziamo la ricarica del form la prossima volta
@@ -155,17 +155,22 @@ const EsameForm = (function() {
                 const dropdownElement = document.getElementById("insegnamentoDropdown");
                 const optionsElement = document.getElementById("insegnamentoOptions");
                 
-                if (boxElement && dropdownElement) {
+                if (boxElement && dropdownElement && optionsElement) {
                   console.log("Elementi trovati, inizializzazione multi-select");
                   
                   // Prima pulizia
-                  window.InsegnamentiManager.cleanupEventListeners();
+                  window.InsegnamentiManager.cleanup();
                   
-                  // Poi inizializzazione
-                  window.InsegnamentiManager.initMultiSelect("insegnamentoBox", "insegnamentoDropdown", "insegnamentoOptions");
-                  window.InsegnamentiManager.initFormInsegnamenti(username, () => {
-                    checkPreselectedInsegnamenti();
-                  });
+                  // Poi inizializzazione usando la nuova API
+                  window.InsegnamentiManager.initUI(
+                    "insegnamentoBox", 
+                    "insegnamentoDropdown", 
+                    "insegnamentoOptions",
+                    username
+                  );
+                  
+                  // Controlla se ci sono insegnamenti preselezionati dall'URL
+                  checkPreselectedInsegnamenti();
                 } else {
                   console.error("Elementi DOM per multi-select non trovati");
                 }
@@ -199,21 +204,8 @@ const EsameForm = (function() {
         const multiSelectBox = document.getElementById("insegnamentoBox");
         if (!multiSelectBox) return;
         
-        window.InsegnamentiManager.loadSelectedInsegnamenti(username, (insegnamenti) => {
-          window.InsegnamentiManager.syncTags(multiSelectBox, insegnamenti);
-          
-          // Aggiorna anche la select nascosta per il submit
-          const hiddenSelect = document.getElementById("insegnamento");
-          if (hiddenSelect) {
-            hiddenSelect.innerHTML = '';
-            window.InsegnamentiManager.getSelectedCodes().forEach(code => {
-              const option = document.createElement('option');
-              option.value = code;
-              option.selected = true;
-              hiddenSelect.appendChild(option);
-            });
-          }
-        });
+        // Usa la nuova API per sincronizzare l'UI
+        window.InsegnamentiManager.syncUI(multiSelectBox);
       });
     }
   }
@@ -275,9 +267,11 @@ const EsameForm = (function() {
     
     console.log("Caricamento insegnamenti preselezionati:", preselectedCodes);
     
-    fetch(`/api/ottieniInsegnamenti?username=${username}&codici=${preselectedCodes.join(",")}`)
-      .then(response => response.json())
-      .then(data => {
+    // Usa la nuova API loadInsegnamenti con filtro
+    window.InsegnamentiManager.loadInsegnamenti(
+      username, 
+      { filter: preselectedCodes },
+      data => {
         console.log("Dati insegnamenti ricevuti:", data);
         if (data.length > 0) {
           data.forEach(ins => {
@@ -292,23 +286,12 @@ const EsameForm = (function() {
           
           const multiSelectBox = document.getElementById("insegnamentoBox");
           if (multiSelectBox) {
-            window.InsegnamentiManager.syncTags(multiSelectBox, data);
-            
-            // Aggiorna anche la select nascosta
-            const hiddenSelect = document.getElementById("insegnamento");
-            if (hiddenSelect) {
-              hiddenSelect.innerHTML = '';
-              data.forEach(ins => {
-                const option = document.createElement('option');
-                option.value = ins.codice;
-                option.selected = true;
-                hiddenSelect.appendChild(option);
-              });
-            }
+            // Usa syncUI invece di syncTags
+            window.InsegnamentiManager.syncUI(multiSelectBox, data);
           }
         }
-      })
-      .catch(error => console.error("Errore nel caricamento degli insegnamenti preselezionati:", error));
+      }
+    );
   }
 
   // Aggiorna le aule disponibili in base a data e ora

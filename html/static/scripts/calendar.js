@@ -491,57 +491,16 @@ document.addEventListener("DOMContentLoaded", function () {
             // Prepara contenitore
             const multiSelectBox = document.getElementById("insegnamentoBox");
             if (multiSelectBox) {
-              // Salva placeholder
-              const placeholder = multiSelectBox.querySelector(
-                ".multi-select-placeholder"
-              );
-
-              // Svuota contenitore
-              multiSelectBox.innerHTML = "";
-
-              // Ripristina placeholder se necessario
-              if (
-                placeholder &&
-                window.InsegnamentiManager.getSelectedCodes().length === 0
-              ) {
-                multiSelectBox.appendChild(placeholder.cloneNode(true));
-              }
-
-              // Carica insegnamenti selezionati
-              window.InsegnamentiManager.loadSelectedInsegnamenti(
-                loggedDocente,
-                function (data) {
-                  if (data.length > 0) {
-                    // Rimuovi placeholder
-                    const placeholder = multiSelectBox.querySelector(
-                      ".multi-select-placeholder"
-                    );
-                    if (placeholder) {
-                      placeholder.remove();
-                    }
-
-                    // Crea tag per insegnamenti
-                    data.forEach((ins) => {
-                      window.InsegnamentiManager.createInsegnamentoTag(ins.codice, ins.titolo, multiSelectBox);
-                    });
-
-                    // Aggiorna select nascosta
-                    window.InsegnamentiManager.updateHiddenSelect(multiSelectBox);
-
-                    // Aggiorna opzioni nel dropdown
-                    const options = document.querySelectorAll(
-                      "#insegnamentoOptions .multi-select-option"
-                    );
-                    options.forEach((option) => {
-                      if (
-                        window.InsegnamentiManager.isSelected(
-                          option.dataset.value
-                        )
-                      ) {
-                        option.classList.add("selected");
-                      }
-                    });
-                  }
+              // Carica insegnamenti selezionati usando la nuova API
+              const username = loggedDocente;
+              if (!username) return;
+              
+              window.InsegnamentiManager.loadInsegnamenti(
+                username, 
+                { filter: window.InsegnamentiManager.getSelectedCodes() }, 
+                data => {
+                  // Utilizza syncUI per aggiornare l'interfaccia
+                  window.InsegnamentiManager.syncUI(multiSelectBox, data);
                 }
               );
             }
