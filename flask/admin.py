@@ -42,9 +42,9 @@ def upload_ugov():
     # Mappa indici colonne (potrebbero variare)
     colonna_indices = {
       'anno_accademico': 0,       # A
-      'anno_reg_did': 11,         # L
       'cod_cds': 6,               # G
       'des_cds': 8,               # I
+      'anno_reg_did': 11,         # L
       'des_curriculum': 13,       # N
       'cod_insegnamento': 15,     # P
       'des_insegnamento': 16,     # Q
@@ -130,7 +130,7 @@ def upload_ugov():
           anno_reg_did = int(float(sheet.cell_value(row_idx, colonna_indices['anno_reg_did'])))
           anno_corso = anno_accademico - anno_reg_did + 1
           # Verifica che l'anno corso sia valido
-          if anno_corso < 1 or anno_corso > 6:  # Assumo max 6 anni per una laurea magistrale/specialistica
+          if anno_corso < 1 or anno_corso > 3:  # Assumo max 3 anni
             anno_corso = 1  # Valore predefinito in caso di calcolo errato
         except:
           anno_corso = 1  # Valore predefinito se c'è un errore

@@ -2,9 +2,11 @@ from flask import request, jsonify
 from datetime import datetime, timedelta
 from db import get_db_connection, release_connection
 
-def raccogliDatiForm():
-  # Raccolta e validazione dei dati form
-  # Ritorna un dizionario con i dati raccolti o un dizionario con chiave 'error' in caso di errore  
+def generaDatiEsame():
+  """
+  Raccoglie i dati dal form, li valida e genera un dizionario con tutti i dati 
+  necessari per l'inserimento di un esame secondo la struttura della tabella esami.
+  """
   try:
     # Raccolta dati dal form
     data = request.form
@@ -57,7 +59,7 @@ def raccogliDatiForm():
     gestione_prenotazione = 'STD'
     riservato = False
     
-    # Gestione tipo_esame (se vuoto, impostiamo NULL)
+    # Gestione tipo_esame
     if not tipo_esame or tipo_esame.strip() == '':
       tipo_esame = None
     
@@ -81,6 +83,26 @@ def raccogliDatiForm():
       except ValueError:
         durata_appello = 120
     
+    # Gestione delle date di iscrizione
+    inizio_iscrizione = data.get('inizioIscrizione')
+    fine_iscrizione = data.get('fineIscrizione')
+    
+    # Segna se le date sono quelle di default (per eventuale sovrascrittura)
+    date_default = {'inizio': False, 'fine': False}
+    
+    # Se le date non sono specificate, impostiamo i valori predefiniti
+    if not inizio_iscrizione and data_appello:
+      # Default: 20 giorni prima della data dell'esame
+      data_esame = datetime.fromisoformat(data_appello)
+      inizio_iscrizione = (data_esame - timedelta(days=30)).strftime("%Y-%m-%d")
+      date_default['inizio'] = True
+    
+    if not fine_iscrizione and data_appello:
+      # Default: 1 giorno prima della data dell'esame
+      data_esame = datetime.fromisoformat(data_appello)
+      fine_iscrizione = (data_esame - timedelta(days=1)).strftime("%Y-%m-%d")
+      date_default['fine'] = True
+    
     # Restituisci dizionario con tutti i dati raccolti e validati
     return {
       'insegnamenti': insegnamenti,
@@ -95,7 +117,6 @@ def raccogliDatiForm():
       'tipo_esame': tipo_esame,
       'verbalizzazione': verbalizzazione,
       'descrizione': descrizione,
-      'prova_parziale': prova_parziale,
       'note_appello': note_appello,
       'posti': posti,
       'anno_accademico': anno_accademico,
@@ -103,80 +124,70 @@ def raccogliDatiForm():
       'definizione_appello': definizione_appello,
       'gestione_prenotazione': gestione_prenotazione,
       'riservato': riservato,
-      'tipo_iscrizione': tipo_iscrizione
+      'tipo_iscrizione': tipo_iscrizione,
+      'date_default': date_default
     }
   except Exception as e:
     return {'status': 'error', 'message': f'Errore nella raccolta dati: {str(e)}'}
 
-def verificaConflittiAula(dati_comuni):
-  # Verifica se ci sono conflitti per l'aula selezionata nella data e periodo specificati
-  # Come parametro, riceve il dizionario con i dati comuni dell'esame
-  # Ritorna un dizionario con chiave 'status' e 'message' in caso di conflitto, None altrimenti    
-  try:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Estrai dati necessari dal dizionario
-    aula = dati_comuni['aula']
-    data_appello = dati_comuni['data_appello']
-    periodo = dati_comuni['periodo']
-    
-    # Verifica conflitti aula
-    cursor.execute("""
-      SELECT COUNT(*) FROM esami 
-      WHERE data_appello = %s AND aula = %s AND periodo = %s
-    """, (data_appello, aula, periodo))
-    
-    if cursor.fetchone()[0] > 0:
-      # Conflitto trovato
-      return {
-        'status': 'error', 
-        'message': 'Aula già occupata in questo periodo'
-      }
-    
-    # Nessun conflitto
-    return None
-  except Exception as e:
-    return {'status': 'error', 'message': f'Errore nella verifica conflitti aula: {str(e)}'}
-  finally:
-    if 'cursor' in locals() and cursor:
-      cursor.close()
-    if 'conn' in locals() and conn:
-      release_connection(conn)
-
-def verificaInsegnamenti(dati_comuni):
-  # Controlla se ogni insegnamento specificato è valido per l'inserimento
-  # Ritorna due liste di dizionari: esami_validi e esami_invalidi
-  # Ogni dizionario contiene il codice dell'insegnamento, il titolo e un eventuale errore
+def controllaVincoli(dati_esame):
+  """
+  Controlla tutti i vincoli per gli esami specificati.
+  Riceve il dizionario generato da generaDatiEsame().
+  Restituisce una tupla contenente:
+  - dizionario con dati comuni aggiornati
+  - lista di esami validi
+  - lista di esami invalidi
+  - messaggio di errore (None se non ci sono errori bloccanti)
+  """
   conn = None
   cursor = None
   try:
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Verifico se ci sono errori bloccanti
+    if "status" in dati_esame and dati_esame["status"] == "error":
+      return dati_esame, [], [], dati_esame["message"]
+    
     # Liste per raccogliere risultati
     esami_validi = []
     esami_invalidi = []
     
-    # Estrai dati necessari
-    insegnamenti = dati_comuni['insegnamenti']
-    docente = dati_comuni['docente']
-    data_appello = dati_comuni['data_appello']
-    anno_accademico = dati_comuni['anno_accademico']
-    inizio_iscrizione = dati_comuni['inizio_iscrizione']
-    fine_iscrizione = dati_comuni['fine_iscrizione']
+    # 1. Verifica conflitti di aula
+    aula = dati_esame['aula']
+    data_appello = dati_esame['data_appello']
+    periodo = dati_esame['periodo']
+    
+    cursor.execute("""
+      SELECT COUNT(*) FROM esami 
+      WHERE data_appello = %s AND aula = %s AND periodo = %s
+    """, (data_appello, aula, periodo))
+    
+    if cursor.fetchone()[0] > 0:
+      return dati_esame, [], [], 'Aula già occupata in questo periodo'
+    
+    # 2. Verifica ogni insegnamento
+    insegnamenti = dati_esame['insegnamenti']
+    docente = dati_esame['docente']
+    anno_accademico = dati_esame['anno_accademico']
+    inizio_iscrizione = dati_esame['inizio_iscrizione']
+    fine_iscrizione = dati_esame['fine_iscrizione']
+    date_default = dati_esame.get('date_default', {'inizio': False, 'fine': False})
     
     # Converti in oggetto data
     data_esame = datetime.fromisoformat(data_appello)
     
-    # Verifica ogni insegnamento
+    # Dizionario per memorizzare le informazioni delle sessioni trovate
+    periodi_sessione = {}
+    
     for insegnamento in insegnamenti:
       try:
         # Ottieni titolo per messaggi di errore
         cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
         titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
         
-        # 1. Verifica che l'insegnamento esista per l'anno corrente
+        # 2.1 Verifica che l'insegnamento esista per l'anno corrente
         cursor.execute("""
           SELECT ic.cds, ic.anno_accademico 
           FROM insegnamenti_cds ic
@@ -195,7 +206,7 @@ def verificaInsegnamenti(dati_comuni):
         
         cds_code, anno_acc = cds_info
         
-        # 2. Verifica che la data rientri in una sessione d'esame valida
+        # 2.2 Verifica che la data rientri in una sessione d'esame valida
         sessione_info = getSessionePerData(data_esame, cds_code, anno_acc, cursor)
         if not sessione_info:
           esami_invalidi.append({
@@ -207,17 +218,25 @@ def verificaInsegnamenti(dati_comuni):
         
         sessione, limite_max, data_inizio_sessione = sessione_info
         
-        # 3. Imposta date iscrizione con valori predefiniti se non specificate
-        data_inizio_iscrizione = inizio_iscrizione if inizio_iscrizione else (data_inizio_sessione - timedelta(days=20)).strftime("%Y-%m-%d")
-        data_fine_iscrizione = fine_iscrizione if fine_iscrizione else (data_esame - timedelta(days=1)).strftime("%Y-%m-%d")
+        # Se le date sono quelle di default, calcola le migliori date basate sulla sessione
+        data_inizio_iscrizione = inizio_iscrizione
+        data_fine_iscrizione = fine_iscrizione
         
-        # 4. Verifica il limite di esami nella sessione
+        # Se la data di inizio iscrizione è quella di default, 
+        # la sovrascriviamo con 20 giorni prima dell'inizio sessione
+        if date_default['inizio']:
+          data_inizio_iscrizione = (data_inizio_sessione - timedelta(days=20)).strftime("%Y-%m-%d")
+          # Aggiorniamo anche il valore globale per gli altri esami
+          if not periodi_sessione:  # Solo la prima volta
+            dati_esame['inizio_iscrizione'] = data_inizio_iscrizione
+        
+        # 2.4 Verifica il limite di esami nella sessione
         cursor.execute("""
           SELECT COUNT(*) 
           FROM esami e
           JOIN periodi_esame pe ON pe.cds = %s 
-                    AND pe.anno_accademico = %s
-                    AND pe.tipo_periodo = %s
+              AND pe.anno_accademico = %s
+              AND pe.tipo_periodo = %s
           WHERE e.docente = %s 
             AND e.insegnamento = %s
             AND e.data_appello BETWEEN pe.inizio AND pe.fine
@@ -231,7 +250,7 @@ def verificaInsegnamenti(dati_comuni):
           })
           continue
         
-        # 5. Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento
+        # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento
         data_min = data_esame - timedelta(days=14)
         data_max = data_esame + timedelta(days=14)
         
@@ -250,13 +269,17 @@ def verificaInsegnamenti(dati_comuni):
           })
           continue
         
-        # Insegnamento valido, aggiungilo alla lista
+        # Insegnamento valido, aggiungi alla lista
         esami_validi.append({
           'codice': insegnamento,
           'titolo': titolo_insegnamento,
           'data_inizio_iscrizione': data_inizio_iscrizione,
           'data_fine_iscrizione': data_fine_iscrizione
         })
+        
+        # Memorizza i dati della sessione per questo CDS se non già presente
+        if (cds_code, anno_acc) not in periodi_sessione:
+          periodi_sessione[(cds_code, anno_acc)] = sessione_info
         
       except Exception as e:
         # Gestione errori durante la verifica
@@ -271,22 +294,28 @@ def verificaInsegnamenti(dati_comuni):
           'titolo': titolo_insegnamento,
           'errore': f"Errore nella verifica dell'esame: {str(e)}"
         })
-        
-    return esami_validi, esami_invalidi
+    
+    # Aggiorna il dizionario con le date di iscrizione
+    return dati_esame, esami_validi, esami_invalidi, None
     
   except Exception as e:
-    raise e
+    return dati_esame, [], [], f"Errore nella verifica vincoli: {str(e)}"
   finally:
     if cursor:
       cursor.close()
     if conn:
       release_connection(conn)
 
-def inserisciEsami(dati_comuni, esami_validi):
-  # Inserisce gli esami validati nel database
-  # Ritorna una tupla con due liste: esami_inseriti e errori
-  # Ogni lista contiene un dizionario per ogni esame con i
-  # campi 'codice', 'titolo' e 'errore' in caso di fallimento
+def inserisciEsami(dati_comuni, esami_da_inserire):
+  """
+  Inserisce gli esami nel database.
+  Riceve:
+  - dati_comuni: dizionario con i dati comuni per tutti gli esami
+  - esami_da_inserire: lista di dizionari con i dati specifici per ogni esame
+  Restituisce una tupla con:
+  - lista di esami inseriti (titoli)
+  - lista di errori
+  """
   conn = None
   cursor = None
   try:
@@ -296,7 +325,7 @@ def inserisciEsami(dati_comuni, esami_validi):
     esami_inseriti = []
     errori = []
     
-    for esame in esami_validi:
+    for esame in esami_da_inserire:
       try:
         # Estrai informazioni per l'inserimento
         insegnamento = esame['codice']
@@ -322,11 +351,13 @@ def inserisciEsami(dati_comuni, esami_validi):
            dati_comuni['riservato'], dati_comuni['tipo_iscrizione'],
            dati_comuni['periodo'], dati_comuni['durata_appello'])
         )
-        esami_inseriti.append(esame['titolo'])
+        esami_inseriti.append(esame.get('titolo', insegnamento))
       except Exception as e:
+        # Gestisci il caso in cui 'titolo' non è disponibile
+        titolo = esame.get('titolo', esame.get('codice', 'Sconosciuto'))
         errori.append({
-          'codice': insegnamento,
-          'titolo': esame['titolo'],
+          'codice': esame.get('codice', 'Sconosciuto'),
+          'titolo': titolo,
           'errore': f"Errore nell'inserimento dell'esame: {str(e)}"
         })
     
@@ -347,8 +378,7 @@ def inserisciEsami(dati_comuni, esami_validi):
       release_connection(conn)
 
 def getSessionePerData(data_esame, cds_code, anno_acc, cursor=None):
-  # Determina la sessione in cui ricade una data per un certo corso di studi
-  # Ritorna una tupla con tre valori: sessione, limite_max, data_inizio_sessione o None se non trovata
+  # Questa funzione rimane invariata
   close_connection = False
   conn = None
   
@@ -385,8 +415,7 @@ def getSessionePerData(data_esame, cds_code, anno_acc, cursor=None):
       release_connection(conn)
 
 def costruisciRispostaParziale(esami_inseriti, errori):
-  # Costruisce una risposta per inserimento parziale con successi ed errori
-  # Ritorna un dizionario con stato e messaggi per l'interfaccia
+  # Questa funzione rimane invariata
   return {
     'status': 'partial', 
     'message': 'Alcuni esami sono stati inseriti con successo', 

@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <span></span>
       </button>
       <ul class="navbar-nav">
+        <li><a href="/">OPLÀ</a></li>
         <li><a href="/oh-issa/">Dashboard</a></li>
         <li><a href="/oh-issa/import-export.html">Import/Export Dati</a></li>
         <li><a href="/oh-issa/gestioneCds.html">Gestione CdS</a></li>

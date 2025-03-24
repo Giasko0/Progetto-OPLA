@@ -361,8 +361,8 @@ document.addEventListener("DOMContentLoaded", function () {
                   : "1"
                 : null;
 
-            // Verifica data in sessione valida
-            const dataValida = dateValide.some(([start, end]) => {
+            // Verifica data in sessione valida (solo per non-admin)
+            const dataValida = isAdmin || dateValide.some(([start, end]) => {
               const startDate = new Date(start);
               // Reset delle ore per la data di inizio per un confronto corretto
               startDate.setHours(0, 0, 0, 0);
@@ -373,7 +373,7 @@ document.addEventListener("DOMContentLoaded", function () {
               return dataClick >= startDate && dataClick <= endDate;
             });
 
-            // Blocca date fuori sessione
+            // Blocca date fuori sessione (solo per non-admin)
             if (!dataValida) {
               showMessage(
                 "Non è possibile inserire esami al di fuori delle sessioni o delle pause didattiche",
@@ -431,7 +431,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 ? "var(--color-light-blue)" // blu: propri esami o esami di propri insegnamenti
                 : "#FFD700"; // giallo: altri esami
 
-            const textColor = "var(--color-bg)";
+            const textColor =
+              info.event.extendedProps.docente === loggedDocente ||
+              info.event.extendedProps.insegnamentoDocente
+                ? "var(--color-bg)"
+                : "#000";
 
             // Applica colori
             info.el.style.backgroundColor = eventColor;
@@ -461,8 +465,9 @@ document.addEventListener("DOMContentLoaded", function () {
             };
           },
 
-          // Disabilita date fuori sessione
+          // Disabilita date fuori sessione solo per utenti non admin
           dayCellClassNames: function (arg) {
+
             const dataCorrente = arg.date;
 
             // Verifica data in sessione

@@ -62,6 +62,14 @@ const InsegnamentiManager = (function () {
     }
   }
 
+  // Controllo se l'utente è un amministratore
+  function isAdmin() {
+    return document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("admin="))
+      ?.split("=")[1] === "true";
+  }
+
   // CARICAMENTO DATI
   function loadInsegnamenti(username, options = {}, callback = null) {
     // Gestione overload: se options è una funzione, è il callback
@@ -71,12 +79,12 @@ const InsegnamentiManager = (function () {
     }
 
     const { filter = null, cds = selectedCds, forceReload = false } = options;
+    const adminUser = isAdmin();
 
     // Usa la cache se disponibile e non ci sono filtri specifici
     if (!forceReload && insegnamentiCache.length > 0 && !filter) {
-      const data = cds
-        ? insegnamentiCache.filter((ins) => ins.cds_codice === cds)
-        : insegnamentiCache;
+      // Per coerenza, lasciamo che sia il backend a determinare se mostrare tutti gli insegnamenti
+      const data = cds ? insegnamentiCache.filter((ins) => ins.cds_codice === cds) : insegnamentiCache;
       if (typeof callback === "function") {
         callback(data);
       }
@@ -91,8 +99,14 @@ const InsegnamentiManager = (function () {
       url += `&codici=${codici}`;
     }
 
-    if (cds) {
+    // Aggiungi filtro CdS solo se non è un admin
+    if (cds && !adminUser) {
       url += `&cds=${cds}`;
+    }
+
+    // Per gli admin aggiungi parametro che indica di mostrare tutti gli insegnamenti
+    if (adminUser) {
+      url += "&admin_view=true";
     }
 
     // Carica dal server
@@ -100,7 +114,7 @@ const InsegnamentiManager = (function () {
       .then((response) => response.json())
       .then((data) => {
         // Aggiorna cache solo per richieste complete
-        if (!filter && !cds) {
+        if (!filter && (!cds || adminUser)) {
           insegnamentiCache = data;
         }
 
@@ -130,7 +144,7 @@ const InsegnamentiManager = (function () {
         return;
       }
 
-      // Carica gli insegnamenti selezionati
+      // Carica gli insegnamenti selezionati, tenendo conto dei permessi admin
       loadInsegnamenti(username, { filter: getSelectedCodes() }, (data) => {
         syncUI(container, data);
       });
@@ -329,6 +343,9 @@ const InsegnamentiManager = (function () {
       params.append("docente", docente);
     }
 
+    // Aggiungi sempre admin_view=true, il backend verificherà se l'utente è effettivamente admin
+    params.append("admin_view", "true");
+    
     if (selectedCds) {
       params.append("cds", selectedCds);
     }
@@ -388,6 +405,7 @@ const InsegnamentiManager = (function () {
     // Utility
     getRequestParams,
     cleanup,
+    isAdmin,
   };
 })();
 

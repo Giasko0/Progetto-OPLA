@@ -207,3 +207,48 @@ def rimuovi_sessioni_duplicate(sessions):
     
     # Converti il dizionario in una lista di sessioni
     return list(sessioni_uniche.values())
+
+def ottieni_tutte_sessioni(anno_accademico):
+    """
+    Ottiene tutte le sessioni d'esame per tutti i CdS per un dato anno accademico
+    """
+    from db import get_db_connection, release_connection
+    from datetime import datetime, timedelta
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Ottieni tutti i periodi d'esame per tutti i CdS
+        cursor.execute("""
+            SELECT pe.cds, pe.tipo_periodo, pe.inizio, pe.fine
+            FROM periodi_esame pe
+            JOIN cds c ON pe.cds = c.codice AND pe.anno_accademico = c.anno_accademico
+            WHERE pe.anno_accademico = %s
+            ORDER BY pe.inizio
+        """, (anno_accademico,))
+        
+        sessioni = []
+        for row in cursor.fetchall():
+            codice_cds, tipo_periodo, inizio, fine = row
+            
+            # Formattazione del nome del periodo
+            nome_periodo = tipo_periodo.capitalize()
+            
+            sessioni.append({
+                'cds': codice_cds,
+                'tipo': tipo_periodo,
+                'nome': nome_periodo,
+                'inizio': inizio,
+                'fine': fine
+            })
+        
+        return sessioni
+    except Exception as e:
+        print(f"Errore nell'ottenere tutte le sessioni: {e}")
+        return []
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)

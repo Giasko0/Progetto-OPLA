@@ -6,14 +6,26 @@ from psycopg2.extras import DictCursor
 
 fetch_bp = Blueprint('fetch', __name__)
 
+# Funzione utilitaria per verificare se l'utente corrente è un amministratore
+def is_admin():
+    try:
+        user_data = get_user_data().get_json()
+        return user_data['authenticated'] and user_data['user_data'] and user_data['user_data'].get('permessi_admin', False)
+    except Exception:
+        return False
+
 # API per ottenere gli insegnamenti di un docente. Usato in formEsame.html
 @fetch_bp.route('/api/ottieniInsegnamenti', methods=['GET'])
 def ottieniInsegnamenti():
   username = request.args.get('username')
   search = request.args.get('search')
   codici = request.args.get('codici')
+  admin_view = request.args.get('admin_view', 'false').lower() == 'true'
   
-  if not username:
+  # Verifica se l'utente è effettivamente un admin
+  admin_view = admin_view and is_admin()
+  
+  if not username and not admin_view:
     return jsonify({'status': 'error', 'message': 'Username mancante'}), 400
   
   try:
@@ -24,14 +36,25 @@ def ottieniInsegnamenti():
     planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
     
     # Query base
-    query = """
-      SELECT DISTINCT i.codice, i.titolo 
-      FROM insegnamenti i 
-      JOIN insegnamento_docente id ON i.codice = id.insegnamento 
-      WHERE id.docente = %s 
-      AND id.annoaccademico = %s
-    """
-    params = [username, planning_year]
+    if admin_view:
+      # Per gli admin, mostra tutti gli insegnamenti
+      query = """
+        SELECT DISTINCT i.codice, i.titolo 
+        FROM insegnamenti i 
+        JOIN insegnamento_docente id ON i.codice = id.insegnamento 
+        WHERE id.annoaccademico = %s
+      """
+      params = [planning_year]
+    else:
+      # Per gli utenti normali, filtra per docente
+      query = """
+        SELECT DISTINCT i.codice, i.titolo 
+        FROM insegnamenti i 
+        JOIN insegnamento_docente id ON i.codice = id.insegnamento 
+        WHERE id.docente = %s 
+        AND id.annoaccademico = %s
+      """
+      params = [username, planning_year]
     
     # Se è specificato un termine di ricerca, aggiungi la condizione
     if search:
@@ -157,6 +180,10 @@ def getEsami():
         insegnamenti = request.args.get('insegnamenti', None)
         cds = request.args.get('cds', None)
         solo_docente = request.args.get('solo_docente', 'false').lower() == 'true'
+        admin_view = request.args.get('admin_view', 'false').lower() == 'true'
+        
+        # Verifica se l'utente è effettivamente un admin
+        admin_view = admin_view and is_admin()
         
         if not docente:
             return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
@@ -200,7 +227,7 @@ def getEsami():
             query += " AND e.insegnamento IN (SELECT insegnamento FROM insegnamenti_cds WHERE cds = %s)"
             params.append(cds)
         
-        if solo_docente:
+        if solo_docente and not admin_view:
             query += " AND e.docente = %s"
             params.append(docente)
         
@@ -348,16 +375,23 @@ def getDateValide():
     try:
         cds = request.args.get('cds')
         docente = request.args.get('docente')
+        admin_view = request.args.get('admin_view', 'false').lower() == 'true'
+        
+        # Verifica se l'utente è effettivamente un admin
+        admin_view = admin_view and is_admin()
         
         current_date = datetime.now()
         planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
         
-        from utils.sessions import ottieni_sessioni_da_cds, ottieni_intersezione_sessioni_docente, rimuovi_sessioni_duplicate
+        from utils.sessions import ottieni_sessioni_da_cds, ottieni_intersezione_sessioni_docente, rimuovi_sessioni_duplicate, ottieni_tutte_sessioni
         
         # Ottieni le sessioni per l'anno di pianificazione
         sessions = []
         
-        if cds:
+        if admin_view:
+            # Se l'utente è admin, ottieni tutte le sessioni per tutti i CdS
+            sessions = ottieni_tutte_sessioni(planning_year)
+        elif cds:
             # Se è specificato un CdS, ottieni direttamente le sessioni per quel CdS
             sessions = ottieni_sessioni_da_cds(cds, planning_year)
         elif docente:
@@ -413,8 +447,12 @@ def getInsegnamentiDocente():
     anno = request.args.get('anno')
     docente = request.args.get('docente')
     cds = request.args.get('cds')  # Nuovo parametro per filtrare per CdS
+    admin_view = request.args.get('admin_view', 'false').lower() == 'true'
     
-    if not anno or not docente:
+    # Verifica se l'utente è effettivamente un admin
+    admin_view = admin_view and is_admin()
+    
+    if not anno or (not docente and not admin_view):
         return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
     
     try:
@@ -422,19 +460,35 @@ def getInsegnamentiDocente():
         cursor = conn.cursor()
         
         # Query di base
-        query = """
-            WITH insegnamenti_unici AS (
-                SELECT DISTINCT ON (i.codice, ic.cds)
-                       i.codice, i.titolo, ic.semestre, ic.anno_corso, ic.cds, c.nome_corso
-                FROM insegnamenti i
-                JOIN insegnamento_docente id ON i.codice = id.insegnamento
-                JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
-                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico
-                WHERE id.docente = %s 
-                AND id.annoaccademico = %s
-                AND ic.anno_accademico = %s
-        """
-        params = [docente, anno, anno]
+        if admin_view:
+            # Per gli admin, mostra tutti gli insegnamenti
+            query = """
+                WITH insegnamenti_unici AS (
+                    SELECT DISTINCT ON (i.codice, ic.cds)
+                           i.codice, i.titolo, ic.semestre, ic.anno_corso, ic.cds, c.nome_corso
+                    FROM insegnamenti i
+                    JOIN insegnamento_docente id ON i.codice = id.insegnamento
+                    JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
+                    JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico
+                    WHERE id.annoaccademico = %s
+                    AND ic.anno_accademico = %s
+            """
+            params = [anno, anno]
+        else:
+            # Per utenti normali, filtra per docente
+            query = """
+                WITH insegnamenti_unici AS (
+                    SELECT DISTINCT ON (i.codice, ic.cds)
+                           i.codice, i.titolo, ic.semestre, ic.anno_corso, ic.cds, c.nome_corso
+                    FROM insegnamenti i
+                    JOIN insegnamento_docente id ON i.codice = id.insegnamento
+                    JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
+                    JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico
+                    WHERE id.docente = %s 
+                    AND id.annoaccademico = %s
+                    AND ic.anno_accademico = %s
+            """
+            params = [docente, anno, anno]
         
         # Aggiungi filtro per CdS se specificato
         if cds:
@@ -467,24 +521,38 @@ def getInsegnamentiDocente():
 def ottieniCdSDocente():
     docente = request.args.get('docente')
     anno = request.args.get('anno')
+    admin_view = request.args.get('admin_view', 'false').lower() == 'true'
     
-    if not docente or not anno:
+    # Verifica se l'utente è effettivamente un admin
+    admin_view = admin_view and is_admin()
+    
+    if not anno or (not docente and not admin_view):
         return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
     
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Ottiene tutti i CdS distinti associati agli insegnamenti del docente
-        cursor.execute("""
-            SELECT DISTINCT c.codice, c.nome_corso
-            FROM cds c
-            JOIN insegnamenti_cds ic ON c.codice = ic.cds AND c.anno_accademico = ic.anno_accademico
-            JOIN insegnamento_docente id ON ic.insegnamento = id.insegnamento AND ic.anno_accademico = id.annoaccademico
-            WHERE id.docente = %s 
-            AND ic.anno_accademico = %s
-            ORDER BY c.nome_corso
-        """, (docente, anno))
+        # Ottiene tutti i CdS distinti
+        if admin_view:
+            # Per gli admin, mostra tutti i CdS
+            cursor.execute("""
+                SELECT DISTINCT c.codice, c.nome_corso
+                FROM cds c
+                WHERE c.anno_accademico = %s
+                ORDER BY c.nome_corso
+            """, (anno,))
+        else:
+            # Per gli utenti normali, filtra per docente
+            cursor.execute("""
+                SELECT DISTINCT c.codice, c.nome_corso
+                FROM cds c
+                JOIN insegnamenti_cds ic ON c.codice = ic.cds AND c.anno_accademico = ic.anno_accademico
+                JOIN insegnamento_docente id ON ic.insegnamento = id.insegnamento AND ic.anno_accademico = id.annoaccademico
+                WHERE id.docente = %s 
+                AND ic.anno_accademico = %s
+                ORDER BY c.nome_corso
+            """, (docente, anno))
         
         cds_list = [{'codice': row[0], 'nome_corso': row[1]} for row in cursor.fetchall()]
         return jsonify(cds_list)

@@ -5,6 +5,22 @@
   </div>
   <div class="popup-body">
     <form id="formEsame" method="post">
+
+      <!-- Pannello preferenze -->
+      <div id="preferencesPanel" class="preferences-panel">
+        <div class="preferences-header">
+          <span>Preferenze</span>
+          <button type="button" id="savePreferenceBtn" class="preference-btn" title="Salva preferenza"><span class="material-symbols-outlined">save</span></button>
+          <button type="button" id="loadPreferenceBtn" class="preference-btn" title="Carica preferenza"><span class="material-symbols-outlined">folder_open</span></button>
+        </div>
+        <div id="preferencesMenu" class="preferences-menu" style="display: none;"></div>
+        <div id="savePreferenceForm" class="preferences-form" style="display: none;">
+          <input type="text" id="preferenceNameInput" placeholder="Nome preferenza">
+          <button type="button" id="confirmSavePreference">Salva</button>
+          <button type="button" id="cancelSavePreference">Annulla</button>
+        </div>
+      </div>
+
       <p style="margin: 0; float: right">* Campi obbligatori</p>
 
       <!-- Hidden values -->
@@ -51,7 +67,7 @@
         <option value="FWP">Firma digitale con pubblicazione</option>
       </select>
 
-      <span id="buttonOpzioniAvanzate">Opzioni avanzate &#x25BA;</span>
+      <span id="buttonOpzioniAvanzate">Opzioni avanzate <span class="material-symbols-outlined">arrow_right</span></span>
 
       <!-- Opzioni avanzate -->
       <div id="opzioniAvanzate">
@@ -119,6 +135,7 @@
 
       <div class="form-actions">
         <button type="submit" class="invia">Invia</button>
+        <button type="button" id="bypassChecksBtn" class="invia secondary">Invia senza controlli</button>
       </div>
     </form>
   </div>

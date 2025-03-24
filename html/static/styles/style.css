@@ -486,6 +486,38 @@ body {
   cursor: pointer;
   margin: 20px auto;
   display: block;
+  background-color: var(--color-light-blue);
+  color: var(--color-bg-light);
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.invia:hover {
+  background-color: var(--color-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.invia.secondary {
+  background-color: var(--color-warning);
+  margin-left: 10px;
+}
+
+.invia.secondary:hover {
+  background-color: #e0a800;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.form-actions .invia {
+  margin: 0 5px;
 }
 
 #buttonOpzioniAvanzate {
@@ -493,6 +525,11 @@ body {
   margin: 50px 0;
   font-size: 1.2em;
   color: var(--color-blue);
+}
+
+#buttonOpzioniAvanzate span {
+  font-size: 2em;
+  vertical-align: middle;
 }
 
 #opzioniAvanzate {
@@ -517,6 +554,104 @@ body {
   box-sizing: border-box;
 }
 
+/*---------PREFERENZE FORM---------*/
+.preferences-panel {
+  margin-bottom: 15px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.preferences-header {
+  display: flex;
+  align-items: center;
+  background-color: var(--color-bg-secondary);
+  padding: 8px 10px;
+}
+
+.preferences-header span {
+  flex-grow: 1;
+  vertical-align: middle;
+  color: var(--color-blue);
+}
+
+.preference-btn {
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  cursor: pointer;
+  margin-left: 5px;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.preference-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.preferences-menu {
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: var(--color-bg-light);
+}
+
+.preference-item {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.preference-item:hover {
+  background-color: var(--color-bg);
+}
+
+.preference-item span {
+  flex-grow: 1;
+  vertical-align: middle;
+}
+
+.preference-item .delete-btn {
+  color: var(--color-red);
+  cursor: pointer;
+  visibility: hidden;
+  flex-grow: 0;
+  transition: all 0s !important;
+}
+
+.preference-item:hover .delete-btn {
+  visibility: visible;
+}
+
+.preferences-form {
+  padding: 10px;
+  background-color: var(--color-bg-light);
+  display: flex;
+  gap: 5px;
+}
+
+.preferences-form input {
+  flex-grow: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin: 0;
+}
+
+.preferences-form button {
+  width: 5rem;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--radius);
+  background-color: var(--color-blue);
+  color: white;
+  cursor: pointer;
+}
+
+.preferences-form button:last-child {
+  background-color: var(--color-bg-secondary);
+}
+
 /*---------MULTI-SELECT---------*/
 .multi-select-container {
   width: 100%;
@@ -528,7 +663,7 @@ body {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var (--radius);
   padding: 4px 8px;
   cursor: pointer;
   display: flex;

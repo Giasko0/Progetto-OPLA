@@ -67,17 +67,24 @@ CREATE TABLE insegnamenti (
 
 -- Creazione della tabella 'insegnamenti_cds' (specifici per un corso di studio, potrebbero variare di anno in anno)
 CREATE TABLE insegnamenti_cds (
-    insegnamento TEXT,          -- Codice dell'insegnamento (chiave esterna)
-    anno_accademico INT,        -- Anno accademico (2025)
-    cds TEXT,                   -- Codice del corso di studio (L062)
-    anno_corso INT NOT NULL,    -- Anno del cds (1, 2 o 3 per triennale)
-    semestre INT NOT NULL,      -- Semestre (1, 2 o 3 per annuale)
-    mutuato_da TEXT,            -- Codice dell'insegnamento da cui è mutuato
-    num_unita_did INT,
+    insegnamento TEXT,          -- Codice dell'insegnamento
+    anno_accademico INT,        -- Anno accademico
+    cds TEXT,                   -- Codice del corso di studio
+    anno_corso INT NOT NULL,    -- Anno del corso di studio
+    semestre INT NOT NULL,      -- Semestre (Insegnamento annuale = 3)
+    tipo_insegnamento TEXT NOT NULL, -- 'STANDARD', 'MUTUATO', 'MODULO'
+    insegnamento_padre TEXT,    -- Insegnamento di riferimento (per mutuati o moduli)
+    codice_modulo INT,          -- Numero modulo
     PRIMARY KEY (insegnamento, anno_accademico, cds),
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(codice) ON DELETE CASCADE,
     FOREIGN KEY (cds, anno_accademico) REFERENCES cds(codice, anno_accademico) ON DELETE CASCADE,
-    FOREIGN KEY (mutuato_da) REFERENCES insegnamenti(codice) ON DELETE SET NULL
+    FOREIGN KEY (insegnamento_padre) REFERENCES insegnamenti(codice) ON DELETE SET NULL,
+    CONSTRAINT check_tipo_insegnamento CHECK (tipo_insegnamento IN ('STANDARD', 'MUTUATO', 'MODULO')),
+    CONSTRAINT check_padre CHECK (
+        (tipo_insegnamento = 'STANDARD' AND insegnamento_padre IS NULL AND codice_modulo IS NULL) OR
+        (tipo_insegnamento = 'MUTUATO' AND insegnamento_padre IS NOT NULL AND codice_modulo IS NULL) OR
+        (tipo_insegnamento = 'MODULO' AND insegnamento_padre IS NOT NULL AND codice_modulo IS NOT NULL)
+    )
 );
 
 -- Creazione della tabella 'utenti'
@@ -92,6 +99,18 @@ CREATE TABLE utenti (
 
 -- Inserimento dell'utente 'admin' con permessi di amministratore
 INSERT INTO utenti (username, matricola, nome, cognome, permessi_docente, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', true, true);
+
+-- Tabella per le preferenze degli utenti
+CREATE TABLE IF NOT EXISTS preferenze_utenti (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) NOT NULL,
+    form_type VARCHAR(50) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    preferences TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT idx_user_form UNIQUE (username, form_type, name)
+);
 
 -- Creazione della tabella 'insegnamento_docente' (relazione N:N tra insegnamenti e utenti)
 CREATE TABLE insegnamento_docente (

@@ -116,6 +116,9 @@ export function populateInsegnamentiDropdown(
   if (cdsFiltro) {
     url += `&cds=${cdsFiltro}`;
   }
+  
+  // Aggiungi sempre admin_view=true, il backend verificherà se l'utente è effettivamente admin
+  url += "&admin_view=true";
 
   fetch(url)
     .then((response) => response.json())
@@ -193,6 +196,12 @@ export function fetchCalendarEvents(
     .find((row) => row.startsWith("username="))
     ?.split("=")[1];
 
+  // Verifica se l'utente è admin
+  const isAdmin = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("admin="))
+    ?.split("=")[1] === "true";
+
   // Utilizza InsegnamentiManager per generare i parametri
   if (window.InsegnamentiManager) {
     const params = window.InsegnamentiManager.getRequestParams(loggedDocente);
@@ -201,6 +210,9 @@ export function fetchCalendarEvents(
     if (cdsFiltro && cdsFiltro !== window.InsegnamentiManager.getCds()) {
       params.set("cds", cdsFiltro);
     }
+
+    // Aggiungi sempre admin_view=true, il backend verificherà se l'utente è effettivamente admin
+    params.set("admin_view", "true");
 
     // Richiesta API
     fetch("/api/ottieniEsami?" + params.toString())
@@ -229,7 +241,7 @@ export function fetchCalendarEvents(
   // Parametri base per API
   const params = new URLSearchParams();
   params.append("docente", loggedDocente);
-  //params.append("anno", planningYear); (remove)
+  params.append("admin_view", "true"); // Aggiungi sempre, il backend verificherà i permessi
 
   // Usa InsegnamentiManager per filtraggi
   if (window.InsegnamentiManager) {
@@ -281,6 +293,9 @@ export async function loadDateValide(docente, cds) {
 
   if (docente) params.append("docente", docente);
   if (cds) params.append("cds", cds);
+  
+  // Aggiungi sempre admin_view=true, il backend verificherà se l'utente è effettivamente admin
+  params.append("admin_view", "true");
 
   // Ritorna una Promise
   const response = await fetch("/api/getDateValide?" + params.toString());
