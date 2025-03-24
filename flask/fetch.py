@@ -14,74 +14,8 @@ def is_admin():
     except Exception:
         return False
 
-# API per ottenere gli insegnamenti di un docente. Usato in formEsame.html
-@fetch_bp.route('/api/ottieniInsegnamenti', methods=['GET'])
-def ottieniInsegnamenti():
-  username = request.args.get('username')
-  search = request.args.get('search')
-  codici = request.args.get('codici')
-  admin_view = request.args.get('admin_view', 'false').lower() == 'true'
-  
-  # Verifica se l'utente è effettivamente un admin
-  admin_view = admin_view and is_admin()
-  
-  if not username and not admin_view:
-    return jsonify({'status': 'error', 'message': 'Username mancante'}), 400
-  
-  try:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    current_date = datetime.now()
-    planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
-    
-    # Query base
-    if admin_view:
-      # Per gli admin, mostra tutti gli insegnamenti
-      query = """
-        SELECT DISTINCT i.codice, i.titolo 
-        FROM insegnamenti i 
-        JOIN insegnamento_docente id ON i.codice = id.insegnamento 
-        WHERE id.annoaccademico = %s
-      """
-      params = [planning_year]
-    else:
-      # Per gli utenti normali, filtra per docente
-      query = """
-        SELECT DISTINCT i.codice, i.titolo 
-        FROM insegnamenti i 
-        JOIN insegnamento_docente id ON i.codice = id.insegnamento 
-        WHERE id.docente = %s 
-        AND id.annoaccademico = %s
-      """
-      params = [username, planning_year]
-    
-    # Se è specificato un termine di ricerca, aggiungi la condizione
-    if search:
-      query += " AND i.titolo ILIKE %s"
-      params.append(f"%{search}%")
-    
-    # Se sono specificati dei codici, aggiungi la condizione
-    if codici:
-      codici_list = codici.split(',')
-      placeholders = ', '.join(['%s'] * len(codici_list))
-      query += f" AND i.codice IN ({placeholders})"
-      params.extend(codici_list)
-    
-    cursor.execute(query, params)
-    
-    insegnamenti = [{'codice': row[0], 'titolo': row[1]} for row in cursor.fetchall()]
-    return jsonify(insegnamenti)
-  except Exception as e:
-    return jsonify({'status': 'error', 'message': str(e)}), 500
-  finally:
-    if 'cursor' in locals() and cursor:
-      cursor.close()
-    if 'conn' in locals() and conn:
-      release_connection(conn)
-
 # API per ottenere le aule disponibili. Usato in formEsame.html
-@fetch_bp.route('/api/ottieniAule', methods=['GET'])
+@fetch_bp.route('/api/getAule', methods=['GET'])
 def ottieniAule():
   data = request.args.get('data')
   periodo = request.args.get('periodo')  # 0 per mattina, 1 per pomeriggio
@@ -169,7 +103,7 @@ def ottieniAule():
       release_connection(conn)
 
 # API per ottenere tutti gli esami. Usato per gli eventi del calendario
-@fetch_bp.route('/api/ottieniEsami', methods=['GET'])
+@fetch_bp.route('/api/getEsami', methods=['GET'])
 def getEsami():
     try:
         conn = get_db_connection()
@@ -264,7 +198,7 @@ def getEsami():
             release_connection(conn)
 
 # API per ottenere gli esami di un docente. Usato in mieiEsami.html
-@fetch_bp.route('/api/ottieniMieiEsami', methods=['GET'])
+@fetch_bp.route('/api/getMieiEsamiInsegnamenti', methods=['GET'])
 def miei_esami():
     # Ottieni i dati dell'utente usando la nuova funzione
     user_data = get_user_data().get_json()
@@ -280,12 +214,24 @@ def miei_esami():
         current_date = datetime.now()
         planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
 
+        # Prima otteniamo tutti gli insegnamenti del docente
+        cursor.execute("""
+            SELECT i.codice, i.titolo
+            FROM insegnamenti i
+            JOIN insegnamento_docente id ON i.codice = id.insegnamento
+            WHERE id.docente = %s
+            AND id.annoaccademico = %s
+        """, (docente, planning_year))
+        
+        insegnamenti_docente = {row[0]: row[1] for row in cursor.fetchall()}
+        
+        # Poi otteniamo gli esami pianificati
         cursor.execute("""
           WITH esami_unici AS (
             SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
                    e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
                    c.codice as codice_cds, c.nome_corso as nome_cds,
-                   a.edificio, e.durata_appello
+                   a.edificio, e.durata_appello, e.insegnamento as codice_insegnamento
             FROM esami e
             JOIN insegnamenti i ON e.insegnamento = i.codice
             JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento
@@ -301,13 +247,13 @@ def miei_esami():
         
         rows = cursor.fetchall()
         esami = []
-        insegnamenti = {}
+        insegnamenti_with_esami = {}
         
         for row in rows:
             # Estrai i dati base dell'esame
             docente, titolo, aula, data_appello, ora = row[:5]
             # Estrai le informazioni aggiuntive
-            codice_cds, nome_cds, edificio, durata_appello = row[5:9]
+            codice_cds, nome_cds, edificio, durata_appello, codice_insegnamento = row[5:10]
             
             # Formatta l'edificio come sigla se presente
             aula_completa = f"{aula} ({edificio})" if edificio else aula
@@ -349,8 +295,8 @@ def miei_esami():
             esami.append(exam)
             
             # Aggiorna il conteggio delle sessioni
-            if titolo not in insegnamenti:
-                insegnamenti[titolo] = {
+            if titolo not in insegnamenti_with_esami:
+                insegnamenti_with_esami[titolo] = {
                     'Anticipata': 0,
                     'Estiva': 0,
                     'Autunnale': 0,
@@ -358,7 +304,21 @@ def miei_esami():
                     'Pausa Didattica': 0
                 }
             if sessione:
-                insegnamenti[titolo][sessione] += 1
+                insegnamenti_with_esami[titolo][sessione] += 1
+        
+        # Creazione del dizionario insegnamenti includendo tutti gli insegnamenti del docente
+        insegnamenti = {}
+        for codice, titolo in insegnamenti_docente.items():
+            if titolo in insegnamenti_with_esami:
+                insegnamenti[titolo] = insegnamenti_with_esami[titolo]
+            else:
+                insegnamenti[titolo] = {
+                    'Anticipata': 0,
+                    'Estiva': 0,
+                    'Autunnale': 0,
+                    'Invernale': 0,
+                    'Pausa Didattica': 0
+                }
         
         return jsonify({'esami': esami, 'insegnamenti': insegnamenti}), 200
     except Exception as e:
@@ -442,17 +402,26 @@ def getAnniAccademici():
         if 'conn' in locals() and conn:
             release_connection(conn)
 
+# API per ottenere gli insegnamenti di un docente. Usato in calendar.js e calendarUtils.js
 @fetch_bp.route('/api/getInsegnamentiDocente', methods=['GET'])
 def getInsegnamentiDocente():
     anno = request.args.get('anno')
     docente = request.args.get('docente')
-    cds = request.args.get('cds')  # Nuovo parametro per filtrare per CdS
+    cds = request.args.get('cds')  # Filtro per CdS
+    search = request.args.get('search')  # Aggiunto supporto per ricerca testuale
+    codici = request.args.get('codici')  # Aggiunto supporto per filtrare per codici specifici
     admin_view = request.args.get('admin_view', 'false').lower() == 'true'
     
     # Verifica se l'utente è effettivamente un admin
     admin_view = admin_view and is_admin()
     
-    if not anno or (not docente and not admin_view):
+    # Usa l'anno corrente se non specificato
+    if not anno:
+        current_date = datetime.now()
+        anno = current_date.year if current_date.month >= 9 else current_date.year - 1
+    
+    # Verifica se sono forniti parametri necessari
+    if not docente and not admin_view and not codici:
         return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
     
     try:
@@ -494,6 +463,18 @@ def getInsegnamentiDocente():
         if cds:
             query += " AND ic.cds = %s"
             params.append(cds)
+        
+        # Aggiungi filtro per ricerca testuale
+        if search:
+            query += " AND i.titolo ILIKE %s"
+            params.append(f"%{search}%")
+            
+        # Aggiungi filtro per codici specifici
+        if codici:
+            codici_list = codici.split(',')
+            placeholders = ', '.join(['%s'] * len(codici_list))
+            query += f" AND i.codice IN ({placeholders})"
+            params.extend(codici_list)
             
         query += """
                 ORDER BY i.codice, ic.cds, ic.anno_accademico DESC
@@ -517,8 +498,8 @@ def getInsegnamentiDocente():
             release_connection(conn)
 
 # API per ottenere i corsi di studio associati a un docente
-@fetch_bp.route('/api/ottieniCdSDocente', methods=['GET'])
-def ottieniCdSDocente():
+@fetch_bp.route('/api/getCdsDocente', methods=['GET'])
+def getCdsDocente():
     docente = request.args.get('docente')
     anno = request.args.get('anno')
     admin_view = request.args.get('admin_view', 'false').lower() == 'true'

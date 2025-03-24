@@ -11,6 +11,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Aggiorna elementi UI basati sull'autenticazione
   updateUIByAuth();
+  
+  // Aggiorna il titolo della pagina in base all'utente autenticato
+  updatePageTitle();
 });
 
 // Controlla autenticazione e reindirizza se necessario
@@ -143,29 +146,28 @@ function updatePageTitle() {
         // Aggiorna il titolo della pagina con il nome dell'utente
         const titolo = document.querySelector(".titolo, .title-primary");
         if (titolo && userData) {
-          const currentPage = window.location.pathname.split("/").pop();
+          const currentPage = window.location.pathname.split("/").pop() || 
+                             (window.location.pathname.endsWith('/') ? 'index.html' : '');
+
+          let nomeFormattato = userData.username;
+
+          if (userData.nome && userData.cognome) {
+            // Capitalizza solo la prima lettera di nome e cognome
+            const nome =
+              userData.nome.charAt(0).toUpperCase() +
+              userData.nome.slice(1).toLowerCase();
+            const cognome =
+              userData.cognome.charAt(0).toUpperCase() +
+              userData.cognome.slice(1).toLowerCase();
+            nomeFormattato = `${nome} ${cognome}`;
+          }
 
           if (currentPage === "mieiEsami.html") {
-            titolo.textContent = `Esami di ${userData.nome || ""} ${
-              userData.cognome || ""
-            }`.trim();
+            titolo.textContent = `Esami di ${nomeFormattato}`;
             if (!userData.nome && !userData.cognome) {
               titolo.textContent = `I miei esami`;
             }
           } else if (currentPage === "calendario.html") {
-            let nomeFormattato = userData.username;
-
-            if (userData.nome && userData.cognome) {
-              // Capitalizza solo la prima lettera di nome e cognome
-              const nome =
-                userData.nome.charAt(0).toUpperCase() +
-                userData.nome.slice(1).toLowerCase();
-              const cognome =
-                userData.cognome.charAt(0).toUpperCase() +
-                userData.cognome.slice(1).toLowerCase();
-              nomeFormattato = `${nome} ${cognome}`;
-            }
-
             titolo.textContent = `Benvenuto/a, ${nomeFormattato}!`;
           }
         }

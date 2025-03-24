@@ -6,11 +6,11 @@ document.addEventListener("DOMContentLoaded", function () {
   window.updatePageTitle();
 
   // Ottieni i dati degli esami dell'utente
-  caricaEsami();
+  fetchAndDisplayEsami();
 });
 
-// Carica gli esami dell'utente
-function caricaEsami() {
+// Carica gli esami dell'utente e li visualizza
+function fetchAndDisplayEsami() {
   // Ottiene i dati dell'utente tramite la funzione centralizzata
   getUserData()
     .then((data) => {
@@ -18,11 +18,7 @@ function caricaEsami() {
         const userData = data.user_data;
 
         // Carica gli esami dell'utente usando l'API
-        fetch(
-          `/api/ottieniMieiEsami?docente=${encodeURIComponent(
-            userData.username
-          )}`
-        )
+        fetch(`/api/getMieiEsamiInsegnamenti`)
           .then((response) => {
             if (!response.ok) {
               throw new Error("Errore nel caricamento degli esami");
@@ -31,7 +27,88 @@ function caricaEsami() {
           })
           .then((data) => {
             // Visualizza i dati degli esami
-            visualizzaEsami(data);
+            const tabsHeader = document.getElementById("tabsHeader");
+            const container = document.getElementById("contenitoreEsami");
+            // Manteniamo il pulsante "Tutti gli appelli"
+            const allExamsButton = document.getElementById("allExamsButton");
+            container.innerHTML = "";
+
+            // Manteniamo solo il pulsante "Tutti gli appelli"
+            tabsHeader.innerHTML = "";
+            tabsHeader.appendChild(allExamsButton);
+
+            const insegnamenti = Object.keys(data.insegnamenti);
+
+            // Salviamo i dati come proprietà globale per usarli nel tab "Tutti gli appelli"
+            window.esamiData = data;
+
+            // Crea i pulsanti dei tabs
+            insegnamenti.forEach((insegnamento, index) => {
+              const tabButton = document.createElement("button");
+              tabButton.className = "tab-button";
+              tabButton.textContent = insegnamento;
+              // Usa un link diretto per cambiare pagina
+              tabButton.onclick = function () {
+                window.location.href = `?insegnamento=${encodeURIComponent(
+                  insegnamento
+                )}`;
+              };
+              tabsHeader.appendChild(tabButton);
+
+              // Crea il contenuto del tab
+              const tabContent = document.createElement("div");
+              tabContent.className = "tab-content";
+              tabContent.style.display = "none"; // Tutti i tab sono nascosti inizialmente
+              tabContent.id = `tab-${insegnamento.replace(/\s+/g, "-")}`;
+
+              // Aggiungi contenuto al tab
+              displaySessioniEsami(data, insegnamento, tabContent);
+              displayTabelleEsami(data, insegnamento, tabContent);
+
+              container.appendChild(tabContent);
+            });
+
+            // Crea il tab per "Tutti gli appelli"
+            const allExamsTab = document.createElement("div");
+            allExamsTab.className = "tab-content";
+            allExamsTab.id = "tab-all-exams";
+
+            // Per default, tutti i tab sono nascosti
+            allExamsTab.style.display = "none";
+            displayAllExams(data, allExamsTab);
+            container.appendChild(allExamsTab);
+
+            // Leggi il parametro URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const insegnamentoParam = urlParams.get("insegnamento");
+
+            // Se c'è un parametro insegnamento nell'URL
+            if (insegnamentoParam) {
+              // Cerca il tab corrispondente
+              const tabId = `tab-${insegnamentoParam.replace(/\s+/g, "-")}`;
+              const tab = document.getElementById(tabId);
+
+              if (tab) {
+                // Mostra il tab richiesto
+                tab.style.display = "block";
+
+                // Attiva il pulsante corrispondente
+                const buttons = document.querySelectorAll(".tab-button");
+                buttons.forEach((button) => {
+                  if (button.textContent === insegnamentoParam) {
+                    button.classList.add("active");
+                  }
+                });
+              } else {
+                // Se non esiste, mostra "Tutti gli appelli"
+                allExamsTab.style.display = "block";
+                allExamsButton.classList.add("active");
+              }
+            } else {
+              // Se non c'è parametro, mostra "Tutti gli appelli"
+              allExamsTab.style.display = "block";
+              allExamsButton.classList.add("active");
+            }
           })
           .catch((error) => {
             console.error("Errore:", error);
@@ -48,122 +125,6 @@ function caricaEsami() {
         "contenitoreEsami"
       ).innerHTML = `<div class="error-message">Si è verificato un errore nell'ottenimento dei dati: ${error.message}</div>`;
     });
-}
-
-/**
- * Visualizza gli esami nel contenitore appropriato
- * @param {Array} esami - Array di oggetti esame
- */
-function visualizzaEsami(esami) {
-  const contenitoreEsami = document.getElementById("contenitoreEsami");
-  const tabsHeader = document.getElementById("tabsHeader");
-
-  if (!esami || esami.length === 0) {
-    contenitoreEsami.innerHTML = "<p>Non hai esami programmati.</p>";
-    return;
-  }
-
-  // Implementazione della visualizzazione esami
-  fetchAndDisplayEsami();
-
-  // Funzionalità dei tab per periodo
-  const allExamsButton = document.getElementById("allExamsButton");
-  if (allExamsButton) {
-    allExamsButton.addEventListener("click", function () {
-      // Mostra tutti gli esami
-      showAllExams();
-    });
-  }
-}
-
-function fetchAndDisplayEsami() {
-  fetch("/api/ottieniMieiEsami")
-    .then((response) => response.json())
-    .then((data) => {
-      const tabsHeader = document.getElementById("tabsHeader");
-      const container = document.getElementById("contenitoreEsami");
-      // Manteniamo il pulsante "Tutti gli appelli"
-      const allExamsButton = document.getElementById("allExamsButton");
-      container.innerHTML = "";
-
-      // Manteniamo solo il pulsante "Tutti gli appelli"
-      tabsHeader.innerHTML = "";
-      tabsHeader.appendChild(allExamsButton);
-
-      const insegnamenti = Object.keys(data.insegnamenti);
-
-      // Salviamo i dati come proprietà globale per usarli nel tab "Tutti gli appelli"
-      window.esamiData = data;
-
-      // Crea i pulsanti dei tabs
-      insegnamenti.forEach((insegnamento, index) => {
-        const tabButton = document.createElement("button");
-        tabButton.className = "tab-button";
-        tabButton.textContent = insegnamento;
-        // Usa un link diretto per cambiare pagina
-        tabButton.onclick = function () {
-          window.location.href = `?insegnamento=${encodeURIComponent(
-            insegnamento
-          )}`;
-        };
-        tabsHeader.appendChild(tabButton);
-
-        // Crea il contenuto del tab
-        const tabContent = document.createElement("div");
-        tabContent.className = "tab-content";
-        tabContent.style.display = "none"; // Tutti i tab sono nascosti inizialmente
-        tabContent.id = `tab-${insegnamento.replace(/\s+/g, "-")}`;
-
-        // Aggiungi contenuto al tab
-        displaySessioniEsami(data, insegnamento, tabContent);
-        displayTabelleEsami(data, insegnamento, tabContent);
-
-        container.appendChild(tabContent);
-      });
-
-      // Crea il tab per "Tutti gli appelli"
-      const allExamsTab = document.createElement("div");
-      allExamsTab.className = "tab-content";
-      allExamsTab.id = "tab-all-exams";
-
-      // Per default, tutti i tab sono nascosti
-      allExamsTab.style.display = "none";
-      displayAllExams(data, allExamsTab);
-      container.appendChild(allExamsTab);
-
-      // Leggi il parametro URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const insegnamentoParam = urlParams.get("insegnamento");
-
-      // Se c'è un parametro insegnamento nell'URL
-      if (insegnamentoParam) {
-        // Cerca il tab corrispondente
-        const tabId = `tab-${insegnamentoParam.replace(/\s+/g, "-")}`;
-        const tab = document.getElementById(tabId);
-
-        if (tab) {
-          // Mostra il tab richiesto
-          tab.style.display = "block";
-
-          // Attiva il pulsante corrispondente
-          const buttons = document.querySelectorAll(".tab-button");
-          buttons.forEach((button) => {
-            if (button.textContent === insegnamentoParam) {
-              button.classList.add("active");
-            }
-          });
-        } else {
-          // Se non esiste, mostra "Tutti gli appelli"
-          allExamsTab.style.display = "block";
-          allExamsButton.classList.add("active");
-        }
-      } else {
-        // Se non c'è parametro, mostra "Tutti gli appelli"
-        allExamsTab.style.display = "block";
-        allExamsButton.classList.add("active");
-      }
-    })
-    .catch((error) => console.error("Errore:", error));
 }
 
 function displayTabelleEsami(data, insegnamento, container) {
@@ -209,6 +170,12 @@ function displayTabelleEsami(data, insegnamento, container) {
 
     section.appendChild(table);
     container.appendChild(section);
+  } else {
+    // Aggiungi un messaggio se non ci sono esami per questo insegnamento
+    const noExamsMsg = document.createElement("p");
+    noExamsMsg.style.textAlign = "center";
+    noExamsMsg.textContent = "Inserisci degli appelli d'esame per visualizzarli qui!";
+    container.appendChild(noExamsMsg);
   }
 }
 
@@ -343,6 +310,15 @@ function displayAllExams(data, container) {
 
   sessionsSection.appendChild(sessionsGrid);
   container.appendChild(sessionsSection);
+
+  // Verifica se ci sono esami
+  if (data.esami.length === 0) {
+    const noExamsMsg = document.createElement("p");
+    noExamsMsg.style.textAlign = "center";
+    noExamsMsg.textContent = "Inserisci degli appelli d'esame per visualizzarli qui!";
+    container.appendChild(noExamsMsg);
+    return; // Termina la funzione per non creare la tabella vuota
+  }
 
   // Continua con la tabella dettagliata di tutti gli appelli
   const section = document.createElement("div");

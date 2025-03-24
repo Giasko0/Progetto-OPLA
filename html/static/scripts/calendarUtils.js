@@ -215,7 +215,7 @@ export function fetchCalendarEvents(
     params.set("admin_view", "true");
 
     // Richiesta API
-    fetch("/api/ottieniEsami?" + params.toString())
+    fetch("/api/getEsami?" + params.toString())
       .then((response) => response.json())
       .then((data) => {
         if (successCallback) {
@@ -266,7 +266,7 @@ export function fetchCalendarEvents(
   }
 
   // Richiesta API
-  fetch("/api/ottieniEsami?" + params.toString())
+  fetch("/api/getEsami?" + params.toString())
     .then((response) => response.json())
     .then((data) => {
       if (successCallback) {

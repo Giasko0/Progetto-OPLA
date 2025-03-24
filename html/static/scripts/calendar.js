@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", function () {
     loadDateValide(loggedDocente),
     checkAdminPermissions(),
     fetch(
-      `/api/ottieniCdSDocente?docente=${loggedDocente}&anno=${planningYear}`
+      `/api/getCdsDocente?docente=${loggedDocente}&anno=${planningYear}`
     ).then((r) => r.json()),
     fetch(
       `/api/getInsegnamentiDocente?anno=${planningYear}&docente=${loggedDocente}`
@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             // Carica gli eventi
-            fetch(`/api/ottieniEsami?${params.toString()}`)
+            fetch(`/api/getEsami?${params.toString()}`)
               .then((response) => response.json())
               .then((events) => {
                 // Memorizza gli eventi nella cache
@@ -240,7 +240,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 calendar.getEventSources().forEach((source) => source.remove());
 
                 // Carica tutti gli esami
-                fetch("/api/ottieniEsami?all=true")
+                fetch("/api/getEsami?docente=*")
                   .then((response) => response.json())
                   .then((data) => {
                     calendar.addEventSource(data);

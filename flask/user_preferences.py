@@ -71,7 +71,7 @@ def salva_preferienza_form():
         if conn:
             release_connection(conn)
 
-@preferences_bp.route('/api/ottieniPreferenzeForm', methods=['GET'])
+@preferences_bp.route('/api/getPreferenzeForm', methods=['GET'])
 def ottieni_preferenze_form():
     """Ottiene tutte le preferenze del form per un utente"""
     conn = None

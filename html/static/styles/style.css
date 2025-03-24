@@ -1026,6 +1026,7 @@ table {
   border: 1px solid var(--color-border);
   background-color: var(--color-bg-light);
   color: var(--color-text);
+  width: 100%;
 }
 
 thead th {

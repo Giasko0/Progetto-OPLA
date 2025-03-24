@@ -454,7 +454,7 @@ const EsameForm = (function() {
     const periodo = determinaPeriodo(ora);
     const studioDocenteNome = "Studio docente DMI";
 
-    fetch(`/api/ottieniAule?data=${data}&periodo=${periodo}`)
+    fetch(`/api/getAule?data=${data}&periodo=${periodo}`)
       .then((response) => response.json())
       .then((aule) => {
         selectAula.innerHTML =
@@ -738,7 +738,7 @@ const EsameForm = (function() {
     
     console.log("Caricamento preferenze per:", currentUsername);
     
-    fetch(`/api/ottieniPreferenzeForm?username=${encodeURIComponent(currentUsername)}&form_type=esame`)
+    fetch(`/api/getPreferenzeForm?username=${encodeURIComponent(currentUsername)}&form_type=esame`)
       .then(response => {
         if (!response.ok) {
           throw new Error(`Errore nella risposta del server: ${response.status}`);

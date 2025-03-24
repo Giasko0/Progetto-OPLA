@@ -91,8 +91,14 @@ const InsegnamentiManager = (function () {
       return;
     }
 
-    // Costruisci URL
-    let url = `/api/ottieniInsegnamenti?username=${username}`;
+    // Ottieni l'anno accademico corrente
+    const currentDate = new Date();
+    const planningYear = currentDate.getMonth() >= 9 
+        ? currentDate.getFullYear() 
+        : currentDate.getFullYear() - 1;
+
+    // Costruisci URL con l'endpoint unificato
+    let url = `/api/getInsegnamentiDocente?docente=${username}&anno=${planningYear}`;
 
     if (filter) {
       const codici = Array.isArray(filter) ? filter.join(",") : filter;
