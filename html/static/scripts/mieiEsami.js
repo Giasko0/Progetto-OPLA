@@ -2,6 +2,9 @@
 
 // Quando il documento è pronto
 document.addEventListener("DOMContentLoaded", function () {
+  // Assicuriamoci che i dati utente siano precaricati
+  window.preloadUserData();
+  
   // Aggiorna il titolo della pagina
   window.updatePageTitle();
 

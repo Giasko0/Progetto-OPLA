@@ -1,5 +1,8 @@
 // Inizializzazione al caricamento della pagina
 document.addEventListener("DOMContentLoaded", function () {
+  // Precarica i dati utente per ridurre le chiamate all'API
+  preloadUserData();
+  
   // Controlla autenticazione e gestisce reindirizzamenti
   checkAuthAndRedirect();
 
@@ -15,6 +18,30 @@ document.addEventListener("DOMContentLoaded", function () {
   // Aggiorna il titolo della pagina in base all'utente autenticato
   updatePageTitle();
 });
+
+// Carica i dati dell'utente una sola volta all'avvio e riempie la cache
+function preloadUserData() {
+  // Controlla se c'è già una richiesta di precaricamento in corso
+  if (window.preloadUserDataPromise) {
+    return window.preloadUserDataPromise;
+  }
+  
+  // Crea una nuova richiesta e la memorizza globalmente
+  window.preloadUserDataPromise = fetch("/api/check-auth")
+    .then((response) => response.json())
+    .then((data) => {
+      // Salva i dati nella cache
+      authCache.data = data;
+      authCache.timestamp = new Date().getTime();
+      return data;
+    })
+    .catch((error) => {
+      console.error("Errore nel precaricamento dei dati utente:", error);
+      return { authenticated: false, user_data: null };
+    });
+  
+  return window.preloadUserDataPromise;
+}
 
 // Controlla autenticazione e reindirizza se necessario
 function checkAuthAndRedirect() {
@@ -62,6 +89,7 @@ function getCookie(name) {
 function getUserData() {
   const now = new Date().getTime();
 
+  // Usa dati precached se disponibili e ancora validi
   if (
     authCache.data &&
     authCache.timestamp &&
@@ -69,7 +97,13 @@ function getUserData() {
   ) {
     return Promise.resolve(authCache.data);
   }
+  
+  // Se c'è un precaricamento in corso, usa quello
+  if (window.preloadUserDataPromise) {
+    return window.preloadUserDataPromise;
+  }
 
+  // Altrimenti fa una nuova richiesta
   return fetch("/api/check-auth")
     .then((response) => response.json())
     .then((data) => {
@@ -134,6 +168,7 @@ function updateUIByAuth() {
 function clearAuthCache() {
   authCache.data = null;
   authCache.timestamp = null;
+  window.preloadUserDataPromise = null;
 }
 
 // Aggiorna i titoli delle pagine con le informazioni dell'utente (funzione centralizzata)
@@ -182,3 +217,4 @@ function updatePageTitle() {
 window.getUserData = getUserData;
 window.getCookie = getCookie;
 window.updatePageTitle = updatePageTitle;
+window.preloadUserData = preloadUserData;

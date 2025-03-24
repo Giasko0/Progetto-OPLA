@@ -8,6 +8,9 @@ import {
 } from "./calendarUtils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Assicuriamoci che i dati utente siano precaricati
+  window.preloadUserData();
+  
   // Inizializzazione
   const planningYear = getPlanningYear();
   const dateRange = getValidDateRange();
