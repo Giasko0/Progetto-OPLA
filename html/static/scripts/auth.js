@@ -171,6 +171,15 @@ function clearAuthCache() {
   window.preloadUserDataPromise = null;
 }
 
+// Funzione di utilità per capitalizzare correttamente un nome o cognome
+function capitalizeWords(text) {
+  if (!text) return '';
+  // Dividi il testo in parole e capitalizza la prima lettera di ogni parola
+  return text.split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 // Aggiorna i titoli delle pagine con le informazioni dell'utente (funzione centralizzata)
 function updatePageTitle() {
   getUserData()
@@ -187,13 +196,9 @@ function updatePageTitle() {
           let nomeFormattato = userData.username;
 
           if (userData.nome && userData.cognome) {
-            // Capitalizza solo la prima lettera di nome e cognome
-            const nome =
-              userData.nome.charAt(0).toUpperCase() +
-              userData.nome.slice(1).toLowerCase();
-            const cognome =
-              userData.cognome.charAt(0).toUpperCase() +
-              userData.cognome.slice(1).toLowerCase();
+            // Capitalizza correttamente nome e cognome (gestendo i cognomi composti)
+            const nome = capitalizeWords(userData.nome);
+            const cognome = capitalizeWords(userData.cognome);
             nomeFormattato = `${nome} ${cognome}`;
           }
 

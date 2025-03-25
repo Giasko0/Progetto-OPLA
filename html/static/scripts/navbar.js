@@ -86,15 +86,9 @@ document.addEventListener("DOMContentLoaded", function () {
           // Utente autenticato
           link.href = "/api/logout";
 
-          // Capitalizza nome e cognome se esistono
-          const nome = data.user_data.nome
-            ? data.user_data.nome.charAt(0).toUpperCase() +
-              data.user_data.nome.slice(1).toLowerCase()
-            : "";
-          const cognome = data.user_data.cognome
-            ? data.user_data.cognome.charAt(0).toUpperCase() +
-              data.user_data.cognome.slice(1).toLowerCase()
-            : "";
+          // Usa la funzione capitalizeWords da auth.js per nome e cognome
+          const nome = data.user_data.nome ? capitalizeWords(data.user_data.nome) : "";
+          const cognome = data.user_data.cognome ? capitalizeWords(data.user_data.cognome) : "";
 
           if (data.user_data.nome || data.user_data.cognome) {
             link.innerHTML = `${nome} ${cognome} - Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;

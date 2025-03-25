@@ -503,6 +503,7 @@ body {
 .invia.secondary {
   background-color: var(--color-warning);
   margin-left: 10px;
+  color: var(--color-text);
 }
 
 .invia.secondary:hover {
@@ -663,7 +664,7 @@ body {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--color-border);
-  border-radius: var (--radius);
+  border-radius: var(--radius);
   padding: 4px 8px;
   cursor: pointer;
   display: flex;
