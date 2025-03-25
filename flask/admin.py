@@ -41,21 +41,22 @@ def upload_ugov():
     
     # Mappa indici colonne (potrebbero variare)
     colonna_indices = {
-      'anno_accademico': 0,       # A
-      'cod_cds': 6,               # G
-      'des_cds': 8,               # I
-      'anno_reg_did': 11,         # L
-      'des_curriculum': 13,       # N
-      'cod_insegnamento': 15,     # P
-      'des_insegnamento': 16,     # Q
-      'cod_unita_didattica': 28,  # AC
-      'des_periodo': 46,          # AU
-      'matricola_docente': 67,    # BP
-      'cognome_docente': 68,      # BQ
-      'nome_docente': 69,         # BR
-      'username_docente': 70,     # BS
-      'mutuato_da_z': 25,         # Z
-      'mutuato_da_bk': 62         # BK
+      'anno_accademico': 0,       # A - Anno Offerta
+      'cod_cds': 6,               # G - Cod. Corso di Studio
+      'des_cds': 8,               # I - Des. Corso di Studio
+      'anno_reg_did': 11,         # L - Anno Regolamento Didattico
+      'des_curriculum': 13,       # N - Des. Curriculum
+      'cod_insegnamento': 15,     # P - Cod. Insegnamento
+      'des_insegnamento': 16,     # Q - Des. Insegnamento
+      'des_raggruppamento': 25,   # Z - Des. Raggruppamento Insegnamento (per mutuazioni)
+      'cod_unita_didattica': 28,  # AC - Cod. Unità Didattica
+      'des_unita_didattica': 29,  # AD - Des. Unità Didattica
+      'des_periodo': 46,          # AU - Des. Periodo Unità Didattica
+      'des_raggruppamento_ud': 62,# BK - Des. Raggruppamento Unità Didattica
+      'matricola_docente': 67,    # BP - Matricola Docente
+      'cognome_docente': 68,      # BQ - Cognome Docente
+      'nome_docente': 69,         # BR - Nome Docente
+      'username_docente': 70      # BS - Username
     }
     
     # Verifica header per determinare gli indici corretti
@@ -71,13 +72,15 @@ def upload_ugov():
         'DES. CURRICULUM': 'des_curriculum',
         'COD. INSEGNAMENTO': 'cod_insegnamento',
         'DES. INSEGNAMENTO': 'des_insegnamento',
+        'DES. RAGGRUPPAMENTO INSEGNAMENTO': 'des_raggruppamento',
         'COD. UNITÀ DIDATTICA': 'cod_unita_didattica',
+        'DES. UNITÀ DIDATTICA': 'des_unita_didattica',
         'DES. PERIODO UNITÀ DIDATTICA': 'des_periodo',
+        'DES. RAGGRUPPAMENTO UNITÀ DIDATTICA': 'des_raggruppamento_ud',
         'MATRICOLA DOCENTE': 'matricola_docente',
         'COGNOME DOCENTE': 'cognome_docente',
         'NOME DOCENTE': 'nome_docente',
-        'USERNAME': 'username_docente',
-        'MUTUATA DA': 'mutuato_da_z'
+        'USERNAME': 'username_docente'
       }
       
       # Aggiorna gli indici in base all'header reale
@@ -86,9 +89,6 @@ def upload_ugov():
           if key in col_name:
             colonna_indices[value] = i
             break
-        # Cerca anche per BK in base alle corrispondenze nel nome della colonna
-        if ('MUTUA' in col_name or 'CONDIV' in col_name) and i >= 60:
-          colonna_indices['mutuato_da_bk'] = i
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -108,15 +108,37 @@ def upload_ugov():
     # Valore predefinito per annuale (quando des_periodo è null o non riconosciuto)
     default_semestre = 3  # 3 = annuale
     
-    # Funzione per estrarre il codice insegnamento dalla stringa di mutuazione
-    def estrai_codice_mutuato(text):
+    # Funzione per estrarre il codice insegnamento padre dalla stringa di mutuazione
+    def estrai_codice_insegnamento_padre(text):
       if not text:
         return None
         
-      # Pattern per riconoscere il codice dell'insegnamento (es. A002080)
+      # Pattern per riconoscere il codice dell'insegnamento mutuato (es. A002683)
+      # La stringa ha forma "Mutuata da: Af A002683 Cds LM26 Reg 2023 Pds E01, Af A002050 Cds LM65 Reg 2024 Pds E01"
+      match = re.search(r'Mutuata\s+da\s*:\s*(?:Af\s+)?([A-Z][0-9]{6})', str(text), re.IGNORECASE)
+      if match:
+        return match.group(1)
+        
+      # Prova un pattern alternativo se il primo non funziona
       match = re.search(r'(?:Af\s+)?([A-Z][0-9]{6})', str(text))
       if match:
         return match.group(1)
+      return None
+    
+    # Funzione per estrarre il numero del modulo
+    def estrai_numero_modulo(text):
+      if not text:
+        return None
+      
+      # Pattern per riconoscere il numero del modulo (es. "mod. 1: THEORY AND ADVANCED PRINCIPLES")
+      match = re.search(r'mod\s*\.\s*(\d+)', str(text), re.IGNORECASE)
+      if match:
+        return int(match.group(1))
+      
+      # Pattern alternativo (es. "modulo 1:")
+      match = re.search(r'modulo\s*(\d+)', str(text), re.IGNORECASE)
+      if match:
+        return int(match.group(1))
       return None
     
     # Processa le righe (salta l'header)
@@ -139,10 +161,16 @@ def upload_ugov():
         des_cds = str(sheet.cell_value(row_idx, colonna_indices['des_cds'])).strip()
         des_curriculum = str(sheet.cell_value(row_idx, colonna_indices['des_curriculum'])).strip()
         
-        # Usa cod_unita_didattica se disponibile, altrimenti cod_insegnamento
-        cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_unita_didattica'])).strip()
-        if not cod_insegnamento:
-          cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_insegnamento'])).strip()
+        # Gestione dei codici insegnamento
+        cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_insegnamento'])).strip()
+        cod_unita_didattica = str(sheet.cell_value(row_idx, colonna_indices['cod_unita_didattica'])).strip()
+        
+        # Scegliamo il codice corretto (unità didattica ha priorità)
+        codice_effettivo = cod_unita_didattica if cod_unita_didattica else cod_insegnamento
+        
+        # Verifica che almeno un codice sia presente
+        if not codice_effettivo:
+          continue
         
         des_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['des_insegnamento'])).strip()
         
@@ -158,21 +186,60 @@ def upload_ugov():
         nome_docente = str(sheet.cell_value(row_idx, colonna_indices['nome_docente'])).strip()
         username_docente = str(sheet.cell_value(row_idx, colonna_indices['username_docente'])).strip()
         
-        # Estrai informazioni sulla mutuazione dalle colonne Z e BK
-        mutuato_da_z = estrai_codice_mutuato(sheet.cell_value(row_idx, colonna_indices['mutuato_da_z']))
-        mutuato_da_bk = estrai_codice_mutuato(sheet.cell_value(row_idx, colonna_indices['mutuato_da_bk']))
+        # Determina il tipo di insegnamento e le relazioni
+        tipo_insegnamento = 'STANDARD'  # Default
+        insegnamento_padre = None
+        codice_modulo = None
         
-        # Usa il primo codice mutuazione disponibile
-        mutuato_da = mutuato_da_z or mutuato_da_bk
+        # Verifica se è un modulo (colonna AD: Des. Unità Didattica)
+        des_unita_didattica = str(sheet.cell_value(row_idx, colonna_indices['des_unita_didattica'])).strip()
+        if des_unita_didattica and "MOD" in des_unita_didattica.upper():
+          tipo_insegnamento = 'MODULO'
+          # L'insegnamento padre è il codice insegnamento principale
+          insegnamento_padre = cod_insegnamento if cod_insegnamento != codice_effettivo else None
+          
+          # Estrai il numero del modulo dalla descrizione dell'unità didattica (colonna AD)
+          codice_modulo = estrai_numero_modulo(des_unita_didattica)
+          if not codice_modulo:
+            codice_modulo = 1  # Valore predefinito se non riusciamo a estrarre il numero
+        
+        # Verifica se è un insegnamento mutuato (colonna BK: Des. Raggruppamento Unità Didattica)
+        des_raggruppamento_ud = str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento_ud'])).strip()
+        if des_raggruppamento_ud and "MUTUAT" in des_raggruppamento_ud.upper():
+          # Se è già un modulo, può essere anche mutuato
+          if tipo_insegnamento == 'STANDARD':
+            tipo_insegnamento = 'MUTUATO'
+          
+          # Estrai il codice dell'insegnamento padre dalla colonna BK
+          insegnamento_padre_mutuazione = estrai_codice_insegnamento_padre(des_raggruppamento_ud)
+          # Se è un modulo, mantieni l'insegnamento padre del modulo
+          # altrimenti usa l'insegnamento da cui è mutuato
+          if tipo_insegnamento != 'MODULO' and insegnamento_padre_mutuazione:
+            insegnamento_padre = insegnamento_padre_mutuazione
+        
+        # Verifica anche la colonna Z (Des. Raggruppamento Insegnamento) per mutuazioni a livello di insegnamento
+        des_raggruppamento = str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento'])).strip()
+        if des_raggruppamento and "MUTUAT" in des_raggruppamento.upper() and tipo_insegnamento == 'STANDARD':
+          tipo_insegnamento = 'MUTUATO'
+          insegnamento_padre_z = estrai_codice_insegnamento_padre(des_raggruppamento)
+          if insegnamento_padre_z:
+            insegnamento_padre = insegnamento_padre_z
         
         # Verifica che i dati essenziali siano presenti
-        if not cod_insegnamento or not des_insegnamento or not cod_cds or not des_cds:
+        if not codice_effettivo or not des_insegnamento or not cod_cds or not des_cds:
           continue
         
         # Aggiungi insegnamento se non già presente
-        if cod_insegnamento not in insegnamenti_set:
-          insegnamenti_data.append((cod_insegnamento, des_insegnamento))
-          insegnamenti_set.add(cod_insegnamento)
+        if codice_effettivo not in insegnamenti_set:
+          insegnamenti_data.append((codice_effettivo, des_insegnamento))
+          insegnamenti_set.add(codice_effettivo)
+        
+        # Aggiungi insegnamento padre se necessario
+        if insegnamento_padre and insegnamento_padre not in insegnamenti_set:
+          # Se non abbiamo un titolo, usarne uno temporaneo
+          titolo_padre = f"Insegnamento padre per {des_insegnamento}"
+          insegnamenti_data.append((insegnamento_padre, titolo_padre))
+          insegnamenti_set.add(insegnamento_padre)
         
         # Aggiungi CdS se non già presente
         cds_key = (cod_cds, anno_accademico, des_curriculum)
@@ -180,10 +247,19 @@ def upload_ugov():
           cds_data.append((cod_cds, anno_accademico, des_cds, des_curriculum))
           cds_set.add(cds_key)
         
-        # Aggiungi insegnamento_cds
-        insegnamenti_cds_key = (cod_insegnamento, anno_accademico, cod_cds)
+        # Aggiungi insegnamento_cds con il tipo e le relazioni corrette
+        insegnamenti_cds_key = (codice_effettivo, anno_accademico, cod_cds)
         if insegnamenti_cds_key not in insegnamenti_cds_data:
-          insegnamenti_cds_data.append((cod_insegnamento, anno_accademico, cod_cds, anno_corso, semestre, mutuato_da))
+          insegnamenti_cds_data.append((
+            codice_effettivo, 
+            anno_accademico, 
+            cod_cds, 
+            anno_corso, 
+            semestre, 
+            tipo_insegnamento,
+            insegnamento_padre,
+            codice_modulo
+          ))
         
         # Aggiungi utente se non già presente e se abbiamo un username
         if username_docente and username_docente not in utenti_set:
@@ -192,9 +268,9 @@ def upload_ugov():
         
         # Aggiungi insegnamento_docente se non già presente e se abbiamo un username
         if username_docente:
-          insegnamento_docente_key = (cod_insegnamento, username_docente, anno_accademico)
+          insegnamento_docente_key = (codice_effettivo, username_docente, anno_accademico)
           if insegnamento_docente_key not in insegnamento_docente_set:
-            insegnamento_docente_data.append((cod_insegnamento, username_docente, anno_accademico))
+            insegnamento_docente_data.append((codice_effettivo, username_docente, anno_accademico))
             insegnamento_docente_set.add(insegnamento_docente_key)
       
       except Exception as row_error:
@@ -209,7 +285,8 @@ def upload_ugov():
           INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum)
           VALUES (%s, %s, %s, %s)
           ON CONFLICT (codice, anno_accademico) DO UPDATE 
-          SET nome_corso = EXCLUDED.nome_corso
+          SET nome_corso = EXCLUDED.nome_corso,
+              curriculum = EXCLUDED.curriculum
         """, item)
       except Exception as e:
         print(f"Errore nell'inserimento CDS {item}: {str(e)}")
@@ -229,26 +306,16 @@ def upload_ugov():
     # 3. Insegnamenti_cds
     for item in insegnamenti_cds_data:
       try:
-        # Verifica se esiste l'insegnamento mutuato e crea un placeholder se necessario
-        mutuato_da = item[5]  # L'indice 5 contiene mutuato_da nell'array
-        if mutuato_da and mutuato_da not in insegnamenti_set:
-          # Se l'insegnamento mutuato non esiste nel database, crealo come placeholder
-          cursor.execute("""
-            INSERT INTO insegnamenti (codice, titolo)
-            VALUES (%s, %s)
-            ON CONFLICT (codice) DO NOTHING
-          """, (mutuato_da, f"Placeholder per insegnamento mutuato {mutuato_da}"))
-          insegnamenti_set.add(mutuato_da)
-          print(f"Creato placeholder per insegnamento mutuato {mutuato_da}")
-        
         cursor.execute("""
           INSERT INTO insegnamenti_cds 
-          (insegnamento, anno_accademico, cds, anno_corso, semestre, mutuato_da)
-          VALUES (%s, %s, %s, %s, %s, %s)
+          (insegnamento, anno_accademico, cds, anno_corso, semestre, tipo_insegnamento, insegnamento_padre, codice_modulo)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
           ON CONFLICT (insegnamento, anno_accademico, cds) DO UPDATE 
           SET anno_corso = EXCLUDED.anno_corso,
-            semestre = EXCLUDED.semestre,
-            mutuato_da = EXCLUDED.mutuato_da
+              semestre = EXCLUDED.semestre,
+              tipo_insegnamento = EXCLUDED.tipo_insegnamento,
+              insegnamento_padre = EXCLUDED.insegnamento_padre,
+              codice_modulo = EXCLUDED.codice_modulo
         """, item)
       except Exception as e:
         print(f"Errore nell'inserimento insegnamento_cds {item}: {str(e)}")

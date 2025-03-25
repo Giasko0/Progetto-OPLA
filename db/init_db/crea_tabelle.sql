@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS periodi_esame CASCADE;
 DROP TABLE IF EXISTS insegnamenti CASCADE;
 DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
 DROP TABLE IF EXISTS utenti CASCADE;
+DROP TABLE IF EXISTS preferenze_utenti CASCADE;
 DROP TABLE IF EXISTS insegnamento_docente CASCADE;
 DROP TABLE IF EXISTS esami CASCADE;
 
@@ -48,8 +49,8 @@ CREATE TABLE periodi_esame (
 );
 
 INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum, inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre, inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre) VALUES
-('L062', 2023, 'INFORMATICA', 'CYBERSECURITY', '2023-10-01', '2023-12-20', '2023-02-01', '2023-05-31'),
-('L062', 2024, 'INFORMATICA', 'CYBERSECURITY', '2024-10-01', '2024-12-20', '2025-02-01', '2025-05-31');
+('L062', 2023, 'INFORMATICA', 'GENERICO', '2023-10-01', '2023-12-20', '2023-02-01', '2023-05-31'),
+('L062', 2024, 'INFORMATICA', 'GENERICO', '2024-10-01', '2024-12-20', '2025-02-01', '2025-05-31');
 INSERT INTO periodi_esame (cds, anno_accademico, tipo_periodo, inizio, fine, max_esami) VALUES
 ('L062', 2023, 'INVERNALE', '2025-01-07', '2025-02-22', 3),
 ('L062', 2024, 'ANTICIPATA', '2025-01-07', '2025-02-22', 3),
@@ -160,7 +161,7 @@ CREATE INDEX idx_cds_nome_corso ON cds(nome_corso);
 
 CREATE INDEX idx_insegnamenti_cds_anno ON insegnamenti_cds(anno_accademico);
 CREATE INDEX idx_insegnamenti_cds_cds ON insegnamenti_cds(cds);
-CREATE INDEX idx_insegnamenti_cds_mutuato_da ON insegnamenti_cds(mutuato_da);
+CREATE INDEX idx_insegnamenti_cds_padre ON insegnamenti_cds(insegnamento_padre);
 
 CREATE INDEX idx_utenti_matricola ON utenti(matricola);
 CREATE INDEX idx_utenti_cognome ON utenti(cognome);
