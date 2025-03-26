@@ -23,10 +23,15 @@
   
   /* Layout constants */
   --nav-height: 10dvh;
-  --foot-height: 9dvh;
-  --sidebar-width: clamp(300px, 15dvw, 500px);
-  --body-width: clamp(300px, 80vw, 2000px);
+  --sidebar-width: calc(100vw / 6);
+  --content-inner-width: clamp(300px, 80vw, 2000px);
+  --body-width: 100%;
   --radius: 8px;
+  
+  /* Responsive layout constants */
+  --mobile-sidebar-width: 80vw;
+  --mobile-content-width: 90%;
+  --mobile-shift-offset: 30px;
 }
 
 /* Dark mode variables - attivate quando l'html ha la classe 'dark' */
@@ -80,17 +85,30 @@ body {
 }
 
 .content {
+  position: relative;
   width: var(--body-width);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: left;
   flex: 1;
-  margin: 0 auto;
+  padding-bottom: 40px;
 }
 
-.content.sidebar-visible {
-  transform: translateX(calc((var(--sidebar-width) * -1)/2));
+/* Wrapper interno per gli elementi del content */
+.content-inner {
+  width: var(--content-inner-width);
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: width 0.3s ease, transform 0.3s ease;
+}
+
+
+/* Quando la sidebar è visibile, modifica solo la disposizione di content-inner */
+.content.sidebar-visible .content-inner {
+  transform: translateX(calc(-1 * var(--sidebar-width) / 2));
 }
 
 .titolo {
@@ -99,6 +117,7 @@ body {
   font-size: clamp(1rem, 4vh, 2.5rem);
   align-self: flex-start;
   color: var(--color-text);
+  width: 100%;
 }
 
 .email-link {
@@ -382,28 +401,18 @@ body {
 #footer {
   background-color: var(--table-cell-disabled);
   color: var(--color-text);
-  height: var(--foot-height);
   padding: 20px 0;
   width: 100%;
   text-align: center;
-  margin-top: 40px;
 }
 
 .footer-content {
-  width: var(--body-width);
-  max-width: 2000px;
+  width: var(--content-inner-width);
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
-}
-
-.footer-section {
-  margin: 10px 20px;
-}
-
-.footer-section p {
-  margin: 5px 0;
 }
 
 /*---------FORM POPUP---------*/
@@ -422,8 +431,8 @@ body {
 
 .popup {
   height: auto;
-  max-height: 80vh;
-  width: clamp(400px, 30vw, 600px);
+  max-height: 95vh;
+  width: clamp(500px, 30vw, 800px);
   background: var(--color-bg-light);
   border-radius: var(--radius);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
@@ -779,34 +788,31 @@ body {
 
 /*---------SIDEBAR PER MESSAGGI---------*/
 .message-sidebar {
-  position: fixed;
-  top: var(--nav-height);
-  height: calc(100vh - var(--nav-height) - var(--foot-height));
+  position: absolute;
+  height: 100%;
   right: 0;
   width: var(--sidebar-width);
-  background-color: var(--color-bg-light);
-  border-left: 1px solid var(--table-cell-disabled);
+  background-color: var(--table-cell-disabled);
+  border-left: 1px solid var(--color-border);
   z-index: 90;
   overflow-x: hidden;
   overflow-y: auto;
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-  border-top-left-radius: 12px;
-  border-bottom-left-radius: 12px;
-  transform: translateX(100%);
+  transform: translateX(100%); /* Chiusa di default */
+  transition: transform 0.3s ease;
 }
 
 .message-sidebar.visible {
-  transform: translateX(0); /* Visibile quando ha classe visible */
+  transform: translateX(0); /* Visibile */
 }
 
 .sidebar-header {
   display: flex;
-  justify-content: space-between; /* Cambiato per allineare titolo e pulsante chiusura */
+  justify-content: space-between;
   align-items: center;
   padding: 15px;
   background-color: var(--color-blue);
   border-bottom: 1px solid var(--table-cell-disabled);
-  border-top-left-radius: 12px;
 }
 
 .sidebar-header h3 {
@@ -836,47 +842,37 @@ body {
   opacity: 0.3;
 }
 
-/* Pulsante fluttuante per aprire la sidebar */
+/* Pulsante a linguetta per aprire/chiudere la sidebar */
 .toggle-sidebar-float {
-  position: fixed;
-  top: calc(var(--nav-height) + 15px);
-  right: 25px;
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  background-color: var(--color-blue);
-  color: var(--color-bg-light);
-  border: none;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  right: 0;
+  top: 2em;
+  width: 30px;
+  height: 60px;
+  background-color: var(--table-cell-disabled);
+  color: var(--color-text);
+  border: 1px solid #ccc;
+  border-right: none;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   z-index: 91;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 8px 0 0 8px;
+  transform: translateX(0);
+  transition: right 0.3s ease;
 }
 
 .toggle-sidebar-float.sidebar-open {
-  right: calc(var(--sidebar-width) + 25px);
-}
-
-.toggle-sidebar-float:hover {
-  transform: scale(1.05);
-  background-color: var(--color-light-blue);
-}
-
-.toggle-sidebar-float:active {
-  transform: scale(0.95);
-}
-
-.toggle-sidebar-float .material-symbols-outlined {
-  font-size: 22px;
+  right: var(--sidebar-width); /* Si sposta quando la sidebar è visibile */
 }
 
 /* Badge di notifica */
 .notification-badge {
   position: absolute;
   top: -5px;
-  right: -5px;
+  left: 0;
   background-color: var(--color-error);
   color: var(--color-bg-light);
   border-radius: 50%;
@@ -1225,8 +1221,20 @@ tbody tr:hover td {
 
 /*---------MEDIA QUERIES---------*/
 @media (max-width: 768px) {
+  .content-inner {
+    width: var(--mobile-content-width);
+  }
+
+  .content.sidebar-visible .content-inner {
+    transform: translateX(0);
+  }
+
   .content {
-    width: 90vw;
+    width: 100%;
+  }
+
+  .content-inner {
+    width: 90%;
   }
 
   .titolo {
@@ -1339,25 +1347,16 @@ tbody tr:hover td {
   }
 
   .message-sidebar {
-    width: 80vw;
-    top: 0;
-    bottom: 0;
-    height: 100vh;
-    border-radius: 0;
-    box-shadow: -3px 0 15px rgba(0, 0, 0, 0.2);
+    width: var(--mobile-sidebar-width);
+    transform: translateX(100%);
   }
 
   .message-sidebar.visible {
     transform: translateX(0);
   }
 
-  .content.sidebar-visible {
-    transform: translateX(-40vw);
-    opacity: 0.7;
-  }
-
   .toggle-sidebar-float.sidebar-open {
-    right: 20px;
+    right: var(--mobile-sidebar-width);
   }
 
   .sidebar-header {

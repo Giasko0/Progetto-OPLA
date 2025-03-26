@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const sidebar = document.getElementById("messageSidebar");
   const content = document.querySelector(".content");
   const toggleBtn = document.getElementById("toggleSidebarFloat");
+  const toggleBtnIcon = toggleBtn.querySelector(".material-symbols-outlined");
   const closeBtn = document.getElementById("closeSidebar");
   const notificationBadge = document.getElementById("notificationBadge");
 
@@ -62,6 +63,8 @@ document.addEventListener("DOMContentLoaded", function () {
     sidebar.classList.add("visible");
     content.classList.add("sidebar-visible");
     toggleBtn.classList.add("sidebar-open");
+    // Cambia l'icona a doppia freccia verso destra quando la sidebar è aperta
+    toggleBtnIcon.textContent = "keyboard_double_arrow_right";
   }
 
   // Chiude la sidebar
@@ -69,6 +72,8 @@ document.addEventListener("DOMContentLoaded", function () {
     sidebar.classList.remove("visible");
     content.classList.remove("sidebar-visible");
     toggleBtn.classList.remove("sidebar-open");
+    // Cambia l'icona a doppia freccia verso sinistra quando la sidebar è chiusa
+    toggleBtnIcon.textContent = "keyboard_double_arrow_left";
   }
 
   // Gestisce i click sui pulsanti di chiusura
