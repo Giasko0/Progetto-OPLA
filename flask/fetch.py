@@ -114,10 +114,9 @@ def getEsami():
         insegnamenti = request.args.get('insegnamenti', None)
         cds = request.args.get('cds', None)
         solo_docente = request.args.get('solo_docente', 'false').lower() == 'true'
-        admin_view = request.args.get('admin_view', 'false').lower() == 'true'
         
         # Verifica se l'utente è effettivamente un admin
-        admin_view = admin_view and is_admin()
+        is_admin_user = is_admin()
         
         if not docente:
             return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
@@ -162,7 +161,7 @@ def getEsami():
             query += " AND e.insegnamento IN (SELECT insegnamento FROM insegnamenti_cds WHERE cds = %s)"
             params.append(cds)
         
-        if solo_docente and not admin_view:
+        if solo_docente and not is_admin_user:
             query += " AND e.docente = %s"
             params.append(docente)
         
@@ -334,59 +333,56 @@ def miei_esami():
 # API per ottenere le date delle sessioni d'esame
 @fetch_bp.route('/api/getDateValide', methods=['GET'])
 def getDateValide():
-    try:
-        cds = request.args.get('cds')
-        docente = request.args.get('docente')
-        admin_view = request.args.get('admin_view', 'false').lower() == 'true'
-        
-        # Verifica se l'utente è effettivamente un admin
-        admin_view = admin_view and is_admin()
-        
-        current_date = datetime.now()
-        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
-        
-        from utils.sessions import ottieni_sessioni_da_cds, ottieni_intersezione_sessioni_docente, rimuovi_sessioni_duplicate, ottieni_tutte_sessioni
-        
-        # Ottieni le sessioni per l'anno di pianificazione
-        sessions = []
-        
-        if admin_view:
-            # Se l'utente è admin, ottieni tutte le sessioni per tutti i CdS
-            sessions = ottieni_tutte_sessioni(planning_year)
-        elif cds:
-            # Se è specificato un CdS, ottieni direttamente le sessioni per quel CdS
-            sessions = ottieni_sessioni_da_cds(cds, planning_year)
-        elif docente:
-            # Se è specificato un docente ma non un CdS, ottieni l'intersezione delle sessioni
-            sessions = ottieni_intersezione_sessioni_docente(docente, planning_year)
-        else:
-            return jsonify({'status': 'error', 'message': 'Inserisci almeno il docente o il cds'}), 400
+  try:
+    docente = request.args.get('docente')
+    insegnamenti = request.args.get('insegnamenti')
+    
+    is_admin_user = is_admin()
+    current_date = datetime.now()
+    planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+    
+    from utils.sessions import (
+      ottieni_sessioni_da_cds, 
+      ottieni_intersezione_sessioni_docente, 
+      rimuovi_sessioni_duplicate, 
+      ottieni_tutte_sessioni,
+      ottieni_sessioni_da_insegnamenti
+    )
+    
+    sessions = []
+    
+    if is_admin_user:
+      sessions = ottieni_tutte_sessioni(planning_year)
+    elif insegnamenti:
+      sessions = ottieni_sessioni_da_insegnamenti(insegnamenti.split(','), planning_year)
+    elif docente:
+      sessions = ottieni_intersezione_sessioni_docente(docente, planning_year)
+    else:
+      return jsonify({'status': 'error', 'message': 'Inserisci almeno il docente o gli insegnamenti'}), 400
 
-        # Rimuovi sessioni duplicate
-        sessions = rimuovi_sessioni_duplicate(sessions)
-        
-        # Formatta le date per il frontend
-        date_valide = []
-        for session in sessions:
-            date_valide.append([
-                session['inizio'].isoformat(),
-                session['fine'].isoformat(),
-                session['nome'],
-                session['tipo'],
-                session['inizio'].year,
-                session['inizio'].month
-            ])
-        
-        # Ordina le date per anno e poi per tipo di sessione
-        date_valide.sort(key=lambda x: (x[4], x[5]))
-        
-        # Rimuovi il campo tipo e anno usati solo per l'ordinamento
-        date_valide = [item[:3] for item in date_valide]
-        
-        return jsonify(date_valide)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    # Formatta le date per il frontend
+    date_valide = []
+    for session in sessions:
+      date_valide.append([
+        session['inizio'].isoformat(),
+        session['fine'].isoformat(),
+        session['nome'],
+        session['tipo'],
+        session['inizio'].year,
+        session['inizio'].month
+      ])
+    
+    # Ordina le date per anno e poi per tipo di sessione
+    date_valide.sort(key=lambda x: (x[4], x[5]))
+    
+    # Rimuovi i campi usati solo per l'ordinamento
+    date_valide = [item[:3] for item in date_valide]
+    
+    return jsonify(date_valide)
+    
+  except Exception as e:
+    print(f"Errore generale in getDateValide: {str(e)}")
+    return jsonify({'error': str(e)}), 500
 
 @fetch_bp.route('/api/getAnniAccademici', methods=['GET'])
 def getAnniAccademici():
@@ -412,10 +408,9 @@ def getInsegnamentiDocente():
     cds = request.args.get('cds')  # Filtro per CdS
     search = request.args.get('search')  # Aggiunto supporto per ricerca testuale
     codici = request.args.get('codici')  # Aggiunto supporto per filtrare per codici specifici
-    admin_view = request.args.get('admin_view', 'false').lower() == 'true'
     
     # Verifica se l'utente è effettivamente un admin
-    admin_view = admin_view and is_admin()
+    is_admin_user = is_admin()
     
     # Usa l'anno corrente se non specificato
     if not anno:
@@ -423,7 +418,7 @@ def getInsegnamentiDocente():
         anno = current_date.year if current_date.month >= 9 else current_date.year - 1
     
     # Verifica se sono forniti parametri necessari
-    if not docente and not admin_view and not codici:
+    if not docente and not is_admin_user and not codici:
         return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
     
     try:
@@ -431,7 +426,7 @@ def getInsegnamentiDocente():
         cursor = conn.cursor()
         
         # Query di base
-        if admin_view:
+        if is_admin_user:
             # Per gli admin, mostra tutti gli insegnamenti
             query = """
                 WITH insegnamenti_unici AS (
@@ -504,12 +499,11 @@ def getInsegnamentiDocente():
 def getCdsDocente():
     docente = request.args.get('docente')
     anno = request.args.get('anno')
-    admin_view = request.args.get('admin_view', 'false').lower() == 'true'
     
     # Verifica se l'utente è effettivamente un admin
-    admin_view = admin_view and is_admin()
+    is_admin_user = is_admin()
     
-    if not anno or (not docente and not admin_view):
+    if not anno or (not docente and not is_admin_user):
         return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
     
     try:
@@ -517,7 +511,7 @@ def getCdsDocente():
         cursor = conn.cursor()
         
         # Ottiene tutti i CdS distinti
-        if admin_view:
+        if is_admin_user:
             # Per gli admin, mostra tutti i CdS
             cursor.execute("""
                 SELECT DISTINCT c.codice, c.nome_corso

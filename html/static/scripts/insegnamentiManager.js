@@ -348,9 +348,6 @@ const InsegnamentiManager = (function () {
     if (docente) {
       params.append("docente", docente);
     }
-
-    // Aggiungi sempre admin_view=true, il backend verificherà se l'utente è effettivamente admin
-    params.append("admin_view", "true");
     
     if (selectedCds) {
       params.append("cds", selectedCds);

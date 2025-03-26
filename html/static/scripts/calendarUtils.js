@@ -27,7 +27,6 @@ export function createDropdown(type) {
   dropdown.className = "calendar-dropdown";
   if (type === "sessioni") dropdown.id = "sessioniDropdown";
   if (type === "insegnamenti") dropdown.id = "insegnamentiDropdown";
-  if (type === "cds") dropdown.id = "cdsDropdown";
   document.body.appendChild(dropdown);
 
   // Aggiungi classe per stile responsive
@@ -49,11 +48,7 @@ export function populateInsegnamentiDropdown(
     // Raggruppa gli insegnamenti per CDS
     const insegnamentiPerCds = {};
     
-    // Filtra per CdS se necessario
     let insegnamenti = preloadedInsegnamenti;
-    if (cdsFiltro) {
-      insegnamenti = insegnamenti.filter(ins => ins.cds_codice === cdsFiltro);
-    }
 
     // Organizza per CdS
     insegnamenti.forEach((ins) => {
@@ -113,13 +108,7 @@ export function populateInsegnamentiDropdown(
 
   // Altrimenti effettua la chiamata API
   let url = `/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`;
-  if (cdsFiltro) {
-    url += `&cds=${cdsFiltro}`;
-  }
   
-  // Aggiungi sempre admin_view=true, il backend verificherà se l'utente è effettivamente admin
-  url += "&admin_view=true";
-
   fetch(url)
     .then((response) => response.json())
     .then(processAndDisplayInsegnamenti)
@@ -131,10 +120,6 @@ export function populateInsegnamentiDropdown(
 
   // Funzione per organizzare e visualizzare gli insegnamenti
   function processAndDisplayInsegnamenti(insegnamenti) {
-    // Filtra per CdS se necessario
-    if (cdsFiltro) {
-      insegnamenti = insegnamenti.filter((ins) => ins.cds_codice === cdsFiltro);
-    }
 
     // Raggruppa gli insegnamenti per CDS
     const insegnamentiPerCds = {};
@@ -205,14 +190,6 @@ export function fetchCalendarEvents(
   // Utilizza InsegnamentiManager per generare i parametri
   if (window.InsegnamentiManager) {
     const params = window.InsegnamentiManager.getRequestParams(loggedDocente);
-    
-    // Aggiungi filtro CdS esplicito se fornito e non già impostato in InsegnamentiManager
-    if (cdsFiltro && cdsFiltro !== window.InsegnamentiManager.getCds()) {
-      params.set("cds", cdsFiltro);
-    }
-
-    // Aggiungi sempre admin_view=true, il backend verificherà se l'utente è effettivamente admin
-    params.set("admin_view", "true");
 
     // Richiesta API
     fetch("/api/getEsami?" + params.toString())
@@ -241,7 +218,6 @@ export function fetchCalendarEvents(
   // Parametri base per API
   const params = new URLSearchParams();
   params.append("docente", loggedDocente);
-  params.append("admin_view", "true"); // Aggiungi sempre, il backend verificherà i permessi
 
   // Usa InsegnamentiManager per filtraggi
   if (window.InsegnamentiManager) {
@@ -287,17 +263,26 @@ export function fetchCalendarEvents(
 }
 
 // Carica le date valide direttamente dal backend
-export async function loadDateValide(docente, cds) {
+export async function loadDateValide(docente, insegnamenti = null) {
   // Costruisce i parametri della richiesta
   const params = new URLSearchParams();
 
   if (docente) params.append("docente", docente);
-  if (cds) params.append("cds", cds);
   
-  // Aggiungi sempre admin_view=true, il backend verificherà se l'utente è effettivamente admin
-  params.append("admin_view", "true");
+  if (insegnamenti) {
+    params.append("insegnamenti", Array.isArray(insegnamenti) ? insegnamenti.join(",") : insegnamenti);
+  }
 
-  // Ritorna una Promise
-  const response = await fetch("/api/getDateValide?" + params.toString());
-  return await response.json();
+  try {
+    const response = await fetch("/api/getDateValide?" + params.toString());
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Errore durante il caricamento delle date valide:", error);
+    return []; // Ritorna un array vuoto in caso di errore
+  }
 }

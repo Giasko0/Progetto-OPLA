@@ -41,22 +41,24 @@ def ottieni_sessioni_da_cds(cds_code, year):
     if 'conn' in locals() and conn:
       release_connection(conn)
 
-def ottieni_intersezione_sessioni_docente(docente, year):
+def ottieni_intersezione_sessioni_docente(docente, year, cds_list=None):
   # Ritorna i periodi di esame comuni a tutti i CdS associati al docente
+  # o se cds_list è fornito, ritorna l'intersezione tra i CdS specificati
   try:
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Recupera tutti i CdS associati al docente
-    cursor.execute("""
-      SELECT DISTINCT ic.cds
-      FROM insegnamento_docente id
-      JOIN insegnamenti_cds ic ON id.insegnamento = ic.insegnamento
-      WHERE id.docente = %s
-      AND id.annoaccademico = %s
-    """, (docente, year))
-    
-    cds_list = [row[0] for row in cursor.fetchall()]
+    if cds_list is None:
+      # Recupera tutti i CdS associati al docente
+      cursor.execute("""
+        SELECT DISTINCT ic.cds
+        FROM insegnamento_docente id
+        JOIN insegnamenti_cds ic ON id.insegnamento = ic.insegnamento
+        WHERE id.docente = %s
+        AND id.annoaccademico = %s
+      """, (docente, year))
+      
+      cds_list = [row[0] for row in cursor.fetchall()]
     
     if not cds_list:
       return []
@@ -252,3 +254,44 @@ def ottieni_tutte_sessioni(anno_accademico):
             cursor.close()
         if 'conn' in locals() and conn:
             release_connection(conn)
+
+def ottieni_sessioni_da_insegnamenti(insegnamenti_list, year):
+  """
+  Ottiene le sessioni associate agli insegnamenti specificati.
+  Prima recupera i CdS associati agli insegnamenti, poi ottiene l'intersezione delle sessioni per quei CdS.
+  """
+  try:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    if not insegnamenti_list:
+      return []
+      
+    placeholders = ', '.join(['%s'] * len(insegnamenti_list))
+    
+    # Ottieni tutti i CdS associati agli insegnamenti specificati
+    cursor.execute(f"""
+      SELECT DISTINCT cds 
+      FROM insegnamenti_cds 
+      WHERE insegnamento IN ({placeholders})
+      AND anno_accademico = %s
+    """, insegnamenti_list + [year])
+    
+    cds_list = [row[0] for row in cursor.fetchall()]
+    
+    if not cds_list:
+      return []
+      
+    if len(cds_list) == 1:
+      return ottieni_sessioni_da_cds(cds_list[0], year)
+    else:
+      return ottieni_intersezione_sessioni_docente(None, year, cds_list)
+    
+  except Exception as e:
+    print(f"Errore nel recupero delle sessioni per insegnamenti: {e}")
+    return []
+  finally:
+    if 'cursor' in locals() and cursor:
+      cursor.close()
+    if 'conn' in locals() and conn:
+      release_connection(conn)
