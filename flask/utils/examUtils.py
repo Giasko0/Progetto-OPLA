@@ -154,6 +154,9 @@ def controllaVincoli(dati_esame):
     esami_validi = []
     esami_invalidi = []
     
+    # Verifica se è una prova parziale
+    is_prova_parziale = dati_esame['tipo_appello'] == 'PP'
+    
     # 1. Verifica conflitti di aula
     aula = dati_esame['aula']
     data_appello = dati_esame['data_appello']
@@ -230,44 +233,47 @@ def controllaVincoli(dati_esame):
           if not periodi_sessione:  # Solo la prima volta
             dati_esame['inizio_iscrizione'] = data_inizio_iscrizione
         
-        # 2.4 Verifica il limite di esami nella sessione
-        cursor.execute("""
-          SELECT COUNT(*) 
-          FROM esami e
-          JOIN periodi_esame pe ON pe.cds = %s 
-              AND pe.anno_accademico = %s
-              AND pe.tipo_periodo = %s
-          WHERE e.docente = %s 
-            AND e.insegnamento = %s
-            AND e.data_appello BETWEEN pe.inizio AND pe.fine
-        """, (cds_code, anno_acc, sessione, docente, insegnamento))
+        # 2.4 Verifica il limite di esami nella sessione (solo per prove finali)
+        if not is_prova_parziale:
+          cursor.execute("""
+            SELECT COUNT(*) 
+            FROM esami e
+            JOIN periodi_esame pe ON pe.cds = %s 
+                AND pe.anno_accademico = %s
+                AND pe.tipo_periodo = %s
+            WHERE e.docente = %s 
+              AND e.insegnamento = %s
+              AND e.data_appello BETWEEN pe.inizio AND pe.fine
+          """, (cds_code, anno_acc, sessione, docente, insegnamento))
+          
+          if cursor.fetchone()[0] >= limite_max:
+            esami_invalidi.append({
+              'codice': insegnamento,
+              'titolo': titolo_insegnamento,
+              'errore': f"Limite di {limite_max} esami nella sessione {sessione} raggiunto"
+            })
+            continue
         
-        if cursor.fetchone()[0] >= limite_max:
-          esami_invalidi.append({
-            'codice': insegnamento,
-            'titolo': titolo_insegnamento,
-            'errore': f"Limite di {limite_max} esami nella sessione {sessione} raggiunto"
-          })
-          continue
-        
-        # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento
-        data_min = data_esame - timedelta(days=14)
-        data_max = data_esame + timedelta(days=14)
-        
-        cursor.execute("""
-          SELECT data_appello FROM esami 
-          WHERE insegnamento = %s AND data_appello BETWEEN %s AND %s
-        """, (insegnamento, data_min, data_max))
-        
-        esami_vicini = cursor.fetchall()
-        if esami_vicini:
-          date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
-          esami_invalidi.append({
-            'codice': insegnamento,
-            'titolo': titolo_insegnamento,
-            'errore': f"Non puoi inserire esami a meno di 14 giorni di distanza. Hai già esami nelle date: {', '.join(date_esami)}"
-          })
-          continue
+        # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento (solo per prove finali)
+        if not is_prova_parziale:
+          # Metto 13 giorni perché il vincolo dice "non inferiore a due settimane"
+          data_min = data_esame - timedelta(days=13)
+          data_max = data_esame + timedelta(days=13)
+          
+          cursor.execute("""
+            SELECT data_appello FROM esami 
+            WHERE insegnamento = %s AND data_appello BETWEEN %s AND %s
+          """, (insegnamento, data_min, data_max))
+          
+          esami_vicini = cursor.fetchall()
+          if esami_vicini:
+            date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
+            esami_invalidi.append({
+              'codice': insegnamento,
+              'titolo': titolo_insegnamento,
+              'errore': f"Non puoi inserire esami a meno di 14 giorni di distanza. Hai già esami nelle date: {', '.join(date_esami)}"
+            })
+            continue
         
         # Insegnamento valido, aggiungi alla lista
         esami_validi.append({

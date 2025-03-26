@@ -138,7 +138,8 @@ def getEsami():
             SELECT e.id, e.descrizione, e.docente, 
                    concat(u.nome, ' ', u.cognome) as docente_nome,
                    e.insegnamento, i.titolo as insegnamento_titolo,
-                   e.aula, e.data_appello, e.ora_appello, e.durata_appello
+                   e.aula, e.data_appello, e.ora_appello, e.durata_appello,
+                   e.tipo_appello
             FROM esami e
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.codice
@@ -184,7 +185,8 @@ def getEsami():
                 'allDay': False,
                 'docente': row['docente'],
                 'docenteNome': row['docente_nome'],
-                'insegnamentoDocente': esame_del_docente
+                'insegnamentoDocente': esame_del_docente,
+                'tipo_appello': row['tipo_appello']
             })
         
         return jsonify(exams)

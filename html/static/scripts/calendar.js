@@ -455,12 +455,21 @@ document.addEventListener("DOMContentLoaded", function () {
           eventContent: function (arg) {
             const event = arg.event;
             const docenteNome = event.extendedProps.docenteNome;
+            
+            // Verifica se è una prova parziale
+            const tipoAppello = event.extendedProps.tipo_appello;
+            const isProvaParziale = tipoAppello === 'PP';
+            
+            // Aggiungi "(Prova Parziale)" se necessario
+            const titolo = isProvaParziale 
+              ? `${event.title} (Parziale)` 
+              : event.title;
 
             return {
               html: `
               <div class="fc-event-main-frame">
                 <div class="fc-event-time">${arg.timeText}</div>
-                <div class="fc-event-title">${event.title}</div>
+                <div class="fc-event-title">${titolo}</div>
                 <div class="fc-event-description">${docenteNome}</div>
                 </div>
               </div>
