@@ -69,15 +69,6 @@ document.addEventListener("DOMContentLoaded", function () {
         navlinksDiv.appendChild(calendarLink);
         navlinksDiv.appendChild(examsLink);
 
-        // Se l'utente è un admin, aggiungi il pulsante OH-ISSA
-        if (isAdmin) {
-          const ohIssaLink = document.createElement("a");
-          ohIssaLink.href = "/oh-issa/index.html";
-          ohIssaLink.innerHTML =
-            "OH-ISSA <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>admin_panel_settings</span>";
-          navlinksDiv.appendChild(ohIssaLink);
-        }
-
         // Aggiungi il link di login/logout
         const link = document.createElement("a");
         link.className = "nav-link";
@@ -103,6 +94,22 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         navlinksDiv.appendChild(link);
+        
+        // Se l'utente è un admin, aggiungi il divisore e il pulsante OH-ISSA
+        if (isAdmin) {
+          // Crea il divisore verticale
+          const divider = document.createElement("div");
+          divider.className = "vertical-divider";
+          navlinksDiv.appendChild(divider);
+          
+          // Crea il link OH-ISSA
+          const ohIssaLink = document.createElement("a");
+          ohIssaLink.href = "/oh-issa/index.html";
+          ohIssaLink.className = "system-link";
+          ohIssaLink.innerHTML =
+            "OH-ISSA <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>admin_panel_settings</span>";
+          navlinksDiv.appendChild(ohIssaLink);
+        }
       })
       .catch((error) => {
         console.error("Errore nel controllo dell'autenticazione:", error);

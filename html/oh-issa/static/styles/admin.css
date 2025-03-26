@@ -77,6 +77,19 @@ section {
   background-color: #444;
 }
 
+.navbar-nav .divider {
+  display: inline-block;
+  height: 24px;
+  width: 1px;
+  background-color: #ccc;
+  margin: 0 0 0 15px;
+  vertical-align: middle;
+}
+
+.system-link {
+  margin-left: auto;
+}
+
 .nav-right {
     margin-left: auto;
 }
@@ -672,10 +685,7 @@ input[type="number"] {
         text-align: center;
         margin: 10px 0;
     }
-}
 
-/* Responsive styles */
-@media (max-width: 768px) {
     #navbar {
         position: relative;
         padding: 0 1rem;

@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', function() {
         <span></span>
       </button>
       <ul class="navbar-nav">
-        <li><a href="/">OPLÀ</a></li>
         <li><a href="/oh-issa/">Dashboard</a></li>
         <li><a href="/oh-issa/import-export.html">Import/Export Dati</a></li>
         <li><a href="/oh-issa/gestioneCds.html">Gestione CdS</a></li>
@@ -29,6 +28,8 @@ document.addEventListener('DOMContentLoaded', function() {
         <li id="loginLogoutItem" class="nav-right">
           <!-- Il link di login/logout verrà aggiunto qui dinamicamente -->
         </li>
+        <li class="divider"></li>
+        <li class="system-link"><a href="/">OPLÀ</a></li>
       </ul>
     `;
     
