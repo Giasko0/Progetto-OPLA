@@ -31,7 +31,7 @@ def api_login():
     cursor.execute("""
         SELECT username, permessi_admin, permessi_docente 
         FROM utenti 
-        WHERE username = %s AND nome = %s
+        WHERE username = %s AND password = %s
     """, (username, password))
     
     user = cursor.fetchone()

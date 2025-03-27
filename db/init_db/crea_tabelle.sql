@@ -24,6 +24,7 @@ CREATE TABLE utenti (
     matricola TEXT NOT NULL UNIQUE, -- Matricola del docente (011876)
     nome TEXT,                      -- Nome del docente
     cognome TEXT,                   -- Cognome del docente
+    password TEXT DEFAULT 'password', -- Password dell'utente (inizializzata a "password")
     permessi_docente BOOLEAN,       -- Permessi docente (true/false)
     permessi_admin BOOLEAN          -- Permessi admin (true/false)
 );
@@ -170,7 +171,7 @@ CREATE INDEX idx_aule_nome ON aule(nome);
 
 
 -- Inserimento dell'utente 'admin' con permessi di amministratore
-INSERT INTO utenti (username, matricola, nome, cognome, permessi_docente, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', true, true);
+INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_docente, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', 'password', true, true);
 
 INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum, inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre, inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre) VALUES
 ('L062', 2023, 'INFORMATICA', 'CORSO GENERICO', '2023-10-01', '2023-12-20', '2023-02-01', '2023-05-31'),
