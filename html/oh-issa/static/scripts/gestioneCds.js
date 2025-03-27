@@ -88,7 +88,18 @@ function loadCorsiForAnno(anno) {
                 option.textContent = "Nessun corso disponibile per questo anno";
                 select.appendChild(option);
             } else {
+                // Oggetto per tenere traccia dei CdS già aggiunti (per codice)
+                const cdsByCode = {};
+                
+                // Scorri i dati e conserva un solo record per ogni codice
                 data.forEach(cds => {
+                    if (!cdsByCode[cds.codice]) {
+                        cdsByCode[cds.codice] = cds;
+                    }
+                });
+                
+                // Aggiungi le opzioni filtrate
+                Object.values(cdsByCode).forEach(cds => {
                     const option = document.createElement('option');
                     option.value = `${cds.codice}_${anno}`;
                     option.textContent = `${cds.codice} - ${cds.nome_corso}`;
@@ -422,7 +433,18 @@ function loadCorsiForAnnoModal(anno) {
                 option.textContent = "Nessun corso disponibile per questo anno";
                 select.appendChild(option);
             } else {
+                // Oggetto per tenere traccia dei CdS già aggiunti (per codice)
+                const cdsByCode = {};
+                
+                // Scorri i dati e conserva un solo record per ogni codice
                 data.forEach(cds => {
+                    if (!cdsByCode[cds.codice]) {
+                        cdsByCode[cds.codice] = cds;
+                    }
+                });
+                
+                // Aggiungi le opzioni filtrate
+                Object.values(cdsByCode).forEach(cds => {
                     const option = document.createElement('option');
                     option.value = `${cds.codice}_${anno}`;
                     option.textContent = `${cds.codice} - ${cds.nome_corso}`;
