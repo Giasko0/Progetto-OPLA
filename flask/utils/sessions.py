@@ -269,12 +269,13 @@ def ottieni_sessioni_da_insegnamenti(insegnamenti_list, year):
       
     placeholders = ', '.join(['%s'] * len(insegnamenti_list))
     
-    # Ottieni tutti i CdS associati agli insegnamenti specificati
+    # Ottieni tutti i CdS associati agli insegnamenti specificati usando il codice dell'insegnamento
     cursor.execute(f"""
-      SELECT DISTINCT cds 
-      FROM insegnamenti_cds 
-      WHERE insegnamento IN ({placeholders})
-      AND anno_accademico = %s
+      SELECT DISTINCT ic.cds 
+      FROM insegnamenti_cds ic
+      JOIN insegnamenti i ON ic.insegnamento = i.id
+      WHERE i.codice IN ({placeholders})
+      AND ic.anno_accademico = %s
     """, insegnamenti_list + [year])
     
     cds_list = [row[0] for row in cursor.fetchall()]

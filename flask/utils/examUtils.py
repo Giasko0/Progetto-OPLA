@@ -194,7 +194,8 @@ def controllaVincoli(dati_esame):
         cursor.execute("""
           SELECT ic.cds, ic.anno_accademico 
           FROM insegnamenti_cds ic
-          WHERE ic.insegnamento = %s 
+          JOIN insegnamenti i ON ic.insegnamento = i.id
+          WHERE i.codice = %s 
             AND ic.anno_accademico = %s
         """, (insegnamento, anno_accademico))
         
@@ -238,11 +239,12 @@ def controllaVincoli(dati_esame):
           cursor.execute("""
             SELECT COUNT(*) 
             FROM esami e
+            JOIN insegnamenti i ON e.insegnamento = i.id
             JOIN periodi_esame pe ON pe.cds = %s 
                 AND pe.anno_accademico = %s
                 AND pe.tipo_periodo = %s
             WHERE e.docente = %s 
-              AND e.insegnamento = %s
+              AND i.codice = %s
               AND e.data_appello BETWEEN pe.inizio AND pe.fine
           """, (cds_code, anno_acc, sessione, docente, insegnamento))
           
@@ -261,8 +263,9 @@ def controllaVincoli(dati_esame):
           data_max = data_esame + timedelta(days=13)
           
           cursor.execute("""
-            SELECT data_appello FROM esami 
-            WHERE insegnamento = %s AND data_appello BETWEEN %s AND %s
+            SELECT data_appello FROM esami e
+            JOIN insegnamenti i ON e.insegnamento = i.id
+            WHERE i.codice = %s AND data_appello BETWEEN %s AND %s
           """, (insegnamento, data_min, data_max))
           
           esami_vicini = cursor.fetchall()
@@ -334,9 +337,32 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
     for esame in esami_da_inserire:
       try:
         # Estrai informazioni per l'inserimento
-        insegnamento = esame['codice']
+        insegnamento_codice = esame['codice']
         inizio_iscrizione = esame.get('data_inizio_iscrizione')
         fine_iscrizione = esame.get('data_fine_iscrizione')
+        anno_accademico = dati_comuni['anno_accademico']
+        
+        # Prima ottieni l'ID dell'insegnamento dal codice
+        cursor.execute("SELECT id FROM insegnamenti WHERE codice = %s", (insegnamento_codice,))
+        result = cursor.fetchone()
+        if not result:
+          raise Exception(f"Insegnamento con codice {insegnamento_codice} non trovato")
+          
+        insegnamento_id = result[0]
+        
+        # Recupera cds e curriculum per questo insegnamento e anno accademico
+        cursor.execute("""
+          SELECT cds, curriculum 
+          FROM insegnamenti_cds 
+          WHERE insegnamento = %s AND anno_accademico = %s
+          LIMIT 1
+        """, (insegnamento_id, anno_accademico))
+        
+        cds_info = cursor.fetchone()
+        if not cds_info:
+          raise Exception(f"Non sono state trovate informazioni sul CDS per l'insegnamento {insegnamento_codice} nell'anno accademico {anno_accademico}")
+        
+        cds, curriculum = cds_info
         
         # Inserisci nel database
         cursor.execute(
@@ -345,9 +371,10 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
             data_inizio_iscrizione, data_fine_iscrizione, 
             tipo_esame, verbalizzazione, descrizione, note_appello, posti,
             tipo_appello, definizione_appello, gestione_prenotazione, 
-            riservato, tipo_iscrizione, periodo, durata_appello)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-          (dati_comuni['docente'], insegnamento, dati_comuni['aula'], 
+            riservato, tipo_iscrizione, periodo, durata_appello,
+            cds, anno_accademico, curriculum)
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+          (dati_comuni['docente'], insegnamento_id, dati_comuni['aula'], 
            dati_comuni['data_appello'], dati_comuni['ora_appello'], 
            inizio_iscrizione, fine_iscrizione, 
            dati_comuni['tipo_esame'], dati_comuni['verbalizzazione'],
@@ -355,9 +382,10 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
            dati_comuni['posti'], dati_comuni['tipo_appello'],
            dati_comuni['definizione_appello'], dati_comuni['gestione_prenotazione'],
            dati_comuni['riservato'], dati_comuni['tipo_iscrizione'],
-           dati_comuni['periodo'], dati_comuni['durata_appello'])
+           dati_comuni['periodo'], dati_comuni['durata_appello'],
+           cds, anno_accademico, curriculum)
         )
-        esami_inseriti.append(esame.get('titolo', insegnamento))
+        esami_inseriti.append(esame.get('titolo', insegnamento_codice))
       except Exception as e:
         # Gestisci il caso in cui 'titolo' non è disponibile
         titolo = esame.get('titolo', esame.get('codice', 'Sconosciuto'))

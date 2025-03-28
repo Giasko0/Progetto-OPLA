@@ -153,6 +153,7 @@ CREATE TABLE esami (
 CREATE INDEX idx_cds_nome_corso ON cds(nome_corso);
 
 CREATE INDEX idx_insegnamenti_codice ON insegnamenti(codice);
+CREATE INDEX idx_insegnamenti_id ON insegnamenti(id);
 
 CREATE INDEX idx_insegnamenti_cds_anno ON insegnamenti_cds(anno_accademico);
 CREATE INDEX idx_insegnamenti_cds_cds ON insegnamenti_cds(cds);

@@ -236,7 +236,18 @@ const InsegnamentiManager = (function () {
 
     // Se ci sono insegnamenti da mostrare
     if (insegnamenti && insegnamenti.length > 0) {
-      insegnamenti.forEach((ins) => {
+      // Filtra insegnamenti per mostrare solo quelli selezionati
+      const insegnamentiSelezionati = insegnamenti.filter(ins => isSelected(ins.codice));
+      
+      // Se non ci sono insegnamenti selezionati, mostra placeholder
+      if (insegnamentiSelezionati.length === 0) {
+        container.innerHTML =
+          '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
+        return;
+      }
+      
+      // Crea tag solo per gli insegnamenti selezionati
+      insegnamentiSelezionati.forEach((ins) => {
         const tag = document.createElement("div");
         tag.className = "multi-select-tag";
         tag.dataset.value = ins.codice;
@@ -379,9 +390,9 @@ const InsegnamentiManager = (function () {
         option.addEventListener("click", (e) => {
           e.stopPropagation();
           
-          const isSelected = option.classList.contains("selected");
+          const isCurrentlySelected = option.classList.contains("selected");
           
-          if (isSelected) {
+          if (isCurrentlySelected) {
             // Deseleziona
             option.classList.remove("selected");
             deselectInsegnamento(ins.codice);
@@ -395,8 +406,16 @@ const InsegnamentiManager = (function () {
             });
           }
           
-          // Aggiorna UI
-          syncUI(newContainer);
+          // Carica solo l'insegnamento corrente per aggiornare l'UI
+          loadInsegnamenti(username, { filter: [ins.codice] }, (data) => {
+            // Aggiorna UI solo con questo insegnamento se selezionato
+            if (!isCurrentlySelected) {
+              syncUI(newContainer);
+            } else {
+              // Se è stato deselezionato, aggiorna l'UI completa
+              syncUI(newContainer);
+            }
+          });
         });
         
         optionsContainer.appendChild(option);

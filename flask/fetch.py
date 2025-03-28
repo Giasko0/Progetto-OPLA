@@ -3,6 +3,7 @@ from db import get_db_connection, release_connection
 from datetime import datetime
 from auth import get_user_data
 from psycopg2.extras import DictCursor
+from utils.insegnamentiUtils import ottieni_insegnamenti_docente, conta_esami_insegnamenti, check_esami_minimi
 
 fetch_bp = Blueprint('fetch', __name__)
 
@@ -121,17 +122,11 @@ def getEsami():
         if not docente:
             return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
 
-        # Ottieni gli insegnamenti del docente per l'anno accademico corrente
-        cursor.execute("""
-            SELECT codice 
-            FROM insegnamenti
-            JOIN insegnamento_docente ON insegnamenti.id = insegnamento_docente.insegnamento
-            WHERE docente = %s 
-            AND annoaccademico = date_part('year', CURRENT_DATE) - 
-                CASE WHEN date_part('month', CURRENT_DATE) >= 9 THEN 0 ELSE 1 END
-        """, (docente,))
-        
-        insegnamenti_docente = [row[0] for row in cursor.fetchall()]
+        # Ottieni gli insegnamenti del docente usando la funzione ottieni_insegnamenti_docente
+        current_date = datetime.now()
+        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+        insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, planning_year)
+        insegnamenti_docente = [data['codice'] for data in insegnamenti_docente_dict.values()]
         
         # Costruisci la query di base
         query = """
@@ -216,38 +211,36 @@ def miei_esami():
         current_date = datetime.now()
         planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
 
-        # Prima otteniamo tutti gli insegnamenti del docente
-        cursor.execute("""
-            SELECT i.codice, i.titolo
-            FROM insegnamenti i
-            JOIN insegnamento_docente id ON i.id = id.insegnamento
-            WHERE id.docente = %s
-            AND id.annoaccademico = %s
-        """, (docente, planning_year))
+        # Usa la nuova funzione per ottenere gli insegnamenti del docente
+        insegnamenti_docente = ottieni_insegnamenti_docente(docente, planning_year)
         
-        insegnamenti_docente = {row[0]: row[1] for row in cursor.fetchall()}
-        
-        # Poi otteniamo gli esami pianificati
-        cursor.execute("""
-          WITH esami_unici AS (
-            SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
-                   e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
-                   c.codice as codice_cds, c.nome_corso as nome_cds,
-                   a.edificio, e.durata_appello, i.codice as codice_insegnamento
-            FROM esami e
-            JOIN insegnamenti i ON e.insegnamento = i.id
-            JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-            JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
-            LEFT JOIN aule a ON e.aula = a.nome
-            WHERE e.docente = %s 
-            AND ic.anno_accademico = %s
-            ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello
-          )
-          SELECT * FROM esami_unici
-          ORDER BY data_appello
-        """, (docente, planning_year))
-        
-        rows = cursor.fetchall()
+        # Poi otteniamo gli esami pianificati, ma solo per gli insegnamenti filtrati
+        if insegnamenti_docente:
+            cursor.execute("""
+              WITH esami_unici AS (
+                SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
+                       e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
+                       c.codice as codice_cds, c.nome_corso as nome_cds,
+                       a.edificio, e.durata_appello, i.codice as codice_insegnamento,
+                       i.id as insegnamento_id, e.tipo_appello
+                FROM esami e
+                JOIN insegnamenti i ON e.insegnamento = i.id
+                JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
+                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
+                LEFT JOIN aule a ON e.aula = a.nome
+                WHERE e.docente = %s 
+                AND ic.anno_accademico = %s
+                AND i.id IN %s
+                ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello
+              )
+              SELECT * FROM esami_unici
+              ORDER BY data_appello
+            """, (docente, planning_year, tuple(insegnamenti_docente.keys())))
+            
+            rows = cursor.fetchall()
+        else:
+            rows = []
+            
         esami = []
         insegnamenti_with_esami = {}
         
@@ -255,7 +248,7 @@ def miei_esami():
             # Estrai i dati base dell'esame
             docente, titolo, aula, data_appello, ora = row[:5]
             # Estrai le informazioni aggiuntive
-            codice_cds, nome_cds, edificio, durata_appello, codice_insegnamento = row[5:10]
+            codice_cds, nome_cds, edificio, durata_appello, codice_insegnamento, insegnamento_id, tipo_appello = row[5:12]
             
             # Formatta l'edificio come sigla se presente
             aula_completa = f"{aula} ({edificio})" if edificio else aula
@@ -292,25 +285,28 @@ def miei_esami():
                 'dataora': f"{data_appello.isoformat()}T{ora.isoformat() if ora else '00:00:00'}",
                 'cds': nome_cds,
                 'codice_cds': codice_cds,
-                'durata_appello': durata_appello
+                'durata_appello': durata_appello,
+                'tipo_appello': tipo_appello
             }
             esami.append(exam)
             
-            # Aggiorna il conteggio delle sessioni
-            if titolo not in insegnamenti_with_esami:
-                insegnamenti_with_esami[titolo] = {
-                    'Anticipata': 0,
-                    'Estiva': 0,
-                    'Autunnale': 0,
-                    'Invernale': 0,
-                    'Pausa Didattica': 0
-                }
-            if sessione:
-                insegnamenti_with_esami[titolo][sessione] += 1
+            # Aggiorna il conteggio delle sessioni, escludendo le prove parziali
+            if tipo_appello != "PP":
+                if titolo not in insegnamenti_with_esami:
+                    insegnamenti_with_esami[titolo] = {
+                        'Anticipata': 0,
+                        'Estiva': 0,
+                        'Autunnale': 0,
+                        'Invernale': 0,
+                        'Pausa Didattica': 0
+                    }
+                if sessione:
+                    insegnamenti_with_esami[titolo][sessione] += 1
         
         # Creazione del dizionario insegnamenti includendo tutti gli insegnamenti del docente
         insegnamenti = {}
-        for codice, titolo in insegnamenti_docente.items():
+        for data in insegnamenti_docente.values():
+            titolo = data['titolo']
             if titolo in insegnamenti_with_esami:
                 insegnamenti[titolo] = insegnamenti_with_esami[titolo]
             else:
@@ -425,80 +421,64 @@ def getInsegnamentiDocente():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Query modificata per escludere correttamente sia insegnamenti mutuati che moduli
-        query = """
-            -- Prima otteniamo tutti gli insegnamenti del docente per escluderli dalle mutuazioni/moduli
-            WITH insegnamenti_docente AS (
-                SELECT i.id, i.codice
-                FROM insegnamento_docente id
-                JOIN insegnamenti i ON id.insegnamento = i.id
-                WHERE id.docente = %s
-                AND id.annoaccademico = %s
-            ),
-            -- Poi selezioniamo gli insegnamenti da mostrare
-            insegnamenti_filtrati AS (
+        # Otteniamo gli insegnamenti del docente usando la funzione ottieni_insegnamenti_docente
+        insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, anno)
+        
+        # Preparazione degli insegnamenti per la risposta
+        if is_admin_user:
+            # Se è admin, otteniamo tutti gli insegnamenti
+            cursor.execute("""
                 SELECT 
-                    i.id,
                     i.codice, 
                     i.titolo, 
                     ic.semestre, 
                     ic.anno_corso, 
                     ic.cds, 
-                    c.nome_corso, 
-                    ic.curriculum,
-                    ic.is_mutuato,
-                    ic.is_modulo,
-                    ic.padri_mutua,
-                    ic.padre_modulo,
-                    -- Facciamo in modo che sia selezionato come primo l'insegnamento con docente corrispondente
-                    CASE WHEN id.docente = %s THEN 0 ELSE 1 END as priorita
+                    c.nome_corso
                 FROM insegnamenti i
                 JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
                 JOIN cds c ON ic.cds = c.codice 
                      AND ic.anno_accademico = c.anno_accademico 
                      AND ic.curriculum = c.curriculum
-                JOIN insegnamento_docente id ON i.id = id.insegnamento
                 WHERE ic.anno_accademico = %s
-                AND id.annoaccademico = %s
-                AND (
-                    -- Se è admin o se è il docente stesso
-                    %s OR id.docente = %s
-                )
-                AND (
-                    -- Escludiamo gli insegnamenti mutuati che hanno come padre un insegnamento del docente
-                    (NOT ic.is_mutuato OR ic.padri_mutua IS NULL OR NOT EXISTS (
-                        SELECT 1 
-                        FROM unnest(ic.padri_mutua) AS padre_mutua
-                        WHERE padre_mutua IN (SELECT codice FROM insegnamenti_docente)
-                    ))
-                    AND
-                    -- Escludiamo i moduli che hanno come padre un insegnamento del docente
-                    (NOT ic.is_modulo OR ic.padre_modulo IS NULL OR ic.padre_modulo NOT IN (
-                        SELECT codice FROM insegnamenti_docente
-                    ))
-                )
-            )
-            -- Selezioniamo i risultati finali applicando i filtri richiesti
-            SELECT DISTINCT ON (codice)
-                codice, titolo, semestre, anno_corso, cds, nome_corso
-            FROM insegnamenti_filtrati
-            -- Ordina prima per codice e poi per priorità (dando precedenza agli insegnamenti del docente)
-            ORDER BY codice, priorita
-        """
-        params = [docente, anno, docente, anno, anno, is_admin_user, docente]
+                ORDER BY i.codice, i.titolo
+            """, (anno,))
+        else:
+            # Se non è admin, usiamo gli insegnamenti filtrati
+            if not insegnamenti_docente_dict:
+                return jsonify({'cds': []}), 200
+                
+            codici_insegnamenti = [data['codice'] for data in insegnamenti_docente_dict.values()]
+            placeholders = ','.join(['%s'] * len(codici_insegnamenti))
+            
+            cursor.execute(f"""
+                SELECT 
+                    i.codice, 
+                    i.titolo, 
+                    ic.semestre, 
+                    ic.anno_corso, 
+                    ic.cds, 
+                    c.nome_corso
+                FROM insegnamenti i
+                JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
+                JOIN cds c ON ic.cds = c.codice 
+                     AND ic.anno_accademico = c.anno_accademico 
+                     AND ic.curriculum = c.curriculum
+                WHERE ic.anno_accademico = %s
+                AND i.codice IN ({placeholders})
+                ORDER BY i.codice, i.titolo
+            """, (anno, *codici_insegnamenti))
         
-        # Aggiungi filtro per CdS se specificato
-        if cds:
-            query += " AND cds = %s"
-            params.append(cds)
-        
-        # Aggiungi filtro per ricerca testuale
-        if search:
-            query += " AND titolo ILIKE %s"
-            params.append(f"%{search}%")
-        
-        cursor.execute(query, tuple(params))
         result = cursor.fetchall()
+        
+        # Filtra per CdS se specificato
+        if cds:
+            result = [row for row in result if row[4] == cds]
+            
+        # Filtra per ricerca testuale
+        if search:
+            search = search.lower()
+            result = [row for row in result if search in row[1].lower()]
         
         # Organizzo gli insegnamenti per CdS
         cds_dict = {}
@@ -513,8 +493,7 @@ def getInsegnamentiDocente():
                     'insegnamenti': []
                 }
             
-            # Aggiungi l'insegnamento al CdS solo se non è già presente in un altro CdS
-            # Facciamo un controllo esplicito per evitare duplicati
+            # Aggiungi l'insegnamento al CdS solo se non è già presente
             already_added = False
             for existing_cds in cds_dict.values():
                 if any(ins['codice'] == codice_ins for ins in existing_cds['insegnamenti']):
@@ -549,3 +528,12 @@ def getInsegnamentiDocente():
             cursor.close()
         if 'conn' in locals() and conn:
             release_connection(conn)
+
+# API per controllare gli insegnamenti con meno del numero minimo di esami
+@fetch_bp.route('/api/checkEsamiMinimi', methods=['GET'])
+def check_esami_minimi_endpoint():
+    # Ottenimento dati utente e verifica
+    user_data = get_user_data().get_json()
+    
+    # Usa la funzione spostata in insegnamentiList.py
+    return check_esami_minimi(user_data)
