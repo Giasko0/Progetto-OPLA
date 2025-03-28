@@ -228,10 +228,8 @@ def getEsami():
         if 'conn' in locals() and conn:
             release_connection(conn)
 
-# API per ottenere gli esami di un docente. Usato in mieiEsami.html
 @fetch_bp.route('/api/getMieiEsamiInsegnamenti', methods=['GET'])
 def miei_esami():
-    # Ottieni i dati dell'utente usando la nuova funzione
     user_data = get_user_data().get_json()
     if not user_data['authenticated'] or not user_data['user_data']:
         return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
@@ -245,31 +243,30 @@ def miei_esami():
         current_date = datetime.now()
         planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
 
-        # Usa la nuova funzione per ottenere gli insegnamenti del docente
         insegnamenti_docente = ottieni_insegnamenti_docente(docente, planning_year)
         
-        # Poi otteniamo gli esami pianificati, ma solo per gli insegnamenti filtrati
         if insegnamenti_docente:
             cursor.execute("""
               WITH esami_unici AS (
                 SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
-                       e.docente, i.titolo, e.aula, e.data_appello, e.ora_appello,
+                       e.docente, CONCAT(u.nome, ' ', u.cognome) as docente_nome,
+                       i.titolo, e.aula, e.data_appello, e.ora_appello,
                        c.codice as codice_cds, c.nome_corso as nome_cds,
                        a.edificio, e.durata_appello, i.codice as codice_insegnamento,
                        i.id as insegnamento_id, e.tipo_appello
                 FROM esami e
+                JOIN utenti u ON e.docente = u.username
                 JOIN insegnamenti i ON e.insegnamento = i.id
                 JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
                 JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
                 LEFT JOIN aule a ON e.aula = a.nome
-                WHERE e.docente = %s 
-                AND ic.anno_accademico = %s
+                WHERE ic.anno_accademico = %s
                 AND i.id IN %s
                 ORDER BY e.insegnamento, e.data_appello, e.periodo, e.data_appello
               )
               SELECT * FROM esami_unici
               ORDER BY data_appello
-            """, (docente, planning_year, tuple(insegnamenti_docente.keys())))
+            """, (planning_year, tuple(insegnamenti_docente.keys())))
             
             rows = cursor.fetchall()
         else:
@@ -279,10 +276,10 @@ def miei_esami():
         insegnamenti_with_esami = {}
         
         for row in rows:
-            # Estrai i dati base dell'esame
-            docente, titolo, aula, data_appello, ora = row[:5]
-            # Estrai le informazioni aggiuntive
-            codice_cds, nome_cds, edificio, durata_appello, codice_insegnamento, insegnamento_id, tipo_appello = row[5:12]
+            # Estrai i dati base dell'esame (aggiornati per includere docente_nome)
+            docente, docente_nome, titolo, aula, data_appello, ora = row[:6]
+            # Estrai le informazioni aggiuntive (indici aggiornati)
+            codice_cds, nome_cds, edificio, durata_appello, codice_insegnamento, insegnamento_id, tipo_appello = row[6:13]
             
             # Formatta l'edificio come sigla se presente
             aula_completa = f"{aula} ({edificio})" if edificio else aula
@@ -309,9 +306,10 @@ def miei_esami():
                 else:
                     sessione = tipo_periodo.capitalize()
             
-            # Formatta l'esame
+            # Formatta l'esame (aggiunto docente_nome)
             exam = {
                 'docente': docente,
+                'docenteNome': docente_nome,
                 'insegnamento': titolo,
                 'aula': aula_completa,
                 'data': data_appello.strftime("%d/%m/%Y"),
