@@ -115,20 +115,17 @@ def getEsami():
         insegnamenti = request.args.get('insegnamenti', None)
         cds = request.args.get('cds', None)
         
-        # Verifica se l'utente è effettivamente un admin
         is_admin_user = is_admin()
         
         if not docente:
             return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
 
-        # Ottieni gli insegnamenti del docente usando la funzione ottieni_insegnamenti_docente
         current_date = datetime.now()
         planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
         insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, planning_year)
         insegnamenti_docente = [data['codice'] for data in insegnamenti_docente_dict.values()]
         
-        # Base query: ottiene tutti gli esami del docente loggato 
-        # (questo è quello che vediamo sempre, indipendentemente dai filtri)
+        # Query base modificata: ora seleziona gli esami basati sugli insegnamenti invece che sul docente
         base_query = """
             SELECT e.id, e.descrizione, e.docente, 
                    concat(u.nome, ' ', u.cognome) as docente_nome,
@@ -138,17 +135,15 @@ def getEsami():
             FROM esami e
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.id
-            WHERE e.docente = %s
+            WHERE i.codice IN %s
         """
         
-        params = [docente]
+        params = [tuple(insegnamenti_docente)]
         
-        # Se sono specificati degli insegnamenti, crea una query aggiuntiva
-        # per gli esami con stesso anno, semestre, CdS e curriculum
+        # Se sono specificati degli insegnamenti, aggiungi la query unione come prima
         if insegnamenti:
             insegnamenti_list = insegnamenti.split(',')
             
-            # Costruisci la query unione che include esami di insegnamenti simili
             union_query = """
             UNION
             
@@ -176,12 +171,9 @@ def getEsami():
             )
             """.format(','.join(['%s'] * len(insegnamenti_list)))
             
-            # Aggiungi l'unione alla query base
             query = base_query + union_query
-            # Aggiungi parametri per la query unione
             params.extend(insegnamenti_list)
         else:
-            # Usa solo la query base se non ci sono insegnamenti specificati
             query = base_query
             
         # Aggiungi filtri comuni opzionali
