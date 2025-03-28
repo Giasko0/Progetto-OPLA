@@ -247,36 +247,8 @@ const EsameForm = (function() {
       aggiornaVerbalizzazione(); // Aggiorna le opzioni di verbalizzazione
     }
 
-    // Gestione ora appello
-    if (examData.ora_appello) {
-      const [hours, minutes] = examData.ora_appello.split(':');
-      const ora_h = document.getElementById('ora_h');
-      const ora_m = document.getElementById('ora_m');
-      if (ora_h && hours) ora_h.value = hours;
-      if (ora_m && minutes) ora_m.value = minutes;
-      
-      // Aggiorna il campo nascosto
-      const oraField = document.getElementById('ora');
-      if (oraField) oraField.value = examData.ora_appello;
-    }
-
-    // Gestione durata appello
-    if (examData.durata_appello) {
-      const durata = parseInt(examData.durata_appello);
-      if (!isNaN(durata)) {
-        const ore = Math.floor(durata / 60);
-        const minuti = durata % 60;
-        
-        const durata_h = document.getElementById('durata_h');
-        const durata_m = document.getElementById('durata_m');
-        if (durata_h) durata_h.value = ore.toString();
-        if (durata_m) durata_m.value = minuti.toString();
-        
-        // Aggiorna il campo nascosto
-        const durataField = document.getElementById('durata');
-        if (durataField) durataField.value = durata.toString();
-      }
-    }
+    // Usa handleSpecialFields per gestire ora e durata
+    handleSpecialFields(examData);
 
     // Gestione insegnamento
     if (window.InsegnamentiManager && examData.insegnamento_codice) {
@@ -337,11 +309,19 @@ const EsameForm = (function() {
         const durataH = document.getElementById("durata_h");
         const durataM = document.getElementById("durata_m");
         
-        if (durataH) durataH.value = ore.toString();
-        if (durataM) durataM.value = minuti.toString();
+        if (durataH) {
+          durataH.value = ore.toString();
+        }
+        
+        if (durataM) {
+          // Forza sempre il valore dei minuti a "0" quando è un'ora tonda
+          durataM.value = minuti.toString().padStart(2, '0');
+        }
         
         const durataField = document.getElementById("durata");
-        if (durataField) durataField.value = durata.toString();
+        if (durataField) {
+          durataField.value = durata.toString();
+        }
       }
     }
     
@@ -1190,16 +1170,18 @@ const EsameForm = (function() {
       const ora_m = document.getElementById("ora_m");
       
       if (ora_h && ora_m && preference.oraAppello) {
-        // Dividi l'ora in ore e minuti
-        const [hours, minutes] = preference.oraAppello.split(":");
-        if (hours && minutes) {
+        // Dividi l'ora in ore e minuti e assicurati che ci siano entrambi
+        const [hours, minutes] = preference.oraAppello.split(":").map(val => val.padStart(2, '0'));
+        if (hours) {
           ora_h.value = hours;
-          ora_m.value = minutes;
-          
-          // Combina i valori per aggiornare il campo nascosto
-          combineTimeValues();
-          oraImpostata = true;
         }
+        if (minutes) {
+          ora_m.value = minutes;
+        }
+        
+        // Combina i valori per aggiornare il campo nascosto
+        combineTimeValues();
+        oraImpostata = true;
       }
     }
     
@@ -1255,9 +1237,13 @@ const EsameForm = (function() {
       }
       
       if (durata_m) {
-        // Formatta i minuti con un eventuale zero iniziale
-        const minutiFormattati = minuti < 10 ? `0${minuti}` : minuti.toString();
-        durata_m.value = minutiFormattati;
+        // Usa sempre "0" come valore quando i minuti sono 0
+        durata_m.value = "0";
+        
+        // Se ci sono minuti diversi da zero, usa il valore corretto
+        if (minuti > 0) {
+          durata_m.value = minuti.toString();
+        }
       }
       
       // Aggiorniamo anche il campo nascosto
@@ -1608,12 +1594,29 @@ const EsameForm = (function() {
     submitFormData({ bypassChecks: true });
   }
 
+  // Valida il giorno della settimana
+  function validaGiornoSettimana(data) {
+    const giorno = new Date(data).getDay();
+    return giorno !== 0 && giorno !== 6; // 0 = domenica, 6 = sabato
+  }
+
   // Gestisce l'invio standard del form
   function handleFormSubmit(e) {
     e.preventDefault();
 
-    // Ora e durata vengono combinati dalla funzione combineTimeValues
+    // Combina ora e durata
     combineTimeValues();
+
+    // Controllo giorno della settimana
+    const dataAppello = document.getElementById("dataora")?.value;
+    if (!validaGiornoSettimana(dataAppello)) {
+      window.showMessage(
+        "Non è possibile inserire esami di sabato o domenica",
+        "Errore di validazione",
+        "error"
+      );
+      return;
+    }
 
     const oraAppello = document.getElementById("ora")?.value;
     if (!validaOraAppello(oraAppello)) {

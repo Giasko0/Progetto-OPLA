@@ -200,6 +200,11 @@ def controllaVincoli(dati_esame):
     # Converti in oggetto data
     data_esame = datetime.fromisoformat(data_appello)
     
+    # Verifica se il giorno è sabato o domenica
+    giorno_settimana = data_esame.weekday()
+    if giorno_settimana >= 5:  # 5 = sabato, 6 = domenica
+      return dati_esame, [], [], 'Non è possibile inserire esami di sabato o domenica'
+    
     # Dizionario per memorizzare le informazioni delle sessioni trovate
     periodi_sessione = {}
     
