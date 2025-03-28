@@ -815,11 +815,15 @@ body {
 .alert {
   padding: 15px;
   border-radius: 5px;
-  margin-bottom: 15px;
+  margin: 20px;
+}
+
+.alert p {
+  margin: 0 20px;
 }
 
 .alert-warning {
-  background-color: var(--color-bg-light);
+  background-color: #fff3cd;
   border: 1px solid var(--color-warning);
   color: var(--color-text);
 }

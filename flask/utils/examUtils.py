@@ -312,17 +312,72 @@ def controllaVincoli(dati_esame):
             })
             continue
         
-        # Insegnamento valido, aggiungi alla lista
-        esami_validi.append({
-          'codice': insegnamento,
-          'titolo': titolo_insegnamento,
-          'data_inizio_iscrizione': data_inizio_iscrizione,
-          'data_fine_iscrizione': data_fine_iscrizione
-        })
+        # 2.6 Verifica sovrapposizione con altri esami dello stesso CDS, curriculum, anno e semestre
+        # La sovrapposizione vale anche se uno dei due esami ha curriculum 'CORSO GENERICO'
+        cursor.execute("""
+          WITH stesso_contesto AS (
+            SELECT DISTINCT i2.id, i2.codice, i2.titolo
+            FROM insegnamenti_cds ic1
+            JOIN insegnamenti i1 ON ic1.insegnamento = i1.id
+            JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
+              AND (
+                ic1.curriculum = ic2.curriculum 
+                OR ic1.curriculum = 'CORSO GENERICO'
+                OR ic2.curriculum = 'CORSO GENERICO'
+              )
+              AND ic1.anno_corso = ic2.anno_corso 
+              AND ic1.semestre = ic2.semestre
+              AND ic1.anno_accademico = ic2.anno_accademico
+            JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
+            WHERE i1.codice = %s
+              AND ic1.anno_accademico = %s
+          )
+          SELECT e.data_appello, e.ora_appello, e.durata_appello, 
+                 i.codice, i.titolo
+          FROM esami e
+          JOIN insegnamenti i ON e.insegnamento = i.id
+          WHERE i.id IN (SELECT id FROM stesso_contesto)
+            AND e.data_appello = %s
+            AND e.id != COALESCE(%s, -1)
+        """, (insegnamento, anno_acc, data_appello, dati_esame.get('exam_id')))
         
-        # Memorizza i dati della sessione per questo CDS se non già presente
-        if (cds_code, anno_acc) not in periodi_sessione:
-          periodi_sessione[(cds_code, anno_acc)] = sessione_info
+        esami_sovrapposti = cursor.fetchall()
+        
+        if esami_sovrapposti:
+          # Converti l'ora dell'appello corrente in datetime per i calcoli
+          ora_parts = dati_esame['ora_appello'].split(':')
+          ora_base = datetime.now().replace(hour=int(ora_parts[0]), 
+                                         minute=int(ora_parts[1]), 
+                                         second=0, microsecond=0)
+          durata = int(dati_esame['durata_appello'])
+          fine_appello = ora_base + timedelta(minutes=durata)
+          
+          for esame in esami_sovrapposti:
+            # Converti l'ora dell'altro esame in datetime per i calcoli
+            altro_ora = esame[1]  # ora_appello è già un oggetto time
+            altra_ora_base = datetime.now().replace(hour=altro_ora.hour,
+                                                 minute=altro_ora.minute,
+                                                 second=0, microsecond=0)
+            altra_durata = int(esame[2])
+            altra_fine = altra_ora_base + timedelta(minutes=altra_durata)
+            
+            # Verifica sovrapposizione
+            if (ora_base <= altra_fine and fine_appello >= altra_ora_base):
+              esami_invalidi.append({
+                'codice': insegnamento,
+                'titolo': titolo_insegnamento,
+                'errore': f"Sovrapposizione con l'esame di {esame[4]} ({esame[3]}) dello stesso CDS/curriculum/anno/semestre"
+              })
+              break  # Usciamo dal ciclo alla prima sovrapposizione trovata
+
+        # Se non ci sono state sovrapposizioni, aggiungi alla lista dei validi
+        if insegnamento not in [x['codice'] for x in esami_invalidi]:
+          esami_validi.append({
+            'codice': insegnamento,
+            'titolo': titolo_insegnamento,
+            'data_inizio_iscrizione': data_inizio_iscrizione,
+            'data_fine_iscrizione': data_fine_iscrizione
+          })
         
       except Exception as e:
         # Gestione errori durante la verifica

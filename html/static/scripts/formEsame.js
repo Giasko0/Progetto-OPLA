@@ -779,7 +779,7 @@ const EsameForm = (function() {
     // Se ci sono esami invalidi, mostra un avviso
     if (data.esami_invalidi?.length > 0) {
       htmlContent += `
-        <div class="alert alert-warning" style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+        <div class="alert alert-warning">
           <p><strong>Attenzione!</strong> Alcuni esami non possono essere inseriti:</p>
           <ul style="margin-left: 20px;">
       `;

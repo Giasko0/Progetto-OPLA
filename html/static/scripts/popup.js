@@ -16,14 +16,6 @@ function showPopup(message, title = "Errore", options = {}) {
 
   const settings = { ...defaultOptions, ...options };
 
-  // Stili per i diversi tipi di popup
-  const typeStyles = {
-    error: { bg: "#f8d7da", color: "#721c24" },
-    success: { bg: "#d4edda", color: "#155724" },
-    warning: { bg: "#fff3cd", color: "#856404" },
-    info: { bg: "#d1ecf1", color: "#0c5460" },
-  };
-
   // Usa lo stile appropriato o default a error
   const style = typeStyles[settings.type] || typeStyles.error;
 
