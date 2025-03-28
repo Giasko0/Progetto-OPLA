@@ -7,6 +7,8 @@ const EsameForm = (function() {
   let popupOverlay = null;
   let currentUsername = null;
   let userPreferences = [];
+  let isEditMode = false;
+  let usePreferences = true;
   
   // Carica il form HTML dinamicamente
   async function loadForm() {
@@ -28,14 +30,38 @@ const EsameForm = (function() {
       }
       
       // Carica il form tramite fetch
+      console.log("Caricamento del form da /formEsame.html");
       const response = await fetch('/formEsame.html');
       if (!response.ok) {
         throw new Error(`Errore nel caricamento del form: ${response.status}`);
       }
       
       const html = await response.text();
+      
+      // Inserisci il contenuto HTML
       popupOverlay.innerHTML = html;
+      
+      // Ottieni il riferimento all'elemento contenitore
       formElement = document.getElementById('formEsameContainer');
+      
+      if (!formElement) {
+        console.error("Errore: formEsameContainer non trovato nel DOM");
+        throw new Error("Elemento formEsameContainer non trovato");
+      }
+      
+      // Inizializza il listener di chiusura subito dopo aver caricato il form
+      const closeBtn = document.getElementById("closeOverlay");
+      if (closeBtn) {
+        closeBtn.removeEventListener("click", hideForm);
+        closeBtn.addEventListener("click", function(e) {
+          e.preventDefault();
+          console.log("Pulsante di chiusura cliccato");
+          hideForm();
+        });
+        console.log("Pulsante di chiusura inizializzato");
+      } else {
+        console.warn("Pulsante di chiusura non trovato dopo il caricamento del form");
+      }
       
       isLoaded = true;
       isLoading = false;
@@ -49,45 +75,283 @@ const EsameForm = (function() {
   }
   
   // Mostra il form di inserimento esame
-  async function showForm(options = {}) {
+  async function showForm(data = {}, isEdit = false) {
     try {
       await loadForm();
+      
+      if (!popupOverlay) {
+        console.error('Errore: popupOverlay non disponibile');
+        return false;
+      }
+      
       popupOverlay.style.display = 'flex';
       
-      // Reset dello stato precedente
-      isLoaded = false;
+      // Reset dello stato e impostazione modalità
+      isEditMode = isEdit;
       
-      initForm(options);
+      console.log(`Apertura form in modalità ${isEdit ? 'MODIFICA' : 'CREAZIONE'}`);
+      console.log("Dati ricevuti:", data);
+      
+      // Componenti principali del form
+      const popupTitle = document.querySelector(".popup-header h2");
+      const esameForm = document.getElementById("esameForm");
+      
+      if (popupTitle) popupTitle.textContent = isEdit ? "Modifica Esame" : "Aggiungi Esame";
+      
+      // Gestione campo ID per modifica
+      const idField = document.getElementById("examIdField");
+      if (idField) idField.value = isEdit && data.id ? data.id : "";
+      
+      // Reset form per partire puliti
+      if (esameForm) esameForm.reset();
+      
+      // Aggiorna pulsante submit
+      const submitButton = document.querySelector('#esameForm button[type="submit"]');
+      if (submitButton) submitButton.textContent = isEdit ? "Salva Modifiche" : "Crea Esame";
+      
+      // Gestione pulsante eliminazione
+      setupDeleteButton(isEdit, data.id);
+      
+      // Popolamento form
+      const elements = document.querySelectorAll("#esameForm input, #esameForm select");
+      
+      // Prima imposta i valori di default
+      setDefaultValues(elements);
+      
+      if (isEdit) {
+        // Modalità modifica: usa solo i dati dell'esame
+        console.log("Compilazione form modalità MODIFICA: applico solo i dati dell'esame");
+        
+        // Inizializza componenti UI prima di compilare il form
+        initUI(data);
+        initEventListeners();
+        
+        // Poi compila con i dati dell'esame
+        fillFormWithExamData(elements, data);
+      } else {
+        // Modalità creazione: dati preselezionati e preferenze
+        console.log("Compilazione form modalità CREAZIONE");
+        
+        // Applica dati preselezionati (es. data selezionata)
+        if (Object.keys(data).length > 0) {
+          console.log("Applico dati preselezionati:", data);
+          fillFormWithPartialData(elements, data);
+        }
+        
+        // Inizializza UI e event listener
+        initUI(data);
+        initEventListeners();
+        
+        // Carica preferenze solo in modalità creazione
+        if (usePreferences) {
+          getUserData()
+            .then(data => {
+              if (data?.authenticated && data?.user_data) {
+                currentUsername = data.user_data.username;
+                loadUserPreferences();
+              }
+            })
+            .catch(error => console.error("Errore dati utente:", error));
+        }
+      }
+      
+      // Aggiorna campi dinamici
+      updateDynamicFields();
       return true;
     } catch (error) {
       console.error('Errore nel mostrare il form:', error);
+      window.showMessage("Errore nell'apertura del form", "Errore", "error");
       return false;
     }
   }
   
-  // Nasconde il form e pulisce gli handler degli eventi
-  function hideForm() {
-    if (popupOverlay) {
-      popupOverlay.style.display = 'none';
-      
-      // Resetta il dropdown
-      const dropdown = document.getElementById('insegnamentoDropdown');
-      if (dropdown) {
-        dropdown.style.display = 'none';
+  // Funzione per setup del pulsante elimina
+  function setupDeleteButton(isEdit, examId) {
+    const deleteButton = document.getElementById("deleteExamBtn");
+    
+    // Procedi solo se entrambi gli elementi necessari sono disponibili
+    if (isEdit) {
+      if (!deleteButton) {
+        const submitBtn = document.querySelector('#esameForm button[type="submit"]');
+        if (!submitBtn || !submitBtn.parentNode) {
+          console.warn('Impossibile aggiungere pulsante elimina: elementi necessari non trovati');
+          return;
+        }
+        
+        const newDeleteBtn = document.createElement("button");
+        newDeleteBtn.id = "deleteExamBtn";
+        newDeleteBtn.className = "delete-btn";
+        newDeleteBtn.textContent = "Elimina Esame";
+        newDeleteBtn.type = "button";
+        newDeleteBtn.onclick = () => {
+          if (confirm("Sei sicuro di voler eliminare questo esame?")) {
+            if (typeof window.deleteEsame === 'function') {
+              window.deleteEsame(examId);
+            } else {
+              console.error("Errore: funzione deleteEsame non disponibile");
+              window.showMessage("Errore: funzione di eliminazione non disponibile", "Errore", "error");
+            }
+          }
+        };
+        
+        submitBtn.parentNode.insertBefore(newDeleteBtn, submitBtn.nextSibling);
       }
-      
-      // Pulisci gli event listener per evitare duplicazioni
-      if (window.InsegnamentiManager && window.InsegnamentiManager.cleanup) {
-        window.InsegnamentiManager.cleanup();
-      }
-      
-      // Forziamo la ricarica del form la prossima volta
-      isLoaded = false;
+    } else if (deleteButton) {
+      deleteButton.remove();
     }
   }
-
+  
+  // Imposta valori di default sui campi
+  function setDefaultValues(elements) {
+    const defaults = {
+      "tipo_appello": "AP",
+      "verbalizzazione": "FSS",
+      "tipo_esame": "S",
+      "posti": "100"
+    };
+    
+    elements.forEach(element => {
+      const name = element.name || element.id;
+      if (name && defaults[name]) element.value = defaults[name];
+    });
+  }
+  
+  // Compila il form con i dati dell'esame (modalità modifica)
+  function fillFormWithExamData(elements, examData) {
+    console.log("Compilazione con dati esame:", examData);
+    
+    elements.forEach(element => {
+      const name = element.name || element.id;
+      if (!name) return;
+      
+      if (examData[name] !== undefined) {
+        if (element.type === "checkbox") {
+          element.checked = Boolean(examData[name]);
+        } else if (element.type === "radio") {
+          element.checked = element.value === String(examData[name]);
+        } else if (element.tagName === "SELECT") {
+          const optionValue = String(examData[name]);
+          if (Array.from(element.options).some(opt => opt.value === optionValue)) {
+            element.value = optionValue;
+          }
+        } else {
+          element.value = examData[name];
+        }
+      }
+    });
+    
+    // Assicurati che anno_accademico sia impostato
+    if (!examData.anno_accademico) {
+      // Imposta l'anno accademico corrente se non è presente nei dati dell'esame
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      examData.anno_accademico = currentMonth >= 9 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
+      
+      // Aggiorna il campo nel form
+      const annoField = document.getElementById("anno_accademico");
+      if (annoField) {
+        annoField.value = examData.anno_accademico;
+      }
+    }
+    
+    // Mappatura speciale per campi con nomi diversi
+    handleSpecialFields(examData);
+    
+    // Gestione insegnamenti con InsegnamentiManager
+    if (window.InsegnamentiManager && examData.insegnamento_codice) {
+      // Prima pulisci eventuali selezioni precedenti
+      window.InsegnamentiManager.clearSelection();
+      
+      // Poi seleziona l'insegnamento dell'esame
+      window.InsegnamentiManager.selectInsegnamento(examData.insegnamento_codice, {
+        semestre: examData.semestre || 1,
+        anno_corso: examData.anno_corso || 1,
+        cds: examData.cds_codice || ""
+      });
+      
+      // Aggiorna UI
+      const multiSelectBox = document.getElementById("insegnamentoBox");
+      if (multiSelectBox) {
+        // Carica i dati dell'insegnamento e aggiorna l'interfaccia
+        const username = document.getElementById("docente")?.value;
+        if (username) {
+          window.InsegnamentiManager.loadInsegnamenti(
+            username, 
+            { filter: [examData.insegnamento_codice] }, 
+            (data) => {
+              window.InsegnamentiManager.syncUI(multiSelectBox, data);
+            }
+          );
+        }
+      }
+    }
+  }
+  
+  // Gestione campi speciali (es. data, ora)
+  function handleSpecialFields(data) {
+    // Data appello
+    if (data.data_appello) {
+      const dateField = document.getElementById("dataora");
+      if (dateField) dateField.value = data.data_appello;
+    }
+    
+    // Ora appello
+    if (data.ora_appello) {
+      const oraParts = data.ora_appello.split(':');
+      if (oraParts.length >= 2) {
+        const oraH = document.getElementById("ora_h");
+        const oraM = document.getElementById("ora_m");
+        
+        if (oraH) oraH.value = oraParts[0].padStart(2, '0');
+        if (oraM) oraM.value = oraParts[1].padStart(2, '0');
+        
+        const oraField = document.getElementById("ora");
+        if (oraField) oraField.value = data.ora_appello;
+      }
+    }
+    
+    // Durata
+    if (data.durata_appello) {
+      const durata = parseInt(data.durata_appello);
+      if (!isNaN(durata)) {
+        const ore = Math.floor(durata / 60);
+        const minuti = durata % 60;
+        
+        const durataH = document.getElementById("durata_h");
+        const durataM = document.getElementById("durata_m");
+        
+        if (durataH) durataH.value = ore.toString();
+        if (durataM) durataM.value = minuti.toString();
+        
+        const durataField = document.getElementById("durata");
+        if (durataField) durataField.value = durata.toString();
+      }
+    }
+    
+    // Tipo appello (prova parziale)
+    if (data.tipo_appello === 'PP') {
+      const provaParzialeCheckbox = document.getElementById("provaParziale");
+      if (provaParzialeCheckbox) {
+        provaParzialeCheckbox.checked = true;
+        aggiornaVerbalizzazione();
+      }
+    }
+    
+    // Aggiorna aule disponibili
+    setTimeout(aggiornaAuleDisponibili, 100);
+  }
+  
+  // Compilazione form con dati parziali (es. data dal calendario)
+  function fillFormWithPartialData(elements, partialData) {
+    if (partialData.date) {
+      const dateField = document.getElementById("dataora");
+      if (dateField) dateField.value = partialData.date;
+    }
+    // Altri dati preselezionati possono essere gestiti qui
+  }
+  
   // Inizializza il form con gli eventi e i valori predefiniti
-  function initForm(options = {}) {
+  function initForm(options = {}, isEdit = false) {
     // Imposta l'anno accademico
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth() + 1;
@@ -98,25 +362,59 @@ const EsameForm = (function() {
       anno_field.value = anno_accademico;
     }
     
-    // Prima inizializziamo l'UI
-    initUI(options);
-    // Poi aggiungiamo gli event listeners
-    initEventListeners();
+    // PARTE FONDAMENTALE: Compilazione del form
     
-    // Ottieni l'username corrente e poi carica le preferenze
-    getUserData()
-      .then((data) => {
-        if (data?.authenticated && data?.user_data) {
-          currentUsername = data.user_data.username;
-          console.log("Username ottenuto:", currentUsername);
-          
-          // Carica le preferenze dell'utente dopo aver impostato i valori base
-          loadUserPreferences();
-        }
-      })
-      .catch((error) => {
-        console.error("Errore nel recupero dei dati utente:", error);
-      });
+    // Seleziona gli elementi del form
+    const elements = document.querySelectorAll("#esameForm input, #esameForm select");
+    
+    // Su tutti i campi, applica prima i valori di default base
+    setDefaultValues(elements);
+    
+    // Se è modalità modifica, applica i dati dell'esame esistente
+    if (isEdit) {
+      // In modalità modifica: ignora completamente le preferenze e usa solo i dati dell'esame
+      console.log("Compilazione form modalità MODIFICA: applico solo i dati dell'esame");
+      fillFormWithExamData(elements, options);
+    } else {
+      // In modalità creazione: applica prima eventuali dati (es. data selezionata) 
+      // e poi le preferenze se usePreferences è attivo
+      console.log("Compilazione form modalità CREAZIONE");
+      
+      // Applica eventuali dati preselezionati (es. data dal click sul calendario)
+      if (Object.keys(options).length > 0) {
+        console.log("Applico dati preselezionati:", options);
+        fillFormWithPartialData(elements, options);
+      }
+      
+      // Prima inizializziamo l'UI
+      initUI(options);
+      // Poi aggiungiamo gli event listeners
+      initEventListeners();
+      
+      // Ottieni l'username corrente e poi carica le preferenze
+      getUserData()
+        .then((data) => {
+          if (data?.authenticated && data?.user_data) {
+            currentUsername = data.user_data.username;
+            console.log("Username ottenuto:", currentUsername);
+            
+            // Applica le preferenze salvate SOLO in modalità creazione
+            if (usePreferences) {
+              console.log("Applico preferenze salvate");
+              // Carica le preferenze dell'utente dopo aver impostato i valori base
+              loadUserPreferences();
+            } else {
+              console.log("Preferenze disabilitate: non applicate");
+            }
+          }
+        })
+        .catch((error) => {
+          console.error("Errore nel recupero dei dati utente:", error);
+        });
+    }
+    
+    // Aggiorna i campi dinamici in base alle selezioni correnti
+    updateDynamicFields();
   }
   
   // Inizializza gli ascoltatori di eventi
@@ -156,7 +454,18 @@ const EsameForm = (function() {
 
     // Gestione chiusura overlay
     const closeOverlay = document.getElementById("closeOverlay");
-    closeOverlay?.addEventListener("click", hideForm);
+    if (closeOverlay) {
+      // Rimuovi eventuali listener esistenti per evitare duplicazioni
+      closeOverlay.removeEventListener("click", hideForm);
+      // Aggiungi un nuovo listener
+      closeOverlay.addEventListener("click", function(e) {
+        e.preventDefault();
+        hideForm();
+      });
+      console.log("Event listener per closeOverlay aggiunto");
+    } else {
+      console.warn("Elemento closeOverlay non trovato");
+    }
 
     // Aggiungi event listeners per le preferenze
     document.getElementById("savePreferenceBtn")?.addEventListener("click", toggleSavePreferenceForm);
@@ -168,176 +477,6 @@ const EsameForm = (function() {
     setupTimeCombiningHandlers();
   }
   
-  // Configura i gestori per combinare i valori di ora e durata
-  function setupTimeCombiningHandlers() {
-    const form = document.getElementById("formEsame");
-    if (!form) return;
-    
-    // Combina l'ora al submit del form
-    form.addEventListener("submit", combineTimeValues);
-    
-    // Aggiungi anche al pulsante di bypass
-    const bypassBtn = document.getElementById("bypassChecksBtn");
-    if (bypassBtn) {
-      bypassBtn.addEventListener("click", combineTimeValues);
-    }
-    
-    // Aggiungi gestori per aggiornare i campi quando i valori cambiano
-    const ora_h = document.getElementById("ora_h");
-    const ora_m = document.getElementById("ora_m");
-    const durata_h = document.getElementById("durata_h");
-    const durata_m = document.getElementById("durata_m");
-    
-    if (ora_h && ora_m) {
-      ora_h.addEventListener("change", combineTimeValues);
-      ora_m.addEventListener("change", combineTimeValues);
-    }
-    
-    if (durata_h && durata_m) {
-      durata_h.addEventListener("change", combineDurataValues);
-      durata_m.addEventListener("change", combineDurataValues);
-    }
-  }
-  
-  // Combina i valori di ora e durata
-  function combineTimeValues() {
-    // Combina ora_h e ora_m in ora (formato HH:MM)
-    const ora_h = document.getElementById('ora_h')?.value;
-    const ora_m = document.getElementById('ora_m')?.value;
-    if (ora_h && ora_m) {
-      const oraField = document.getElementById('ora');
-      if (oraField) oraField.value = `${ora_h}:${ora_m}`;
-    }
-    
-    // Converte durata_h e durata_m in durata totale in minuti
-    const durata_h = parseInt(document.getElementById('durata_h')?.value) || 0;
-    const durata_m = parseInt(document.getElementById('durata_m')?.value) || 0;
-    const durata_totale = (durata_h * 60) + durata_m;
-    
-    const durataField = document.getElementById('durata');
-    if (durataField) durataField.value = durata_totale.toString();
-  }
-  
-  // Controlla se l'utente è un amministratore
-  function isUserAdmin() {
-    return document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("admin="))
-      ?.split("=")[1] === "true";
-  }
-
-  // Funzione specifica per combinare solo i valori della durata
-  function combineDurataValues() {
-    const durata_h = parseInt(document.getElementById('durata_h')?.value) || 0;
-    const durata_m = parseInt(document.getElementById('durata_m')?.value) || 0;
-    const durata_totale = (durata_h * 60) + durata_m;
-    
-    const durataField = document.getElementById('durata');
-    if (durataField) durataField.value = durata_totale.toString();
-  }
-  
-  // Funzione unificata per inviare i dati del form
-  function submitFormData(options = {}) {
-    const form = document.getElementById("formEsame");
-    if (!form) return;
-    
-    const formData = new FormData(form);
-    
-    // Aggiungi opzioni aggiuntive se fornite
-    if (options.bypassChecks) {
-      formData.append("bypass_checks", "true");
-    }
-        
-    fetch("/api/inserisciEsame", {
-      method: "POST",
-      body: formData,
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.status === "error") {
-          window.showMessage(data.message, "Errore", "error");
-        } else if (data.status === "validation") {
-          mostraPopupConferma(data);
-        } else {
-          // Pulizia dopo l'inserimento riuscito
-          window.InsegnamentiManager?.clearSelection();
-          window.forceCalendarRefresh?.();
-
-          const successMessage = options.bypassChecks 
-            ? "Esame inserito con successo (controlli bypassati)"
-            : data.message || "Esami inseriti con successo";
-            
-          window.showMessage(successMessage, "Operazione completata", "notification");
-          hideForm();
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        window.showMessage(
-          "Si è verificato un errore durante l'inserimento dell'esame",
-          "Errore",
-          "error"
-        );
-      });
-  }
-  
-  // Gestisce l'invio del form con bypass dei controlli
-  function handleBypassChecksSubmit() {
-    if (!isUserAdmin()) {
-      window.showMessage(
-        "Solo gli amministratori possono utilizzare questa funzione",
-        "Accesso negato",
-        "error"
-      );
-      return;
-    }
-    
-    // Combina i valori di ora e durata prima dell'invio
-    combineTimeValues();
-    
-    submitFormData({ bypassChecks: true });
-  }
-
-  // Gestisce l'invio standard del form
-  function handleFormSubmit(e) {
-    e.preventDefault();
-
-    // Ora e durata vengono combinati dalla funzione combineTimeValues
-    combineTimeValues();
-
-    const oraAppello = document.getElementById("ora")?.value;
-    if (!validaOraAppello(oraAppello)) {
-      window.showMessage(
-        "L'ora dell'appello deve essere compresa tra le 08:00 e le 23:00",
-        "Errore di validazione",
-        "error"
-      );
-      return;
-    }
-
-    const aulaSelezionata = document.getElementById("aula")?.value;
-    if (!aulaSelezionata) {
-      window.showMessage(
-        "Seleziona un'aula disponibile",
-        "Errore di validazione",
-        "error"
-      );
-      return;
-    }
-
-    const durataEsame = document.getElementById("durata")?.value;
-    if (!validaDurataEsame(durataEsame)) {
-      window.showMessage(
-        "La durata dell'esame deve essere di almeno 30 minuti e non superiore a 480 minuti (8 ore)",
-        "Errore di validazione",
-        "error"
-      );
-      return;
-    }
-
-    submitFormData();
-  }
-
   // Inizializza l'interfaccia utente del form
   function initUI(options = {}) {
     // Pre-compilazione date
@@ -1246,17 +1385,230 @@ const EsameForm = (function() {
     toggleSavePreferenceForm();
   }
 
+  // Configura i gestori per combinare i valori di ora e durata
+  function setupTimeCombiningHandlers() {
+    const form = document.getElementById("formEsame");
+    if (!form) return;
+    
+    // Combina l'ora al submit del form
+    form.addEventListener("submit", combineTimeValues);
+    
+    // Aggiungi anche al pulsante di bypass
+    const bypassBtn = document.getElementById("bypassChecksBtn");
+    if (bypassBtn) {
+      bypassBtn.addEventListener("click", combineTimeValues);
+    }
+    
+    // Aggiungi gestori per aggiornare i campi quando i valori cambiano
+    const ora_h = document.getElementById("ora_h");
+    const ora_m = document.getElementById("ora_m");
+    const durata_h = document.getElementById("durata_h");
+    const durata_m = document.getElementById("durata_m");
+    
+    if (ora_h && ora_m) {
+      ora_h.addEventListener("change", combineTimeValues);
+      ora_m.addEventListener("change", combineTimeValues);
+    }
+    
+    if (durata_h && durata_m) {
+      durata_h.addEventListener("change", combineDurataValues);
+      durata_m.addEventListener("change", combineDurataValues);
+    }
+  }
+  
+  // Combina i valori di ora e durata
+  function combineTimeValues() {
+    // Combina ora_h e ora_m in ora (formato HH:MM)
+    const ora_h = document.getElementById('ora_h')?.value;
+    const ora_m = document.getElementById('ora_m')?.value;
+    if (ora_h && ora_m) {
+      const oraField = document.getElementById('ora');
+      if (oraField) oraField.value = `${ora_h}:${ora_m}`;
+    }
+    
+    // Converte durata_h e durata_m in durata totale in minuti
+    const durata_h = parseInt(document.getElementById('durata_h')?.value) || 0;
+    const durata_m = parseInt(document.getElementById('durata_m')?.value) || 0;
+    const durata_totale = (durata_h * 60) + durata_m;
+    
+    const durataField = document.getElementById('durata');
+    if (durataField) durataField.value = durata_totale.toString();
+  }
+  
+  // Controlla se l'utente è un amministratore
+  function isUserAdmin() {
+    return document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("admin="))
+      ?.split("=")[1] === "true";
+  }
+
+  // Funzione specifica per combinare solo i valori della durata
+  function combineDurataValues() {
+    const durata_h = parseInt(document.getElementById('durata_h')?.value) || 0;
+    const durata_m = parseInt(document.getElementById('durata_m')?.value) || 0;
+    const durata_totale = (durata_h * 60) + durata_m;
+    
+    const durataField = document.getElementById('durata');
+    if (durataField) durataField.value = durata_totale.toString();
+  }
+  
+  // Funzione unificata per inviare i dati del form
+  function submitFormData(options = {}) {
+    const form = document.getElementById("formEsame");
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    
+    // Aggiungi opzioni aggiuntive se fornite
+    if (options.bypassChecks) {
+      formData.append("bypass_checks", "true");
+    }
+        
+    fetch("/api/inserisciEsame", {
+      method: "POST",
+      body: formData,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === "error") {
+          window.showMessage(data.message, "Errore", "error");
+        } else if (data.status === "validation") {
+          mostraPopupConferma(data);
+        } else {
+          // Pulizia dopo l'inserimento riuscito
+          window.InsegnamentiManager?.clearSelection();
+          window.forceCalendarRefresh?.();
+
+          const successMessage = options.bypassChecks 
+            ? "Esame inserito con successo (controlli bypassati)"
+            : data.message || "Esami inseriti con successo";
+            
+          window.showMessage(successMessage, "Operazione completata", "notification");
+          hideForm(); // Assicurati che questa funzione sia definita e accessibile
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        window.showMessage(
+          "Si è verificato un errore durante l'inserimento dell'esame",
+          "Errore",
+          "error"
+        );
+      });
+  }
+
+  // Gestisce l'invio del form con bypass dei controlli
+  function handleBypassChecksSubmit() {
+    if (!isUserAdmin()) {
+      window.showMessage(
+        "Solo gli amministratori possono utilizzare questa funzione",
+        "Accesso negato",
+        "error"
+      );
+      return;
+    }
+    
+    // Combina i valori di ora e durata prima dell'invio
+    combineTimeValues();
+    
+    submitFormData({ bypassChecks: true });
+  }
+
+  // Gestisce l'invio standard del form
+  function handleFormSubmit(e) {
+    e.preventDefault();
+
+    // Ora e durata vengono combinati dalla funzione combineTimeValues
+    combineTimeValues();
+
+    const oraAppello = document.getElementById("ora")?.value;
+    if (!validaOraAppello(oraAppello)) {
+      window.showMessage(
+        "L'ora dell'appello deve essere compresa tra le 08:00 e le 23:00",
+        "Errore di validazione",
+        "error"
+      );
+      return;
+    }
+
+    const aulaSelezionata = document.getElementById("aula")?.value;
+    if (!aulaSelezionata) {
+      window.showMessage(
+        "Seleziona un'aula disponibile",
+        "Errore di validazione",
+        "error"
+      );
+      return;
+    }
+
+    const durataEsame = document.getElementById("durata")?.value;
+    if (!validaDurataEsame(durataEsame)) {
+      window.showMessage(
+        "La durata dell'esame deve essere di almeno 30 minuti e non superiore a 480 minuti (8 ore)",
+        "Errore di validazione",
+        "error"
+      );
+      return;
+    }
+
+    submitFormData();
+  }
+
+  // Aggiorna i campi dinamici del form
+  function updateDynamicFields() {
+    // Attiva vari handler che potrebbero dipendere dai dati appena caricati
+    combineTimeValues();
+    aggiornaVerbalizzazione();
+  }
+
+  // Nasconde il form e pulisce gli handler degli eventi
+  function hideForm() {
+    if (popupOverlay) {
+      popupOverlay.style.display = 'none';
+      
+      try {
+        // Resetta il dropdown
+        const dropdown = document.getElementById('insegnamentoDropdown');
+        if (dropdown) {
+          dropdown.style.display = 'none';
+        }
+        
+        // Pulisci gli event listener per evitare duplicazioni
+        if (window.InsegnamentiManager && window.InsegnamentiManager.cleanup) {
+          window.InsegnamentiManager.cleanup();
+        }
+        
+        // Forziamo la ricarica del form la prossima volta
+        isLoaded = false;
+        
+        // Notifica che il form è stato chiuso
+        console.log("Form chiuso correttamente");
+        
+        // Se esiste una funzione di callback nel calendario, richiamiamo il refresh
+        if (window.forceCalendarRefresh) {
+          window.forceCalendarRefresh();
+        }
+      } catch (error) {
+        console.error('Errore durante la chiusura del form:', error);
+      }
+    } else {
+      console.warn('popupOverlay non trovato durante la chiusura del form');
+    }
+  }
+
   // Interfaccia pubblica
   return {
     loadForm,
     showForm,
-    hideForm,
+    hideForm, // Assicurati che hideForm sia esposto nell'interfaccia pubblica
     isFormLoaded: () => isLoaded,
     loadPreferences: loadUserPreferences,
     applyPreference,
     combineTimeValues,
     combineDurataValues,
-    setupTimeCombiningHandlers
+    setupTimeCombiningHandlers,
+    usePreferences: true  // Per default, usa le preferenze (solo in modalità creazione)
   };
 })();
 

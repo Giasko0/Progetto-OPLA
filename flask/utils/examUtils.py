@@ -170,10 +170,25 @@ def controllaVincoli(dati_esame):
     if cursor.fetchone()[0] > 0:
       return dati_esame, [], [], 'Aula già occupata in questo periodo'
     
+    # Verifica se anno_accademico è presente e valido
+    anno_accademico = dati_esame.get('anno_accademico')
+    if not anno_accademico:
+      # Se manca, utilizziamo l'anno accademico corrente
+      current_date = datetime.now()
+      anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
+      dati_esame['anno_accademico'] = anno_accademico
+    
+    # Converti anno_accademico in intero se è una stringa
+    if isinstance(anno_accademico, str) and anno_accademico.strip():
+      try:
+        anno_accademico = int(anno_accademico)
+        dati_esame['anno_accademico'] = anno_accademico
+      except ValueError:
+        return dati_esame, [], [], 'Anno accademico non valido'
+    
     # 2. Verifica ogni insegnamento
     insegnamenti = dati_esame['insegnamenti']
     docente = dati_esame['docente']
-    anno_accademico = dati_esame['anno_accademico']
     inizio_iscrizione = dati_esame['inizio_iscrizione']
     fine_iscrizione = dati_esame['fine_iscrizione']
     date_default = dati_esame.get('date_default', {'inizio': False, 'fine': False})
@@ -349,6 +364,23 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
     
     esami_inseriti = []
     errori = []
+
+    # Assicurati che anno_accademico sia presente e valido
+    anno_accademico = dati_comuni.get('anno_accademico')
+    if not anno_accademico:
+      # Se manca, utilizziamo l'anno accademico corrente
+      current_date = datetime.now()
+      anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
+      dati_comuni['anno_accademico'] = anno_accademico
+    
+    # Converti anno_accademico in intero se è una stringa
+    if isinstance(dati_comuni['anno_accademico'], str) and dati_comuni['anno_accademico'].strip():
+      try:
+        dati_comuni['anno_accademico'] = int(dati_comuni['anno_accademico'])
+      except ValueError:
+        # Se non è convertibile, usa l'anno corrente
+        current_date = datetime.now()
+        dati_comuni['anno_accademico'] = current_date.year if current_date.month >= 9 else current_date.year - 1
     
     for esame in esami_da_inserire:
       try:
@@ -414,7 +446,7 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
     # Commit delle modifiche se almeno un esame è stato inserito
     if esami_inseriti:
       conn.commit()
-      
+  
     return esami_inseriti, errori
     
   except Exception as e:
@@ -460,9 +492,9 @@ def getSessionePerData(data_esame, cds_code, anno_acc, cursor=None):
     return None
   finally:
     if close_connection and 'conn' in locals() and conn:
-      if 'cursor' in locals() and cursor:
-        cursor.close()
       release_connection(conn)
+    if 'cursor' in locals() and cursor and close_connection:
+      cursor.close()
 
 def costruisciRispostaParziale(esami_inseriti, errori):
   # Questa funzione rimane invariata

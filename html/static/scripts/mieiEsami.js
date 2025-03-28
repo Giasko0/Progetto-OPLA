@@ -150,6 +150,7 @@ function displayTabelleEsami(data, insegnamento, container) {
               <th onclick="sortTable('${table.id}', 2, 'date')">Data</th>
               <th onclick="sortTable('${table.id}', 3)">Aula</th>
               <th onclick="sortTable('${table.id}', 4)">Durata (min)</th>
+              <th>Azioni</th>
           </tr>
       </thead>
       <tbody></tbody>
@@ -169,6 +170,17 @@ function displayTabelleEsami(data, insegnamento, container) {
 
       row.insertCell(3).textContent = esame.aula;
       row.insertCell(4).textContent = formatDurata(esame.durata_appello);
+      
+      // Cella Azioni con pulsante Modifica
+      const actionCell = row.insertCell(5);
+      const modifyButton = document.createElement("button");
+      modifyButton.className = "btn-modifica";
+      modifyButton.textContent = "Modifica";
+      modifyButton.setAttribute("data-id", esame.id);
+      modifyButton.onclick = function() {
+        editEsame(esame.id);
+      };
+      actionCell.appendChild(modifyButton);
     });
 
     section.appendChild(table);
@@ -337,7 +349,8 @@ function displayAllExams(data, container) {
             <th onclick="sortTable('${tableAllExams.id}', 1)">Insegnamento</th>
             <th onclick="sortTable('${tableAllExams.id}', 2, 'date')">Data</th>
             <th onclick="sortTable('${tableAllExams.id}', 3)">Aula</th>
-            <th onclick="sortTable('${tableAllExams.id}', 4)">Durata (min)</th>
+            <th onclick="sortTable('${tableAllExams.id}', 4)">Durata</th>
+            <th>Azioni</th>
         </tr>
     </thead>
     <tbody></tbody>
@@ -363,6 +376,17 @@ function displayAllExams(data, container) {
 
     row.insertCell(3).textContent = esame.aula;
     row.insertCell(4).textContent = formatDurata(esame.durata_appello);
+    
+    // Cella Azioni con pulsante Modifica
+    const actionCell = row.insertCell(5);
+    const modifyButton = document.createElement("button");
+    modifyButton.className = "btn-modifica";
+    modifyButton.textContent = "Modifica";
+    modifyButton.setAttribute("data-id", esame.id);
+    modifyButton.onclick = function() {
+      editEsame(esame.id);
+    };
+    actionCell.appendChild(modifyButton);
   });
 
   section.appendChild(tableAllExams);
@@ -466,8 +490,81 @@ function formatDurata(durataMinuti) {
   }
 }
 
+// Funzione per aprire il form di modifica dell'esame
+function editEsame(esameId) {
+  // Verificare che EsameForm esista
+  if (window.EsameForm) {
+    console.log("Richiesta modifica esame con ID:", esameId);
+    
+    // Carica i dettagli dell'esame e mostra il form
+    fetch(`/api/getEsameById?id=${esameId}`)
+      .then(response => {
+        console.log("Risposta API getEsameById status:", response.status);
+        return response.json();
+      })
+      .then(data => {
+        console.log("Dati ricevuti da getEsameById:", data);
+        if (data.success) {
+          try {
+            // Passa i dettagli dell'esame al form con flag editMode true
+            window.EsameForm.showForm(data.esame, true);
+          } catch (err) {
+            console.error("Errore nella compilazione del form:", err);
+            showMessage("Errore nella compilazione del form: " + err.message, "Errore", "error");
+          }
+        } else {
+          console.error("Errore nella risposta API:", data.message);
+          showMessage(data.message, "Errore", "error");
+        }
+      })
+      .catch(error => {
+        console.error("Errore nel caricamento dei dettagli dell'esame:", error);
+        showMessage("Errore nel caricamento dei dettagli dell'esame", "Errore", "error");
+      });
+  } else {
+    console.error("EsameForm non disponibile");
+    showMessage("Impossibile modificare l'esame: modulo non disponibile", "Errore", "error");
+  }
+}
+
+// Funzione per eliminare un esame
+function deleteEsame(examId) {
+  fetch('/api/deleteEsame', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id: examId }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showMessage("Esame eliminato con successo", "Successo", "success");
+        
+        // Chiudi il form
+        const popupOverlay = document.getElementById("popupOverlay");
+        if (popupOverlay) {
+          popupOverlay.style.display = "none";
+        }
+        
+        // Ricarica la pagina per aggiornare la tabella
+        setTimeout(() => {
+          location.reload();
+        }, 1000);
+      } else {
+        showMessage(data.message || "Errore nell'eliminazione dell'esame", "Errore", "error");
+      }
+    })
+    .catch(error => {
+      console.error("Errore nella richiesta di eliminazione:", error);
+      showMessage("Errore nella richiesta di eliminazione", "Errore", "error");
+    });
+}
+
 // Espone funzioni necessarie per l'HTML
 window.sortTable = sortTable;
+window.editEsame = editEsame;
+window.deleteEsame = deleteEsame;
 
 // Aggiorna l'evento del pulsante "Tutti gli appelli"
 document.addEventListener("DOMContentLoaded", function () {

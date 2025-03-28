@@ -3,20 +3,13 @@ from flask import Flask, request, jsonify, make_response, session
 from psycopg2 import sql
 from datetime import datetime, timedelta
 import os
-# Config DB
 from db import get_db_connection, release_connection, init_db, close_all_connections
-# Auth stupida e SAML
 from auth import auth_bp
 from saml_auth import saml_bp, require_auth
-# Backend OH-ISSA
 from admin import admin_bp
-# API fetch
 from fetch import fetch_bp
-# Import per gestione esami
-from utils.examUtils import (
-  generaDatiEsame, controllaVincoli, inserisciEsami, costruisciRispostaParziale
-)
-# Importa il nuovo blueprint delle preferenze
+from exam_edit_delete import exam_bp
+from utils.examUtils import generaDatiEsame, controllaVincoli, inserisciEsami, costruisciRispostaParziale
 from user_preferences import preferences_bp
 import sys
 
@@ -32,8 +25,8 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(saml_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(fetch_bp)
-# Registra il blueprint delle preferenze
 app.register_blueprint(preferences_bp)
+app.register_blueprint(exam_bp)
 
 # Metodo popo rozzo pe non usa saml
 app.config['SAML_ENABLED'] = False

@@ -250,7 +250,7 @@ const InsegnamentiManager = (function () {
         tag.className = "multi-select-tag";
         tag.dataset.value = ins.codice;
         tag.innerHTML =
-          ins.titolo + '<span class="multi-select-tag-remove">&times;</span>';
+          `${ins.titolo} <span class="multi-select-tag-remove">&times;</span>`;
 
         // Gestione rimozione
         tag

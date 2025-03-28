@@ -445,7 +445,68 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Dettagli evento al click
           eventClick: function (info) {
-            //TODO Inserire qui la modifica dell'appello
+            // Controlla se questo è un esame del docente corrente
+            const eventDocente = info.event.extendedProps.docente;
+            const loggedDocente = document.cookie
+              .split("; ")
+              .find((row) => row.startsWith("username="))
+              ?.split("=")[1];
+            
+            // Ottieni l'ID dell'esame
+            const examId = info.event.id;
+            
+            console.log("Click su evento del calendario:");
+            console.log("ID esame:", examId);
+            console.log("Docente esame:", eventDocente);
+            console.log("Docente loggato:", loggedDocente);
+            
+            // Se l'esame è del docente corrente, apri il form per la modifica
+            if (eventDocente === loggedDocente) {
+              // Verifica che EsameForm esista
+              if (window.EsameForm) {
+                // Carica i dettagli dell'esame e mostra il form
+                fetch(`/api/getEsameById?id=${examId}`)
+                  .then(response => {
+                    console.log("Risposta API getEsameById status:", response.status);
+                    return response.json();
+                  })
+                  .then(data => {
+                    console.log("Dati ricevuti da getEsameById:", data);
+                    if (data.success) {
+                      try {
+                        // Passa i dettagli dell'esame al form con flag editMode true
+                        window.EsameForm.showForm(data.esame, true);
+                      } catch (err) {
+                        console.error("Errore nella compilazione del form:", err);
+                        showMessage("Errore nella compilazione del form: " + err.message, "Errore", "error");
+                      }
+                    } else {
+                      console.error("Errore nella risposta API:", data.message);
+                      showMessage(data.message, "Errore", "error");
+                    }
+                  })
+                  .catch(error => {
+                    console.error("Errore nel caricamento dei dettagli dell'esame:", error);
+                    showMessage("Errore nel caricamento dei dettagli dell'esame", "Errore", "error");
+                  });
+              } else {
+                console.error("EsameForm non disponibile");
+                showMessage("Impossibile modificare l'esame: modulo non disponibile", "Errore", "error");
+              }
+            } else {
+              // Se l'esame non è del docente corrente, mostra solo i dettagli
+              const title = info.event.title;
+              const description = info.event.extendedProps.description || "Nessuna descrizione disponibile";
+              const docenteNome = info.event.extendedProps.docenteNome || eventDocente || "Docente non specificato";
+              
+              showMessage(
+                `<strong>${title}</strong><br>
+                Docente: ${docenteNome}<br>
+                ${description}`,
+                "Dettagli esame",
+                "info"
+              );
+            }
           },
 
           // Stile eventi
@@ -811,3 +872,38 @@ function updateCalendarWithDates(calendar, dates) {
     titleElement.textContent = title;
   }
 }
+
+// Funzione per eliminare un esame
+function deleteEsame(examId) {
+  fetch('/api/deleteEsame', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id: examId }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showMessage("Esame eliminato con successo", "Successo", "success");
+        
+        // Chiudi il form
+        const popupOverlay = document.getElementById("popupOverlay");
+        if (popupOverlay) {
+          popupOverlay.style.display = "none";
+        }
+        
+        // Aggiorna il calendario
+        window.forceCalendarRefresh();
+      } else {
+        showMessage(data.message || "Errore nell'eliminazione dell'esame", "Errore", "error");
+      }
+    })
+    .catch(error => {
+      console.error("Errore nella richiesta di eliminazione:", error);
+      showMessage("Errore nella richiesta di eliminazione", "Errore", "error");
+    });
+}
+
+// Esponi funzione deleteEsame globalmente
+window.deleteEsame = deleteEsame;

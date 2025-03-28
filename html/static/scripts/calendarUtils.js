@@ -273,6 +273,15 @@ export function fetchCalendarEvents(
         successCallback([]);
       }
     });
+
+  // Invalida anche la cache dopo aggiornamenti
+  window.invalidateEventCache = function() {
+    eventsCache = [];
+    lastFetchTime = 0;
+    if (calendar && typeof calendar.refetchEvents === 'function') {
+      calendar.refetchEvents();
+    }
+  };
 }
 
 // Carica le date valide direttamente dal backend
