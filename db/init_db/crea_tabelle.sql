@@ -179,6 +179,7 @@ INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_docen
 INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum, inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre, inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre) VALUES
 ('L062', 2023, 'INFORMATICA', 'CORSO GENERICO', '2023-10-01', '2023-12-20', '2023-02-01', '2023-05-31'),
 ('L062', 2024, 'INFORMATICA', 'CORSO GENERICO', '2024-10-01', '2024-12-20', '2025-02-01', '2025-05-31');
+
 INSERT INTO periodi_esame (cds, anno_accademico, curriculum, tipo_periodo, inizio, fine, max_esami) VALUES
 ('L062', 2023, 'CORSO GENERICO', 'INVERNALE', '2025-01-07', '2025-02-22', 3),
 ('L062', 2024, 'CORSO GENERICO', 'ANTICIPATA', '2025-01-07', '2025-02-22', 3),
@@ -186,4 +187,4 @@ INSERT INTO periodi_esame (cds, anno_accademico, curriculum, tipo_periodo, inizi
 ('L062', 2024, 'CORSO GENERICO', 'AUTUNNALE', '2025-09-01', '2025-9-30', 2),
 ('L062', 2024, 'CORSO GENERICO', 'INVERNALE', '2026-01-10', '2026-02-25', 3),
 ('L062', 2024, 'CORSO GENERICO', 'PAUSA_AUTUNNALE', '2025-11-04', '2025-11-08', 1),
-('L062', 2024, 'CORSO GENERICO', 'PAUSA_PRIMAVERILE', '2026-03-31', '2026-04-04', 1);
+('L062', 2024, 'CORSO GENERICO', 'PAUSA_PRIMAVERILE', '2025-04-07', '2025-04-11', 1);
