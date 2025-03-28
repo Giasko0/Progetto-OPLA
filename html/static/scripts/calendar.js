@@ -123,15 +123,16 @@ document.addEventListener("DOMContentLoaded", function () {
             let params = new URLSearchParams();
             params.append("docente", loggedDocente);
 
-            // Includi solo filtri per insegnamenti selezionati
-            if (
-              window.InsegnamentiManager &&
-              window.InsegnamentiManager.getSelectedCodes().length > 0
-            ) {
-              params.append(
-                "insegnamenti",
-                window.InsegnamentiManager.getSelectedCodes().join(",")
-              );
+            // Gestisci i parametri in base agli insegnamenti selezionati
+            if (window.InsegnamentiManager) {
+              const selected = window.InsegnamentiManager.getSelectedCodes();
+              
+              if (selected.length > 0) {
+                // Se ci sono insegnamenti selezionati, passa i loro codici
+                // Il backend si occuperà di includere anche gli esami di insegnamenti con stesso anno e semestre
+                params.append("insegnamenti", selected.join(","));
+              }
+              // Se non ci sono insegnamenti selezionati, verranno mostrati solo gli esami del docente
             }
 
             // Carica gli eventi

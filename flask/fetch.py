@@ -114,7 +114,6 @@ def getEsami():
         anno = request.args.get('anno', None)
         insegnamenti = request.args.get('insegnamenti', None)
         cds = request.args.get('cds', None)
-        solo_docente = request.args.get('solo_docente', 'false').lower() == 'true'
         
         # Verifica se l'utente è effettivamente un admin
         is_admin_user = is_admin()
@@ -128,8 +127,9 @@ def getEsami():
         insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, planning_year)
         insegnamenti_docente = [data['codice'] for data in insegnamenti_docente_dict.values()]
         
-        # Costruisci la query di base
-        query = """
+        # Base query: ottiene tutti gli esami del docente loggato 
+        # (questo è quello che vediamo sempre, indipendentemente dai filtri)
+        base_query = """
             SELECT e.id, e.descrizione, e.docente, 
                    concat(u.nome, ' ', u.cognome) as docente_nome,
                    i.codice as insegnamento, i.titolo as insegnamento_titolo,
@@ -138,30 +138,72 @@ def getEsami():
             FROM esami e
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.id
-            WHERE 1=1
+            WHERE e.docente = %s
         """
         
-        params = []
+        params = [docente]
         
-        # Aggiungi filtri opzionali
-        if anno:
-            query += " AND EXTRACT(YEAR FROM e.data_appello) = %s"
-            params.append(int(anno))
-        
+        # Se sono specificati degli insegnamenti, crea una query aggiuntiva
+        # per gli esami con stesso anno, semestre, CdS e curriculum
         if insegnamenti:
             insegnamenti_list = insegnamenti.split(',')
-            query += " AND e.insegnamento IN ({})".format(','.join(['%s'] * len(insegnamenti_list)))
+            
+            # Costruisci la query unione che include esami di insegnamenti simili
+            union_query = """
+            UNION
+            
+            SELECT e.id, e.descrizione, e.docente, 
+                   concat(u.nome, ' ', u.cognome) as docente_nome,
+                   i.codice as insegnamento, i.titolo as insegnamento_titolo,
+                   e.aula, e.data_appello, e.ora_appello, e.durata_appello,
+                   e.tipo_appello
+            FROM esami e
+            JOIN utenti u ON e.docente = u.username
+            JOIN insegnamenti i ON e.insegnamento = i.id
+            WHERE e.insegnamento IN (
+                SELECT ic1.insegnamento 
+                FROM insegnamenti_cds ic1
+                JOIN insegnamenti_cds ic2 ON 
+                    ic1.anno_corso = ic2.anno_corso AND
+                    ic1.anno_accademico = ic2.anno_accademico AND
+                    ic1.cds = ic2.cds AND
+                    ic1.curriculum = ic2.curriculum AND
+                    (ic1.semestre = ic2.semestre 
+                     OR ic1.semestre = 3 
+                     OR ic2.semestre = 3)
+                JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
+                WHERE i2.codice IN ({})
+            )
+            """.format(','.join(['%s'] * len(insegnamenti_list)))
+            
+            # Aggiungi l'unione alla query base
+            query = base_query + union_query
+            # Aggiungi parametri per la query unione
             params.extend(insegnamenti_list)
+        else:
+            # Usa solo la query base se non ci sono insegnamenti specificati
+            query = base_query
+            
+        # Aggiungi filtri comuni opzionali
+        filters = []
+        filter_params = []
+        
+        if anno:
+            filters.append("EXTRACT(YEAR FROM data_appello) = %s")
+            filter_params.append(int(anno))
         
         if cds:
-            query += " AND e.insegnamento IN (SELECT insegnamento FROM insegnamenti_cds WHERE cds = %s)"
-            params.append(cds)
+            filters.append("insegnamento IN (SELECT insegnamento FROM insegnamenti_cds WHERE cds = %s)")
+            filter_params.append(cds)
         
-        if solo_docente and not is_admin_user:
-            query += " AND e.docente = %s"
-            params.append(docente)
+        # Applica filtri alla query finale se ce ne sono
+        if filters:
+            # Poiché abbiamo una UNION, dobbiamo usare una subquery
+            query = f"SELECT * FROM ({query}) AS combined_results WHERE {' AND '.join(filters)}"
+            params.extend(filter_params)
         
-        query += " ORDER BY e.data_appello, e.ora_appello"
+        # Ordina i risultati
+        query += " ORDER BY data_appello, ora_appello"
         
         cursor.execute(query, tuple(params))
         

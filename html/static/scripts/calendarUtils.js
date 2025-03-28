@@ -234,34 +234,6 @@ export function fetchCalendarEvents(
     .find((row) => row.startsWith("admin="))
     ?.split("=")[1] === "true";
 
-  // Utilizza InsegnamentiManager per generare i parametri
-  if (window.InsegnamentiManager) {
-    const params = window.InsegnamentiManager.getRequestParams(loggedDocente);
-
-    // Richiesta API
-    fetch("/api/getEsami?" + params.toString())
-      .then((response) => response.json())
-      .then((data) => {
-        if (successCallback) {
-          // Callback di FullCalendar
-          successCallback(data);
-        } else {
-          // Aggiornamento manuale
-          calendar.getEventSources().forEach((source) => source.remove());
-          calendar.addEventSource(data);
-        }
-      })
-      .catch((error) => {
-        console.error("Errore nel caricamento degli esami:", error);
-        if (successCallback) {
-          successCallback([]);
-        }
-      });
-    
-    return;
-  }
-
-  // Implementazione di fallback
   // Parametri base per API
   const params = new URLSearchParams();
   params.append("docente", loggedDocente);
@@ -269,18 +241,12 @@ export function fetchCalendarEvents(
   // Usa InsegnamentiManager per filtraggi
   if (window.InsegnamentiManager) {
     const selected = window.InsegnamentiManager.getSelected();
-
-    if (selected.size === 0) {
-      // Solo esami del docente se nessun filtro
-      params.append("solo_docente", "true");
-    } else {
-      // Filtra per insegnamenti selezionati
+    
+    if (selected.size > 0) {
+      // Se ci sono insegnamenti selezionati, passa i loro codici
       const codici = Array.from(selected.keys());
       params.append("insegnamenti", codici.join(","));
     }
-  } else {
-    // Fallback: solo esami docente
-    params.append("solo_docente", "true");
   }
 
   // Aggiungi filtro per CdS se presente
