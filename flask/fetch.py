@@ -249,16 +249,28 @@ def miei_esami():
             cursor.execute("""
               WITH esami_unici AS (
                 SELECT DISTINCT ON (e.insegnamento, e.data_appello, e.periodo)
-                       e.docente, CONCAT(u.nome, ' ', u.cognome) as docente_nome,
-                       i.titolo, e.aula, e.data_appello, e.ora_appello,
-                       c.codice as codice_cds, c.nome_corso as nome_cds,
-                       a.edificio, e.durata_appello, i.codice as codice_insegnamento,
-                       i.id as insegnamento_id, e.tipo_appello
+                       e.id,
+                       e.docente, 
+                       CONCAT(u.nome, ' ', u.cognome) as docente_nome,
+                       i.titolo, 
+                       e.aula, 
+                       e.data_appello, 
+                       e.ora_appello,
+                       c.codice as codice_cds, 
+                       c.nome_corso as nome_cds,
+                       a.edificio, 
+                       e.durata_appello, 
+                       i.codice as codice_insegnamento,
+                       i.id as insegnamento_id, 
+                       e.tipo_appello,
+                       e.periodo
                 FROM esami e
                 JOIN utenti u ON e.docente = u.username
                 JOIN insegnamenti i ON e.insegnamento = i.id
                 JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
+                JOIN cds c ON ic.cds = c.codice 
+                    AND ic.anno_accademico = c.anno_accademico 
+                    AND ic.curriculum = c.curriculum
                 LEFT JOIN aule a ON e.aula = a.nome
                 WHERE ic.anno_accademico = %s
                 AND i.id IN %s
@@ -276,10 +288,9 @@ def miei_esami():
         insegnamenti_with_esami = {}
         
         for row in rows:
-            # Estrai i dati base dell'esame (aggiornati per includere docente_nome)
-            docente, docente_nome, titolo, aula, data_appello, ora = row[:6]
-            # Estrai le informazioni aggiuntive (indici aggiornati)
-            codice_cds, nome_cds, edificio, durata_appello, codice_insegnamento, insegnamento_id, tipo_appello = row[6:13]
+            # Estrai i dati nell'ordine corretto delle colonne
+            id_esame, docente, docente_nome, titolo, aula, data_appello, ora = row[0:7]
+            codice_cds, nome_cds, edificio, durata_appello, codice_insegnamento, insegnamento_id, tipo_appello, periodo = row[7:15]
             
             # Formatta l'edificio come sigla se presente
             aula_completa = f"{aula} ({edificio})" if edificio else aula
@@ -290,7 +301,7 @@ def miei_esami():
                 FROM periodi_esame
                 WHERE cds = %s
                 AND anno_accademico = %s
-                AND %s BETWEEN inizio AND fine
+                AND %s::date BETWEEN inizio AND fine
             """, (codice_cds, planning_year, data_appello))
             
             tipo_periodo = None
@@ -318,7 +329,8 @@ def miei_esami():
                 'cds': nome_cds,
                 'codice_cds': codice_cds,
                 'durata_appello': durata_appello,
-                'tipo_appello': tipo_appello
+                'tipo_appello': tipo_appello,
+                'id': row[0]
             }
             esami.append(exam)
             

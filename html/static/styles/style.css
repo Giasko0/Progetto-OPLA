@@ -346,9 +346,10 @@ body {
 }
 
 .fc-disabled-day, .fc-day-disabled {
-  opacity: 0.6 !important;
+  opacity: 0.4 !important;
   cursor: not-allowed !important;
   background-color: var(--table-cell-disabled) !important;
+  pointer-events: none !important;
 }
 
 .fc-event-main-frame {
@@ -1156,6 +1157,10 @@ tbody tr:hover td {
 
 .session-card:hover {
   transform: translateY(-2px);
+}
+
+.session-card.static:hover {
+  transform: none;
 }
 
 .tabs-container {

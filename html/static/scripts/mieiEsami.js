@@ -178,7 +178,7 @@ function displayTabelleEsami(data, insegnamento, container) {
       // Cella Azioni con pulsante Modifica
       const actionCell = row.insertCell(7);
       const modifyButton = document.createElement("button");
-      modifyButton.className = "btn-modifica";
+      modifyButton.className = "invia";
       modifyButton.textContent = "Modifica";
       modifyButton.setAttribute("data-id", esame.id);
       modifyButton.onclick = function() {
@@ -262,7 +262,7 @@ function displaySessioniEsami(data, insegnamento, container) {
   // Crea le cards delle sessioni
   sessioniDaVisualizzare.forEach((sessione) => {
     const card = document.createElement("div");
-    card.className = "session-card";
+    card.className = "session-card static";
 
     const heading = document.createElement("h4");
     heading.textContent = `${sessione.nome} (${sessione.periodo})`;
@@ -388,7 +388,7 @@ function displayAllExams(data, container) {
     // Cella Azioni con pulsante Modifica
     const actionCell = row.insertCell(7);
     const modifyButton = document.createElement("button");
-    modifyButton.className = "btn-modifica";
+    modifyButton.className = "invia";
     modifyButton.textContent = "Modifica";
     modifyButton.setAttribute("data-id", esame.id);
     modifyButton.onclick = function() {
@@ -514,8 +514,26 @@ function editEsame(esameId) {
         console.log("Dati ricevuti da getEsameById:", data);
         if (data.success) {
           try {
-            // Passa i dettagli dell'esame al form con flag editMode true
-            window.EsameForm.showForm(data.esame, true);
+            // Assicurati che InsegnamentiManager sia disponibile
+            if (!window.InsegnamentiManager) {
+              throw new Error("InsegnamentiManager non inizializzato");
+            }
+
+            // Mostra il form e dopo inizializza InsegnamentiManager
+            window.EsameForm.showForm(data.esame, true)
+              .then(() => {
+                // Recupera l'username dal campo docente
+                const username = document.getElementById("docente")?.value;
+                if (username) {
+                  // Inizializza InsegnamentiManager
+                  window.InsegnamentiManager.initUI(
+                    "insegnamentoBox",
+                    "insegnamentoDropdown",
+                    "insegnamentoOptions",
+                    username
+                  );
+                }
+              });
           } catch (err) {
             console.error("Errore nella compilazione del form:", err);
             showMessage("Errore nella compilazione del form: " + err.message, "Errore", "error");

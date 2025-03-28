@@ -64,6 +64,28 @@ document.addEventListener("DOMContentLoaded", function () {
     .find((row) => row.startsWith("username="))
     ?.split("=")[1];
 
+  // Sposta la funzione getInitialDate all'interno dello scope
+  function getInitialDate(dateValide) {
+    const today = new Date();
+    
+    // Se ci sono date valide, trova la prima data futura
+    if (dateValide && dateValide.length > 0) {
+      const futureDates = dateValide.filter(([start]) => {
+        const startDate = new Date(start);
+        return startDate >= today;
+      });
+      
+      if (futureDates.length > 0) {
+        // Ordina le date future e prendi la prima
+        futureDates.sort(([a], [b]) => new Date(a) - new Date(b));
+        return futureDates[0][0];
+      }
+    }
+    
+    // Se non ci sono date valide future, usa la data odierna
+    return today;
+  }
+
   // Carica le date valide, verifica i permessi, e precarica CdS e insegnamenti
   Promise.all([
     loadDateValide(loggedDocente),
@@ -110,8 +132,8 @@ document.addEventListener("DOMContentLoaded", function () {
         var calendar = new FullCalendar.Calendar(calendarEl, {
           contentHeight: "60dvh",
           locale: "it",
-          initialDate: dateRange.start,
-          initialView: "dayGridMonth",
+          initialDate: getInitialDate(dateValide),
+          validRange: getValidDateRange(),
           selectable: true,
 
           // Funzione per caricare gli eventi con cache
@@ -157,8 +179,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 successCallback([]);
               });
           },
-
-          validRange: getValidDateRange,
 
           headerToolbar: {
             left: "title",
@@ -600,11 +620,16 @@ document.addEventListener("DOMContentLoaded", function () {
           dayCellClassNames: function (arg) {
 
             const dataCorrente = arg.date;
+            dataCorrente.setHours(0, 0, 0, 0);
 
-            // Verifica data in sessione
+            // Se la data è nel passato, disabilitala
+            if (dataCorrente < dateRange.today) {
+              return ['fc-disabled-day'];
+            }
+
+            // Verifica data in sessione per le date future
             const dataValida = dateValide.some(([start, end]) => {
               const startDate = new Date(start);
-              // Reset delle ore per la data di inizio per un confronto corretto
               startDate.setHours(0, 0, 0, 0);
 
               const endDate = new Date(end);
@@ -615,6 +640,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
             // Applica classe per date non valide
             return dataValida ? [] : ["fc-disabled-day"];
+          },
+          
+          // Disabilita selezione date passate
+          selectConstraint: {
+            start: dateRange.today
           },
         });
 
