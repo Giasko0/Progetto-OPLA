@@ -55,8 +55,8 @@ def generaDatiEsame():
     # Tipo appello
     tipo_appello = 'PP' if prova_parziale else 'PF'
 
-    # Tipo iscrizione (Questo campo è strano nel file export. Che confusione, sarà perché ti amo)
-    tipo_iscrizione = tipo_esame if tipo_esame!='SO' else 'SOC'
+    # Tipo iscrizione (Questo campo è strano nel file export. Che confusione)
+    tipo_iscrizione = 'SOC' if tipo_esame == 'SO' else tipo_esame
 
     # Valori standard per campi opzionali
     definizione_appello = 'STD'

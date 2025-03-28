@@ -539,7 +539,7 @@ def download_esse3():
         e.tipo_appello,           -- Tipo appello
         ic.anno_accademico,       -- Anno
         ic.cds,                   -- CDS
-        i.codice,                 -- AD
+        i.codice,                 -- AD (codice insegnamento, non ID)
         e.descrizione,            -- Des. Appello
         e.data_appello,           -- Data Appello
         e.data_inizio_iscrizione, -- Data inizio iscrizione
@@ -552,7 +552,7 @@ def download_esse3():
         e.tipo_iscrizione,        -- Tipo Iscr.
         e.tipo_esame,             -- Tipo Esa.
         a.edificio,               -- Edificio
-        a.nome,                   -- Nome Aula (modificato da e.aula)
+        a.nome,                   -- Nome Aula
         d.matricola,              -- Matricola Docente
         a.sede,                   -- Sede
         e.condizione_sql,         -- Condizione SQL
@@ -562,10 +562,10 @@ def download_esse3():
         e.posti,                  -- Posti
         e.codice_turno            -- Codice Turno
       FROM esami e
-      JOIN insegnamenti i ON e.insegnamento = i.codice
-      LEFT JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
+      JOIN insegnamenti i ON e.insegnamento = i.id
+      LEFT JOIN insegnamenti_cds ic ON i.id = ic.insegnamento 
         AND ic.anno_accademico = EXTRACT(YEAR FROM e.data_appello) - 1
-      LEFT JOIN aule a ON e.aula = a.codice
+      LEFT JOIN aule a ON e.aula = a.nome
       LEFT JOIN utenti d ON e.docente = d.username
       ORDER BY e.data_appello, e.insegnamento
     """)
@@ -672,6 +672,188 @@ def download_esse3():
 
   except Exception as e:
     return jsonify({'status': 'error', 'message': str(e)}), 500
+  finally:
+    if 'cursor' in locals() and cursor:
+      cursor.close()
+    if 'conn' in locals() and conn:
+      release_connection(conn)
+
+@admin_bp.route('/downloadFileEA')
+def download_ea():
+  if 'admin' not in request.cookies:
+    return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+    
+  try:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Recupera dati degli esami con informazioni correlate sulle aule, insegnamenti e docenti
+    cursor.execute("""
+      SELECT 
+        e.id,
+        e.descrizione,
+        e.data_appello,
+        e.ora_appello,
+        e.durata_appello,
+        a.codice AS aula_codice,
+        a.nome AS aula_nome,
+        i.codice AS insegnamento_codice,
+        ic.anno_accademico,
+        e.docente,
+        u.nome AS docente_nome,
+        u.cognome AS docente_cognome,
+        e.note_appello
+      FROM esami e
+      JOIN insegnamenti i ON e.insegnamento = i.id
+      LEFT JOIN aule a ON e.aula = a.nome
+      LEFT JOIN utenti u ON e.docente = u.username
+      LEFT JOIN insegnamenti_cds ic ON i.id = ic.insegnamento 
+        AND ic.anno_accademico = EXTRACT(YEAR FROM e.data_appello) - 1
+      ORDER BY e.data_appello, e.insegnamento
+    """)
+    
+    esami = cursor.fetchall()
+
+    # Crea il file Excel in memoria
+    workbook = xlwt.Workbook()
+    worksheet = workbook.add_sheet('Prenotazioni')
+
+    # Formattazione per le date
+    date_format = xlwt.XFStyle()
+    date_format.num_format_str = 'DD-MM-YYYY, HH:MM'
+    
+    # Data attuale per il suffisso del codice prenotazione
+    data_attuale = datetime.now().strftime('%Y%m%d')
+
+    # Intestazioni
+    headers = [
+      'Codice prenotazione', 'Breve descrizione', 'Descrizione completa', 'Tipo prenotazione',
+      'Status', 'Prenotazione da', 'Prenotazione a', 'Durata totale da', 'Durata totale a',
+      'Tipo ripetizione', 'Codice aula', 'Nome aula', 'Codice sede', 'Sede',
+      'Aula virtuale', 'Etichetta aula virtuale', 'Codice insegnamento', 'Anno accademico',
+      'Codice raggruppamento', 'Nome raggruppamento', 'Codice utente utilizzatore',
+      'Nome utente utilizzatore', 'Cognome utente utilizzatore', 'Note', 'Note interne'
+    ]
+
+    # Scrivi le intestazioni
+    for col, header in enumerate(headers):
+      worksheet.write(0, col, header)
+
+    # Scrivi i dati
+    for row_idx, esame in enumerate(esami, start=1):
+      (id_esame, descrizione, data_appello, ora_appello, durata_appello, 
+       aula_codice, aula_nome, insegnamento_codice, anno_accademico,
+       docente, docente_nome, docente_cognome, note_appello) = esame
+
+      # Calcola l'orario di fine esame
+      if ora_appello and durata_appello:
+        # Converti ora_appello da time a datetime
+        inizio_datetime = datetime.combine(data_appello, ora_appello)
+        # Aggiungi la durata (in minuti)
+        fine_datetime = inizio_datetime + timedelta(minutes=durata_appello)
+      else:
+        inizio_datetime = None
+        fine_datetime = None
+
+      col = 0
+      # Colonna A: Codice prenotazione
+      worksheet.write(row_idx, col, f"opla_{data_attuale}_{id_esame}"); col += 1
+      # Colonna B: Breve descrizione
+      worksheet.write(row_idx, col, descrizione or ""); col += 1
+      # Colonna C: Descrizione completa
+      worksheet.write(row_idx, col, ""); col += 1
+      # Colonna D: Tipo prenotazione
+      worksheet.write(row_idx, col, "Esame"); col += 1
+      # Colonna E: Status
+      worksheet.write(row_idx, col, "Confermata"); col += 1
+      
+      # Colonna F: Prenotazione da
+      if inizio_datetime:
+        worksheet.write(row_idx, col, inizio_datetime, date_format)
+      else:
+        worksheet.write(row_idx, col, "")
+      col += 1
+      
+      # Colonna G: Prenotazione a
+      if fine_datetime:
+        worksheet.write(row_idx, col, fine_datetime, date_format)
+      else:
+        worksheet.write(row_idx, col, "")
+      col += 1
+      
+      # Colonna H: Durata totale da (stesso valore di Prenotazione da)
+      if inizio_datetime:
+        worksheet.write(row_idx, col, inizio_datetime, date_format)
+      else:
+        worksheet.write(row_idx, col, "")
+      col += 1
+      
+      # Colonna I: Durata totale a (stesso valore di Prenotazione a)
+      if fine_datetime:
+        worksheet.write(row_idx, col, fine_datetime, date_format)
+      else:
+        worksheet.write(row_idx, col, "")
+      col += 1
+      
+      # Colonna J: Tipo ripetizione
+      worksheet.write(row_idx, col, "una volta"); col += 1
+
+      if aula_codice == 'STDOCENTE':
+        worksheet.write(row_idx, col, ""); col += 1
+        worksheet.write(row_idx, col, ""); col += 1
+        worksheet.write(row_idx, col, ""); col += 1
+        worksheet.write(row_idx, col, ""); col += 1
+      else:
+        worksheet.write(row_idx, col, aula_codice); col += 1                # Colonna K: Codice aula
+        worksheet.write(row_idx, col, aula_nome); col += 1                  # Colonna L: Nome aula
+        worksheet.write(row_idx, col, "P02E04"); col += 1                   # Colonna M: Codice sede
+        worksheet.write(row_idx, col, "Matematica e Informatica"); col += 1 # Colonna N: Sede
+
+      # Colonna O: Aula virtuale
+      if aula_codice == 'STDOCENTE':
+        worksheet.write(row_idx, col, "1"); col += 1
+      else:
+        worksheet.write(row_idx, col, ""); col += 1
+
+      # Colonna P: Etichetta aula virtuale
+      if aula_codice == 'STDOCENTE':
+        worksheet.write(row_idx, col, "Studio docente DMI"); col += 1
+      else:
+        worksheet.write(row_idx, col, ""); col += 1
+
+      # Colonna Q: Codice insegnamento
+      worksheet.write(row_idx, col, insegnamento_codice or ""); col += 1
+      # Colonna R: Anno accademico
+      worksheet.write(row_idx, col, anno_accademico or ""); col += 1
+      # Colonna S: Codice raggruppamento
+      worksheet.write(row_idx, col, "P02E04"); col += 1
+      # Colonna T: Nome raggruppamento
+      worksheet.write(row_idx, col, "Matematica e Informatica"); col += 1
+      # Colonna U: Codice utente utilizzatore
+      worksheet.write(row_idx, col, docente or ""); col += 1
+      # Colonna V: Nome utente utilizzatore
+      worksheet.write(row_idx, col, docente_nome or ""); col += 1
+      # Colonna W: Cognome utente utilizzatore
+      worksheet.write(row_idx, col, docente_cognome or ""); col += 1
+      # Colonna X: Note
+      worksheet.write(row_idx, col, note_appello or ""); col += 1
+      # Colonna Y: Note interne
+      worksheet.write(row_idx, col, ""); col += 1
+
+    # Salva il workbook in memoria
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+
+    # Prepara la risposta
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = 'attachment; filename=Prenotazioni.xls'
+    response.headers['Content-type'] = 'application/vnd.ms-excel'
+    
+    return response
+
+  except Exception as e:
+    return jsonify({"error": str(e)}), 500
   finally:
     if 'cursor' in locals() and cursor:
       cursor.close()
@@ -1590,188 +1772,6 @@ def delete_user():
     if 'conn' in locals() and conn:
       conn.rollback()
     return jsonify({'status': 'error', 'message': str(e)}), 500
-  finally:
-    if 'cursor' in locals() and cursor:
-      cursor.close()
-    if 'conn' in locals() and conn:
-      release_connection(conn)
-
-@admin_bp.route('/downloadFileEA')
-def download_ea():
-  if 'admin' not in request.cookies:
-    return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
-    
-  try:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Recupera dati degli esami con informazioni correlate sulle aule, insegnamenti e docenti
-    cursor.execute("""
-      SELECT 
-        e.id,
-        e.descrizione,
-        e.data_appello,
-        e.ora_appello,
-        e.durata_appello,
-        a.codice AS aula_codice,
-        a.nome AS aula_nome,
-        e.insegnamento,
-        ic.anno_accademico,
-        e.docente,
-        u.nome AS docente_nome,
-        u.cognome AS docente_cognome,
-        e.note_appello
-      FROM esami e
-      JOIN insegnamenti i ON e.insegnamento = i.codice
-      LEFT JOIN aule a ON e.aula = a.nome
-      LEFT JOIN utenti u ON e.docente = u.username
-      LEFT JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento 
-        AND EXTRACT(YEAR FROM e.data_appello) - 1 = ic.anno_accademico
-      ORDER BY e.data_appello, e.insegnamento
-    """)
-    
-    esami = cursor.fetchall()
-
-    # Crea il file Excel in memoria
-    workbook = xlwt.Workbook()
-    worksheet = workbook.add_sheet('Prenotazioni')
-
-    # Formattazione per le date
-    date_format = xlwt.XFStyle()
-    date_format.num_format_str = 'DD-MM-YYYY, HH:MM'
-    
-    # Data attuale per il suffisso del codice prenotazione
-    data_attuale = datetime.now().strftime('%Y%m%d')
-
-    # Intestazioni
-    headers = [
-      'Codice prenotazione', 'Breve descrizione', 'Descrizione completa', 'Tipo prenotazione',
-      'Status', 'Prenotazione da', 'Prenotazione a', 'Durata totale da', 'Durata totale a',
-      'Tipo ripetizione', 'Codice aula', 'Nome aula', 'Codice sede', 'Sede',
-      'Aula virtuale', 'Etichetta aula virtuale', 'Codice insegnamento', 'Anno accademico',
-      'Codice raggruppamento', 'Nome raggruppamento', 'Codice utente utilizzatore',
-      'Nome utente utilizzatore', 'Cognome utente utilizzatore', 'Note', 'Note interne'
-    ]
-
-    # Scrivi le intestazioni
-    for col, header in enumerate(headers):
-      worksheet.write(0, col, header)
-
-    # Scrivi i dati
-    for row_idx, esame in enumerate(esami, start=1):
-      (id_esame, descrizione, data_appello, ora_appello, durata_appello, 
-       aula_codice, aula_nome, insegnamento, anno_accademico,
-       docente, docente_nome, docente_cognome, note_appello) = esame
-
-      # Calcola l'orario di fine esame
-      if ora_appello and durata_appello:
-        # Converti ora_appello da time a datetime
-        inizio_datetime = datetime.combine(data_appello, ora_appello)
-        # Aggiungi la durata (in minuti)
-        fine_datetime = inizio_datetime + timedelta(minutes=durata_appello)
-      else:
-        inizio_datetime = None
-        fine_datetime = None
-
-      col = 0
-      # Colonna A: Codice prenotazione
-      worksheet.write(row_idx, col, f"opla_{data_attuale}_{id_esame}"); col += 1
-      # Colonna B: Breve descrizione
-      worksheet.write(row_idx, col, descrizione or ""); col += 1
-      # Colonna C: Descrizione completa
-      worksheet.write(row_idx, col, ""); col += 1
-      # Colonna D: Tipo prenotazione
-      worksheet.write(row_idx, col, "Esame"); col += 1
-      # Colonna E: Status
-      worksheet.write(row_idx, col, "Confermata"); col += 1
-      
-      # Colonna F: Prenotazione da
-      if inizio_datetime:
-        worksheet.write(row_idx, col, inizio_datetime, date_format)
-      else:
-        worksheet.write(row_idx, col, "")
-      col += 1
-      
-      # Colonna G: Prenotazione a
-      if fine_datetime:
-        worksheet.write(row_idx, col, fine_datetime, date_format)
-      else:
-        worksheet.write(row_idx, col, "")
-      col += 1
-      
-      # Colonna H: Durata totale da (stesso valore di Prenotazione da)
-      if inizio_datetime:
-        worksheet.write(row_idx, col, inizio_datetime, date_format)
-      else:
-        worksheet.write(row_idx, col, "")
-      col += 1
-      
-      # Colonna I: Durata totale a (stesso valore di Prenotazione a)
-      if fine_datetime:
-        worksheet.write(row_idx, col, fine_datetime, date_format)
-      else:
-        worksheet.write(row_idx, col, "")
-      col += 1
-      
-      # Colonna J: Tipo ripetizione
-      worksheet.write(row_idx, col, "una volta"); col += 1
-
-      if aula_codice == 'STDOCENTE':
-        worksheet.write(row_idx, col, ""); col += 1
-        worksheet.write(row_idx, col, ""); col += 1
-        worksheet.write(row_idx, col, ""); col += 1
-        worksheet.write(row_idx, col, ""); col += 1
-      else:
-        worksheet.write(row_idx, col, aula_codice); col += 1                # Colonna K: Codice aula
-        worksheet.write(row_idx, col, aula_nome); col += 1                  # Colonna L: Nome aula
-        worksheet.write(row_idx, col, "P02E04"); col += 1                   # Colonna M: Codice sede
-        worksheet.write(row_idx, col, "Matematica e Informatica"); col += 1 # Colonna N: Sede
-
-      # Colonna O: Aula virtuale
-      if aula_codice == 'STDOCENTE':
-        worksheet.write(row_idx, col, "1"); col += 1
-      else:
-        worksheet.write(row_idx, col, ""); col += 1
-
-      # Colonna P: Etichetta aula virtuale
-      if aula_codice == 'STDOCENTE':
-        worksheet.write(row_idx, col, "Studio docente DMI"); col += 1
-      else:
-        worksheet.write(row_idx, col, ""); col += 1
-
-      # Colonna Q: Codice insegnamento
-      worksheet.write(row_idx, col, insegnamento or ""); col += 1
-      # Colonna R: Anno accademico
-      worksheet.write(row_idx, col, anno_accademico or ""); col += 1
-      # Colonna S: Codice raggruppamento
-      worksheet.write(row_idx, col, ""); col += 1 # Chiedere a Bistarelli
-      # Colonna T: Nome raggruppamento
-      worksheet.write(row_idx, col, ""); col += 1 # Chiedere a Bistarelli
-      # Colonna U: Codice utente utilizzatore
-      worksheet.write(row_idx, col, docente or ""); col += 1
-      # Colonna V: Nome utente utilizzatore
-      worksheet.write(row_idx, col, docente_nome or ""); col += 1
-      # Colonna W: Cognome utente utilizzatore
-      worksheet.write(row_idx, col, docente_cognome or ""); col += 1
-      # Colonna X: Note
-      worksheet.write(row_idx, col, note_appello or ""); col += 1
-      # Colonna Y: Note interne
-      worksheet.write(row_idx, col, ""); col += 1
-
-    # Salva il workbook in memoria
-    output = io.BytesIO()
-    workbook.save(output)
-    output.seek(0)
-
-    # Prepara la risposta
-    response = make_response(output.getvalue())
-    response.headers['Content-Disposition'] = 'attachment; filename=Prenotazioni.xls'
-    response.headers['Content-type'] = 'application/vnd.ms-excel'
-    
-    return response
-
-  except Exception as e:
-    return jsonify({"error": str(e)}), 500
   finally:
     if 'cursor' in locals() and cursor:
       cursor.close()
