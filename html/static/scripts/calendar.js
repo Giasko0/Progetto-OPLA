@@ -438,6 +438,19 @@ document.addEventListener("DOMContentLoaded", function () {
           // Click su una data
           dateClick: function (info) {
             const dataClick = info.date;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Blocca le date passate per tutti gli utenti
+            if (dataClick < today) {
+              showMessage(
+                "Non è possibile inserire esami in date passate",
+                "Informazione",
+                "notification"
+              );
+              return;
+            }
+            
             // Periodo: mattina/pomeriggio
             const periodo =
               info.view.type === "timeGrid"
@@ -618,28 +631,29 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Disabilita date fuori sessione solo per utenti non admin
           dayCellClassNames: function (arg) {
-
             const dataCorrente = arg.date;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             dataCorrente.setHours(0, 0, 0, 0);
 
-            // Se la data è nel passato, disabilitala
-            if (dataCorrente < dateRange.today) {
+            // Disabilita sempre le date passate
+            if (dataCorrente < today) {
               return ['fc-disabled-day'];
             }
 
-            // Verifica data in sessione per le date future
-            const dataValida = dateValide.some(([start, end]) => {
-              const startDate = new Date(start);
-              startDate.setHours(0, 0, 0, 0);
-
-              const endDate = new Date(end);
-              endDate.setHours(23, 59, 59, 999);
-
-              return dataCorrente >= startDate && dataCorrente <= endDate;
-            });
-
-            // Applica classe per date non valide
-            return dataValida ? [] : ["fc-disabled-day"];
+            // Per le date future, verifica se sono in sessione (solo per non-admin)
+            if (!isAdmin) {
+              const dataValida = dateValide.some(([start, end]) => {
+                const startDate = new Date(start);
+                startDate.setHours(0, 0, 0, 0);
+                const endDate = new Date(end);
+                endDate.setHours(23, 59, 59, 999);
+                return dataCorrente >= startDate && dataCorrente <= endDate;
+              });
+              return dataValida ? [] : ["fc-disabled-day"];
+            }
+            
+            return [];
           },
           
           // Disabilita selezione date passate
