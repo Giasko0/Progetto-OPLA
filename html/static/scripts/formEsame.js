@@ -110,7 +110,7 @@ const EsameForm = (function() {
       if (submitButton) submitButton.textContent = isEdit ? "Salva Modifiche" : "Crea Esame";
       
       // Gestione pulsante eliminazione
-      setupDeleteButton(isEdit, data.id);
+      setupButtons(isEdit, data.id);
       
       // Popolamento form
       const elements = document.querySelectorAll("#esameForm input, #esameForm select");
@@ -219,72 +219,89 @@ const EsameForm = (function() {
   // Compila il form con i dati dell'esame (modalità modifica)
   function fillFormWithExamData(elements, examData) {
     console.log("Compilazione con dati esame:", examData);
-    
-    elements.forEach(element => {
-      const name = element.name || element.id;
-      if (!name) return;
-      
-      if (examData[name] !== undefined) {
-        if (element.type === "checkbox") {
-          element.checked = Boolean(examData[name]);
-        } else if (element.type === "radio") {
-          element.checked = element.value === String(examData[name]);
-        } else if (element.tagName === "SELECT") {
-          const optionValue = String(examData[name]);
-          if (Array.from(element.options).some(opt => opt.value === optionValue)) {
-            element.value = optionValue;
-          }
-        } else {
-          element.value = examData[name];
-        }
+
+    // Prima imposta i campi diretti
+    const fieldsToSet = {
+      'descrizione': examData.descrizione,
+      'dataora': examData.data_appello,
+      'inizioIscrizione': examData.data_inizio_iscrizione,
+      'fineIscrizione': examData.data_fine_iscrizione,
+      'note': examData.note_appello,
+      'posti': examData.posti,
+      'verbalizzazione': examData.verbalizzazione,
+      'tipoEsame': examData.tipo_esame,
+    };
+
+    // Imposta i valori dei campi
+    Object.entries(fieldsToSet).forEach(([id, value]) => {
+      const element = document.getElementById(id);
+      if (element && value !== undefined && value !== null) {
+        element.value = value;
       }
     });
-    
-    // Assicurati che anno_accademico sia impostato
-    if (!examData.anno_accademico) {
-      // Imposta l'anno accademico corrente se non è presente nei dati dell'esame
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1;
-      examData.anno_accademico = currentMonth >= 9 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
+
+    // Gestione prova parziale
+    const provaParzialeCheckbox = document.getElementById('provaParziale');
+    if (provaParzialeCheckbox) {
+      provaParzialeCheckbox.checked = examData.tipo_appello === 'PP';
+      aggiornaVerbalizzazione(); // Aggiorna le opzioni di verbalizzazione
+    }
+
+    // Gestione ora appello
+    if (examData.ora_appello) {
+      const [hours, minutes] = examData.ora_appello.split(':');
+      const ora_h = document.getElementById('ora_h');
+      const ora_m = document.getElementById('ora_m');
+      if (ora_h && hours) ora_h.value = hours;
+      if (ora_m && minutes) ora_m.value = minutes;
       
-      // Aggiorna il campo nel form
-      const annoField = document.getElementById("anno_accademico");
-      if (annoField) {
-        annoField.value = examData.anno_accademico;
+      // Aggiorna il campo nascosto
+      const oraField = document.getElementById('ora');
+      if (oraField) oraField.value = examData.ora_appello;
+    }
+
+    // Gestione durata appello
+    if (examData.durata_appello) {
+      const durata = parseInt(examData.durata_appello);
+      if (!isNaN(durata)) {
+        const ore = Math.floor(durata / 60);
+        const minuti = durata % 60;
+        
+        const durata_h = document.getElementById('durata_h');
+        const durata_m = document.getElementById('durata_m');
+        if (durata_h) durata_h.value = ore.toString();
+        if (durata_m) durata_m.value = minuti.toString();
+        
+        // Aggiorna il campo nascosto
+        const durataField = document.getElementById('durata');
+        if (durataField) durataField.value = durata.toString();
       }
     }
-    
-    // Mappatura speciale per campi con nomi diversi
-    handleSpecialFields(examData);
-    
-    // Gestione insegnamenti con InsegnamentiManager
+
+    // Gestione insegnamento
     if (window.InsegnamentiManager && examData.insegnamento_codice) {
-      // Prima pulisci eventuali selezioni precedenti
       window.InsegnamentiManager.clearSelection();
-      
-      // Poi seleziona l'insegnamento dell'esame
       window.InsegnamentiManager.selectInsegnamento(examData.insegnamento_codice, {
         semestre: examData.semestre || 1,
         anno_corso: examData.anno_corso || 1,
         cds: examData.cds_codice || ""
       });
       
-      // Aggiorna UI
       const multiSelectBox = document.getElementById("insegnamentoBox");
       if (multiSelectBox) {
-        // Carica i dati dell'insegnamento e aggiorna l'interfaccia
         const username = document.getElementById("docente")?.value;
         if (username) {
           window.InsegnamentiManager.loadInsegnamenti(
             username, 
             { filter: [examData.insegnamento_codice] }, 
-            (data) => {
-              window.InsegnamentiManager.syncUI(multiSelectBox, data);
-            }
+            (data) => window.InsegnamentiManager.syncUI(multiSelectBox, data)
           );
         }
       }
     }
+
+    // Aggiorna aule disponibili
+    setTimeout(aggiornaAuleDisponibili, 100);
   }
   
   // Gestione campi speciali (es. data, ora)
@@ -1457,18 +1474,93 @@ const EsameForm = (function() {
   function submitFormData(options = {}) {
     const form = document.getElementById("formEsame");
     if (!form) return;
-    
-    const formData = new FormData(form);
-    
-    // Aggiungi opzioni aggiuntive se fornite
-    if (options.bypassChecks) {
-      formData.append("bypass_checks", "true");
+
+    // Se siamo in modalità modifica, inviamo JSON
+    if (isEditMode) {
+      const formData = new FormData(form);
+      
+      // Recupera i tag degli insegnamenti selezionati dal box
+      const selectedTags = document.querySelectorAll('#insegnamentoBox .multi-select-tag');
+      const selectedCodes = Array.from(selectedTags).map(tag => {
+        const codiceMatch = tag.textContent.match(/\(([A-Z0-9]+)\)/);
+        return codiceMatch ? codiceMatch[1] : null;
+      }).filter(code => code);
+
+      // Uso il primo insegnamento per la modifica (modalità edit supporta solo un insegnamento)
+      const insegnamento = selectedCodes[0] || formData.get('insegnamento');
+
+      const examData = {
+        id: formData.get('examIdField'),
+        insegnamento: insegnamento, // Aggiungi questo campo
+        descrizione: formData.get('descrizione'),
+        tipo_appello: formData.get('provaParziale') === 'on' ? 'PP' : 'PF',
+        aula: formData.get('aula'),
+        data_appello: formData.get('dataora'),
+        data_inizio_iscrizione: formData.get('inizioIscrizione'),
+        data_fine_iscrizione: formData.get('fineIscrizione'),
+        ora_appello: formData.get('ora'),
+        durata_appello: formData.get('durata'),
+        periodo: parseInt(formData.get('ora').split(':')[0]) >= 14 ? 1 : 0,
+        verbalizzazione: formData.get('verbalizzazione'),
+        definizione_appello: 'STD',
+        gestione_prenotazione: 'STD',
+        riservato: false,
+        tipo_iscrizione: formData.get('tipoEsame'),
+        tipo_esame: formData.get('tipoEsame'),
+        note_appello: formData.get('note'),
+        posti: formData.get('posti') ? parseInt(formData.get('posti')) : 200
+      };
+
+      // Per la modifica inviamo JSON
+      fetch("/api/updateEsame", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(examData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          window.showMessage("Esame modificato con successo", "Operazione completata", "notification");
+          window.forceCalendarRefresh?.();
+          hideForm();
+        } else {
+          window.showMessage(data.message || "Errore durante la modifica", "Errore", "error");
+        }
+      })
+      .catch(error => {
+        console.error("Error:", error);
+        window.showMessage("Si è verificato un errore durante la modifica dell'esame", "Errore", "error");
+      });
+      return;
     }
-        
-    fetch("/api/inserisciEsame", {
-      method: "POST",
-      body: formData,
-    })
+
+    // Per l'inserimento, prepara il FormData con gli insegnamenti
+    const formData = new FormData(form);
+
+    if (!isEditMode) {
+      // Rimuovi eventuali vecchi valori di insegnamento
+      formData.delete('insegnamento');
+
+      // Recupera i codici degli insegnamenti direttamente da InsegnamentiManager
+      const selectedCodes = window.InsegnamentiManager?.getSelectedCodes() || [];
+
+      // Aggiungi ogni codice insegnamento al FormData
+      selectedCodes.forEach(code => {
+        formData.append('insegnamento', code);
+      });
+
+      if (selectedCodes.length === 0) {
+        window.showMessage("Seleziona almeno un insegnamento", "Errore", "error");
+        return;
+      }
+
+      // Continua con l'invio dei dati
+      fetch("/api/inserisciEsame", {
+        method: "POST",
+        body: formData,
+      })
       .then((response) => response.json())
       .then((data) => {
         if (data.status === "error") {
@@ -1496,6 +1588,7 @@ const EsameForm = (function() {
           "error"
         );
       });
+    }
   }
 
   // Gestisce l'invio del form con bypass dei controlli
@@ -1624,3 +1717,71 @@ document.addEventListener('DOMContentLoaded', function() {
     EsameForm.setupTimeCombiningHandlers();
   }
 });
+
+// Add after setupDeleteButton function
+function setupButtons(isEdit, examId) {
+  const formActions = document.querySelector('.form-actions');
+  if (!formActions) return;
+
+  // Clear existing buttons
+  formActions.innerHTML = '';
+
+  // Check if user is admin
+  const isAdmin = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("admin="))
+    ?.split("=")[1] === "true";
+
+  if (isEdit) {
+    // Edit mode buttons
+    const modifyBtn = document.createElement("button");
+    modifyBtn.type = "submit";
+    modifyBtn.className = "invia";
+    modifyBtn.textContent = "Modifica";
+    formActions.appendChild(modifyBtn);
+
+    if (isAdmin) {
+      // Admin bypass button in edit mode
+      const bypassBtn = document.createElement("button");
+      bypassBtn.type = "button";
+      bypassBtn.id = "bypassChecksBtn";
+      bypassBtn.className = "invia bypass";
+      bypassBtn.textContent = "Modifica senza controlli";
+      bypassBtn.addEventListener("click", handleBypassChecksSubmit);
+      formActions.appendChild(bypassBtn);
+    }
+
+    // Delete button
+    const deleteBtn = document.createElement("button");
+    deleteBtn.id = "deleteExamBtn";
+    deleteBtn.type = "button";
+    deleteBtn.className = "invia danger";
+    deleteBtn.textContent = "Elimina Esame";
+    deleteBtn.onclick = () => {
+      if (confirm("Sei sicuro di voler eliminare questo esame?")) {
+        if (typeof window.deleteEsame === 'function') {
+          window.deleteEsame(examId);
+        }
+      }
+    };
+    formActions.appendChild(deleteBtn);
+  } else {
+    // Create mode buttons
+    const submitBtn = document.createElement("button");
+    submitBtn.type = "submit";
+    submitBtn.className = "invia";
+    submitBtn.textContent = "Inserisci";
+    formActions.appendChild(submitBtn);
+
+    if (isAdmin) {
+      // Admin bypass button in create mode
+      const bypassBtn = document.createElement("button");
+      bypassBtn.type = "button";
+      bypassBtn.id = "bypassChecksBtn";
+      bypassBtn.className = "invia bypass";
+      bypassBtn.textContent = "Inserisci senza controlli";
+      bypassBtn.addEventListener("click", handleBypassChecksSubmit);
+      formActions.appendChild(bypassBtn);
+    }
+  }
+}

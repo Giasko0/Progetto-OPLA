@@ -5,6 +5,7 @@ import json
 import os
 from db import get_db_connection, release_connection
 from auth import login_required
+from utils.examUtils import generaDatiEsame, controllaVincoli  # Aggiungi questa importazione
 
 exam_bp = Blueprint('exam_bp', __name__)
 
@@ -46,13 +47,21 @@ def get_esame_by_id():
         if 'username' in request.cookies:
             username = request.cookies.get('username', '').strip()
         
-        # Query per ottenere i dettagli dell'esame con informazioni aggiuntive
+        # Query aggiornata per recuperare tutti i campi
         query = """
-        SELECT e.*, i.titolo AS insegnamento_titolo, i.codice AS insegnamento_codice,
-               c.nome_corso AS cds_nome
+        SELECT e.id, e.docente, e.insegnamento, i.titolo AS insegnamento_titolo, 
+               i.codice AS insegnamento_codice, e.aula, e.data_appello, e.ora_appello,
+               e.durata_appello, e.periodo, e.tipo_appello, e.descrizione,
+               e.data_inizio_iscrizione, e.data_fine_iscrizione, e.tipo_esame,
+               e.verbalizzazione, e.note_appello, e.posti, e.definizione_appello,
+               e.gestione_prenotazione, e.riservato, e.tipo_iscrizione,
+               c.codice AS cds_codice, c.nome_corso AS cds_nome,
+               c.curriculum, e.anno_accademico
         FROM esami e
         JOIN insegnamenti i ON e.insegnamento = i.id
-        JOIN cds c ON e.cds = c.codice AND e.anno_accademico = c.anno_accademico AND e.curriculum = c.curriculum
+        JOIN cds c ON e.cds = c.codice 
+            AND e.anno_accademico = c.anno_accademico 
+            AND e.curriculum = c.curriculum
         WHERE e.id = %s
         """
         cursor.execute(query, (exam_id,))
@@ -179,6 +188,36 @@ def update_esame():
         nuova_data_appello = datetime.strptime(data.get('data_appello'), '%Y-%m-%d').date()
         if nuova_data_appello < exam_date:
             return jsonify({'success': False, 'message': 'La nuova data non può essere anticipata rispetto alla data originale'}), 400
+
+        # Aggiungi l'ID dell'esame ai dati per il controllo vincoli
+        dati_esame = {
+            'exam_id': exam_id,
+            'docente': data.get('docente', username),
+            'insegnamenti': [data.get('insegnamento')],
+            'aula': data.get('aula'),
+            'data_appello': data.get('data_appello'),
+            'ora_appello': data.get('ora_appello'),
+            'durata_appello': data.get('durata_appello'),
+            'periodo': data.get('periodo'),
+            'tipo_appello': data.get('tipo_appello'),
+            'inizio_iscrizione': data.get('data_inizio_iscrizione'),  # Aggiunto
+            'fine_iscrizione': data.get('data_fine_iscrizione'),      # Aggiunto
+            'tipo_esame': data.get('tipo_esame'),                     # Aggiunto
+            'verbalizzazione': data.get('verbalizzazione'),           # Aggiunto
+            'descrizione': data.get('descrizione'),                    # Aggiunto
+            'note_appello': data.get('note_appello'),                 # Aggiunto
+            'posti': data.get('posti'),                               # Aggiunto
+            'anno_accademico': esame_dict.get('anno_accademico')      # Aggiunto
+        }
+
+        # Esegui i controlli
+        dati_comuni, esami_validi, esami_invalidi, errore = controllaVincoli(dati_esame)
+
+        if errore:
+            return jsonify({'success': False, 'message': errore}), 400
+
+        if not esami_validi:
+            return jsonify({'success': False, 'message': 'La modifica non rispetta i vincoli richiesti'}), 400
 
         # Prepara l'aggiornamento
         update_query = """

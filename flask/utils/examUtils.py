@@ -14,6 +14,10 @@ def generaDatiEsame():
     
     # Gestione insegnamenti multipli
     insegnamenti = request.form.getlist('insegnamento')
+    if not insegnamenti and 'insegnamento' in request.form:
+      # Se non ci sono insegnamenti multipli ma c'è un singolo insegnamento
+      insegnamenti = [request.form['insegnamento']]
+      
     if not insegnamenti:
       return {'status': 'error', 'message': 'Nessun insegnamento selezionato'}
     
@@ -277,11 +281,21 @@ def controllaVincoli(dati_esame):
           data_min = data_esame - timedelta(days=13)
           data_max = data_esame + timedelta(days=13)
           
-          cursor.execute("""
-            SELECT data_appello FROM esami e
-            JOIN insegnamenti i ON e.insegnamento = i.id
-            WHERE i.codice = %s AND data_appello BETWEEN %s AND %s
-          """, (insegnamento, data_min, data_max))
+          # Modifica la query per escludere l'esame corrente se stiamo modificando
+          exam_id_to_exclude = dati_esame.get('exam_id')
+          if exam_id_to_exclude:
+            cursor.execute("""
+              SELECT data_appello FROM esami e
+              JOIN insegnamenti i ON e.insegnamento = i.id
+              WHERE i.codice = %s AND data_appello BETWEEN %s AND %s
+              AND e.id != %s
+            """, (insegnamento, data_min, data_max, exam_id_to_exclude))
+          else:
+            cursor.execute("""
+              SELECT data_appello FROM esami e
+              JOIN insegnamenti i ON e.insegnamento = i.id
+              WHERE i.codice = %s AND data_appello BETWEEN %s AND %s
+            """, (insegnamento, data_min, data_max))
           
           esami_vicini = cursor.fetchall()
           if esami_vicini:

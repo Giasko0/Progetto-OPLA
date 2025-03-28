@@ -26,9 +26,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // Gestore chiusura elementi
     document.addEventListener("click", handleCloseClicks);
 
-    // Gestore chiusura su click esterno
-    document.addEventListener("click", handleOutsideClicks);
-
     // Esponi funzioni a livello globale
     window.showMessage = showMessage;
     window.clearNotifications = () =>
@@ -87,17 +84,6 @@ document.addEventListener("DOMContentLoaded", function () {
     else if (e.target.classList.contains("notification-close")) {
       const item = e.target.closest(".notification-item");
       if (item) removeItem(item, true);
-    }
-  }
-
-  // Gestisce i click fuori dalla sidebar per chiuderla
-  function handleOutsideClicks(e) {
-    if (
-      sidebar.classList.contains("visible") &&
-      !sidebar.contains(e.target) &&
-      !toggleBtn.contains(e.target)
-    ) {
-      closeSidebar();
     }
   }
 

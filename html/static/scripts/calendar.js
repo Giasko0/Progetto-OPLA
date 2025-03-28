@@ -418,7 +418,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (data.authenticated) {
                   // Utilizza direttamente EsameForm passando la data del click
                   if (window.EsameForm) {
-                    window.EsameForm.showForm({ date: info.dateStr });
+                    window.EsameForm.showForm({ date: info.dateStr }, false);
                   } else {
                     console.error("EsameForm non disponibile");
                   }
@@ -460,52 +460,48 @@ document.addEventListener("DOMContentLoaded", function () {
             console.log("Docente esame:", eventDocente);
             console.log("Docente loggato:", loggedDocente);
             
-            // Se l'esame è del docente corrente, apri il form per la modifica
-            if (eventDocente === loggedDocente) {
-              // Verifica che EsameForm esista
-              if (window.EsameForm) {
-                // Carica i dettagli dell'esame e mostra il form
-                fetch(`/api/getEsameById?id=${examId}`)
-                  .then(response => {
-                    console.log("Risposta API getEsameById status:", response.status);
-                    return response.json();
-                  })
-                  .then(data => {
-                    console.log("Dati ricevuti da getEsameById:", data);
-                    if (data.success) {
-                      try {
-                        // Passa i dettagli dell'esame al form con flag editMode true
-                        window.EsameForm.showForm(data.esame, true);
-                      } catch (err) {
-                        console.error("Errore nella compilazione del form:", err);
-                        showMessage("Errore nella compilazione del form: " + err.message, "Errore", "error");
-                      }
-                    } else {
-                      console.error("Errore nella risposta API:", data.message);
-                      showMessage(data.message, "Errore", "error");
-                    }
-                  })
-                  .catch(error => {
-                    console.error("Errore nel caricamento dei dettagli dell'esame:", error);
-                    showMessage("Errore nel caricamento dei dettagli dell'esame", "Errore", "error");
-                  });
-              } else {
-                console.error("EsameForm non disponibile");
-                showMessage("Impossibile modificare l'esame: modulo non disponibile", "Errore", "error");
+            if (eventDocente !== loggedDocente && !isAdmin) {
+              // Se l'esame non è del docente corrente e non è admin, mostra notifica
+              if (typeof window.showMessage === 'function') {
+                window.showMessage(
+                  "Non hai i permessi per modificare esami di un altro docente",
+                  "Permesso negato",
+                  "notification"
+                );
               }
+              return;
+            }
+          
+            // Se l'esame è del docente corrente o è admin, apri il form per la modifica
+            if (window.EsameForm) {
+              // Carica i dettagli dell'esame e mostra il form
+              fetch(`/api/getEsameById?id=${examId}`)
+                .then(response => {
+                  console.log("Risposta API getEsameById status:", response.status);
+                  return response.json();
+                })
+                .then(data => {
+                  console.log("Dati ricevuti da getEsameById:", data);
+                  if (data.success) {
+                    try {
+                      // Passa i dettagli dell'esame al form con flag editMode true
+                      window.EsameForm.showForm(data.esame, true);
+                    } catch (err) {
+                      console.error("Errore nella compilazione del form:", err);
+                      showMessage("Errore nella compilazione del form: " + err.message, "Errore", "error");
+                    }
+                  } else {
+                    console.error("Errore nella risposta API:", data.message);
+                    showMessage(data.message, "Errore", "error");
+                  }
+                })
+                .catch(error => {
+                  console.error("Errore nel caricamento dei dettagli dell'esame:", error);
+                  showMessage("Errore nel caricamento dei dettagli dell'esame", "Errore", "error");
+                });
             } else {
-              // Se l'esame non è del docente corrente, mostra solo i dettagli
-              const title = info.event.title;
-              const description = info.event.extendedProps.description || "Nessuna descrizione disponibile";
-              const docenteNome = info.event.extendedProps.docenteNome || eventDocente || "Docente non specificato";
-              
-              showMessage(
-                `<strong>${title}</strong><br>
-                Docente: ${docenteNome}<br>
-                ${description}`,
-                "Dettagli esame",
-                "info"
-              );
+              console.error("EsameForm non disponibile");
+              showMessage("Impossibile modificare l'esame: modulo non disponibile", "Errore", "error");
             }
           },
 

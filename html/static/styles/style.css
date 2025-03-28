@@ -511,6 +511,10 @@ body {
   background-color: #e0a800;
 }
 
+.invia.danger {
+  background-color: var(--color-error);
+}
+
 .form-actions {
   display: flex;
   justify-content: center;
