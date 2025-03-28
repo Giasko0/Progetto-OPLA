@@ -14,8 +14,6 @@ from user_preferences import preferences_bp
 import sys
 
 app = Flask(__name__)
-# Chiave super segreta per SAML
-app.config['SECRET_KEY'] = os.urandom(24)
 
 # Inizializza il pool di connessioni prima di registrare i blueprint
 init_db()
@@ -28,6 +26,8 @@ app.register_blueprint(fetch_bp)
 app.register_blueprint(preferences_bp)
 app.register_blueprint(exam_bp)
 
+# Chiave super segreta per firmare le sessioni SAML
+app.config['SECRET_KEY'] = os.urandom(24)
 # Metodo popo rozzo pe non usa saml
 app.config['SAML_ENABLED'] = False
 
