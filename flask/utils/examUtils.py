@@ -166,13 +166,15 @@ def controllaVincoli(dati_esame):
     data_appello = dati_esame['data_appello']
     periodo = dati_esame['periodo']
     
-    cursor.execute("""
-      SELECT COUNT(*) FROM esami 
-      WHERE data_appello = %s AND aula = %s AND periodo = %s
-    """, (data_appello, aula, periodo))
-    
-    if cursor.fetchone()[0] > 0:
-      return dati_esame, [], [], 'Aula già occupata in questo periodo'
+    # Aggiungiamo una condizione speciale per lo studio del docente
+    if aula != "Studio docente DMI":
+      cursor.execute("""
+        SELECT COUNT(*) FROM esami 
+        WHERE data_appello = %s AND aula = %s AND periodo = %s
+      """, (data_appello, aula, periodo))
+      
+      if cursor.fetchone()[0] > 0:
+        return dati_esame, [], [], 'Aula già occupata in questo periodo'
     
     # Verifica se anno_accademico è presente e valido
     anno_accademico = dati_esame.get('anno_accademico')
@@ -260,25 +262,28 @@ def controllaVincoli(dati_esame):
         
         # 2.4 Verifica il limite di esami nella sessione (solo per prove finali)
         if not is_prova_parziale:
-          cursor.execute("""
-            SELECT COUNT(*) 
-            FROM esami e
-            JOIN insegnamenti i ON e.insegnamento = i.id
-            JOIN periodi_esame pe ON pe.cds = %s 
-                AND pe.anno_accademico = %s
-                AND pe.tipo_periodo = %s
-            WHERE e.docente = %s 
-              AND i.codice = %s
-              AND e.data_appello BETWEEN pe.inizio AND pe.fine
-          """, (cds_code, anno_acc, sessione, docente, insegnamento))
-          
-          if cursor.fetchone()[0] >= limite_max:
-            esami_invalidi.append({
-              'codice': insegnamento,
-              'titolo': titolo_insegnamento,
-              'errore': f"Limite di {limite_max} esami nella sessione {sessione} raggiunto"
-            })
-            continue
+          # Salta il controllo del numero massimo se stiamo modificando un esame esistente
+          exam_id_to_exclude = dati_esame.get('exam_id')
+          if not exam_id_to_exclude:  # Solo se non stiamo modificando un esame esistente
+            cursor.execute("""
+              SELECT COUNT(*) 
+              FROM esami e
+              JOIN insegnamenti i ON e.insegnamento = i.id
+              JOIN periodi_esame pe ON pe.cds = %s 
+                  AND pe.anno_accademico = %s
+                  AND pe.tipo_periodo = %s
+              WHERE e.docente = %s 
+                AND i.codice = %s
+                AND e.data_appello BETWEEN pe.inizio AND pe.fine
+            """, (cds_code, anno_acc, sessione, docente, insegnamento))
+            
+            if cursor.fetchone()[0] >= limite_max:
+              esami_invalidi.append({
+                'codice': insegnamento,
+                'titolo': titolo_insegnamento,
+                'errore': f"Limite di {limite_max} esami nella sessione {sessione} raggiunto"
+              })
+              continue
         
         # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento (solo per prove finali)
         if not is_prova_parziale:

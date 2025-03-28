@@ -76,14 +76,6 @@ def get_esame_by_id():
 
         # Assicuriamoci che il campo docente sia pulito
         docente_esame = esame_dict['docente'].strip() if esame_dict['docente'] else ''
-
-        # Debug avanzato per diagnosticare il problema
-        print(f"GET ESAME - Confronto autenticazione:")
-        print(f"Username dal cookie: '{username}' (tipo: {type(username)})")
-        print(f"Docente dell'esame: '{docente_esame}' (tipo: {type(docente_esame)})")
-        print(f"Admin: {is_admin}")
-        print(f"Confronto diretto: {username == docente_esame}")
-        print(f"Confronto case-insensitive: {username.lower() == docente_esame.lower()}")
         
         # Verifica i permessi: solo il docente che ha creato l'esame o gli admin possono modificarlo
         # Utilizziamo un confronto case-insensitive per essere più tolleranti
@@ -161,14 +153,6 @@ def update_esame():
 
         # Assicuriamoci che il campo docente sia pulito
         docente_esame = esame_dict['docente'].strip() if esame_dict['docente'] else ''
-
-        # Debug avanzato per diagnosticare il problema
-        print(f"UPDATE ESAME - Confronto autenticazione:")
-        print(f"Username dal cookie: '{username}' (tipo: {type(username)})")
-        print(f"Docente dell'esame: '{docente_esame}' (tipo: {type(docente_esame)})")
-        print(f"Admin: {is_admin}")
-        print(f"Confronto diretto: {username == docente_esame}")
-        print(f"Confronto case-insensitive: {username.lower() == docente_esame.lower()}")
         
         # Verifica i permessi: solo il docente che ha creato l'esame o gli admin possono modificarlo
         # Utilizziamo un confronto case-insensitive per essere più tolleranti
@@ -200,14 +184,14 @@ def update_esame():
             'durata_appello': data.get('durata_appello'),
             'periodo': data.get('periodo'),
             'tipo_appello': data.get('tipo_appello'),
-            'inizio_iscrizione': data.get('data_inizio_iscrizione'),  # Aggiunto
-            'fine_iscrizione': data.get('data_fine_iscrizione'),      # Aggiunto
-            'tipo_esame': data.get('tipo_esame'),                     # Aggiunto
-            'verbalizzazione': data.get('verbalizzazione'),           # Aggiunto
-            'descrizione': data.get('descrizione'),                    # Aggiunto
-            'note_appello': data.get('note_appello'),                 # Aggiunto
-            'posti': data.get('posti'),                               # Aggiunto
-            'anno_accademico': esame_dict.get('anno_accademico')      # Aggiunto
+            'inizio_iscrizione': data.get('data_inizio_iscrizione'),
+            'fine_iscrizione': data.get('data_fine_iscrizione'),
+            'tipo_esame': data.get('tipo_esame'),
+            'verbalizzazione': data.get('verbalizzazione'),
+            'descrizione': data.get('descrizione'),
+            'note_appello': data.get('note_appello'),
+            'posti': data.get('posti'),
+            'anno_accademico': esame_dict.get('anno_accademico')
         }
 
         # Esegui i controlli
@@ -217,7 +201,7 @@ def update_esame():
             return jsonify({'success': False, 'message': errore}), 400
 
         if not esami_validi:
-            return jsonify({'success': False, 'message': 'La modifica non rispetta i vincoli richiesti'}), 400
+            return jsonify({'success': False, 'message': esami_invalidi[0]['errore']}), 400
 
         # Prepara l'aggiornamento
         update_query = """
@@ -331,14 +315,6 @@ def delete_esame():
 
         # Assicuriamoci che il campo docente sia pulito
         docente_esame = esame_dict['docente'].strip() if esame_dict['docente'] else ''
-
-        # Debug avanzato per diagnosticare il problema
-        print(f"DELETE ESAME - Confronto autenticazione:")
-        print(f"Username dal cookie: '{username}' (tipo: {type(username)})")
-        print(f"Docente dell'esame: '{docente_esame}' (tipo: {type(docente_esame)})")
-        print(f"Admin: {is_admin}")
-        print(f"Confronto diretto: {username == docente_esame}")
-        print(f"Confronto case-insensitive: {username.lower() == docente_esame.lower()}")
 
         # Verifica i permessi: solo il docente che ha creato l'esame o gli admin possono eliminarlo
         # Utilizziamo un confronto case-insensitive per essere più tolleranti
