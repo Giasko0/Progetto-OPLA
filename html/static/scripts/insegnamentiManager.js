@@ -3,6 +3,7 @@ const InsegnamentiManager = (function () {
   // STATO INTERNO
   let selectedInsegnamenti = new Map(); // Mappa codice -> metadata
   let insegnamentiCache = []; // Cache degli insegnamenti
+  let cdsCache = []; // Cache dei CdS
   let selectedCds = null; // CdS selezionato
   let onChangeCallbacks = []; // Callbacks per cambio selezione
   let onCdsChangeCallbacks = []; // Callbacks per cambio CdS
@@ -119,17 +120,90 @@ const InsegnamentiManager = (function () {
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
-        // Aggiorna cache solo per richieste complete
-        if (!filter && (!cds || adminUser)) {
-          insegnamentiCache = data;
+        // Gestisci il formato gerarchico
+        let insegnamentiProcessati = [];
+        
+        if (data.cds) {
+          // Formato gerarchico
+          // Estrai i CdS per l'uso futuro
+          cdsCache = data.cds.map(c => ({
+            codice: c.codice,
+            nome_corso: c.nome
+          }));
+          
+          // Piattifica gli insegnamenti per compatibilità con codice esistente
+          insegnamentiProcessati = flattenInsegnamenti(data.cds);
+        }
+
+        // Aggiorna cache solo per richieste complete (senza filter)
+        if (!filter) {
+          insegnamentiCache = insegnamentiProcessati;
         }
 
         if (typeof callback === "function") {
-          callback(data);
+          callback(insegnamentiProcessati);
         }
       })
       .catch((error) => {
         console.error("Errore nel caricamento degli insegnamenti:", error);
+        if (typeof callback === "function") {
+          callback([]);
+        }
+      });
+  }
+
+  // Nuova funzione di utilità per appiattire insegnamenti gerarchici
+  function flattenInsegnamenti(cdsList) {
+    const flattened = [];
+    cdsList.forEach(cds => {
+      cds.insegnamenti.forEach(ins => {
+        flattened.push({
+          codice: ins.codice,
+          titolo: ins.titolo,
+          semestre: ins.semestre,
+          anno_corso: ins.anno_corso,
+          cds_codice: cds.codice,
+          cds_nome: cds.nome
+        });
+      });
+    });
+    return flattened;
+  }
+
+  // Carica solo i CdS per il docente
+  function loadCds(username, callback = null) {
+    // Se la cache è già popolata, utilizzala
+    if (cdsCache.length > 0) {
+      if (typeof callback === "function") {
+        callback(cdsCache);
+      }
+      return;
+    }
+    
+    // Ottieni l'anno accademico corrente
+    const currentDate = new Date();
+    const planningYear = currentDate.getMonth() >= 9 
+        ? currentDate.getFullYear() 
+        : currentDate.getFullYear() - 1;
+    
+    // Utilizza l'API unificata per ottenere i CdS (sono già inclusi nella risposta)
+    fetch(`/api/getInsegnamentiDocente?docente=${username}&anno=${planningYear}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.cds) {
+          // Estrai solo i CdS dal risultato
+          cdsCache = data.cds.map(c => ({
+            codice: c.codice,
+            nome_corso: c.nome
+          }));
+          
+          if (typeof callback === "function") {
+            callback(cdsCache);
+          }
+        }
+      })
+      .catch(error => {
+        console.error("Errore nel caricamento dei CdS:", error);
         if (typeof callback === "function") {
           callback([]);
         }
@@ -396,6 +470,7 @@ const InsegnamentiManager = (function () {
     setCds,
     getCds,
     onCdsChange,
+    loadCds,
 
     // Dati API
     loadInsegnamenti,
@@ -409,6 +484,7 @@ const InsegnamentiManager = (function () {
     getRequestParams,
     cleanup,
     isAdmin,
+    flattenInsegnamenti,  // Aggiungi questa nuova funzione all'API pubblica
   };
 })();
 

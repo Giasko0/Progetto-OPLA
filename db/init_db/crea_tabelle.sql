@@ -62,13 +62,14 @@ CREATE TABLE periodi_esame (
 
 -- Creazione della tabella 'insegnamenti' (generici, possono essere usati da qualsiasi corso di studio)
 CREATE TABLE insegnamenti (
-    codice TEXT PRIMARY KEY,      -- Codice dell'insegnamento (A000702)
+    id TEXT PRIMARY KEY,          -- ID univoco dell'insegnamento (chiave primaria)
+    codice TEXT NOT NULL,         -- Codice dell'insegnamento (A000702)
     titolo TEXT NOT NULL          -- Titolo dell'insegnamento
 );
 
 -- Creazione della tabella 'insegnamenti_cds' (specifici per un corso di studio, potrebbero variare di anno in anno)
 CREATE TABLE insegnamenti_cds (
-    insegnamento TEXT,          -- Codice dell'insegnamento
+    insegnamento TEXT,          -- ID dell'insegnamento
     anno_accademico INT,        -- Anno accademico
     cds TEXT,                   -- Codice del corso di studio
     curriculum TEXT,            -- Curriculum del corso di studio (aggiunto)
@@ -76,12 +77,12 @@ CREATE TABLE insegnamenti_cds (
     semestre INT NOT NULL,      -- Semestre (Insegnamento annuale = 3)
     is_mutuato BOOLEAN NOT NULL,-- Insegnamento mutuato (true/false)
     is_modulo BOOLEAN NOT NULL, -- Insegnamento modulo (true/false)
-    insegnamento_padre TEXT,    -- Insegnamento di riferimento (per mutuati o moduli)
+    padri_mutua TEXT[],         -- Array di codici degli insegnamenti di riferimento per mutuazioni
+    padre_modulo TEXT,          -- Codice dell'insegnamento di riferimento per moduli
     codice_modulo INT,          -- Numero modulo
     PRIMARY KEY (insegnamento, anno_accademico, cds, curriculum),
-    FOREIGN KEY (insegnamento) REFERENCES insegnamenti(codice) ON DELETE CASCADE,
+    FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
     FOREIGN KEY (cds, anno_accademico, curriculum) REFERENCES cds(codice, anno_accademico, curriculum) ON DELETE CASCADE,
-    FOREIGN KEY (insegnamento_padre) REFERENCES insegnamenti(codice) ON DELETE SET NULL,
     CONSTRAINT check_semestre CHECK (semestre IN (1, 2, 3))
 );
 
@@ -100,11 +101,11 @@ CREATE TABLE IF NOT EXISTS preferenze_utenti (
 
 -- Creazione della tabella 'insegnamento_docente' (relazione N:N tra insegnamenti e utenti)
 CREATE TABLE insegnamento_docente (
-    insegnamento TEXT,           -- Codice dell'insegnamento (chiave esterna)
+    insegnamento TEXT,           -- ID dell'insegnamento (chiave esterna)
     docente TEXT,                -- Username del docente (chiave esterna)
     annoaccademico INT,          -- Anno accademico
     PRIMARY KEY (insegnamento, docente, annoaccademico),
-    FOREIGN KEY (insegnamento) REFERENCES insegnamenti(codice) ON DELETE CASCADE,
+    FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
     FOREIGN KEY (docente) REFERENCES utenti(username) ON DELETE CASCADE
 );
 
@@ -114,7 +115,7 @@ CREATE TABLE esami (
     descrizione TEXT,                     -- Descrizione dell'esame
     tipo_appello TEXT NOT NULL,           -- Tipo di appello (finale o parziale)
     docente TEXT NOT NULL,                -- Username del docente (chiave esterna)
-    insegnamento TEXT NOT NULL,           -- Codice dell'insegnamento (chiave esterna)
+    insegnamento TEXT NOT NULL,           -- ID dell'insegnamento (chiave esterna)
     cds TEXT NOT NULL,                    -- Codice del corso di studio
     anno_accademico INT NOT NULL,         -- Anno accademico
     curriculum TEXT NOT NULL,             -- Curriculum del corso di studio
@@ -138,7 +139,7 @@ CREATE TABLE esami (
     posti INTEGER,                        -- Numero di posti disponibili
     codice_turno TEXT,                    -- Codice identificativo del turno (Non serve al DMI)
     FOREIGN KEY (docente) REFERENCES utenti(username) ON DELETE CASCADE,
-    FOREIGN KEY (insegnamento) REFERENCES insegnamenti(codice) ON DELETE CASCADE,
+    FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
     FOREIGN KEY (aula) REFERENCES aule(nome) ON DELETE SET NULL,
     FOREIGN KEY (cds, anno_accademico, curriculum) REFERENCES cds(codice, anno_accademico, curriculum) ON DELETE CASCADE,
     CONSTRAINT check_date_esami CHECK (
@@ -151,9 +152,10 @@ CREATE TABLE esami (
 -- Creazione degli indici per velocizzare le query (forse sono troppi, levarne qualcuno se necessario)
 CREATE INDEX idx_cds_nome_corso ON cds(nome_corso);
 
+CREATE INDEX idx_insegnamenti_codice ON insegnamenti(codice);
+
 CREATE INDEX idx_insegnamenti_cds_anno ON insegnamenti_cds(anno_accademico);
 CREATE INDEX idx_insegnamenti_cds_cds ON insegnamenti_cds(cds);
-CREATE INDEX idx_insegnamenti_cds_padre ON insegnamenti_cds(insegnamento_padre);
 
 CREATE INDEX idx_utenti_matricola ON utenti(matricola);
 CREATE INDEX idx_utenti_cognome ON utenti(cognome);

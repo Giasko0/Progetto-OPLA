@@ -43,40 +43,64 @@ export function populateInsegnamentiDropdown(
   cdsFiltro = null,
   preloadedInsegnamenti = null
 ) {
-  // Se abbiamo InsegnamentiManager, utilizziamo quello
+  // Se abbiamo InsegnamentiManager e dati precaricati, li utilizziamo
   if (window.InsegnamentiManager && preloadedInsegnamenti) {
-    // Raggruppa gli insegnamenti per CDS
-    const insegnamentiPerCds = {};
+    // Costruisci insegnamentiPerCds utilizzando il formato gerarchico
+    let insegnamentiPerCds = {};
     
-    let insegnamenti = preloadedInsegnamenti;
-
-    // Organizza per CdS
-    insegnamenti.forEach((ins) => {
-      const cdsKey = ins.cds_codice || 'altro';
-      const cdsNome = ins.cds_nome || 'Altro';
-      
-      if (!insegnamentiPerCds[cdsKey]) {
-        insegnamentiPerCds[cdsKey] = {
-          nome: cdsNome,
-          insegnamenti: [],
-        };
-      }
-      insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
-    });
+    // Verifica che preloadedInsegnamenti non sia null o undefined
+    if (!preloadedInsegnamenti) {
+      dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Dati non disponibili</div>";
+      return;
+    }
+    
+    // Se i dati sono nel formato gerarchico (con cds), li usiamo direttamente
+    if (preloadedInsegnamenti.cds && Array.isArray(preloadedInsegnamenti.cds)) {
+      preloadedInsegnamenti.cds.forEach(cds => {
+        if (cds && cds.codice && cds.insegnamenti) {
+          insegnamentiPerCds[cds.codice] = {
+            nome: cds.nome || cds.nome_corso || "Sconosciuto",
+            insegnamenti: Array.isArray(cds.insegnamenti) ? cds.insegnamenti.map(ins => ({
+              ...ins,
+              cds_codice: cds.codice,
+              cds_nome: cds.nome || cds.nome_corso || "Sconosciuto"
+            })) : []
+          };
+        }
+      });
+    } 
+    // Se i dati sono in formato piatto (array), li organizziamo per CdS
+    else if (Array.isArray(preloadedInsegnamenti)) {
+      preloadedInsegnamenti.forEach((ins) => {
+        const cdsKey = ins.cds_codice || 'altro';
+        const cdsNome = ins.cds_nome || 'Altro';
+        
+        if (!insegnamentiPerCds[cdsKey]) {
+          insegnamentiPerCds[cdsKey] = {
+            nome: cdsNome,
+            insegnamenti: [],
+          };
+        }
+        insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
+      });
+    }
 
     // Costruisci HTML per il dropdown
     let dropdownHTML = "";
+
+    // Se non ci sono dati da mostrare
+    if (Object.keys(insegnamentiPerCds).length === 0) {
+      dropdownHTML = "<div class='dropdown-error'>Nessun insegnamento disponibile</div>";
+      dropdownInsegnamenti.innerHTML = dropdownHTML;
+      return;
+    }
 
     // Genera HTML per ogni CdS
     Object.keys(insegnamentiPerCds).forEach((cdsCodice) => {
       const cds = insegnamentiPerCds[cdsCodice];
       
-      // Formato del titolo in base al tipo di CdS
-      if (cdsCodice === 'altro') {
-        dropdownHTML += `<div class="dropdown-cds-title">Altro</div>`;
-      } else {
-        dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
-      }
+      // Formato del titolo del CdS
+      dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
 
       // Opzioni per gli insegnamenti del CdS
       cds.insegnamenti.forEach((ins) => {
@@ -99,19 +123,43 @@ export function populateInsegnamentiDropdown(
     return;
   }
 
-  // Implementazione di fallback per compatibilità con vecchio codice
-  // Se abbiamo insegnamenti precaricati, li utilizziamo
-  if (preloadedInsegnamenti) {
-    processAndDisplayInsegnamenti(preloadedInsegnamenti);
+  // Se non abbiamo dati precaricati, effettuiamo una chiamata API
+  // Questa parte può rimanere semplificata usando la cache
+  if (!docente) {
+    dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Nessun docente specificato</div>";
     return;
   }
 
-  // Altrimenti effettua la chiamata API
   let url = `/api/getInsegnamentiDocente?anno=${planningYear}&docente=${docente}`;
   
+  if (cdsFiltro) {
+    url += `&cds=${cdsFiltro}`;
+  }
+  
+  // Si può evitare di duplicare la logica e riutilizzare la funzione dell'InsegnamentiManager
   fetch(url)
     .then((response) => response.json())
-    .then(processAndDisplayInsegnamenti)
+    .then(data => {
+      let insegnamentiPiatti = [];
+      
+      if (data.cds) {
+        // Uso la funzione di appiattimento se disponibile, altrimenti fallback
+        insegnamentiPiatti = window.InsegnamentiManager && window.InsegnamentiManager.flattenInsegnamenti
+          ? window.InsegnamentiManager.flattenInsegnamenti(data.cds)
+          : data.cds.flatMap(cds => cds.insegnamenti.map(ins => ({
+              codice: ins.codice,
+              titolo: ins.titolo,
+              semestre: ins.semestre,
+              anno_corso: ins.anno_corso,
+              cds_codice: cds.codice,
+              cds_nome: cds.nome
+            })));
+      } else {
+        insegnamentiPiatti = data;
+      }
+      
+      processAndDisplayInsegnamenti(insegnamentiPiatti);
+    })
     .catch((error) => {
       console.error("Errore nel caricamento degli insegnamenti:", error);
       dropdownInsegnamenti.innerHTML =
@@ -120,7 +168,6 @@ export function populateInsegnamentiDropdown(
 
   // Funzione per organizzare e visualizzare gli insegnamenti
   function processAndDisplayInsegnamenti(insegnamenti) {
-
     // Raggruppa gli insegnamenti per CDS
     const insegnamentiPerCds = {};
 

@@ -61,20 +61,30 @@ document.addEventListener("DOMContentLoaded", function () {
     loadDateValide(loggedDocente),
     checkAdminPermissions(),
     fetch(
-      `/api/getCdsDocente?docente=${loggedDocente}&anno=${planningYear}`
-    ).then((r) => r.json()),
-    fetch(
-      `/api/getInsegnamentiDocente?anno=${planningYear}&docente=${loggedDocente}`
+      `/api/getInsegnamentiDocente?docente=${loggedDocente}&anno=${planningYear}`
     ).then((r) => r.json()),
   ])
     .then(
-      ([dateValideResponse, adminPermissions, cdsList, insegnamentiList]) => {
+      ([dateValideResponse, adminPermissions, insegnamentiData]) => {
         // Salva le date valide
         dateValide = dateValideResponse;
 
         // Memorizza nelle cache i risultati delle chiamate API
-        cachedCds = cdsList;
-        cachedInsegnamenti = insegnamentiList;
+        // Se i dati sono nel nuovo formato gerarchico, usa la funzione di utilità
+        if (insegnamentiData.cds) {
+          cachedCds = insegnamentiData.cds.map(cds => ({
+            codice: cds.codice,
+            nome_corso: cds.nome
+          }));
+          
+          // Usa la funzione di utilità se disponibile
+          cachedInsegnamenti = window.InsegnamentiManager && window.InsegnamentiManager.flattenInsegnamenti
+            ? window.InsegnamentiManager.flattenInsegnamenti(insegnamentiData.cds)
+            : []; // altrimenti inizializza vuoto
+        } else {
+          // Formato di dati precedente
+          cachedInsegnamenti = insegnamentiData;
+        }
 
         // Crea dropdown una sola volta
         dropdowns.sessioni = createDropdown("sessioni");
@@ -161,22 +171,91 @@ document.addEventListener("DOMContentLoaded", function () {
               text: "Insegnamenti",
               click: function (e) {
                 handleDropdownButtonClick(e, "insegnamenti", () => {
-                  if (cachedInsegnamenti && cachedInsegnamenti.length > 0) {
-                    // Usa i dati precaricati per popolare il dropdown o chiuderlo se è già aperto
+                  // Verifica se abbiamo dati validi in cache
+                  if (cachedCds && cachedCds.length > 0 && cachedInsegnamenti && cachedInsegnamenti.length > 0) {
+                    // Crea un oggetto con la struttura attesa dalla funzione populateInsegnamentiDropdown
+                    const dataToPass = {
+                      cds: cachedCds.map(cds => {
+                        return {
+                          codice: cds.codice,
+                          nome: cds.nome_corso || cds.nome,
+                          insegnamenti: cachedInsegnamenti
+                            .filter(ins => ins.cds_codice === cds.codice)
+                            .map(ins => ({
+                              codice: ins.codice,
+                              titolo: ins.titolo,
+                              semestre: ins.semestre,
+                              anno_corso: ins.anno_corso
+                            }))
+                        };
+                      }).filter(cds => cds.insegnamenti.length > 0) // Rimuovi i CdS senza insegnamenti
+                    };
+                    
+                    // Usa i dati precaricati per popolare il dropdown
                     populateInsegnamentiDropdown(
                       dropdowns.insegnamenti,
                       loggedDocente,
                       planningYear,
                       null,
-                      cachedInsegnamenti
+                      dataToPass
                     );
                   } else {
-                    // Fallback alla chiamata API
-                    populateInsegnamentiDropdown(
-                      dropdowns.insegnamenti,
-                      loggedDocente,
-                      planningYear
-                    );
+                    // Se non ci sono dati in cache o sono incompleti, effettua una nuova chiamata API
+                    fetch(`/api/getInsegnamentiDocente?docente=${loggedDocente}&anno=${planningYear}`)
+                      .then(response => {
+                        if (!response.ok) {
+                          throw new Error(`Errore HTTP: ${response.status}`);
+                        }
+                        return response.json();
+                      })
+                      .then(data => {
+                        // Aggiorna la cache con i nuovi dati
+                        if (data.cds && Array.isArray(data.cds)) {
+                          cachedCds = data.cds.map(cds => ({
+                            codice: cds.codice,
+                            nome_corso: cds.nome
+                          }));
+                          
+                          // Cache insegnamenti piatti per altre funzionalità
+                          if (window.InsegnamentiManager && window.InsegnamentiManager.flattenInsegnamenti) {
+                            cachedInsegnamenti = window.InsegnamentiManager.flattenInsegnamenti(data.cds);
+                          } else {
+                            // Implementazione fallback se flattenInsegnamenti non è disponibile
+                            cachedInsegnamenti = [];
+                            data.cds.forEach(cds => {
+                              if (cds.insegnamenti && Array.isArray(cds.insegnamenti)) {
+                                cds.insegnamenti.forEach(ins => {
+                                  cachedInsegnamenti.push({
+                                    codice: ins.codice,
+                                    titolo: ins.titolo,
+                                    semestre: ins.semestre || 1,
+                                    anno_corso: ins.anno_corso || 1,
+                                    cds_codice: cds.codice,
+                                    cds_nome: cds.nome
+                                  });
+                                });
+                              }
+                            });
+                          }
+                          
+                          // Passa i dati originali
+                          populateInsegnamentiDropdown(
+                            dropdowns.insegnamenti,
+                            loggedDocente,
+                            planningYear,
+                            null,
+                            data
+                          );
+                        } else {
+                          dropdowns.insegnamenti.innerHTML = 
+                            "<div class='dropdown-error'>Formato dati non valido</div>";
+                        }
+                      })
+                      .catch(error => {
+                        console.error("Errore nel caricamento degli insegnamenti:", error);
+                        dropdowns.insegnamenti.innerHTML = 
+                          "<div class='dropdown-error'>Errore nel caricamento degli insegnamenti</div>";
+                      });
                   }
                 });
               },
@@ -506,28 +585,45 @@ document.addEventListener("DOMContentLoaded", function () {
               window.InsegnamentiManager.deselectInsegnamento(codice);
             }
 
-            // Invalida la cache
+            // Invalida la cache eventi ma non ricaricare subito
             eventsCache = [];
             lastFetchTime = 0;
             
             // Ottieni gli insegnamenti selezionati
             const selectedInsegnamenti = window.InsegnamentiManager.getSelectedCodes();
             
-            // Utilizza sempre loadDateValide con parametri condizionali
-            loadDateValide(loggedDocente, selectedInsegnamenti.length > 0 ? selectedInsegnamenti : null)
-              .then((newDates) => {
-                // Aggiorna le date valide
-                dateValide = newDates;
-                
-                // Aggiorna il calendario
-                updateCalendarWithDates(calendar, dateValide);
-                
-                // Aggiorna il dropdown delle sessioni
-                updateSessioniDropdown(dropdowns.sessioni, dateValide);
-              })
-              .catch((error) => {
-                console.error("Errore nel caricamento delle date valide:", error);
-              });
+            // Carica solo se ci sono insegnamenti selezionati (evita chiamate inutili)
+            if (selectedInsegnamenti.length > 0) {
+              loadDateValide(loggedDocente, selectedInsegnamenti)
+                .then((newDates) => {
+                  // Aggiorna le date valide solo se sono cambiate
+                  if (JSON.stringify(dateValide) !== JSON.stringify(newDates)) {
+                    dateValide = newDates;
+                    
+                    // Aggiorna il calendario
+                    updateCalendarWithDates(calendar, dateValide);
+                    
+                    // Aggiorna il dropdown delle sessioni
+                    updateSessioniDropdown(dropdowns.sessioni, dateValide);
+                  }
+                })
+                .catch((error) => {
+                  console.error("Errore nel caricamento delle date valide:", error);
+                });
+            } else {
+              // Se non ci sono insegnamenti selezionati, usa solo il docente
+              loadDateValide(loggedDocente)
+                .then((newDates) => {
+                  if (JSON.stringify(dateValide) !== JSON.stringify(newDates)) {
+                    dateValide = newDates;
+                    updateCalendarWithDates(calendar, dateValide);
+                    updateSessioniDropdown(dropdowns.sessioni, dateValide);
+                  }
+                })
+                .catch((error) => {
+                  console.error("Errore nel caricamento delle date valide:", error);
+                });
+            }
           }
         });
 
