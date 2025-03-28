@@ -1,7 +1,14 @@
 // Determina il range di date valido in base al periodo dell'anno
-export function getValidDateRange() {
+export function getValidDateRange(selectedYear = null) {
+  if (selectedYear) {
+    return {
+      start: `${selectedYear}-01-01`,
+      end: `${selectedYear + 1}-04-30`,
+    };
+  }
+
   const today = new Date();
-  const currentYear = today.getFullYear();
+  const currentYear = today.getFullYear();  
   const currentMonth = today.getMonth() + 1;
 
   const startYear = currentMonth >= 9 ? currentYear + 1 : currentYear;
@@ -14,7 +21,9 @@ export function getValidDateRange() {
 }
 
 // Restituisce l'anno accademico per la pianificazione
-export function getPlanningYear() {
+export function getPlanningYear(selectedYear = null) {
+  if (selectedYear) return selectedYear;
+  
   const currentDate = new Date();
   return currentDate.getMonth() >= 9
     ? currentDate.getFullYear()

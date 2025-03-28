@@ -7,6 +7,14 @@ import {
   loadDateValide,
 } from "./calendarUtils.js";
 
+function createAnnoDropdown() {
+  const dropdown = document.createElement("div");
+  dropdown.className = "calendar-dropdown"; // Usa la stessa classe degli altri dropdown
+  dropdown.id = "annoDropdown";
+  document.body.appendChild(dropdown);
+  return dropdown;
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   // Assicuriamoci che i dati utente siano precaricati
   window.preloadUserData();
@@ -95,8 +103,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Determina quali pulsanti mostrare in base ai permessi
         const rightButtons = isAdmin
-          ? "pulsanteInsegnamenti pulsanteSessioni pulsanteDebug prev,next today"
-          : "pulsanteInsegnamenti pulsanteSessioni prev,next today";
+          ? "pulsanteAnno pulsanteInsegnamenti pulsanteSessioni pulsanteDebug prev,next today"
+          : "pulsanteAnno pulsanteInsegnamenti pulsanteSessioni prev,next today";
 
         // Configurazione calendario
         var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -312,6 +320,34 @@ document.addEventListener("DOMContentLoaded", function () {
                     );
                   });
               },
+            },
+            // Aggiungi il pulsante Anno Accademico
+            pulsanteAnno: {
+              text: 'Anno Accademico',
+              click: function(e) {
+                const button = e.currentTarget;
+                const dropdown = document.getElementById('annoDropdown') || createAnnoDropdown();
+                
+                // Posiziona il dropdown
+                const rect = button.getBoundingClientRect();
+                dropdown.style.top = `${rect.bottom}px`;
+                dropdown.style.left = `${rect.left}px`;
+                
+                // Popola il dropdown usando le classi esistenti
+                dropdown.innerHTML = `
+                  <div class="dropdown-item">2024/2025</div>
+                `;
+                
+                // Il resto del codice rimane uguale
+                dropdown.querySelector('.dropdown-item').addEventListener('click', function() {
+                  /*calendar.setOption('validRange', getValidDateRange(2024));
+                  calendar.refetchEvents();*/
+                  dropdown.classList.remove('show');
+                });
+                
+                // Toggle della visibilità
+                dropdown.classList.toggle('show');
+              }
             },
           },
 
@@ -903,3 +939,12 @@ function deleteEsame(examId) {
 
 // Esponi funzione deleteEsame globalmente
 window.deleteEsame = deleteEsame;
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.fc-pulsanteAnno-button') && !e.target.closest('#annoDropdown')) {
+    const dropdown = document.getElementById('annoDropdown');
+    if (dropdown) {
+      dropdown.classList.remove('show');
+    }
+  }
+});
