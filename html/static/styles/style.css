@@ -556,6 +556,46 @@ body {
   box-sizing: border-box;
 }
 
+.two-column-layout {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.column label {
+  margin-bottom: 5px;
+}
+
+.column select {
+  width: 100%;
+}
+
+.time-select-container {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.time-select-container select {
+  flex: 1;
+}
+
+.time-separator {
+  font-weight: bold;
+}
+
+#durata_h, #durata_m {
+  width: auto;
+}
+
+
+
 /*---------PREFERENZE FORM---------*/
 .preferences-panel {
   margin-bottom: 15px;

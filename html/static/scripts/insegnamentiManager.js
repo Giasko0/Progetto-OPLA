@@ -80,8 +80,7 @@ const InsegnamentiManager = (function () {
     }
 
     const { filter = null, cds = selectedCds, forceReload = false } = options;
-    const adminUser = isAdmin();
-
+    
     // Usa la cache se disponibile e non ci sono filtri specifici
     if (!forceReload && insegnamentiCache.length > 0 && !filter) {
       // Per coerenza, lasciamo che sia il backend a determinare se mostrare tutti gli insegnamenti
@@ -98,22 +97,12 @@ const InsegnamentiManager = (function () {
         ? currentDate.getFullYear() 
         : currentDate.getFullYear() - 1;
 
-    // Costruisci URL con l'endpoint unificato
+    // Costruisci URL con l'endpoint unificato - ora più semplice
     let url = `/api/getInsegnamentiDocente?docente=${username}&anno=${planningYear}`;
 
-    if (filter) {
-      const codici = Array.isArray(filter) ? filter.join(",") : filter;
-      url += `&codici=${codici}`;
-    }
-
-    // Aggiungi filtro CdS solo se non è un admin
-    if (cds && !adminUser) {
+    // Aggiungi filtro CdS se specificato
+    if (cds) {
       url += `&cds=${cds}`;
-    }
-
-    // Per gli admin aggiungi parametro che indica di mostrare tutti gli insegnamenti
-    if (adminUser) {
-      url += "&admin_view=true";
     }
 
     // Carica dal server
@@ -135,13 +124,20 @@ const InsegnamentiManager = (function () {
           insegnamentiProcessati = flattenInsegnamenti(data.cds);
         }
 
-        // Aggiorna cache solo per richieste complete (senza filter)
-        if (!filter) {
-          insegnamentiCache = insegnamentiProcessati;
+        // Aggiorna cache
+        insegnamentiCache = insegnamentiProcessati;
+        
+        // Se c'è un filtro attivo, filtra i risultati prima di restituirli
+        let risultati = insegnamentiProcessati;
+        if (filter) {
+          const filteredCodes = Array.isArray(filter) ? filter : [filter];
+          risultati = insegnamentiProcessati.filter(ins => 
+            filteredCodes.includes(ins.codice)
+          );
         }
 
         if (typeof callback === "function") {
-          callback(insegnamentiProcessati);
+          callback(risultati);
         }
       })
       .catch((error) => {
@@ -224,8 +220,10 @@ const InsegnamentiManager = (function () {
         return;
       }
 
-      // Carica gli insegnamenti selezionati, tenendo conto dei permessi admin
-      loadInsegnamenti(username, { filter: getSelectedCodes() }, (data) => {
+      // Carica solo gli insegnamenti selezionati
+      loadInsegnamenti(username, { 
+        filter: getSelectedCodes()
+      }, (data) => {
         syncUI(container, data);
       });
       return;

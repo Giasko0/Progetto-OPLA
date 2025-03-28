@@ -168,7 +168,7 @@ function displayTabelleEsami(data, insegnamento, container) {
       dataCell.setAttribute("data-datetime", esame.dataora);
 
       row.insertCell(3).textContent = esame.aula;
-      row.insertCell(4).textContent = esame.durata_appello || "120";
+      row.insertCell(4).textContent = formatDurata(esame.durata_appello);
     });
 
     section.appendChild(table);
@@ -362,7 +362,7 @@ function displayAllExams(data, container) {
     dataCell.setAttribute("data-datetime", esame.dataora);
 
     row.insertCell(3).textContent = esame.aula;
-    row.insertCell(4).textContent = esame.durata_appello || "120";
+    row.insertCell(4).textContent = formatDurata(esame.durata_appello);
   });
 
   section.appendChild(tableAllExams);
@@ -444,6 +444,25 @@ function formatDateTime(dateTimeStr) {
   } catch (error) {
     console.error("Errore nella formattazione della data:", error);
     return dateTimeStr; // Restituisci la stringa originale in caso di errore
+  }
+}
+
+// Funzione per formattare la durata in ore e minuti
+function formatDurata(durataMinuti) {
+  if (!durataMinuti) return "N/D";
+  
+  const durata = parseInt(durataMinuti, 10);
+  if (isNaN(durata)) return durataMinuti;
+  
+  const ore = Math.floor(durata / 60);
+  const minuti = durata % 60;
+  
+  if (ore === 0) {
+    return `${minuti} min`;
+  } else if (minuti === 0) {
+    return ore === 1 ? `${ore} ora` : `${ore} ore`;
+  } else {
+    return `${ore} ${ore === 1 ? 'ora' : 'ore'} e ${minuti} min`;
   }
 }
 

@@ -123,10 +123,12 @@ const EsameForm = (function() {
   function initEventListeners() {
     // Ascoltatori per filtro aule
     const dataoraInput = document.getElementById("dataora");
-    const oraInput = document.getElementById("ora");
+    const ora_h = document.getElementById("ora_h");
+    const ora_m = document.getElementById("ora_m");
 
     dataoraInput?.addEventListener("change", aggiornaAuleDisponibili);
-    oraInput?.addEventListener("change", aggiornaAuleDisponibili);
+    ora_h?.addEventListener("change", aggiornaAuleDisponibili);
+    ora_m?.addEventListener("change", aggiornaAuleDisponibili);
 
     // Gestione opzioni avanzate
     const pulsanteAdv = document.getElementById("buttonOpzioniAvanzate");
@@ -161,6 +163,59 @@ const EsameForm = (function() {
     document.getElementById("loadPreferenceBtn")?.addEventListener("click", togglePreferencesMenu);
     document.getElementById("confirmSavePreference")?.addEventListener("click", handleSavePreference);
     document.getElementById("cancelSavePreference")?.addEventListener("click", toggleSavePreferenceForm);
+    
+    // Aggiungi event listener per combinare ora_h e ora_m, durata_h e durata_m
+    setupTimeCombiningHandlers();
+  }
+  
+  // Configura i gestori per combinare i valori di ora e durata
+  function setupTimeCombiningHandlers() {
+    const form = document.getElementById("formEsame");
+    if (!form) return;
+    
+    // Combina l'ora al submit del form
+    form.addEventListener("submit", combineTimeValues);
+    
+    // Aggiungi anche al pulsante di bypass
+    const bypassBtn = document.getElementById("bypassChecksBtn");
+    if (bypassBtn) {
+      bypassBtn.addEventListener("click", combineTimeValues);
+    }
+    
+    // Aggiungi gestori per aggiornare i campi quando i valori cambiano
+    const ora_h = document.getElementById("ora_h");
+    const ora_m = document.getElementById("ora_m");
+    const durata_h = document.getElementById("durata_h");
+    const durata_m = document.getElementById("durata_m");
+    
+    if (ora_h && ora_m) {
+      ora_h.addEventListener("change", combineTimeValues);
+      ora_m.addEventListener("change", combineTimeValues);
+    }
+    
+    if (durata_h && durata_m) {
+      durata_h.addEventListener("change", combineDurataValues);
+      durata_m.addEventListener("change", combineDurataValues);
+    }
+  }
+  
+  // Combina i valori di ora e durata
+  function combineTimeValues() {
+    // Combina ora_h e ora_m in ora (formato HH:MM)
+    const ora_h = document.getElementById('ora_h')?.value;
+    const ora_m = document.getElementById('ora_m')?.value;
+    if (ora_h && ora_m) {
+      const oraField = document.getElementById('ora');
+      if (oraField) oraField.value = `${ora_h}:${ora_m}`;
+    }
+    
+    // Converte durata_h e durata_m in durata totale in minuti
+    const durata_h = parseInt(document.getElementById('durata_h')?.value) || 0;
+    const durata_m = parseInt(document.getElementById('durata_m')?.value) || 0;
+    const durata_totale = (durata_h * 60) + durata_m;
+    
+    const durataField = document.getElementById('durata');
+    if (durataField) durataField.value = durata_totale.toString();
   }
   
   // Controlla se l'utente è un amministratore
@@ -169,6 +224,16 @@ const EsameForm = (function() {
       .split("; ")
       .find((row) => row.startsWith("admin="))
       ?.split("=")[1] === "true";
+  }
+
+  // Funzione specifica per combinare solo i valori della durata
+  function combineDurataValues() {
+    const durata_h = parseInt(document.getElementById('durata_h')?.value) || 0;
+    const durata_m = parseInt(document.getElementById('durata_m')?.value) || 0;
+    const durata_totale = (durata_h * 60) + durata_m;
+    
+    const durataField = document.getElementById('durata');
+    if (durataField) durataField.value = durata_totale.toString();
   }
   
   // Funzione unificata per inviare i dati del form
@@ -227,12 +292,18 @@ const EsameForm = (function() {
       return;
     }
     
+    // Combina i valori di ora e durata prima dell'invio
+    combineTimeValues();
+    
     submitFormData({ bypassChecks: true });
   }
 
   // Gestisce l'invio standard del form
   function handleFormSubmit(e) {
     e.preventDefault();
+
+    // Ora e durata vengono combinati dalla funzione combineTimeValues
+    combineTimeValues();
 
     const oraAppello = document.getElementById("ora")?.value;
     if (!validaOraAppello(oraAppello)) {
@@ -343,6 +414,9 @@ const EsameForm = (function() {
         window.InsegnamentiManager.syncUI(multiSelectBox);
       });
     }
+
+    // Configura i gestori per combinare ora e durata
+    setupTimeCombiningHandlers();
   }
 
   // Mostra/nasconde le opzioni avanzate
@@ -429,36 +503,65 @@ const EsameForm = (function() {
   // Aggiorna le aule disponibili in base a data e ora
   function aggiornaAuleDisponibili() {
     const dataoraInput = document.getElementById("dataora");
-    const oraInput = document.getElementById("ora");
+    const ora_h = document.getElementById("ora_h");
+    const ora_m = document.getElementById("ora_m");
     const selectAula = document.getElementById("aula");
-
-    if (!dataoraInput || !oraInput || !selectAula) return;
-
+    
+    if (!dataoraInput || !ora_h || !ora_m || !selectAula) return;
+    
     const data = dataoraInput.value;
-    const ora = oraInput.value;
-
-    if (!data || !ora) {
-      selectAula.innerHTML =
-        '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
+    const ora_hValue = ora_h.value;
+    const ora_mValue = ora_m.value;
+    
+    // Se manca uno dei campi richiesti, imposta un messaggio ma non uscire subito
+    // permettendo ad altre parti del codice di eventualmente fornire i valori mancanti
+    if (!data) {
+      console.log("Data mancante per aggiornamento aule");
+      selectAula.innerHTML = '<option value="" disabled selected hidden>Seleziona prima una data</option>';
+      return;
+    }
+    
+    if (!ora_hValue || !ora_mValue) {
+      console.log("Ora mancante per aggiornamento aule");
+      selectAula.innerHTML = '<option value="" disabled selected hidden>Seleziona prima un\'ora</option>';
       return;
     }
 
+    // Mostra un messaggio di caricamento
+    selectAula.innerHTML = '<option value="" disabled selected hidden>Caricamento aule in corso...</option>';
+
+    // Combina ora_h e ora_m in formato HH:MM
+    const ora = `${ora_hValue}:${ora_mValue}`;
+    
     // Determina il periodo (mattina/pomeriggio) in base all'ora
     function determinaPeriodo(ora) {
       if (!ora) return null;
       const oreParts = ora.split(":");
       const oreInt = parseInt(oreParts[0], 10);
-      return oreInt > 13 ? 1 : 0; // 1 pomeriggio, 0 mattina
+      return oreInt >= 14 ? 1 : 0; // 1 pomeriggio, 0 mattina
     }
 
     const periodo = determinaPeriodo(ora);
     const studioDocenteNome = "Studio docente DMI";
 
+    // Logging per debug
+    console.log(`Caricamento aule per data=${data}, ora=${ora}, periodo=${periodo}`);
+
     fetch(`/api/getAule?data=${data}&periodo=${periodo}`)
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Errore HTTP: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((aule) => {
-        selectAula.innerHTML =
-          '<option value="" disabled selected hidden>Scegli l\'aula</option>';
+        // Controlla se la risposta è valida
+        if (!Array.isArray(aule)) {
+          console.error("Risposta API aule non valida:", aule);
+          throw new Error("Formato risposta non valido");
+        }
+        
+        selectAula.innerHTML = '<option value="" disabled selected hidden>Scegli l\'aula</option>';
 
         let studioDocentePresente = aule.some(
           (aula) => aula.nome === studioDocenteNome
@@ -480,11 +583,13 @@ const EsameForm = (function() {
 
           selectAula.appendChild(option);
         });
+        
+        // Log per debug
+        console.log(`Caricate ${aule.length} aule disponibili`);
       })
       .catch((error) => {
         console.error("Errore nel recupero delle aule:", error);
-        selectAula.innerHTML =
-          '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
+        selectAula.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
 
         const option = document.createElement("option");
         option.value = studioDocenteNome;
@@ -504,7 +609,7 @@ const EsameForm = (function() {
   function validaDurataEsame(durataMinuti) {
     if (!durataMinuti) return false;
     const durata = parseInt(durataMinuti, 10);
-    return durata >= 30 && durata <= 480;
+    return durata >= 30 && durata <= 480; // min 30 minuti, max 8 ore (480 minuti)
   }
 
   // Mostra il popup di conferma per la validazione degli esami
@@ -884,9 +989,12 @@ const EsameForm = (function() {
       if (username) {
         const insegnamentoCodes = preference.insegnamenti.map(ins => ins.codice);
         
+        // Ora usiamo solo il filtro per selezionare gli insegnamenti dalla lista completa
         window.InsegnamentiManager.loadInsegnamenti(
           username, 
-          { filter: insegnamentoCodes },
+          { 
+            filter: insegnamentoCodes
+          },
           data => {
             if (data.length > 0) {
               data.forEach(ins => {
@@ -899,18 +1007,12 @@ const EsameForm = (function() {
               
               const multiSelectBox = document.getElementById("insegnamentoBox");
               if (multiSelectBox) {
-                window.InsegnamentiManager.syncUI(multiSelectBox);
+                window.InsegnamentiManager.syncUI(multiSelectBox, data);
               }
             }
           }
         );
       }
-    }
-    
-    // Imposta ora appello
-    if (preference.oraAppello) {
-      const oraAppello = document.getElementById("ora");
-      if (oraAppello) oraAppello.value = preference.oraAppello;
     }
     
     // Imposta tipo esame
@@ -925,10 +1027,29 @@ const EsameForm = (function() {
       if (verbalizzazione) verbalizzazione.value = preference.verbalizzazione;
     }
     
+    let oraImpostata = false;
+    // Imposta ora appello
+    if (preference.oraAppello) {
+      const ora_h = document.getElementById("ora_h");
+      const ora_m = document.getElementById("ora_m");
+      
+      if (ora_h && ora_m && preference.oraAppello) {
+        // Dividi l'ora in ore e minuti
+        const [hours, minutes] = preference.oraAppello.split(":");
+        if (hours && minutes) {
+          ora_h.value = hours;
+          ora_m.value = minutes;
+          
+          // Combina i valori per aggiornare il campo nascosto
+          combineTimeValues();
+          oraImpostata = true;
+        }
+      }
+    }
+    
     // Imposta durata
     if (preference.durata) {
-      const durata = document.getElementById("durata");
-      if (durata) durata.value = preference.durata;
+      impostaDurataFromMinuti(preference.durata);
     }
     
     // Imposta posti
@@ -953,8 +1074,44 @@ const EsameForm = (function() {
       const note = document.getElementById("note");
       if (note) note.value = preference.note;
     }
+    
+    // Se è stata impostata l'ora, aggiorna le aule disponibili
+    if (oraImpostata) {
+      // Attendiamo un piccolo delay per essere sicuri che tutti i valori siano stati aggiornati
+      setTimeout(() => {
+        aggiornaAuleDisponibili();
+      }, 50);
+    }
   }
-  
+
+  // Funzione per impostare la durata negli elementi di interfaccia a partire dai minuti
+  function impostaDurataFromMinuti(durataMinuti) {
+    const durata = parseInt(durataMinuti, 10);
+    if (!isNaN(durata)) {
+      const ore = Math.floor(durata / 60);
+      const minuti = durata % 60;
+      
+      const durata_h = document.getElementById("durata_h");
+      const durata_m = document.getElementById("durata_m");
+      
+      if (durata_h) {
+        durata_h.value = ore.toString();
+      }
+      
+      if (durata_m) {
+        // Formatta i minuti con un eventuale zero iniziale
+        const minutiFormattati = minuti < 10 ? `0${minuti}` : minuti.toString();
+        durata_m.value = minutiFormattati;
+      }
+      
+      // Aggiorniamo anche il campo nascosto
+      const durataHidden = document.getElementById("durata");
+      if (durataHidden) {
+        durataHidden.value = durata.toString();
+      }
+    }
+  }
+
   // Aggiorna il menu delle preferenze
   function updatePreferencesMenu() {
     const preferencesMenu = document.getElementById("preferencesMenu");
@@ -974,7 +1131,7 @@ const EsameForm = (function() {
       item.className = "preference-item";
       item.innerHTML = `
         <span>${pref.name}</span>
-        <span class="delete-btn" data-id="${pref.id}" title="Elimina"><span class="material-symbols-outlined">delete</span>
+        <span class="delete-btn" data-id="${pref.id}" title="Elimina"><span class="material-symbols-outlined">delete</span></span>
       `;
       
       // Event listener per caricare la preferenza
@@ -1035,7 +1192,7 @@ const EsameForm = (function() {
     const menu = document.getElementById("preferencesMenu");
     
     if (!saveForm) return;
-    
+     
     const isVisible = saveForm.style.display === "flex";
     saveForm.style.display = isVisible ? "none" : "flex";
     
@@ -1096,9 +1253,22 @@ const EsameForm = (function() {
     hideForm,
     isFormLoaded: () => isLoaded,
     loadPreferences: loadUserPreferences,
-    applyPreference
+    applyPreference,
+    combineTimeValues,
+    combineDurataValues,
+    setupTimeCombiningHandlers
   };
 })();
 
 // Esportazione globale (solo l'oggetto EsameForm)
 window.EsameForm = EsameForm;
+
+// Aggiungi un listener per l'evento DOMContentLoaded per assicurarti che 
+// gli elementi del form siano pronti quando vengono caricati dinamicamente
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('formEsame');
+  // Se il form è stato già caricato nella pagina, configura i gestori
+  if (form) {
+    EsameForm.setupTimeCombiningHandlers();
+  }
+});

@@ -400,35 +400,33 @@ def getAnniAccademici():
 # API per ottenere gli insegnamenti di un docente. Usato in calendar.js e calendarUtils.js
 @fetch_bp.route('/api/getInsegnamentiDocente', methods=['GET'])
 def getInsegnamentiDocente():
-    anno = request.args.get('anno')
     docente = request.args.get('docente')
-    cds = request.args.get('cds')  # Filtro per CdS
-    search = request.args.get('search')  # Aggiunto supporto per ricerca testuale
+    anno = request.args.get('anno')
     
-    # Verifica se l'utente è effettivamente un admin
-    is_admin_user = is_admin()
+    # Controlla se l'utente ha fornito un parametro docente valido
+    if not docente:
+        return jsonify({"error": "Parametro docente mancante"}), 400
     
-    # Usa l'anno corrente se non specificato
-    if not anno:
+    # Verifica che l'anno sia valido, altrimenti usa l'anno corrente
+    if not anno or not anno.isdigit():
         current_date = datetime.now()
         anno = current_date.year if current_date.month >= 9 else current_date.year - 1
+    else:
+        anno = int(anno)
     
-    # Verifica se sono forniti parametri necessari
-    if not docente and not is_admin_user:
-        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
+    # Verifica se l'utente è un amministratore direttamente qui
+    is_admin_user = is_admin()
     
+    conn = None
+    cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Otteniamo gli insegnamenti del docente usando la funzione ottieni_insegnamenti_docente
-        insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, anno)
-        
-        # Preparazione degli insegnamenti per la risposta
+        # Se l'utente è un admin, ottiene tutti gli insegnamenti
         if is_admin_user:
-            # Se è admin, otteniamo tutti gli insegnamenti
             cursor.execute("""
-                SELECT 
+                SELECT DISTINCT ON (i.codice)
                     i.codice, 
                     i.titolo, 
                     ic.semestre, 
@@ -441,18 +439,26 @@ def getInsegnamentiDocente():
                      AND ic.anno_accademico = c.anno_accademico 
                      AND ic.curriculum = c.curriculum
                 WHERE ic.anno_accademico = %s
+                AND (ic.padri_mutua IS NULL OR NOT (i.codice = ANY(ic.padri_mutua)))
                 ORDER BY i.codice, i.titolo
             """, (anno,))
+            result = cursor.fetchall()
         else:
-            # Se non è admin, usiamo gli insegnamenti filtrati
+            # Otteniamo gli insegnamenti del docente usando la funzione ottieni_insegnamenti_docente
+            # che già implementa la logica per escludere mutuazioni e moduli
+            insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, anno)
+            
+            # Se non ci sono insegnamenti, restituisci una lista vuota
             if not insegnamenti_docente_dict:
                 return jsonify({'cds': []}), 200
                 
+            # Ottieni i codici degli insegnamenti
             codici_insegnamenti = [data['codice'] for data in insegnamenti_docente_dict.values()]
             placeholders = ','.join(['%s'] * len(codici_insegnamenti))
             
+            # Recupera i dettagli completi degli insegnamenti
             cursor.execute(f"""
-                SELECT 
+                SELECT DISTINCT ON (i.codice)
                     i.codice, 
                     i.titolo, 
                     ic.semestre, 
@@ -466,67 +472,50 @@ def getInsegnamentiDocente():
                      AND ic.curriculum = c.curriculum
                 WHERE ic.anno_accademico = %s
                 AND i.codice IN ({placeholders})
+                AND (ic.padri_mutua IS NULL OR NOT (i.codice = ANY(ic.padri_mutua)))
                 ORDER BY i.codice, i.titolo
             """, (anno, *codici_insegnamenti))
-        
-        result = cursor.fetchall()
-        
-        # Filtra per CdS se specificato
-        if cds:
-            result = [row for row in result if row[4] == cds]
             
-        # Filtra per ricerca testuale
-        if search:
-            search = search.lower()
-            result = [row for row in result if search in row[1].lower()]
+            result = cursor.fetchall()
         
         # Organizzo gli insegnamenti per CdS
         cds_dict = {}
+        
         for row in result:
             codice_ins, titolo, semestre, anno_corso, codice_cds, nome_cds = row
             
-            # Crea la struttura del CdS se non esiste
+            # Se il CdS non è ancora nel dizionario, crealo
             if codice_cds not in cds_dict:
                 cds_dict[codice_cds] = {
-                    'codice': codice_cds,
-                    'nome': nome_cds,
-                    'insegnamenti': []
+                    "codice": codice_cds,
+                    "nome": nome_cds,
+                    "insegnamenti": []
                 }
             
-            # Aggiungi l'insegnamento al CdS solo se non è già presente
-            already_added = False
-            for existing_cds in cds_dict.values():
-                if any(ins['codice'] == codice_ins for ins in existing_cds['insegnamenti']):
-                    already_added = True
-                    break
-            
-            if not already_added:
-                cds_dict[codice_cds]['insegnamenti'].append({
-                    'codice': codice_ins,
-                    'titolo': titolo,
-                    'semestre': semestre,
-                    'anno_corso': anno_corso
-                })
+            # Aggiungi l'insegnamento alla lista del CdS corrispondente
+            cds_dict[codice_cds]["insegnamenti"].append({
+                "codice": codice_ins,
+                "titolo": titolo,
+                "semestre": semestre,
+                "anno_corso": anno_corso
+            })
         
-        # Trasforma il dizionario in lista e ordina i CdS per nome
-        cds_list = sorted(list(cds_dict.values()), key=lambda x: x['nome'])
+        # Converti il dizionario in una lista di CdS
+        cds_list = list(cds_dict.values())
         
-        # Rimuovi CdS senza insegnamenti dopo il filtraggio
-        cds_list = [cds_item for cds_item in cds_list if cds_item['insegnamenti']]
+        # Prepara la risposta nel formato gerarchico
+        response = {
+            "cds": cds_list
+        }
         
-        # Per ogni CdS, ordina gli insegnamenti per titolo
-        for cds_item in cds_list:
-            cds_item['insegnamenti'].sort(key=lambda x: x['titolo'])
-        
-        return jsonify({
-            'cds': cds_list
-        })
+        return jsonify(response)
+    
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
     finally:
-        if 'cursor' in locals() and cursor:
+        if cursor:
             cursor.close()
-        if 'conn' in locals() and conn:
+        if conn:
             release_connection(conn)
 
 # API per controllare gli insegnamenti con meno del numero minimo di esami

@@ -304,6 +304,22 @@ def controllaVincoli(dati_esame):
           'errore': f"Errore nella verifica dell'esame: {str(e)}"
         })
     
+    # Validazione durata
+    try:
+      durata = int(dati_esame.get('durata_appello', 0))
+      if durata < 30 or durata > 480:  # min 30 minuti, max 8 ore (480 minuti)
+        esami_invalidi.append({
+          'codice': 'DURATA',
+          'titolo': 'Durata esame',
+          'errore': 'La durata deve essere compresa tra 30 minuti e 8 ore'
+        })
+    except (ValueError, TypeError):
+      esami_invalidi.append({
+        'codice': 'DURATA',
+        'titolo': 'Durata esame',
+        'errore': 'La durata deve essere un numero valido'
+      })
+    
     # Aggiorna il dizionario con le date di iscrizione
     return dati_esame, esami_validi, esami_invalidi, None
     
