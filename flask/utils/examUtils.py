@@ -24,6 +24,7 @@ def generaDatiEsame():
     # Campi base dell'esame
     descrizione = data.get('descrizione', '')
     prova_parziale = data.get('provaParziale') == 'on'
+    mostra_nel_calendario = data.get('mostra_nel_nel_calendario') == 'on'
     aula = data.get('aula')
     data_appello = data.get('dataora')
     ora_appello = data.get('ora')
@@ -129,7 +130,8 @@ def generaDatiEsame():
       'gestione_prenotazione': gestione_prenotazione,
       'riservato': riservato,
       'tipo_iscrizione': tipo_iscrizione,
-      'date_default': date_default
+      'date_default': date_default,
+      'mostra_nel_calendario': mostra_nel_calendario
     }
   except Exception as e:
     return {'status': 'error', 'message': f'Errore nella raccolta dati: {str(e)}'}
@@ -158,8 +160,9 @@ def controllaVincoli(dati_esame):
     esami_validi = []
     esami_invalidi = []
     
-    # Verifica se è una prova parziale
+    # Verifica se è una prova parziale e se deve essere mostrato nel calendario
     is_prova_parziale = dati_esame['tipo_appello'] == 'PP'
+    mostra_nel_calendario = dati_esame.get('mostra_nel_calendario', True)
     
     # 1. Verifica conflitti di aula
     aula = dati_esame['aula']
@@ -260,8 +263,8 @@ def controllaVincoli(dati_esame):
           if not periodi_sessione:  # Solo la prima volta
             dati_esame['inizio_iscrizione'] = data_inizio_iscrizione
         
-        # 2.4 Verifica il limite di esami nella sessione (solo per prove finali)
-        if not is_prova_parziale:
+        # 2.4 Verifica il limite di esami nella sessione (solo se il flag è attivo)
+        if mostra_nel_calendario:
           # Salta il controllo del numero massimo se stiamo modificando un esame esistente
           exam_id_to_exclude = dati_esame.get('exam_id')
           if not exam_id_to_exclude:  # Solo se non stiamo modificando un esame esistente
@@ -285,8 +288,7 @@ def controllaVincoli(dati_esame):
               })
               continue
         
-        # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento (solo per prove finali)
-        if not is_prova_parziale:
+        # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento (solo se il flag è attivo)
           # Metto 13 giorni perché il vincolo dice "non inferiore a due settimane"
           data_min = data_esame - timedelta(days=13)
           data_max = data_esame + timedelta(days=13)
@@ -499,8 +501,8 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
             tipo_esame, verbalizzazione, descrizione, note_appello, posti,
             tipo_appello, definizione_appello, gestione_prenotazione, 
             riservato, tipo_iscrizione, periodo, durata_appello,
-            cds, anno_accademico, curriculum)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            cds, anno_accademico, curriculum, mostra_nel_calendario)
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
           (dati_comuni['docente'], insegnamento_id, dati_comuni['aula'], 
            dati_comuni['data_appello'], dati_comuni['ora_appello'], 
            inizio_iscrizione, fine_iscrizione, 
@@ -510,7 +512,7 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
            dati_comuni['definizione_appello'], dati_comuni['gestione_prenotazione'],
            dati_comuni['riservato'], dati_comuni['tipo_iscrizione'],
            dati_comuni['periodo'], dati_comuni['durata_appello'],
-           cds, anno_accademico, curriculum)
+           cds, anno_accademico, curriculum, dati_comuni['mostra_nel_calendario'])
         )
         esami_inseriti.append(esame.get('titolo', insegnamento_codice))
       except Exception as e:

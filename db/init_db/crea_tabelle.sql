@@ -138,6 +138,7 @@ CREATE TABLE esami (
     note_appello TEXT,                    -- Note addizionali sull'appello
     posti INTEGER,                        -- Numero di posti disponibili
     codice_turno TEXT,                    -- Codice identificativo del turno (Non serve al DMI)
+    mostra_nel_calendario BOOLEAN DEFAULT TRUE, -- Flag per mostrare l'esame nel calendario
     FOREIGN KEY (docente) REFERENCES utenti(username) ON DELETE CASCADE,
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
     FOREIGN KEY (aula) REFERENCES aule(nome) ON DELETE SET NULL,

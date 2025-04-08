@@ -367,7 +367,8 @@ def update_esame():
             partizione = %s,
             note_appello = %s,
             posti = %s,
-            codice_turno = %s
+            codice_turno = %s,
+            mostra_nel_calendario = %s
         WHERE id = %s
         RETURNING id
         """
@@ -394,6 +395,7 @@ def update_esame():
             data.get('note_appello'),
             data.get('posti'),
             data.get('codice_turno'),
+            data.get('mostra_nel_calendario', True),
             exam_id
         )
 

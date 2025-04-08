@@ -1477,7 +1477,7 @@ const EsameForm = (function() {
 
       const examData = {
         id: formData.get('examIdField'),
-        insegnamento: insegnamento, // Aggiungi questo campo
+        insegnamento: insegnamento,
         descrizione: formData.get('descrizione'),
         tipo_appello: formData.get('provaParziale') === 'on' ? 'PP' : 'PF',
         aula: formData.get('aula'),
@@ -1494,7 +1494,8 @@ const EsameForm = (function() {
         tipo_iscrizione: formData.get('tipoEsame'),
         tipo_esame: formData.get('tipoEsame'),
         note_appello: formData.get('note'),
-        posti: formData.get('posti') ? parseInt(formData.get('posti')) : 200
+        posti: formData.get('posti') ? parseInt(formData.get('posti')) : 200,
+        mostra_nel_calendario: formData.get('mostra_calendario') === 'on'
       };
 
       // Per la modifica inviamo JSON
