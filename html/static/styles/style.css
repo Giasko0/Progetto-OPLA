@@ -253,7 +253,6 @@ body {
   display: flex;
   align-items: center;
   z-index: 10;
-  padding: 0 2rem;
 }
 
 .navbar .logo {
@@ -275,6 +274,7 @@ body {
 .navlinks a, #darkModeButton {
   color: var(--color-blue);
   text-decoration: none;
+  margin-right: 2rem;
 }
 
 .navlinks a:hover {
