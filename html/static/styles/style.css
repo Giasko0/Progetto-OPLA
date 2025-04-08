@@ -1317,7 +1317,7 @@ tbody tr:hover td {
 .tooltip .tooltiptext::after {
   content: "";
   position: absolute;
-  top: 10%;
+  top: 12%;
   right: 100%;
   margin-top: -5px;
   border-width: 5px;

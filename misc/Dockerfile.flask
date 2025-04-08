@@ -34,7 +34,7 @@ RUN pip install --no-cache-dir lxml==5.2.1 && \
     xlwt \
     xlrd
 
-ENV FLASK_APP=app.py
+ENV FLASK_APP=main.py
 
 # Solo per testing
 ENV PYTHONDONTWRITEBYTECODE=1
