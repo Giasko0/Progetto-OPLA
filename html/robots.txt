@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /oh-issa/
+
+# Ritardo tra le richieste per non sovraccaricare il server
+Crawl-delay: 10
+
+# Sitemap
+Sitemap: https://opla.unipg.it/sitemap.xml
