@@ -35,8 +35,8 @@ def ottieniAule():
         fine_fascia = '19:00:00'
       
       # Recupera tutte le aule dal database
-      cursor.execute("SELECT nome FROM aule ORDER BY nome")
-      tutte_aule = [row[0] for row in cursor.fetchall()]
+      cursor.execute("SELECT nome, posti FROM aule ORDER BY nome")
+      tutte_aule = [(row[0], row[1]) for row in cursor.fetchall()]
       
       # Recupera aule già occupate da esami interni nel sistema
       cursor.execute("""
@@ -85,14 +85,14 @@ def ottieniAule():
       aule_occupate = aule_occupate_esami.union(aule_occupate_easyacademy)
       
       # Determina le aule disponibili
-      aule_disponibili = [aula for aula in tutte_aule if aula not in aule_occupate]
+      aule_disponibili = [(aula[0], aula[1]) for aula in tutte_aule if aula[0] not in aule_occupate]
       
       # Formato per la risposta
-      aule = [{"nome": nome_aula} for nome_aula in aule_disponibili]
+      aule = [{"nome": nome_aula, "posti": posti} for nome_aula, posti in aule_disponibili]
     else:
       # Se non sono specificate data e periodo, restituisci tutte le aule
-      cursor.execute("SELECT nome FROM aule ORDER BY nome")
-      aule = [{"nome": row[0]} for row in cursor.fetchall()]
+      cursor.execute("SELECT nome, posti FROM aule ORDER BY nome")
+      aule = [{"nome": row[0], "posti": row[1]} for row in cursor.fetchall()]
     
     return jsonify(aule)
   except Exception as e:

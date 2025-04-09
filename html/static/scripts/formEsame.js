@@ -713,7 +713,9 @@ const EsameForm = (function() {
         aule.forEach((aula) => {
           let option = document.createElement("option");
           option.value = aula.nome;
-          option.textContent = aula.nome;
+          option.textContent = aula.nome === studioDocenteNome 
+            ? aula.nome 
+            : `${aula.nome} (${aula.posti} posti)`;
 
           if (aula.nome === studioDocenteNome && aule.length === 1) {
             option.selected = true;
