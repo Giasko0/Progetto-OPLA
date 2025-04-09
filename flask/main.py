@@ -18,6 +18,12 @@ app = Flask(__name__)
 # Inizializza il pool di connessioni
 init_db()
 
+# Configurazione della sessione
+app.config['SECRET_KEY'] = os.urandom(24)
+app.config['SESSION_TYPE'] = 'filesystem'  # Opzionalmente usare Redis o altro backend
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 ore in secondi
+
 # Registrazione dei blueprint
 app.register_blueprint(auth_bp)
 app.register_blueprint(saml_bp)
@@ -26,9 +32,7 @@ app.register_blueprint(fetch_bp)
 app.register_blueprint(preferences_bp)
 app.register_blueprint(exam_bp)
 
-# Chiave super segreta per firmare le sessioni SAML
-app.config['SECRET_KEY'] = os.urandom(24)
-# Metodo popo rozzo pe non usa saml
+# Flag per (non) usare saml
 app.config['SAML_ENABLED'] = False
 
 # ===== Main =====

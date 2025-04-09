@@ -398,16 +398,6 @@ body {
   cursor: pointer;
 }
 
-/* Date passate */
-.fc .fc-day-past {
-  background-color: #f0f0f0 !important;
-  opacity: 0.7;
-}
-
-.fc .fc-day-past .fc-daygrid-day-number {
-  color: #999;
-}
-
 /*---------FOOTER---------*/
 #footer {
   background-color: var(--table-cell-disabled);
@@ -512,13 +502,13 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.invia.secondary {
+.invia.bypass {
   background-color: var(--color-warning);
   margin-left: 10px;
   color: var(--color-text);
 }
 
-.invia.secondary:hover {
+.invia.bypass:hover {
   background-color: #e0a800;
 }
 

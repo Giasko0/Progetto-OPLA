@@ -18,13 +18,12 @@ saml_bp.config = {
 def require_auth(f):
   @wraps(f)
   def decorated(*args, **kwargs):
-    # Rimuovere l'if una volta configurato il SAML
-    if not current_app.config.get('SAML_ENABLED'):
-      if request.cookies.get('username') is None:
-        return redirect('/login.html')
-    else:
-      if not session.get('saml_authenticated'):
+    # Verifica solo la sessione, non i cookie
+    if not session.get('username') and not session.get('saml_nameid'):
+      if current_app.config.get('SAML_ENABLED'):
         return redirect(url_for('saml.login'))
+      else:
+        return redirect('/login.html')
     return f(*args, **kwargs)
   return decorated
 

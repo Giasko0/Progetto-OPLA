@@ -1,11 +1,3 @@
-// Funzione per recuperare cookie
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
-}
-
 document.addEventListener('DOMContentLoaded', function() {
   // Trova il div con id 'navbar'
   const navbarContainer = document.getElementById('navbar');
@@ -46,23 +38,34 @@ document.addEventListener('DOMContentLoaded', function() {
       navbarNav.classList.toggle('open');
     });
     
-    // Verifica se l'utente è autenticato controllando il cookie 'admin'
-    const adminCookie = getCookie('admin');
-    
-    if (adminCookie) {
-      // Utente autenticato, mostra il link di logout
-      const logoutLink = document.createElement('a');
-      logoutLink.href = "/api/logout";
-      logoutLink.id = 'logoutBtn';
-      logoutLink.innerHTML = 'Logout';
-      loginLogoutItem.appendChild(logoutLink);
-    } else {
-      // Utente non autenticato, mostra il link di login
-      const loginLink = document.createElement('a');
-      loginLink.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
-      loginLink.innerHTML = 'Login';
-      loginLogoutItem.appendChild(loginLink);
-    }
+    // Verifica se l'utente è un admin usando getUserData
+    getUserData()
+      .then((data) => {
+        const isAdmin = data.authenticated && data.user_data && data.user_data.permessi_admin;
+        
+        if (isAdmin) {
+          // Utente admin autenticato, mostra il link di logout
+          const logoutLink = document.createElement('a');
+          logoutLink.href = "/api/logout";
+          logoutLink.id = 'logoutBtn';
+          logoutLink.innerHTML = 'Logout';
+          loginLogoutItem.appendChild(logoutLink);
+        } else {
+          // Utente non admin, mostra il link di login
+          const loginLink = document.createElement('a');
+          loginLink.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+          loginLink.innerHTML = 'Login';
+          loginLogoutItem.appendChild(loginLink);
+        }
+      })
+      .catch((error) => {
+        console.error("Errore nel controllo dell'autenticazione:", error);
+        // In caso di errore, mostra il link di login
+        const loginLink = document.createElement('a');
+        loginLink.href = '/login.html';
+        loginLink.innerHTML = 'Login';
+        loginLogoutItem.appendChild(loginLink);
+      });
     
     // Chiudi il menu quando si clicca su un link (solo su mobile)
     const navLinks = navbarNav.querySelectorAll('a');

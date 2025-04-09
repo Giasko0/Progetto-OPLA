@@ -115,17 +115,10 @@ def getEsami():
         insegnamenti = request.args.get('insegnamenti', None)
         cds = request.args.get('cds', None)
         
-        is_admin_user = is_admin()
-        
         if not docente:
             return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
 
-        current_date = datetime.now()
-        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
-        insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, planning_year)
-        insegnamenti_docente = [data['codice'] for data in insegnamenti_docente_dict.values()]
-        
-        # Query base modificata: ora seleziona gli esami basati sugli insegnamenti invece che sul docente
+        # Query base per tutti gli esami
         base_query = """
             SELECT e.id, e.descrizione, e.docente, 
                    concat(u.nome, ' ', u.cognome) as docente_nome,
@@ -135,78 +128,56 @@ def getEsami():
             FROM esami e
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.id
-            WHERE i.codice IN %s
         """
-        
-        params = [tuple(insegnamenti_docente)]
-        
-        # Se sono specificati degli insegnamenti, aggiungi la query unione come prima
+        params = []
+        where_conditions = []
+
+        # Se non è admin, filtra per insegnamenti del docente
+        if docente != 'admin':
+            current_date = datetime.now()
+            planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+            insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, planning_year)
+            insegnamenti_docente = [data['codice'] for data in insegnamenti_docente_dict.values()]
+            
+            if insegnamenti_docente:
+                where_conditions.append("i.codice = ANY(%s)")
+                params.append(insegnamenti_docente)
+
+        # Aggiungi filtro per insegnamenti specifici
         if insegnamenti:
             insegnamenti_list = insegnamenti.split(',')
-            
-            union_query = """
-            UNION
-            
-            SELECT e.id, e.descrizione, e.docente, 
-                   concat(u.nome, ' ', u.cognome) as docente_nome,
-                   i.codice as insegnamento, i.titolo as insegnamento_titolo,
-                   e.aula, e.data_appello, e.ora_appello, e.durata_appello,
-                   e.tipo_appello
-            FROM esami e
-            JOIN utenti u ON e.docente = u.username
-            JOIN insegnamenti i ON e.insegnamento = i.id
-            WHERE e.insegnamento IN (
-                SELECT ic1.insegnamento 
-                FROM insegnamenti_cds ic1
-                JOIN insegnamenti_cds ic2 ON 
-                    ic1.anno_corso = ic2.anno_corso AND
-                    ic1.anno_accademico = ic2.anno_accademico AND
-                    ic1.cds = ic2.cds AND
-                    ic1.curriculum = ic2.curriculum AND
-                    (ic1.semestre = ic2.semestre 
-                     OR ic1.semestre = 3 
-                     OR ic2.semestre = 3)
-                JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
-                WHERE i2.codice IN ({})
-            )
-            """.format(','.join(['%s'] * len(insegnamenti_list)))
-            
-            query = base_query + union_query
-            params.extend(insegnamenti_list)
-        else:
-            query = base_query
-            
-        # Aggiungi filtri comuni opzionali
-        filters = []
-        filter_params = []
-        
+            if where_conditions:
+                where_conditions.append("AND i.codice = ANY(%s)")
+            else:
+                where_conditions.append("i.codice = ANY(%s)")
+            params.append(insegnamenti_list)
+
+        # Aggiungi altri filtri
         if anno:
-            filters.append("EXTRACT(YEAR FROM data_appello) = %s")
-            filter_params.append(int(anno))
+            where_conditions.append("EXTRACT(YEAR FROM data_appello) = %s")
+            params.append(int(anno))
         
         if cds:
-            filters.append("insegnamento IN (SELECT insegnamento FROM insegnamenti_cds WHERE cds = %s)")
-            filter_params.append(cds)
-        
-        # Applica filtri alla query finale se ce ne sono
-        if filters:
-            # Poiché abbiamo una UNION, dobbiamo usare una subquery
-            query = f"SELECT * FROM ({query}) AS combined_results WHERE {' AND '.join(filters)}"
-            params.extend(filter_params)
+            where_conditions.append("i.id IN (SELECT insegnamento FROM insegnamenti_cds WHERE cds = %s)")
+            params.append(cds)
+
+        # Costruisci la query finale
+        if where_conditions:
+            base_query += " WHERE " + " ".join(where_conditions)
         
         # Ordina i risultati
-        query += " ORDER BY data_appello, ora_appello"
+        base_query += " ORDER BY data_appello, ora_appello"
+
+        # Esegui la query
+        cursor.execute(base_query, tuple(params))
         
-        cursor.execute(query, tuple(params))
-        
-        # Formattazione dei risultati
         exams = []
         for row in cursor.fetchall():
-            # Controlla se l'esame è di un insegnamento del docente
-            esame_del_docente = row['insegnamento'] in insegnamenti_docente
+            # Se docente è 'admin', considera tutti gli esami come propri
+            esame_del_docente = True if docente == 'admin' else row['insegnamento'] in insegnamenti_docente
             
             exams.append({
-                'id': row['id'],
+                'id': str(row['id']),
                 'title': row['insegnamento_titolo'],
                 'aula': row['aula'],
                 'start': f"{row['data_appello'].isoformat()}T{row['ora_appello']}" if row['ora_appello'] else row['data_appello'].isoformat(),

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, make_response, jsonify
+from flask import Blueprint, request, make_response, jsonify, session
 from db import get_db_connection, release_connection
 import io
 import csv
@@ -16,7 +16,7 @@ def upload_ugov():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    if 'admin' not in request.cookies:
+    if not session.get('admin'):
       return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
 
     if 'file' not in request.files:
@@ -527,7 +527,7 @@ def upload_ugov():
 
 @admin_bp.route('/downloadFileESSE3')
 def download_esse3():
-  if 'admin' not in request.cookies:
+  if not session.get('admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:
@@ -680,7 +680,7 @@ def download_esse3():
 
 @admin_bp.route('/downloadFileEA')
 def download_ea():
-  if 'admin' not in request.cookies:
+  if not session.get('admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:
@@ -862,7 +862,7 @@ def download_ea():
 
 @admin_bp.route('/save-cds-dates', methods=['POST'])
 def save_cds_dates():
-  if 'admin' not in request.cookies:
+  if not session.get('admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
   
   conn = None
@@ -1322,7 +1322,7 @@ def add_months_to_periods(periodi_map, start_date, end_date, mesi_nomi):
 # API per ottenere i dettagli di un corso di studio
 @admin_bp.route('/getCdsDetails')
 def get_cds_details():
-  if 'admin' not in request.cookies:
+  if not session.get('admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   codice = request.args.get('codice')
@@ -1470,7 +1470,7 @@ def get_anni_accademici():
 
 @admin_bp.route('/uploadAule', methods=['POST'])
 def upload_aule():
-  if 'admin' not in request.cookies:
+  if not session.get('admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
   
   try:
@@ -1544,7 +1544,7 @@ def upload_aule():
 
 @admin_bp.route('/loadAuleEasyAcademy', methods=['POST'])
 def load_aule_easy_academy():
-  if 'admin' not in request.cookies:
+  if not session.get('admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
   
   try:
@@ -1657,7 +1657,7 @@ def load_aule_easy_academy():
 # API per ottenere la lista degli utenti
 @admin_bp.route('/getUsers')
 def get_users():
-  if 'admin' not in request.cookies:
+  if not session.get('admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:
@@ -1695,7 +1695,7 @@ def get_users():
 # API per aggiornare i permessi di amministratore di un utente
 @admin_bp.route('/updateUserAdmin', methods=['POST'])
 def update_user_admin():
-  if 'admin' not in request.cookies:
+  if not session.get('admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:
@@ -1741,7 +1741,7 @@ def update_user_admin():
 # API per eliminare un utente
 @admin_bp.route('/deleteUser', methods=['POST'])
 def delete_user():
-  if 'admin' not in request.cookies:
+  if not session.get('admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:

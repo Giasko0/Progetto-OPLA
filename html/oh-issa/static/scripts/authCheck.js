@@ -3,20 +3,27 @@ function checkAdminAuth(skipCheck = false) {
   // Se skipCheck è true, non fare il controllo
   if (skipCheck) return true;
   
-  // Verifica se l'utente è autenticato controllando il cookie 'admin'
-  const adminCookie = document.cookie.split('; ').find(row => row.startsWith('admin='));
-  
-  if (!adminCookie) {
-    // Utente non autenticato, reindirizza alla pagina di login
-    window.location.href = '/login.html';
-    return false;
-  }
-  
-  // Utente autenticato
-  return true;
+  return fetch("/api/check-auth", {
+    credentials: 'include'
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.authenticated || !data.user_data || !data.user_data.permessi_admin) {
+        // Utente non autenticato o non admin, reindirizza alla pagina di login
+        window.location.href = '/login.html';
+        return false;
+      }
+      // Utente autenticato come admin
+      return true;
+    })
+    .catch(error => {
+      console.error("Errore nel controllo dell'autenticazione admin:", error);
+      window.location.href = '/login.html';
+      return false;
+    });
 }
 
-// Eseguire il controllo automaticamente quando il DOM è completamente caricato
+// Eseguo il controllo automaticamente quando il DOM è completamente caricato
 document.addEventListener('DOMContentLoaded', function() {
   // Ottieni il nome del file corrente
   const currentPath = window.location.pathname;
@@ -26,5 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const isLoginPage = filename === 'login.html';
   
   // Esegui il controllo di autenticazione
-  checkAdminAuth(isLoginPage);
+  if (!isLoginPage) {
+    checkAdminAuth(false);
+  }
 });

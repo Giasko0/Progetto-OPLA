@@ -223,7 +223,7 @@ export function populateInsegnamentiDropdown(
   }
 }
 
-// Aggiorna gli eventi del calendario utilizzando il backend ottimizzato
+// Aggiorna gli eventi del calendario
 export function fetchCalendarEvents(
   calendar,
   planningYear,
@@ -231,66 +231,64 @@ export function fetchCalendarEvents(
   successCallback = null,
   cdsFiltro = null
 ) {
-  // Ottieni docente dai cookie
-  const loggedDocente = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("username="))
-    ?.split("=")[1];
-
-  // Verifica se l'utente è admin
-  const isAdmin = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("admin="))
-    ?.split("=")[1] === "true";
-
-  // Parametri base per API
-  const params = new URLSearchParams();
-  params.append("docente", loggedDocente);
-
-  // Usa InsegnamentiManager per filtraggi
-  if (window.InsegnamentiManager) {
-    const selected = window.InsegnamentiManager.getSelected();
-    
-    if (selected.size > 0) {
-      // Se ci sono insegnamenti selezionati, passa i loro codici
-      const codici = Array.from(selected.keys());
-      params.append("insegnamenti", codici.join(","));
+  getUserData().then(data => {
+    if (!data.authenticated || !data.user_data) {
+      console.error("Utente non autenticato");
+      return;
     }
-  }
 
-  // Aggiungi filtro per CdS se presente
-  if (cdsFiltro) {
-    params.append("cds", cdsFiltro);
-  }
+    const loggedDocente = data.user_data.username;
+    const isAdmin = data.user_data.permessi_admin;
 
-  // Richiesta API
-  fetch("/api/getEsami?" + params.toString())
-    .then((response) => response.json())
-    .then((data) => {
-      if (successCallback) {
-        // Callback di FullCalendar
-        successCallback(data);
-      } else {
-        // Aggiornamento manuale
-        calendar.getEventSources().forEach((source) => source.remove());
-        calendar.addEventSource(data);
+    // Parametri base per API
+    const params = new URLSearchParams();
+    params.append("docente", loggedDocente);
+
+    // Usa InsegnamentiManager per filtraggi
+    if (window.InsegnamentiManager) {
+      const selected = window.InsegnamentiManager.getSelected();
+      
+      if (selected.size > 0) {
+        // Se ci sono insegnamenti selezionati, passa i loro codici
+        const codici = Array.from(selected.keys());
+        params.append("insegnamenti", codici.join(","));
       }
-    })
-    .catch((error) => {
-      console.error("Errore nel caricamento degli esami:", error);
-      if (successCallback) {
-        successCallback([]);
-      }
-    });
-
-  // Invalida anche la cache dopo aggiornamenti
-  window.invalidateEventCache = function() {
-    eventsCache = [];
-    lastFetchTime = 0;
-    if (calendar && typeof calendar.refetchEvents === 'function') {
-      calendar.refetchEvents();
     }
-  };
+
+    // Aggiungi filtro per CdS se presente
+    if (cdsFiltro) {
+      params.append("cds", cdsFiltro);
+    }
+
+    // Richiesta API
+    fetch("/api/getEsami?" + params.toString())
+      .then((response) => response.json())
+      .then((data) => {
+        if (successCallback) {
+          // Callback di FullCalendar
+          successCallback(data);
+        } else {
+          // Aggiornamento manuale
+          calendar.getEventSources().forEach((source) => source.remove());
+          calendar.addEventSource(data);
+        }
+      })
+      .catch((error) => {
+        console.error("Errore nel caricamento degli esami:", error);
+        if (successCallback) {
+          successCallback([]);
+        }
+      });
+
+    // Invalida anche la cache dopo aggiornamenti
+    window.invalidateEventCache = function() {
+      eventsCache = [];
+      lastFetchTime = 0;
+      if (calendar && typeof calendar.refetchEvents === 'function') {
+        calendar.refetchEvents();
+      }
+    };
+  });
 }
 
 // Carica le date valide direttamente dal backend
@@ -316,4 +314,35 @@ export async function loadDateValide(docente, insegnamenti = null) {
     console.error("Errore durante il caricamento delle date valide:", error);
     return []; // Ritorna un array vuoto in caso di errore
   }
+}
+
+// Determina la data iniziale del calendario in base alle date delle sessioni
+export function getInitialDate(dateValide) {
+  const today = new Date();
+  
+  // Se non ci sono date valide, usa la data odierna
+  if (!dateValide || dateValide.length === 0) {
+    return today;
+  }
+
+  // Cerca la prima sessione che include la data odierna
+  for (const [start, end] of dateValide) {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    
+    if (today >= startDate && today <= endDate) {
+      return today;
+    }
+  }
+
+  // Se non siamo in una sessione, trova la prossima sessione disponibile
+  for (const [start] of dateValide) {
+    const startDate = new Date(start);
+    if (startDate > today) {
+      return startDate;
+    }
+  }
+
+  // Se non ci sono sessioni future, usa la data odierna
+  return today;
 }

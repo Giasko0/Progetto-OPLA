@@ -33,8 +33,7 @@ def inserisciEsame():
     is_admin = False
     bypass_checks = request.form.get('bypass_checks', 'false').lower() == 'true'
     
-    # username = session.get('username')
-    username = request.cookies.get('username')
+    username = session.get('username')
     if username:
       conn = get_db_connection()
       cursor = conn.cursor()
@@ -179,14 +178,9 @@ def get_esame_by_id():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Ottieni username e permessi admin dai cookie invece che dalla sessione
-        is_admin = False
-        if 'admin' in request.cookies and request.cookies.get('admin') == 'true':
-            is_admin = True
-        
-        username = ""
-        if 'username' in request.cookies:
-            username = request.cookies.get('username', '').strip()
+        # Ottieni username e permessi admin dalla sessione
+        is_admin = session.get('admin', False)
+        username = session.get('username', '')
         
         # Query aggiornata per recuperare tutti i campi
         query = """
@@ -272,14 +266,9 @@ def update_esame():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Ottieni username e permessi admin dai cookie invece che dalla sessione
-        is_admin = False
-        if 'admin' in request.cookies and request.cookies.get('admin') == 'true':
-            is_admin = True
-        
-        username = ""
-        if 'username' in request.cookies:
-            username = request.cookies.get('username', '').strip()
+        # Ottieni username e permessi admin dalla sessione
+        is_admin = session.get('admin', False)
+        username = session.get('username', '')
 
         # Ottieni i dettagli dell'esame esistente
         cursor.execute("SELECT * FROM esami WHERE id = %s", (exam_id,))
@@ -436,14 +425,9 @@ def delete_esame():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Ottieni username e permessi admin dai cookie invece che dalla sessione
-        is_admin = False
-        if 'admin' in request.cookies and request.cookies.get('admin') == 'true':
-            is_admin = True
-        
-        username = ""
-        if 'username' in request.cookies:
-            username = request.cookies.get('username', '').strip()
+        # Ottieni username e permessi admin dalla sessione
+        is_admin = session.get('admin', False)
+        username = session.get('username', '')
 
         # Ottieni i dettagli dell'esame esistente
         cursor.execute("SELECT * FROM esami WHERE id = %s", (exam_id,))

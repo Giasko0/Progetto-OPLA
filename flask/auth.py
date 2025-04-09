@@ -13,10 +13,7 @@ def logout():
     
     # Logout locale
     session.clear()
-    response = make_response(redirect('/'))
-    response.delete_cookie('username')
-    response.delete_cookie('admin')
-    return response
+    return redirect('/')
 
 @auth_bp.route('/api/login', methods=['POST'])
 def api_login():
@@ -40,22 +37,19 @@ def api_login():
       # Ottieni i permessi dell'utente
       username, is_admin, is_docente = user
       
-      # Crea la risposta JSON con i dati dell'utente
-      response = jsonify({
+      # Memorizza i dati nella sessione
+      session['username'] = username
+      if is_admin:
+          session['admin'] = True
+      session['authenticated'] = True
+      
+      # Crea la risposta JSON
+      return jsonify({
           'status': 'success',
           'message': 'Login effettuato con successo',
           'admin': bool(is_admin),
           'docente': bool(is_docente), 
       })
-      
-      # Imposta i cookie appropriati
-      response.set_cookie('username', username)
-      
-      # Se l'utente è un admin, imposta anche il cookie admin
-      if is_admin:
-          response.set_cookie('admin', 'true')
-      
-      return response
       
     return jsonify({'status': 'error', 'message': 'Credenziali non valide'}), 401
   finally:
@@ -74,13 +68,8 @@ def login_required(f):
 
 @auth_bp.route('/api/check-auth')
 def get_user_data():
-    username = None
-    
-    # Determina l'username basato sul metodo di autenticazione
-    if 'username' in request.cookies:
-        username = request.cookies.get('username')
-    elif session.get('saml_authenticated'):
-        username = session.get('saml_nameid')
+    # Utilizziamo la sessione per verificare l'autenticazione
+    username = session.get('username') or session.get('saml_nameid')
     
     if not username:
         return jsonify({
@@ -106,23 +95,19 @@ def get_user_data():
                 'matricola': user_record[1],
                 'nome': user_record[2],
                 'cognome': user_record[3],
-                'permessi_docente': user_record[4],
-                'permessi_admin': user_record[5]
+                'permessi_docente': bool(user_record[4]),
+                'permessi_admin': bool(user_record[5])
             }
-        else:
-            user_data = None
+            
+            return jsonify({
+                'authenticated': True,
+                'user_data': user_data
+            })
         
         return jsonify({
-            'authenticated': user_data is not None,
-            'user_data': user_data
-        })
-    except Exception as e:
-        print(f"Errore nell'ottenere i dati utente: {e}")
-        return jsonify({
             'authenticated': False,
-            'user_data': None,
-            'error': str(e)
-        }), 500
+            'user_data': None
+        })
     finally:
         cursor.close()
         release_connection(conn)

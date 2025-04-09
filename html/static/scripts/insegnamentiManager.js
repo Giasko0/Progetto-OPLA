@@ -64,11 +64,14 @@ const InsegnamentiManager = (function () {
   }
 
   // Controllo se l'utente è un amministratore
-  function isAdmin() {
-    return document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("admin="))
-      ?.split("=")[1] === "true";
+  async function isAdmin() {
+    try {
+      const data = await getUserData();
+      return data.authenticated && data.user_data && data.user_data.permessi_admin;
+    } catch (error) {
+      console.error("Errore nel controllo dei permessi admin:", error);
+      return false;
+    }
   }
 
   // CARICAMENTO DATI

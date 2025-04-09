@@ -39,12 +39,11 @@ document.addEventListener("DOMContentLoaded", function () {
       navlinksDiv.classList.toggle("open");
     });
 
-    // Verifica se l'utente è un admin per aggiungere il pulsante OH-ISSA
-    const isAdmin = getCookie("admin") === "true";
-
-    // Utilizziamo il sistema di cache per controllare l'autenticazione
+    // Utilizziamo getUserData per verificare i permessi admin
     getUserData()
       .then((data) => {
+        const isAdmin = data.authenticated && data.user_data && data.user_data.permessi_admin;
+
         // Aggiungi i link della navbar
         const calendarLink = document.createElement("a");
         calendarLink.textContent = "Calendario";

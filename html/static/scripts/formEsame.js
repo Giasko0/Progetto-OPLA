@@ -441,12 +441,14 @@ const EsameForm = (function() {
     const bypassChecksBtn = document.getElementById("bypassChecksBtn");
     if (bypassChecksBtn) {
       // Mostra solo agli admin
-      if (isUserAdmin()) {
-        bypassChecksBtn.style.display = "block";
-        bypassChecksBtn.addEventListener("click", handleBypassChecksSubmit);
-      } else {
-        bypassChecksBtn.style.display = "none";
-      }
+      isUserAdmin().then(isAdmin => {
+        if (isAdmin) {
+          bypassChecksBtn.style.display = "block";
+          bypassChecksBtn.addEventListener("click", handleBypassChecksSubmit);
+        } else {
+          bypassChecksBtn.style.display = "none";
+        }
+      });
     }
 
     // Gestione chiusura overlay
@@ -1439,11 +1441,79 @@ const EsameForm = (function() {
   }
   
   // Controlla se l'utente è un amministratore
-  function isUserAdmin() {
-    return document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("admin="))
-      ?.split("=")[1] === "true";
+  async function isUserAdmin() {
+    try {
+      const data = await getUserData();
+      return data.authenticated && data.user_data && data.user_data.permessi_admin;
+    } catch (error) {
+      console.error("Errore nel controllo dei permessi admin:", error);
+      return false;
+    }
+  }
+
+  // Configura i pulsanti del form
+  async function setupButtons(isEdit, examId) {
+    const formActions = document.querySelector('.form-actions');
+    if (!formActions) return;
+
+    // Pulisci i pulsanti esistenti
+    formActions.innerHTML = '';
+
+    // Verifica se l'utente è admin
+    const isAdmin = await isUserAdmin();
+
+    if (isEdit) {
+      // Edit mode buttons
+      const modifyBtn = document.createElement("button");
+      modifyBtn.type = "submit";
+      modifyBtn.className = "invia";
+      modifyBtn.textContent = "Modifica";
+      formActions.appendChild(modifyBtn);
+
+      if (isAdmin) {
+        // Admin bypass button in edit mode
+        const bypassBtn = document.createElement("button");
+        bypassBtn.type = "button";
+        bypassBtn.id = "bypassChecksBtn";
+        bypassBtn.className = "invia bypass";
+        bypassBtn.textContent = "Modifica senza controlli";
+        bypassBtn.addEventListener("click", handleBypassChecksSubmit);
+        formActions.appendChild(bypassBtn);
+      }
+
+      // Delete button
+      const deleteBtn = document.createElement("button");
+      deleteBtn.id = "deleteExamBtn";
+      deleteBtn.type = "button";
+      deleteBtn.className = "invia danger";
+      deleteBtn.textContent = "Elimina Esame";
+      deleteBtn.onclick = () => {
+        if (confirm("Sei sicuro di voler eliminare questo esame?")) {
+          if (typeof window.deleteEsame === 'function') {
+            window.deleteEsame(examId);
+          }
+        }
+      };
+      formActions.appendChild(deleteBtn);
+    } else {
+      // Create mode buttons
+      const submitBtn = document.createElement("button");
+      submitBtn.type = "submit";
+      submitBtn.className = "invia";
+      submitBtn.textContent = "Inserisci";
+      formActions.appendChild(submitBtn);
+
+      if (isAdmin) {
+        // Admin bypass button in create mode
+        const bypassBtn = document.createElement("button");
+        bypassBtn.type = "button";
+        bypassBtn.id = "bypassChecksBtn";
+        bypassBtn.className = "invia bypass";
+        bypassBtn.textContent = "Inserisci senza controlli";
+        bypassBtn.addEventListener("click", handleBypassChecksSubmit);
+        formActions.appendChild(bypassBtn);
+      }
+    }
   }
 
   // Funzione specifica per combinare solo i valori della durata
@@ -1580,19 +1650,21 @@ const EsameForm = (function() {
 
   // Gestisce l'invio del form con bypass dei controlli
   function handleBypassChecksSubmit() {
-    if (!isUserAdmin()) {
-      window.showMessage(
-        "Solo gli amministratori possono utilizzare questa funzione",
-        "Accesso negato",
-        "error"
-      );
-      return;
-    }
-    
-    // Combina i valori di ora e durata prima dell'invio
-    combineTimeValues();
-    
-    submitFormData({ bypassChecks: true });
+    isUserAdmin().then(isAdmin => {
+      if (!isAdmin) {
+        window.showMessage(
+          "Solo gli amministratori possono utilizzare questa funzione",
+          "Accesso negato",
+          "error"
+        );
+        return;
+      }
+      
+      // Combina i valori di ora e durata prima dell'invio
+      combineTimeValues();
+      
+      submitFormData({ bypassChecks: true });
+    });
   }
 
   // Valida il giorno della settimana
@@ -1721,71 +1793,3 @@ document.addEventListener('DOMContentLoaded', function() {
     EsameForm.setupTimeCombiningHandlers();
   }
 });
-
-// Add after setupDeleteButton function
-function setupButtons(isEdit, examId) {
-  const formActions = document.querySelector('.form-actions');
-  if (!formActions) return;
-
-  // Clear existing buttons
-  formActions.innerHTML = '';
-
-  // Check if user is admin
-  const isAdmin = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("admin="))
-    ?.split("=")[1] === "true";
-
-  if (isEdit) {
-    // Edit mode buttons
-    const modifyBtn = document.createElement("button");
-    modifyBtn.type = "submit";
-    modifyBtn.className = "invia";
-    modifyBtn.textContent = "Modifica";
-    formActions.appendChild(modifyBtn);
-
-    if (isAdmin) {
-      // Admin bypass button in edit mode
-      const bypassBtn = document.createElement("button");
-      bypassBtn.type = "button";
-      bypassBtn.id = "bypassChecksBtn";
-      bypassBtn.className = "invia bypass";
-      bypassBtn.textContent = "Modifica senza controlli";
-      bypassBtn.addEventListener("click", handleBypassChecksSubmit);
-      formActions.appendChild(bypassBtn);
-    }
-
-    // Delete button
-    const deleteBtn = document.createElement("button");
-    deleteBtn.id = "deleteExamBtn";
-    deleteBtn.type = "button";
-    deleteBtn.className = "invia danger";
-    deleteBtn.textContent = "Elimina Esame";
-    deleteBtn.onclick = () => {
-      if (confirm("Sei sicuro di voler eliminare questo esame?")) {
-        if (typeof window.deleteEsame === 'function') {
-          window.deleteEsame(examId);
-        }
-      }
-    };
-    formActions.appendChild(deleteBtn);
-  } else {
-    // Create mode buttons
-    const submitBtn = document.createElement("button");
-    submitBtn.type = "submit";
-    submitBtn.className = "invia";
-    submitBtn.textContent = "Inserisci";
-    formActions.appendChild(submitBtn);
-
-    if (isAdmin) {
-      // Admin bypass button in create mode
-      const bypassBtn = document.createElement("button");
-      bypassBtn.type = "button";
-      bypassBtn.id = "bypassChecksBtn";
-      bypassBtn.className = "invia bypass";
-      bypassBtn.textContent = "Inserisci senza controlli";
-      bypassBtn.addEventListener("click", handleBypassChecksSubmit);
-      formActions.appendChild(bypassBtn);
-    }
-  }
-}

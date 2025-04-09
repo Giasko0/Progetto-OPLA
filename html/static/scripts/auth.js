@@ -1,36 +1,42 @@
-// Inizializzazione al caricamento della pagina
-document.addEventListener("DOMContentLoaded", function () {
-  // Precarica i dati utente per ridurre le chiamate all'API
-  preloadUserData();
-  
-  // Controlla autenticazione e gestisce reindirizzamenti
-  checkAuthAndRedirect();
+// Cache per i dati dell'utente
+let authCache = {
+  data: null,
+  timestamp: null,
+  expiresIn: 5 * 60 * 1000, // 5 minuti in millisecondi
+};
 
-  // Configura i link di logout per pulire la cache
-  const logoutLinks = document.querySelectorAll('a[href="/api/logout"]');
-  logoutLinks.forEach((link) => {
-    link.addEventListener("click", clearAuthCache);
-  });
+// Stato globale dell'utente
+let currentUserData = null;
 
-  // Aggiorna elementi UI basati sull'autenticazione
-  updateUIByAuth();
-  
-  // Aggiorna il titolo della pagina in base all'utente autenticato
-  updatePageTitle();
+document.addEventListener("DOMContentLoaded", async function () {
+  try {
+    // Precarica i dati utente una sola volta
+    currentUserData = await preloadUserData();
+    
+    // Esegui tutte le operazioni di inizializzazione con i dati già caricati
+    await checkAuthAndRedirect();
+    updateUIByAuth(currentUserData);
+    updatePageTitle(currentUserData);
+
+    // Configura logout
+    const logoutLinks = document.querySelectorAll('a[href="/api/logout"]');
+    logoutLinks.forEach((link) => {
+      link.addEventListener("click", clearAuthCache);
+    });
+  } catch (error) {
+    console.error("Errore nell'inizializzazione:", error);
+  }
 });
 
-// Carica i dati dell'utente una sola volta all'avvio e riempie la cache
-function preloadUserData() {
-  // Controlla se c'è già una richiesta di precaricamento in corso
+// Carica i dati dell'utente una sola volta all'avvio
+async function preloadUserData() {
   if (window.preloadUserDataPromise) {
     return window.preloadUserDataPromise;
   }
   
-  // Crea una nuova richiesta e la memorizza globalmente
   window.preloadUserDataPromise = fetch("/api/check-auth")
     .then((response) => response.json())
     .then((data) => {
-      // Salva i dati nella cache
       authCache.data = data;
       authCache.timestamp = new Date().getTime();
       return data;
@@ -43,183 +49,149 @@ function preloadUserData() {
   return window.preloadUserDataPromise;
 }
 
-// Controlla autenticazione e reindirizza se necessario
-function checkAuthAndRedirect() {
+// Controlla autenticazione usando i dati in cache
+async function checkAuthAndRedirect() {
   const currentPage = window.location.pathname.split("/").pop();
 
-  // Escludi pagine pubbliche dal controllo di autenticazione
-  if (
-    currentPage === "index.html" ||
-    currentPage === "" ||
-    currentPage === "login.html"
-  ) {
+  if (currentPage === "index.html" || currentPage === "" || currentPage === "login.html") {
     return;
   }
 
-  getUserData()
-    .then((data) => {
-      if (!data || !data.authenticated) {
-        // Se non autenticato, reindirizza alla pagina di login con la pagina corrente come destinazione dopo il login
-        const currentURL = encodeURIComponent(window.location.pathname);
-        window.location.href = `login.html?redirect=${currentURL}`;
-      }
-    })
-    .catch((error) => {
-      console.error("Errore nel controllo dell'autenticazione:", error);
-      window.location.href = "login.html";
-    });
+  const data = await getUserData();
+  if (!data || !data.authenticated) {
+    const currentURL = encodeURIComponent(window.location.pathname);
+    window.location.href = `login.html?redirect=${currentURL}`;
+  }
 }
 
-// Cache per i dati dell'utente
-let authCache = {
-  data: null,
-  timestamp: null,
-  expiresIn: 5 * 60 * 1000, // 5 minuti in millisecondi
-};
-
-// Recupera un cookie per nome
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-}
-
-// Ottiene i dati dell'utente con sistema di cache
-function getUserData() {
+// Ottiene i dati dell'utente dalla cache o dal server
+async function getUserData() {
   const now = new Date().getTime();
 
-  // Usa dati precached se disponibili e ancora validi
-  if (
-    authCache.data &&
-    authCache.timestamp &&
-    now - authCache.timestamp < authCache.expiresIn
-  ) {
-    return Promise.resolve(authCache.data);
+  if (currentUserData) {
+    return currentUserData;
+  }
+
+  if (authCache.data && authCache.timestamp && now - authCache.timestamp < authCache.expiresIn) {
+    return authCache.data;
   }
   
-  // Se c'è un precaricamento in corso, usa quello
   if (window.preloadUserDataPromise) {
     return window.preloadUserDataPromise;
   }
 
-  // Altrimenti fa una nuova richiesta
-  return fetch("/api/check-auth")
-    .then((response) => response.json())
-    .then((data) => {
-      authCache.data = data;
-      authCache.timestamp = new Date().getTime();
-      return data;
-    })
-    .catch((error) => {
-      console.error("Errore nel recupero dei dati utente:", error);
-      return { authenticated: false, user_data: null };
-    });
+  const response = await fetch("/api/check-auth", {
+    credentials: 'include'
+  });
+  const data = await response.json();
+  
+  authCache.data = data;
+  authCache.timestamp = now;
+  currentUserData = data;
+  
+  return data;
 }
 
-// Imposta il valore dell'username in un campo di input
+// Imposta username usando i dati in cache
 function setUsernameField(fieldId) {
-  getUserData()
-    .then((data) => {
-      if (data && data.authenticated && data.user_data) {
-        const field = document.getElementById(fieldId);
-        if (field) {
-          field.value = data.user_data.username;
-        }
+  if (currentUserData?.authenticated && currentUserData?.user_data) {
+    const field = document.getElementById(fieldId);
+    if (field) {
+      field.value = currentUserData.user_data.username;
+    }
+    return;
+  }
+
+  getUserData().then(data => {
+    if (data?.authenticated && data?.user_data) {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.value = data.user_data.username;
       }
-    })
-    .catch((error) => {
-      console.error("Errore nel recupero dei dati utente:", error);
+    }
+  });
+}
+
+// Aggiorna UI usando i dati in cache
+function updateUIByAuth(data = null) {
+  const updateUI = (userData) => {
+    const isAuthenticated = userData?.authenticated && userData?.user_data;
+    const username = isAuthenticated ? userData.user_data.username : null;
+
+    document.querySelectorAll("[data-auth]").forEach((el) => {
+      if ((el.dataset.auth === "authenticated" && isAuthenticated) ||
+          (el.dataset.auth === "unauthenticated" && !isAuthenticated)) {
+        el.style.display = "";
+      } else {
+        el.style.display = "none";
+      }
     });
-}
 
-// Aggiorna interfaccia in base all'autenticazione
-function updateUIByAuth() {
-  getUserData()
-    .then((data) => {
-      const isAuthenticated = data && data.authenticated && data.user_data;
-      const username = isAuthenticated ? data.user_data.username : null;
-
-      const authElements = document.querySelectorAll("[data-auth]");
-      authElements.forEach((el) => {
-        if (
-          (el.dataset.auth === "authenticated" && isAuthenticated) ||
-          (el.dataset.auth === "unauthenticated" && !isAuthenticated)
-        ) {
-          el.style.display = "";
-        } else {
-          el.style.display = "none";
-        }
-      });
-
-      const usernameElements = document.querySelectorAll("[data-username]");
-      usernameElements.forEach((el) => {
-        if (isAuthenticated) {
-          el.textContent = username;
-        }
-      });
-    })
-    .catch((error) => {
-      console.error("Errore nel recupero dei dati utente:", error);
+    document.querySelectorAll("[data-username]").forEach((el) => {
+      if (isAuthenticated) {
+        el.textContent = username;
+      }
     });
+  };
+
+  if (data) {
+    updateUI(data);
+  } else {
+    getUserData().then(updateUI);
+  }
 }
 
-// Invalida la cache
-function clearAuthCache() {
-  authCache.data = null;
-  authCache.timestamp = null;
-  window.preloadUserDataPromise = null;
-}
-
-// Funzione di utilità per capitalizzare correttamente un nome o cognome
+// Utility per capitalizzazione
 function capitalizeWords(text) {
   if (!text) return '';
-  // Dividi il testo in parole e capitalizza la prima lettera di ogni parola
   return text.split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 }
 
-// Aggiorna i titoli delle pagine con le informazioni dell'utente (funzione centralizzata)
-function updatePageTitle() {
-  getUserData()
-    .then((data) => {
-      if (data && data.authenticated && data.user_data) {
-        const userData = data.user_data;
+// Aggiorna titolo pagina usando i dati in cache
+function updatePageTitle(data = null) {
+  const updateTitle = (userData) => {
+    if (userData?.authenticated && userData?.user_data) {
+      const titolo = document.querySelector(".titolo, .title-primary");
+      if (titolo && userData.user_data) {
+        const currentPage = window.location.pathname.split("/").pop() || 
+                          (window.location.pathname.endsWith('/') ? 'index.html' : '');
 
-        // Aggiorna il titolo della pagina con il nome dell'utente
-        const titolo = document.querySelector(".titolo, .title-primary");
-        if (titolo && userData) {
-          const currentPage = window.location.pathname.split("/").pop() || 
-                             (window.location.pathname.endsWith('/') ? 'index.html' : '');
+        let nomeFormattato = userData.user_data.username;
 
-          let nomeFormattato = userData.username;
+        if (userData.user_data.nome && userData.user_data.cognome) {
+          const nome = capitalizeWords(userData.user_data.nome);
+          const cognome = capitalizeWords(userData.user_data.cognome);
+          nomeFormattato = `${nome} ${cognome}`;
+        }
 
-          if (userData.nome && userData.cognome) {
-            // Capitalizza correttamente nome e cognome (gestendo i cognomi composti)
-            const nome = capitalizeWords(userData.nome);
-            const cognome = capitalizeWords(userData.cognome);
-            nomeFormattato = `${nome} ${cognome}`;
-          }
-
-          if (currentPage === "mieiEsami.html") {
-            titolo.textContent = `Esami di ${nomeFormattato}`;
-            if (!userData.nome && !userData.cognome) {
-              titolo.textContent = `I miei esami`;
-            }
-          } else if (currentPage === "calendario.html") {
-            titolo.textContent = `Benvenuto/a, ${nomeFormattato}!`;
-          }
+        if (currentPage === "mieiEsami.html") {
+          titolo.textContent = userData.user_data.nome && userData.user_data.cognome ? 
+            `Esami di ${nomeFormattato}` : "I miei esami";
+        } else if (currentPage === "calendario.html") {
+          titolo.textContent = `Benvenuto/a, ${nomeFormattato}!`;
         }
       }
-    })
-    .catch((error) => {
-      console.error("Errore nel recupero dei dati utente:", error);
-    });
+    }
+  };
+
+  if (data) {
+    updateTitle(data);
+  } else {
+    getUserData().then(updateTitle);
+  }
 }
 
-// Esporre le funzioni necessarie globalmente
+// Pulisci cache
+function clearAuthCache() {
+  authCache.data = null;
+  authCache.timestamp = null;
+  currentUserData = null;
+  window.preloadUserDataPromise = null;
+}
+
+// Esponi funzioni globalmente
 window.getUserData = getUserData;
-window.getCookie = getCookie;
 window.updatePageTitle = updatePageTitle;
 window.preloadUserData = preloadUserData;
