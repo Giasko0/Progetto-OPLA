@@ -3,7 +3,7 @@ function checkAdminAuth(skipCheck = false) {
   // Se skipCheck è true, non fare il controllo
   if (skipCheck) return true;
   
-  return fetch("/api/check-auth", {
+  return fetch("/api/get_user_data", {
     credentials: 'include'
   })
     .then(response => response.json())

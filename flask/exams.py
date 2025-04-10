@@ -4,7 +4,6 @@ import psycopg2
 import json
 import os
 from db import get_db_connection, release_connection
-from auth import login_required
 from utils.examUtils import generaDatiEsame, controllaVincoli, inserisciEsami, costruisciRispostaParziale
 
 exam_bp = Blueprint('exam_bp', __name__)
@@ -163,7 +162,6 @@ def confermaEsami():
     return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @exam_bp.route('/api/getEsameById', methods=['GET'])
-@login_required
 def get_esame_by_id():
     """
     Recupera i dettagli di un esame specifico per ID.
@@ -249,7 +247,6 @@ def get_esame_by_id():
             release_connection(conn)
 
 @exam_bp.route('/api/updateEsame', methods=['POST'])
-@login_required
 def update_esame():
     """
     Aggiorna un esame esistente.
@@ -408,7 +405,6 @@ def update_esame():
             release_connection(conn)
 
 @exam_bp.route('/api/deleteEsame', methods=['POST'])
-@login_required
 def delete_esame():
     """
     Elimina un esame esistente.

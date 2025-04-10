@@ -59,14 +59,14 @@ function initFileDownloadHandlers() {
     const downloadButton = document.getElementById('downloadButton');
     if (downloadButton) {
         downloadButton.addEventListener('click', function() {
-            window.location.href = '/oh-issa/api/downloadFileESSE3';
+            window.location.href = '/api/oh-issa/downloadFileESSE3';
         });
     }
 
     const downloadEasyAcademyButton = document.getElementById('downloadEasyAcademyButton');
     if (downloadEasyAcademyButton) {
         downloadEasyAcademyButton.addEventListener('click', function() {
-            window.location.href = '/oh-issa/api/downloadFileEasyAcademy';
+            window.location.href = '/api/oh-issa/downloadFileEasyAcademy';
         });
     }
 }

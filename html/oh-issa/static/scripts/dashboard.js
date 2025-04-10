@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("downloadFileESSE3").addEventListener("click", function () {
-    window.location.href = "/oh-issa/api/downloadFileESSE3";
+    window.location.href = "/api/oh-issa/downloadFileESSE3";
   });
 
   // Gestione upload file unificato
@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const formData = new FormData();
       formData.append("file", file);
 
-      fetch("/oh-issa/api/upload-file", {
+      fetch("/api/oh-issa/upload-file", {
         method: "POST",
         body: formData,
       })
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const formData = new FormData(this);
     const data = Object.fromEntries(formData.entries());
 
-    fetch("/oh-issa/api/save-cds-dates", {
+    fetch("/api/oh-issa/save-cds-dates", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", function () {
           `Sei sicuro di voler svuotare la tabella ${table}? Questa operazione non può essere annullata.`
         )
       ) {
-        fetch(`/oh-issa/api/truncate-table/${table}`, {
+        fetch(`/api/oh-issa/truncate-table/${table}`, {
           method: "POST",
         })
           .then((response) => response.json())

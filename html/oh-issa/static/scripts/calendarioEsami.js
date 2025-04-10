@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
  * Carica gli anni accademici per il selettore
  */
 function loadAnniAccademici() {
-    fetch('/oh-issa/api/getAnniAccademici')
+    fetch('/api/oh-issa/getAnniAccademici')
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('selectAnnoAccademico');
@@ -51,7 +51,7 @@ function loadCorsiForAnno(anno) {
         return;
     }
     
-    fetch(`/oh-issa/api/getCdSByAnno?anno=${anno}`)
+    fetch(`/api/oh-issa/getCdSByAnno?anno=${anno}`)
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('selectCds');
@@ -105,7 +105,7 @@ function generaCalendario() {
     calendarioContainer.innerHTML = '<div class="loading">Generazione calendario in corso...</div>';
     
     // Richiedi il calendario al server
-    fetch(`/oh-issa/api/getCalendarioEsami?cds=${codiceCds}&anno=${annoAccademico}`)
+    fetch(`/api/oh-issa/getCalendarioEsami?cds=${codiceCds}&anno=${annoAccademico}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {

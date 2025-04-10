@@ -9,7 +9,7 @@ from psycopg2.extras import DictCursor
 import re
 import requests
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/oh-issa/api')
+admin_bp = Blueprint('admin', __name__, url_prefix='/api/oh-issa')
 
 @admin_bp.route('/uploadFileUGOV', methods=['POST'])
 def upload_ugov():

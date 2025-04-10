@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadUsers() {
     showLoading(true);
     
-    fetch('/oh-issa/api/getUsers')
+    fetch('/api/oh-issa/getUsers')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Errore nel caricamento degli utenti');
@@ -177,7 +177,7 @@ function applyFilters() {
  * Aggiorna i permessi di admin per un utente
  */
 function toggleAdminPermission(username, isAdmin) {
-    fetch('/oh-issa/api/updateUserAdmin', {
+    fetch('/api/oh-issa/updateUserAdmin', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -301,7 +301,7 @@ function showDeleteConfirmation(event) {
  * Elimina un utente
  */
 function deleteUser(username) {
-    fetch('/oh-issa/api/deleteUser', {
+    fetch('/api/oh-issa/deleteUser', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

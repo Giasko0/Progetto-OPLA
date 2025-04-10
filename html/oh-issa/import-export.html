@@ -16,12 +16,12 @@
     document.addEventListener('DOMContentLoaded', function() {
       const downloadButton = document.getElementById('downloadButton');
       downloadButton.addEventListener('click', function() {
-        window.location.href = '/oh-issa/api/downloadFileESSE3';
+        window.location.href = '/api/oh-issa/downloadFileESSE3';
       });
 
       const downloadEasyAcademyButton = document.getElementById('downloadEasyAcademyButton');
       downloadEasyAcademyButton.addEventListener('click', function() {
-        window.location.href = '/oh-issa/api/downloadFileEA';
+        window.location.href = '/api/oh-issa/downloadFileEA';
       });
 
       // Gestione caricamento file UGOV direttamente con il pulsante
@@ -44,7 +44,7 @@
           formData.append('file', fileInput.files[0]);
           
           // Invia richiesta al server
-          fetch('/oh-issa/api/uploadFileUGOV', {
+          fetch('/api/oh-issa/uploadFileUGOV', {
             method: 'POST',
             body: formData
           })
@@ -66,7 +66,7 @@
       document.getElementById('loadRoomsBtn').addEventListener('click', function () {
         showMessage('info', 'Caricamento aule da EasyAcademy in corso...');
 
-        fetch('/oh-issa/api/loadAuleEasyAcademy', {
+        fetch('/api/oh-issa/loadAuleEasyAcademy', {
           method: 'POST'
         })
           .then(response => response.json())

@@ -6,8 +6,7 @@ import os
 from db import init_db
 
 # Import dei blueprint
-from auth import auth_bp
-from saml_auth import saml_bp, require_auth
+from auth import auth_bp, require_auth
 from admin import admin_bp
 from fetch import fetch_bp
 from exams import exam_bp
@@ -26,14 +25,10 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 ore in secondi
 
 # Registrazione dei blueprint
 app.register_blueprint(auth_bp)
-app.register_blueprint(saml_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(fetch_bp)
 app.register_blueprint(preferences_bp)
 app.register_blueprint(exam_bp)
-
-# Flag per (non) usare saml
-app.config['SAML_ENABLED'] = False
 
 # ===== Main =====
 if __name__ == '__main__':
