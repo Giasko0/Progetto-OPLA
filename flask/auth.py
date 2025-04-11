@@ -146,7 +146,7 @@ def init_saml_auth(req):
 
 def prepare_flask_request(request):
     return {
-        'https': 'on' if request.scheme == 'https' else 'off',
+        'https': 'on',
         'http_host': request.host,
         'server_port': request.environ.get('SERVER_PORT', ''),
         'script_name': request.path,
@@ -293,3 +293,50 @@ def saml_sls():
         return redirect('/')
     else:
         return render_template('error.html', errors=errors)
+
+# ===== Endpoint di Debug SAML =====
+
+@auth_bp.route('/saml/debug/attributes')
+@require_auth
+def debug_saml_attributes():
+    """Endpoint di debug per visualizzare gli attributi SAML ricevuti dall'IdP"""
+    attributes = session.get('saml_attributes', {})
+    nameid = session.get('saml_nameid', 'Non disponibile')
+    session_index = session.get('saml_session_index', 'Non disponibile')
+    
+    html = "<h1>Debug attributi SAML</h1>"
+    html += f"<p><strong>NameID:</strong> {nameid}</p>"
+    html += f"<p><strong>Session Index:</strong> {session_index}</p>"
+    html += "<h2>Attributi:</h2>"
+    
+    if attributes:
+        html += "<table border='1'><tr><th>Nome attributo</th><th>Valore</th></tr>"
+        for key, values in attributes.items():
+            html += f"<tr><td>{key}</td><td>{values}</td></tr>"
+        html += "</table>"
+    else:
+        html += "<p>Nessun attributo trovato nella sessione</p>"
+        
+    html += "<p><a href='/'>Torna alla home</a></p>"
+    
+    return html
+
+@auth_bp.route('/saml/debug/session')
+@require_auth
+def debug_saml_session():
+    """Endpoint di debug per visualizzare tutti i dati SAML nella sessione"""
+    saml_keys = [k for k in session.keys() if k.startswith('saml_')]
+    
+    html = "<h1>Debug Sessione SAML</h1>"
+    
+    if saml_keys:
+        html += "<table border='1'><tr><th>Chiave</th><th>Valore</th></tr>"
+        for key in saml_keys:
+            html += f"<tr><td>{key}</td><td>{session.get(key)}</td></tr>"
+        html += "</table>"
+    else:
+        html += "<p>Nessun dato SAML trovato nella sessione</p>"
+        
+    html += "<p><a href='/'>Torna alla home</a></p>"
+    
+    return html
