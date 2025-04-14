@@ -7,6 +7,9 @@ const InsegnamentiManager = (function () {
   let selectedCds = null; // CdS selezionato
   let onChangeCallbacks = []; // Callbacks per cambio selezione
   let onCdsChangeCallbacks = []; // Callbacks per cambio CdS
+  let lastCacheUpdate = 0; // Timestamp dell'ultimo aggiornamento della cache
+  let cacheExpirationTime = 1800000; // 30 minuti in ms
+  let requestInProgress = null; // Promise dell'ultima richiesta in corso
 
   // GESTIONE SELEZIONE INSEGNAMENTI
   function selectInsegnamento(codice, metadata) {
@@ -74,6 +77,13 @@ const InsegnamentiManager = (function () {
     }
   }
 
+  // VERIFICA STATO CACHE
+  function isCacheValid() {
+    return insegnamentiCache.length > 0 && 
+           cdsCache.length > 0 && 
+           (Date.now() - lastCacheUpdate < cacheExpirationTime);
+  }
+
   // CARICAMENTO DATI
   function loadInsegnamenti(username, options = {}, callback = null) {
     // Gestione overload: se options è una funzione, è il callback
@@ -84,13 +94,34 @@ const InsegnamentiManager = (function () {
 
     const { filter = null, cds = selectedCds, forceReload = false } = options;
     
-    // Usa la cache se disponibile e non ci sono filtri specifici
-    if (!forceReload && insegnamentiCache.length > 0 && !filter) {
-      // Per coerenza, lasciamo che sia il backend a determinare se mostrare tutti gli insegnamenti
-      const data = cds ? insegnamentiCache.filter((ins) => ins.cds_codice === cds) : insegnamentiCache;
-      if (typeof callback === "function") {
-        callback(data);
+    // Usa la cache se disponibile e valida, e non è richiesto un ricaricamento forzato
+    if (!forceReload && isCacheValid()) {
+      // Filtra i dati dalla cache
+      let risultati = insegnamentiCache;
+      
+      // Filtra per codice CdS se specificato
+      if (cds) {
+        risultati = risultati.filter(ins => ins.cds_codice === cds);
       }
+      
+      // Filtra per codici specifici se richiesto
+      if (filter) {
+        const filteredCodes = Array.isArray(filter) ? filter : [filter];
+        risultati = risultati.filter(ins => filteredCodes.includes(ins.codice));
+      }
+
+      if (typeof callback === "function") {
+        callback(risultati);
+      }
+      return;
+    }
+
+    // Se è già in corso una richiesta, attendila invece di farne una nuova
+    if (requestInProgress) {
+      requestInProgress.then(() => {
+        // Usa la cache appena aggiornata
+        loadInsegnamenti(username, options, callback);
+      });
       return;
     }
 
@@ -100,113 +131,113 @@ const InsegnamentiManager = (function () {
         ? currentDate.getFullYear() 
         : currentDate.getFullYear() - 1;
 
-    // Costruisci URL con l'endpoint unificato - ora più semplice
-    let url = `/api/getInsegnamentiDocente?docente=${username}&anno=${planningYear}`;
+    // Costruisci URL con l'endpoint unificato
+    const url = `/api/getInsegnamentiDocente?docente=${username}&anno=${planningYear}`;
 
-    // Aggiungi filtro CdS se specificato
-    if (cds) {
-      url += `&cds=${cds}`;
-    }
-
-    // Carica dal server
-    fetch(url)
-      .then((response) => response.json())
+    // Avvia una nuova richiesta e memorizzala
+    requestInProgress = fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Errore HTTP: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
-        // Gestisci il formato gerarchico
-        let insegnamentiProcessati = [];
+        // Aggiorna timestamp cache
+        lastCacheUpdate = Date.now();
         
+        // Gestisci il formato gerarchico
         if (data.cds) {
-          // Formato gerarchico
-          // Estrai i CdS per l'uso futuro
+          // Formato gerarchico - Estrai i CdS per l'uso futuro
           cdsCache = data.cds.map(c => ({
             codice: c.codice,
             nome_corso: c.nome
           }));
           
-          // Piattifica gli insegnamenti per compatibilità con codice esistente
-          insegnamentiProcessati = flattenInsegnamenti(data.cds);
+          // Piattifica gli insegnamenti per compatibilità
+          insegnamentiCache = flattenInsegnamenti(data.cds);
+        } else if (Array.isArray(data)) {
+          // Formato piatto (legacy)
+          insegnamentiCache = data;
         }
 
-        // Aggiorna cache
-        insegnamentiCache = insegnamentiProcessati;
+        // Filtra i risultati se necessario
+        let risultati = insegnamentiCache;
         
-        // Se c'è un filtro attivo, filtra i risultati prima di restituirli
-        let risultati = insegnamentiProcessati;
+        if (cds) {
+          risultati = risultati.filter(ins => ins.cds_codice === cds);
+        }
+        
         if (filter) {
           const filteredCodes = Array.isArray(filter) ? filter : [filter];
-          risultati = insegnamentiProcessati.filter(ins => 
-            filteredCodes.includes(ins.codice)
-          );
+          risultati = risultati.filter(ins => filteredCodes.includes(ins.codice));
         }
 
         if (typeof callback === "function") {
           callback(risultati);
         }
+        
+        // Reset della richiesta in corso
+        requestInProgress = null;
+        
+        return risultati;
       })
       .catch((error) => {
         console.error("Errore nel caricamento degli insegnamenti:", error);
+        requestInProgress = null;
+        
         if (typeof callback === "function") {
           callback([]);
         }
+        
+        return [];
       });
+
+    return requestInProgress;
   }
 
   // Nuova funzione di utilità per appiattire insegnamenti gerarchici
   function flattenInsegnamenti(cdsList) {
     const flattened = [];
     cdsList.forEach(cds => {
-      cds.insegnamenti.forEach(ins => {
-        flattened.push({
-          codice: ins.codice,
-          titolo: ins.titolo,
-          semestre: ins.semestre,
-          anno_corso: ins.anno_corso,
-          cds_codice: cds.codice,
-          cds_nome: cds.nome
+      if (cds.insegnamenti && Array.isArray(cds.insegnamenti)) {
+        cds.insegnamenti.forEach(ins => {
+          flattened.push({
+            codice: ins.codice,
+            titolo: ins.titolo,
+            semestre: ins.semestre,
+            anno_corso: ins.anno_corso,
+            cds_codice: cds.codice,
+            cds_nome: cds.nome
+          });
         });
-      });
+      }
     });
     return flattened;
   }
 
   // Carica solo i CdS per il docente
   function loadCds(username, callback = null) {
-    // Se la cache è già popolata, utilizzala
-    if (cdsCache.length > 0) {
+    // Se la cache è già popolata e valida, utilizzala
+    if (cdsCache.length > 0 && (Date.now() - lastCacheUpdate < cacheExpirationTime)) {
       if (typeof callback === "function") {
         callback(cdsCache);
       }
       return;
     }
     
-    // Ottieni l'anno accademico corrente
-    const currentDate = new Date();
-    const planningYear = currentDate.getMonth() >= 9 
-        ? currentDate.getFullYear() 
-        : currentDate.getFullYear() - 1;
-    
-    // Utilizza l'API unificata per ottenere i CdS (sono già inclusi nella risposta)
-    fetch(`/api/getInsegnamentiDocente?docente=${username}&anno=${planningYear}`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.cds) {
-          // Estrai solo i CdS dal risultato
-          cdsCache = data.cds.map(c => ({
-            codice: c.codice,
-            nome_corso: c.nome
-          }));
-          
-          if (typeof callback === "function") {
-            callback(cdsCache);
-          }
-        }
-      })
-      .catch(error => {
-        console.error("Errore nel caricamento dei CdS:", error);
-        if (typeof callback === "function") {
-          callback([]);
-        }
-      });
+    // Usa loadInsegnamenti per caricare tutti i dati e popolare entrambe le cache
+    loadInsegnamenti(username, (insegnamenti) => {
+      // I CdS sono già stati caricati in cdsCache da loadInsegnamenti
+      if (typeof callback === "function") {
+        callback(cdsCache);
+      }
+    });
+  }
+
+  // Invalida la cache forzatamente
+  function invalidateCache() {
+    lastCacheUpdate = 0;
   }
 
   // GESTIONE UI
@@ -302,6 +333,7 @@ const InsegnamentiManager = (function () {
       hiddenSelect.appendChild(option);
     });
   }
+  
   // Inizializza UI con multi-select e dropdown
   function initUI(
     containerSelector,
@@ -407,16 +439,8 @@ const InsegnamentiManager = (function () {
             });
           }
           
-          // Carica solo l'insegnamento corrente per aggiornare l'UI
-          loadInsegnamenti(username, { filter: [ins.codice] }, (data) => {
-            // Aggiorna UI solo con questo insegnamento se selezionato
-            if (!isCurrentlySelected) {
-              syncUI(newContainer);
-            } else {
-              // Se è stato deselezionato, aggiorna l'UI completa
-              syncUI(newContainer);
-            }
-          });
+          // Aggiorna UI direttamente senza ricaricare dati dal server
+          syncUI(newContainer);
         });
         
         optionsContainer.appendChild(option);
@@ -494,6 +518,8 @@ const InsegnamentiManager = (function () {
 
     // Dati API
     loadInsegnamenti,
+    invalidateCache,
+    isCacheValid,
 
     // UI API
     syncUI,
@@ -504,7 +530,7 @@ const InsegnamentiManager = (function () {
     getRequestParams,
     cleanup,
     isAdmin,
-    flattenInsegnamenti,  // Aggiungi questa nuova funzione all'API pubblica
+    flattenInsegnamenti,
   };
 })();
 

@@ -44,7 +44,7 @@ export function createDropdown(type) {
   return dropdown;
 }
 
-// Popola il dropdown degli insegnamenti
+// Popola il dropdown degli insegnamenti utilizzando la cache
 export function populateInsegnamentiDropdown(
   dropdownInsegnamenti,
   docente,
@@ -52,88 +52,82 @@ export function populateInsegnamentiDropdown(
   cdsFiltro = null,
   preloadedInsegnamenti = null
 ) {
-  // Se abbiamo InsegnamentiManager e dati precaricati, li utilizziamo
-  if (window.InsegnamentiManager && preloadedInsegnamenti) {
-    // Costruisci insegnamentiPerCds utilizzando il formato gerarchico
-    let insegnamentiPerCds = {};
+  // Utilizziamo InsegnamentiManager se disponibile
+  if (window.InsegnamentiManager) {
+    const options = {};
+    if (cdsFiltro) options.cds = cdsFiltro;
     
-    // Verifica che preloadedInsegnamenti non sia null o undefined
-    if (!preloadedInsegnamenti) {
-      dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Dati non disponibili</div>";
-      return;
-    }
-    
-    // Se i dati sono nel formato gerarchico (con cds), li usiamo direttamente
-    if (preloadedInsegnamenti.cds && Array.isArray(preloadedInsegnamenti.cds)) {
-      preloadedInsegnamenti.cds.forEach(cds => {
-        if (cds && cds.codice && cds.insegnamenti) {
-          insegnamentiPerCds[cds.codice] = {
-            nome: cds.nome || cds.nome_corso || "Sconosciuto",
-            insegnamenti: Array.isArray(cds.insegnamenti) ? cds.insegnamenti.map(ins => ({
-              ...ins,
-              cds_codice: cds.codice,
-              cds_nome: cds.nome || cds.nome_corso || "Sconosciuto"
-            })) : []
-          };
-        }
-      });
-    } 
-    // Se i dati sono in formato piatto (array), li organizziamo per CdS
-    else if (Array.isArray(preloadedInsegnamenti)) {
-      preloadedInsegnamenti.forEach((ins) => {
-        const cdsKey = ins.cds_codice || 'altro';
-        const cdsNome = ins.cds_nome || 'Altro';
-        
-        if (!insegnamentiPerCds[cdsKey]) {
-          insegnamentiPerCds[cdsKey] = {
-            nome: cdsNome,
-            insegnamenti: [],
-          };
-        }
-        insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
-      });
-    }
-
-    // Costruisci HTML per il dropdown
-    let dropdownHTML = "";
-
-    // Se non ci sono dati da mostrare
-    if (Object.keys(insegnamentiPerCds).length === 0) {
-      dropdownHTML = "<div class='dropdown-error'>Nessun insegnamento disponibile</div>";
-      dropdownInsegnamenti.innerHTML = dropdownHTML;
-      return;
-    }
-
-    // Genera HTML per ogni CdS
-    Object.keys(insegnamentiPerCds).forEach((cdsCodice) => {
-      const cds = insegnamentiPerCds[cdsCodice];
+    // Se abbiamo già dati precaricati, li utilizziamo
+    if (preloadedInsegnamenti) {
+      // Costruisci insegnamentiPerCds utilizzando il formato gerarchico
+      let insegnamentiPerCds = {};
       
-      // Formato del titolo del CdS
-      dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
-
-      // Opzioni per gli insegnamenti del CdS
-      cds.insegnamenti.forEach((ins) => {
-        const isSelected = window.InsegnamentiManager.isSelected(ins.codice);
-
-        dropdownHTML += `
-          <div class="dropdown-item dropdown-item-indented" data-codice="${ins.codice}" 
-               data-semestre="${ins.semestre}" data-anno-corso="${ins.anno_corso || ""}" 
-               data-cds="${ins.cds_codice || ''}">
-            <input type="checkbox" id="ins-${ins.codice}" 
-                value="${ins.codice}"
-                ${isSelected ? "checked" : ""}>
-            <label for="ins-${ins.codice}">${ins.titolo}</label>
-          </div>
-        `;
+      // Verifica che preloadedInsegnamenti non sia null o undefined
+      if (!preloadedInsegnamenti) {
+        dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Dati non disponibili</div>";
+        return;
+      }
+      
+      // Trasforma i dati nel formato richiesto
+      if (preloadedInsegnamenti.cds && Array.isArray(preloadedInsegnamenti.cds)) {
+        preloadedInsegnamenti.cds.forEach(cds => {
+          if (cds && cds.codice && cds.insegnamenti) {
+            insegnamentiPerCds[cds.codice] = {
+              nome: cds.nome || cds.nome_corso || "Sconosciuto",
+              insegnamenti: Array.isArray(cds.insegnamenti) ? cds.insegnamenti.map(ins => ({
+                ...ins,
+                cds_codice: cds.codice,
+                cds_nome: cds.nome || cds.nome_corso || "Sconosciuto"
+              })) : []
+            };
+          }
+        });
+      } 
+      // Se i dati sono in formato piatto, li organizziamo per CdS
+      else if (Array.isArray(preloadedInsegnamenti)) {
+        preloadedInsegnamenti.forEach((ins) => {
+          const cdsKey = ins.cds_codice || 'altro';
+          const cdsNome = ins.cds_nome || 'Altro';
+          
+          if (!insegnamentiPerCds[cdsKey]) {
+            insegnamentiPerCds[cdsKey] = {
+              nome: cdsNome,
+              insegnamenti: [],
+            };
+          }
+          insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
+        });
+      }
+      
+      renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
+    } 
+    // Altrimenti usiamo InsegnamentiManager per caricare i dati dalla cache o dal server se necessario
+    else {
+      // Usa loadInsegnamenti che caricherà dalla cache se disponibile
+      window.InsegnamentiManager.loadInsegnamenti(docente, options, (insegnamenti) => {
+        // Organizza gli insegnamenti per CdS
+        const insegnamentiPerCds = {};
+        
+        insegnamenti.forEach((ins) => {
+          const cdsKey = ins.cds_codice || 'altro';
+          const cdsNome = ins.cds_nome || 'Altro';
+          
+          if (!insegnamentiPerCds[cdsKey]) {
+            insegnamentiPerCds[cdsKey] = {
+              nome: cdsNome,
+              insegnamenti: [],
+            };
+          }
+          insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
+        });
+        
+        renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
       });
-    });
-
-    dropdownInsegnamenti.innerHTML = dropdownHTML;
+    }
     return;
   }
-
-  // Se non abbiamo dati precaricati, effettuiamo una chiamata API
-  // Questa parte può rimanere semplificata usando la cache
+  
+  // Fallback se InsegnamentiManager non è disponibile (raro)
   if (!docente) {
     dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Nessun docente specificato</div>";
     return;
@@ -145,85 +139,92 @@ export function populateInsegnamentiDropdown(
     url += `&cds=${cdsFiltro}`;
   }
   
-  // Si può evitare di duplicare la logica e riutilizzare la funzione dell'InsegnamentiManager
   fetch(url)
     .then((response) => response.json())
     .then(data => {
       let insegnamentiPiatti = [];
       
       if (data.cds) {
-        // Uso la funzione di appiattimento se disponibile, altrimenti fallback
-        insegnamentiPiatti = window.InsegnamentiManager && window.InsegnamentiManager.flattenInsegnamenti
-          ? window.InsegnamentiManager.flattenInsegnamenti(data.cds)
-          : data.cds.flatMap(cds => cds.insegnamenti.map(ins => ({
-              codice: ins.codice,
-              titolo: ins.titolo,
-              semestre: ins.semestre,
-              anno_corso: ins.anno_corso,
-              cds_codice: cds.codice,
-              cds_nome: cds.nome
-            })));
+        // Estrazione dei dati in formato piatto
+        insegnamentiPiatti = data.cds.flatMap(cds => 
+          cds.insegnamenti.map(ins => ({
+            codice: ins.codice,
+            titolo: ins.titolo,
+            semestre: ins.semestre,
+            anno_corso: ins.anno_corso,
+            cds_codice: cds.codice,
+            cds_nome: cds.nome
+          }))
+        );
       } else {
         insegnamentiPiatti = data;
       }
       
-      processAndDisplayInsegnamenti(insegnamentiPiatti);
+      // Crea struttura organizzata per CdS
+      const insegnamentiPerCds = {};
+      
+      insegnamentiPiatti.forEach((ins) => {
+        const cdsKey = ins.cds_codice || 'altro';
+        const cdsNome = ins.cds_nome || 'Altro';
+        
+        if (!insegnamentiPerCds[cdsKey]) {
+          insegnamentiPerCds[cdsKey] = {
+            nome: cdsNome,
+            insegnamenti: [],
+          };
+        }
+        insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
+      });
+      
+      renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
     })
     .catch((error) => {
       console.error("Errore nel caricamento degli insegnamenti:", error);
-      dropdownInsegnamenti.innerHTML =
-        "<div class='dropdown-error'>Errore nel caricamento degli insegnamenti</div>";
+      dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Errore nel caricamento degli insegnamenti</div>";
     });
-
-  // Funzione per organizzare e visualizzare gli insegnamenti
-  function processAndDisplayInsegnamenti(insegnamenti) {
-    // Raggruppa gli insegnamenti per CDS
-    const insegnamentiPerCds = {};
-
-    // Organizza per CdS
-    insegnamenti.forEach((ins) => {
-      if (!insegnamentiPerCds[ins.cds_codice]) {
-        insegnamentiPerCds[ins.cds_codice] = {
-          nome: ins.cds_nome,
-          insegnamenti: [],
-        };
-      }
-      insegnamentiPerCds[ins.cds_codice].insegnamenti.push(ins);
-    });
-
-    // Costruisci HTML per il dropdown
-    let dropdownHTML = "";
-
-    // Genera HTML per ogni CdS
-    Object.keys(insegnamentiPerCds).forEach((cdsCodice) => {
-      const cds = insegnamentiPerCds[cdsCodice];
-      dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
-
-      cds.insegnamenti.forEach((ins) => {
-        const isSelected =
-          window.InsegnamentiManager &&
-          window.InsegnamentiManager.isSelected(ins.codice);
-
-        dropdownHTML += `
-          <div class="dropdown-item dropdown-item-indented" data-codice="${
-            ins.codice
-          }" data-semestre="${ins.semestre}" data-anno-corso="${
-          ins.anno_corso || ""
-        }" data-cds="${ins.cds_codice}">
-            <input type="checkbox" id="ins-${ins.codice}" 
-                value="${ins.codice}"
-                ${isSelected ? "checked" : ""}>
-            <label for="ins-${ins.codice}">${ins.titolo}</label>
-          </div>
-        `;
-      });
-    });
-
-    dropdownInsegnamenti.innerHTML = dropdownHTML;
-  }
 }
 
-// Aggiorna gli eventi del calendario
+// Funzione helper per renderizzare il dropdown degli insegnamenti
+function renderInsegnamentiDropdown(insegnamentiPerCds, dropdownElement) {
+  // Costruisci HTML per il dropdown
+  let dropdownHTML = "";
+
+  // Se non ci sono dati da mostrare
+  if (Object.keys(insegnamentiPerCds).length === 0) {
+    dropdownHTML = "<div class='dropdown-error'>Nessun insegnamento disponibile</div>";
+    dropdownElement.innerHTML = dropdownHTML;
+    return;
+  }
+
+  // Genera HTML per ogni CdS
+  Object.keys(insegnamentiPerCds).forEach((cdsCodice) => {
+    const cds = insegnamentiPerCds[cdsCodice];
+    
+    // Formato del titolo del CdS
+    dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
+
+    // Opzioni per gli insegnamenti del CdS
+    cds.insegnamenti.forEach((ins) => {
+      const isSelected = window.InsegnamentiManager && 
+                        window.InsegnamentiManager.isSelected(ins.codice);
+
+      dropdownHTML += `
+        <div class="dropdown-item dropdown-item-indented" data-codice="${ins.codice}" 
+             data-semestre="${ins.semestre}" data-anno-corso="${ins.anno_corso || ""}" 
+             data-cds="${ins.cds_codice || ''}">
+          <input type="checkbox" id="ins-${ins.codice}" 
+              value="${ins.codice}"
+              ${isSelected ? "checked" : ""}>
+          <label for="ins-${ins.codice}">${ins.titolo}</label>
+        </div>
+      `;
+    });
+  });
+
+  dropdownElement.innerHTML = dropdownHTML;
+}
+
+// Aggiorna gli eventi del calendario usando la cache ove possibile
 export function fetchCalendarEvents(
   calendar,
   planningYear,
@@ -234,24 +235,23 @@ export function fetchCalendarEvents(
   getUserData().then(data => {
     if (!data.authenticated || !data.user_data) {
       console.error("Utente non autenticato");
+      if (successCallback) successCallback([]);
       return;
     }
 
     const loggedDocente = data.user_data.username;
-    const isAdmin = data.user_data.permessi_admin;
-
-    // Parametri base per API
+    
+    // Costruisci parametri base
     const params = new URLSearchParams();
     params.append("docente", loggedDocente);
 
     // Usa InsegnamentiManager per filtraggi
     if (window.InsegnamentiManager) {
-      const selected = window.InsegnamentiManager.getSelected();
+      const selected = window.InsegnamentiManager.getSelectedCodes();
       
-      if (selected.size > 0) {
+      if (selected.length > 0) {
         // Se ci sono insegnamenti selezionati, passa i loro codici
-        const codici = Array.from(selected.keys());
-        params.append("insegnamenti", codici.join(","));
+        params.append("insegnamenti", selected.join(","));
       }
     }
 
@@ -279,15 +279,6 @@ export function fetchCalendarEvents(
           successCallback([]);
         }
       });
-
-    // Invalida anche la cache dopo aggiornamenti
-    window.invalidateEventCache = function() {
-      eventsCache = [];
-      lastFetchTime = 0;
-      if (calendar && typeof calendar.refetchEvents === 'function') {
-        calendar.refetchEvents();
-      }
-    };
   });
 }
 

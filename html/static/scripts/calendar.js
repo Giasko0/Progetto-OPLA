@@ -37,10 +37,6 @@ document.addEventListener("DOMContentLoaded", function () {
   let eventsCache = [];
   let lastFetchTime = 0;
 
-  // Cache per CdS e insegnamenti
-  let cachedCds = [];
-  let cachedInsegnamenti = [];
-
   // Oggetto per gestire i dropdown
   let dropdowns = {
     insegnamenti: null,
@@ -53,34 +49,17 @@ document.addEventListener("DOMContentLoaded", function () {
     currentUsername = data?.user_data?.username;
     isAdmin = data?.authenticated && data?.user_data?.permessi_admin;
 
-    // Carica le date valide, verifica i permessi, e precarica CdS e insegnamenti
+    // Carica le date valide e precarica gli insegnamenti usando InsegnamentiManager
     Promise.all([
       loadDateValide(currentUsername),
-      fetch(
-        `/api/getInsegnamentiDocente?docente=${currentUsername}&anno=${planningYear}`
-      ).then((r) => r.json()),
+      window.InsegnamentiManager ? 
+        window.InsegnamentiManager.loadInsegnamenti(currentUsername) : 
+        Promise.resolve([])
     ])
       .then(
-        ([dateValideResponse, insegnamentiData]) => {
+        ([dateValideResponse, insegnamentiCachedResult]) => {
           // Salva le date valide
           dateValide = dateValideResponse;
-
-          // Memorizza nelle cache i risultati delle chiamate API
-          // Se i dati sono nel nuovo formato gerarchico, usa la funzione di utilità
-          if (insegnamentiData.cds) {
-            cachedCds = insegnamentiData.cds.map(cds => ({
-              codice: cds.codice,
-              nome_corso: cds.nome
-            }));
-            
-            // Usa la funzione di utilità se disponibile
-            cachedInsegnamenti = window.InsegnamentiManager && window.InsegnamentiManager.flattenInsegnamenti
-              ? window.InsegnamentiManager.flattenInsegnamenti(insegnamentiData.cds)
-              : []; // altrimenti inizializza vuoto
-          } else {
-            // Formato di dati precedente
-            cachedInsegnamenti = insegnamentiData;
-          }
 
           // Crea dropdown una sola volta
           dropdowns.sessioni = createDropdown("sessioni");
@@ -166,91 +145,87 @@ document.addEventListener("DOMContentLoaded", function () {
                 text: "Insegnamenti",
                 click: function (e) {
                   handleDropdownButtonClick(e, "insegnamenti", () => {
-                    // Verifica se abbiamo dati validi in cache
-                    if (cachedCds && cachedCds.length > 0 && cachedInsegnamenti && cachedInsegnamenti.length > 0) {
-                      // Crea un oggetto con la struttura attesa dalla funzione populateInsegnamentiDropdown
-                      const dataToPass = {
-                        cds: cachedCds.map(cds => {
-                          return {
-                            codice: cds.codice,
-                            nome: cds.nome_corso || cds.nome,
-                            insegnamenti: cachedInsegnamenti
-                              .filter(ins => ins.cds_codice === cds.codice)
-                              .map(ins => ({
-                                codice: ins.codice,
-                                titolo: ins.titolo,
-                                semestre: ins.semestre,
-                                anno_corso: ins.anno_corso
-                              }))
+                    // Verifica se InsegnamentiManager ha una cache valida
+                    if (window.InsegnamentiManager && window.InsegnamentiManager.isCacheValid()) {
+                      // Usa la cache esistente per popolare il dropdown
+                      window.InsegnamentiManager.loadInsegnamenti(currentUsername, (insegnamenti) => {
+                        // Organizza i dati nel formato aspettato da populateInsegnamentiDropdown
+                        if (insegnamenti.length > 0) {
+                          // Raccogli i CdS unici
+                          const cdsCodes = [...new Set(insegnamenti.map(ins => ins.cds_codice))];
+                          
+                          // Costruisci la struttura dati
+                          const dataToPass = {
+                            cds: cdsCodes.map(cdsCode => {
+                              const cdsInsegnamenti = insegnamenti.filter(ins => ins.cds_codice === cdsCode);
+                              const cdsNome = cdsInsegnamenti.length > 0 ? 
+                                  cdsInsegnamenti[0].cds_nome || "Sconosciuto" : "Sconosciuto";
+                              
+                              return {
+                                codice: cdsCode,
+                                nome: cdsNome,
+                                insegnamenti: cdsInsegnamenti.map(ins => ({
+                                  codice: ins.codice,
+                                  titolo: ins.titolo,
+                                  semestre: ins.semestre,
+                                  anno_corso: ins.anno_corso
+                                }))
+                              };
+                            }).filter(cds => cds.insegnamenti.length > 0)
                           };
-                        }).filter(cds => cds.insegnamenti.length > 0) // Rimuovi i CdS senza insegnamenti
-                      };
-                      
-                      // Usa i dati precaricati per popolare il dropdown
-                      populateInsegnamentiDropdown(
-                        dropdowns.insegnamenti,
-                        currentUsername,
-                        planningYear,
-                        null,
-                        dataToPass
-                      );
-                    } else {
-                      // Se non ci sono dati in cache o sono incompleti, effettua una nuova chiamata API
-                      fetch(`/api/getInsegnamentiDocente?docente=${currentUsername}&anno=${planningYear}`)
-                        .then(response => {
-                          if (!response.ok) {
-                            throw new Error(`Errore HTTP: ${response.status}`);
-                          }
-                          return response.json();
-                        })
-                        .then(data => {
-                          // Aggiorna la cache con i nuovi dati
-                          if (data.cds && Array.isArray(data.cds)) {
-                            cachedCds = data.cds.map(cds => ({
-                              codice: cds.codice,
-                              nome_corso: cds.nome
-                            }));
-                            
-                            // Cache insegnamenti piatti per altre funzionalità
-                            if (window.InsegnamentiManager && window.InsegnamentiManager.flattenInsegnamenti) {
-                              cachedInsegnamenti = window.InsegnamentiManager.flattenInsegnamenti(data.cds);
-                            } else {
-                              // Implementazione fallback se flattenInsegnamenti non è disponibile
-                              cachedInsegnamenti = [];
-                              data.cds.forEach(cds => {
-                                if (cds.insegnamenti && Array.isArray(cds.insegnamenti)) {
-                                  cds.insegnamenti.forEach(ins => {
-                                    cachedInsegnamenti.push({
-                                      codice: ins.codice,
-                                      titolo: ins.titolo,
-                                      semestre: ins.semestre || 1,
-                                      anno_corso: ins.anno_corso || 1,
-                                      cds_codice: cds.codice,
-                                      cds_nome: cds.nome
-                                    });
-                                  });
-                                }
-                              });
-                            }
-                            
-                            // Passa i dati originali
-                            populateInsegnamentiDropdown(
-                              dropdowns.insegnamenti,
-                              currentUsername,
-                              planningYear,
-                              null,
-                              data
-                            );
-                          } else {
-                            dropdowns.insegnamenti.innerHTML = 
-                              "<div class='dropdown-error'>Formato dati non valido</div>";
-                          }
-                        })
-                        .catch(error => {
-                          console.error("Errore nel caricamento degli insegnamenti:", error);
+                          
+                          // Popola il dropdown con i dati dalla cache
+                          populateInsegnamentiDropdown(
+                            dropdowns.insegnamenti,
+                            currentUsername,
+                            planningYear,
+                            null,
+                            dataToPass
+                          );
+                        } else {
+                          // Se la cache è vuota ma valida, mostra un messaggio
                           dropdowns.insegnamenti.innerHTML = 
-                            "<div class='dropdown-error'>Errore nel caricamento degli insegnamenti</div>";
-                        });
+                            "<div class='dropdown-error'>Nessun insegnamento disponibile</div>";
+                        }
+                      });
+                    } else {
+                      // Se la cache non è valida, carica i dati freschi
+                      // Questo farà una sola richiesta API e memorizzerà i dati in cache
+                      window.InsegnamentiManager.loadInsegnamenti(currentUsername, (insegnamenti) => {
+                        // Usa la stessa logica di sopra per preparare i dati
+                        if (insegnamenti.length > 0) {
+                          const cdsCodes = [...new Set(insegnamenti.map(ins => ins.cds_codice))];
+                          const dataToPass = {
+                            cds: cdsCodes.map(cdsCode => {
+                              const cdsInsegnamenti = insegnamenti.filter(ins => ins.cds_codice === cdsCode);
+                              const cdsNome = cdsInsegnamenti.length > 0 ? 
+                                  cdsInsegnamenti[0].cds_nome || "Sconosciuto" : "Sconosciuto";
+                              
+                              return {
+                                codice: cdsCode,
+                                nome: cdsNome,
+                                insegnamenti: cdsInsegnamenti.map(ins => ({
+                                  codice: ins.codice,
+                                  titolo: ins.titolo,
+                                  semestre: ins.semestre,
+                                  anno_corso: ins.anno_corso
+                                }))
+                              };
+                            }).filter(cds => cds.insegnamenti.length > 0)
+                          };
+                          
+                          populateInsegnamentiDropdown(
+                            dropdowns.insegnamenti,
+                            currentUsername,
+                            planningYear,
+                            null,
+                            dataToPass
+                          );
+                        } else {
+                          dropdowns.insegnamenti.innerHTML = 
+                            "<div class='dropdown-error'>Nessun insegnamento disponibile</div>";
+                        }
+                      });
                     }
                   });
                 },
@@ -573,12 +548,9 @@ document.addEventListener("DOMContentLoaded", function () {
               // Prepara contenitore
               const multiSelectBox = document.getElementById("insegnamentoBox");
               if (multiSelectBox) {
-                // Carica insegnamenti selezionati usando la nuova API
-                const username = currentUsername;
-                if (!username) return;
-                
+                // Usa la cache di InsegnamentiManager
                 window.InsegnamentiManager.loadInsegnamenti(
-                  username, 
+                  currentUsername, 
                   { filter: window.InsegnamentiManager.getSelectedCodes() }, 
                   data => {
                     // Utilizza syncUI per aggiornare l'interfaccia
