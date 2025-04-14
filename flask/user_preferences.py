@@ -83,9 +83,6 @@ def ottieni_preferenze_form():
         if not username:
             return jsonify({'status': 'error', 'message': 'Username mancante'}), 400
         
-        # Log per debug
-        print(f"Richiesta preferenze per username: {username}, form_type: {form_type}")
-        
         # Connessione al database
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -99,9 +96,6 @@ def ottieni_preferenze_form():
         """, (username, form_type))
         
         preferences = cursor.fetchall()
-        
-        # Log per debug
-        print(f"Preferenze trovate: {len(preferences)}")
         
         # Converti le stringhe JSON in oggetti Python e converti i risultati in liste di dizionari
         result_prefs = []

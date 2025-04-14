@@ -9,7 +9,9 @@ document.addEventListener("DOMContentLoaded", function () {
     })
     .then((data) => {
       if (
-        data.status === "success" &&
+        data.status === "warning" &&
+        data.nessun_problema === false &&
+        data.insegnamenti_sotto_minimo &&
         data.insegnamenti_sotto_minimo.length > 0
       ) {
         // Ci sono insegnamenti sotto il minimo

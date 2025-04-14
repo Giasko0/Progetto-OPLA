@@ -246,6 +246,13 @@ const EsameForm = (function() {
       provaParzialeCheckbox.checked = examData.tipo_appello === 'PP';
       aggiornaVerbalizzazione(); // Aggiorna le opzioni di verbalizzazione
     }
+    
+    // Gestione checkbox mostra_nel_calendario
+    const mostraInCalendarioCheckbox = document.getElementById('mostra_nel_calendario');
+    if (mostraInCalendarioCheckbox) {
+      // Impostiamo il checkbox basandoci sul valore dal backend
+      mostraInCalendarioCheckbox.checked = examData.mostra_nel_calendario === true || examData.mostra_nel_calendario === 'true';
+    }
 
     // Usa handleSpecialFields per gestire ora e durata
     handleSpecialFields(examData);
@@ -1567,7 +1574,7 @@ const EsameForm = (function() {
         tipo_esame: formData.get('tipoEsame'),
         note_appello: formData.get('note'),
         posti: formData.get('posti') ? parseInt(formData.get('posti')) : 200,
-        mostra_nel_calendario: formData.get('mostra_calendario') === 'on'
+        mostra_nel_calendario: formData.get('mostra_nel_calendario') === 'on'
       };
 
       // Per la modifica inviamo JSON

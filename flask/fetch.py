@@ -3,7 +3,7 @@ from db import get_db_connection, release_connection
 from datetime import datetime
 from auth import get_user_data
 from psycopg2.extras import DictCursor
-from utils.insegnamentiUtils import ottieni_insegnamenti_docente, conta_esami_insegnamenti, check_esami_minimi
+from utils.insegnamentiUtils import ottieni_insegnamenti_docente
 
 fetch_bp = Blueprint('fetch', __name__)
 
@@ -535,9 +535,90 @@ def getInsegnamentiDocente():
 
 # API per controllare gli insegnamenti con meno del numero minimo di esami
 @fetch_bp.route('/api/checkEsamiMinimi', methods=['GET'])
-def check_esami_minimi_endpoint():
+def check_esami_minimi():
     # Ottenimento dati utente e verifica
     user_data = get_user_data().get_json()
     
-    # Usa la funzione spostata in insegnamentiList.py
-    return check_esami_minimi(user_data)
+    if not user_data['authenticated'] or not user_data['user_data']:
+        return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
+    
+    docente = user_data['user_data']['username']
+    
+    try:
+        current_date = datetime.now()
+        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+        
+        # Otteniamo tutti gli insegnamenti validi del docente
+        insegnamenti = ottieni_insegnamenti_docente(docente, planning_year)
+        if not insegnamenti:
+            return jsonify({
+                'status': 'success',
+                'nessun_problema': True,
+                'message': 'Nessun insegnamento trovato per il docente.'
+            })
+        
+        conn = None
+        cursor = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            query = """
+                SELECT 
+                    i.id, 
+                    i.titolo,
+                    COUNT(e.id) AS conteggio_esami
+                FROM insegnamenti i
+                LEFT JOIN esami e ON i.id = e.insegnamento 
+                    AND e.docente = %s 
+                    AND e.tipo_appello != %s
+                    AND e.mostra_nel_calendario = true
+                WHERE i.id IN %s
+                GROUP BY i.id, i.titolo
+                HAVING COUNT(e.id) < %s
+                ORDER BY conteggio_esami ASC, i.titolo ASC
+            """
+            
+            # Filtriamo per esami con meno di 8 esami previsti (minimo richiesto)
+            params = [docente, "PP", tuple(insegnamenti.keys()), 8]
+                
+            cursor.execute(query, params)
+            
+            insegnamenti_pochi_esami = []
+            for row in cursor.fetchall():
+                insegnamenti_pochi_esami.append({
+                    'id': row[0],
+                    'titolo': row[1],
+                    'esami_inseriti': row[2]
+                })
+                
+            if not insegnamenti_pochi_esami:
+                return jsonify({
+                    'status': 'success',
+                    'nessun_problema': True,
+                    'message': 'Tutti gli insegnamenti hanno almeno 8 esami previsti.'
+                })
+            
+            # Altrimenti restituisci gli insegnamenti problematici
+            nomi_insegnamenti = [i['titolo'] for i in insegnamenti_pochi_esami]
+            esami_mancanti = [(8 - i['esami_inseriti']) for i in insegnamenti_pochi_esami]
+            
+            return jsonify({
+                'status': 'warning',
+                'nessun_problema': False,
+                'insegnamenti': nomi_insegnamenti,
+                'esami_mancanti': esami_mancanti,
+                'insegnamenti_sotto_minimo': insegnamenti_pochi_esami
+            })
+            
+        except Exception as e:
+            print(f"Errore nel conteggio degli esami: {str(e)}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                release_connection(conn)
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500

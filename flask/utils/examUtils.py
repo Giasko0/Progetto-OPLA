@@ -24,7 +24,7 @@ def generaDatiEsame():
     # Campi base dell'esame
     descrizione = data.get('descrizione', '')
     prova_parziale = data.get('provaParziale') == 'on'
-    mostra_nel_calendario = data.get('mostra_nel_nel_calendario') == 'on'
+    mostra_nel_calendario = data.get('mostra_nel_calendario') == 'on'
     aula = data.get('aula')
     data_appello = data.get('dataora')
     ora_appello = data.get('ora')
@@ -159,9 +159,7 @@ def controllaVincoli(dati_esame):
     # Liste per raccogliere risultati
     esami_validi = []
     esami_invalidi = []
-    
-    # Verifica se è una prova parziale e se deve essere mostrato nel calendario
-    is_prova_parziale = dati_esame['tipo_appello'] == 'PP'
+    # Verifica se è una prova da mostrare nel calendario
     mostra_nel_calendario = dati_esame.get('mostra_nel_calendario', True)
     
     # 1. Verifica conflitti di aula
@@ -263,7 +261,7 @@ def controllaVincoli(dati_esame):
           if not periodi_sessione:  # Solo la prima volta
             dati_esame['inizio_iscrizione'] = data_inizio_iscrizione
         
-        # 2.4 Verifica il limite di esami nella sessione (solo se il flag è attivo)
+        # 2.4 Verifica il limite di esami nella sessione (solo se la prova viene mostrata nel calendario)
         if mostra_nel_calendario:
           # Salta il controllo del numero massimo se stiamo modificando un esame esistente
           exam_id_to_exclude = dati_esame.get('exam_id')
@@ -278,6 +276,7 @@ def controllaVincoli(dati_esame):
               WHERE e.docente = %s 
                 AND i.codice = %s
                 AND e.data_appello BETWEEN pe.inizio AND pe.fine
+                AND e.mostra_nel_calendario = TRUE
             """, (cds_code, anno_acc, sessione, docente, insegnamento))
             
             if cursor.fetchone()[0] >= limite_max:
@@ -288,7 +287,7 @@ def controllaVincoli(dati_esame):
               })
               continue
         
-        # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento (solo se il flag è attivo)
+          # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento
           # Metto 13 giorni perché il vincolo dice "non inferiore a due settimane"
           data_min = data_esame - timedelta(days=13)
           data_max = data_esame + timedelta(days=13)
@@ -301,12 +300,14 @@ def controllaVincoli(dati_esame):
               JOIN insegnamenti i ON e.insegnamento = i.id
               WHERE i.codice = %s AND data_appello BETWEEN %s AND %s
               AND e.id != %s
+              AND e.mostra_nel_calendario = TRUE
             """, (insegnamento, data_min, data_max, exam_id_to_exclude))
           else:
             cursor.execute("""
               SELECT data_appello FROM esami e
               JOIN insegnamenti i ON e.insegnamento = i.id
               WHERE i.codice = %s AND data_appello BETWEEN %s AND %s
+              AND e.mostra_nel_calendario = TRUE
             """, (insegnamento, data_min, data_max))
           
           esami_vicini = cursor.fetchall()

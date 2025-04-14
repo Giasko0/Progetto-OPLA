@@ -182,7 +182,7 @@ def get_esame_by_id():
         
         # Query aggiornata per recuperare tutti i campi
         query = """
-        SELECT e.id, e.docente, e.insegnamento, i.titolo AS insegnamento_titolo, 
+        SELECT e.id, e.mostra_nel_calendario, e.docente, e.insegnamento, i.titolo AS insegnamento_titolo, 
                i.codice AS insegnamento_codice, e.aula, e.data_appello, e.ora_appello,
                e.durata_appello, e.periodo, e.tipo_appello, e.descrizione,
                e.data_inizio_iscrizione, e.data_fine_iscrizione, e.tipo_esame,
