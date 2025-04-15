@@ -1214,15 +1214,18 @@ def get_calendario_esami():
       return jsonify({'error': 'Corso di studi non trovato'})
     
     # Ottieni tutti gli insegnamenti per il CdS e anno accademico specificati
+    # Filtra solo gli esami con mostra_nel_calendario = TRUE
     cursor.execute("""
-      SELECT i.codice, i.titolo, ic.anno_corso, ic.semestre,
+      SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre,
            COALESCE(e.data_appello, NULL) as data_appello,
            EXTRACT(MONTH FROM e.data_appello) as mese,
            EXTRACT(YEAR FROM e.data_appello) as anno,
            EXTRACT(DAY FROM e.data_appello) as giorno
       FROM insegnamenti i
-      JOIN insegnamenti_cds ic ON i.codice = ic.insegnamento
-      LEFT JOIN esami e ON i.codice = e.insegnamento AND e.data_appello >= %s
+      JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
+      LEFT JOIN esami e ON i.id = e.insegnamento
+                        AND e.data_appello >= %s
+                        AND e.mostra_nel_calendario = TRUE
       WHERE ic.cds = %s AND ic.anno_accademico = %s
       ORDER BY ic.anno_corso, i.titolo
     """, (f"{anno_accademico}-01-01", cds_code, anno_accademico))
@@ -1234,20 +1237,21 @@ def get_calendario_esami():
     esami_per_insegnamento = {}
     
     for row in insegnamenti_raw:
-      codice = row['codice']
-      if codice not in esami_per_insegnamento:
+      id_insegnamento = row['id']
+      if id_insegnamento not in esami_per_insegnamento:
         insegnamenti.append({
-          'codice': codice,
+          'id': id_insegnamento,
+          'codice': row['codice'],
           'titolo': row['titolo'],
           'anno_corso': row['anno_corso'],
           'semestre': row['semestre'],
           'esami': []
         })
-        esami_per_insegnamento[codice] = insegnamenti[-1]['esami']
+        esami_per_insegnamento[id_insegnamento] = insegnamenti[-1]['esami']
       
       # Aggiungi l'esame se c'è una data
       if row['data_appello']:
-        esami_per_insegnamento[codice].append({
+        esami_per_insegnamento[id_insegnamento].append({
           'data': row['data_appello'].strftime('%Y-%m-%d'),
           'mese': int(row['mese']),
           'anno': int(row['anno']),

@@ -496,7 +496,7 @@ input[type="number"] {
   background-color: #3a7bc8;
 }
 
-/* Stili per la tabella utenti */
+/* Tabella utenti */
 .users-section {
     margin-top: 2rem;
 }
@@ -627,7 +627,6 @@ input[type="number"] {
     border-color: #f5c6cb;
 }
 
-/* Aggiungi stile per il messaggio informativo se non già presente */
 .alert-info {
     background-color: #d1ecf1;
     color: #0c5460;
@@ -635,6 +634,31 @@ input[type="number"] {
     padding: 10px;
     border-radius: 4px;
     margin-bottom: 15px;
+}
+
+/* Calendario esami */
+.table-calendar {
+  margin-bottom: 30px;
+  border-collapse: collapse;
+  width: 100%;
+}
+.table-calendar th, .table-calendar td {
+  text-align: center;
+  vertical-align: middle;
+  border: 1px solid #dee2e6;
+  padding: 8px;
+}
+.table-calendar th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+.table-calendar td:first-child {
+  text-align: left;
+  font-weight: bold;
+  background-color: #f8f9fa;
+}
+.anno-corso {
+  margin-bottom: 40px;
 }
 
 /* Footer styles */

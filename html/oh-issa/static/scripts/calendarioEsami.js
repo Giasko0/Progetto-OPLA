@@ -1,11 +1,7 @@
-/**
- * Script per la gestione del calendario esami
- * Utilizza JavaScript nativo (no jQuery)
- */
+// Script per la gestione del calendario esami
 document.addEventListener('DOMContentLoaded', function() {
     // Elementi DOM
     const btnGeneraCalendario = document.getElementById('btnGeneraCalendario');
-    const calendarioContainer = document.getElementById('calendarioContainer');
     
     // Inizializza i selettori
     loadAnniAccademici();
@@ -14,9 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     btnGeneraCalendario.addEventListener('click', generaCalendario);
 });
 
-/**
- * Carica gli anni accademici per il selettore
- */
+// Carica gli anni accademici per il selettore
 function loadAnniAccademici() {
     fetch('/api/oh-issa/getAnniAccademici')
         .then(response => response.json())
@@ -35,6 +29,11 @@ function loadAnniAccademici() {
                 option.textContent = `${anno}/${anno+1}`;
                 select.appendChild(option);
             });
+            
+            // Aggiungi event listener per caricare i corsi quando cambia l'anno
+            select.addEventListener('change', function() {
+                loadCorsiForAnno(this.value);
+            });
         })
         .catch(error => {
             console.error('Errore nel caricamento degli anni accademici:', error);
@@ -42,9 +41,7 @@ function loadAnniAccademici() {
         });
 }
 
-/**
- * Carica i corsi di studio per un anno specifico
- */
+// Carica i corsi di studio per un anno specifico
 function loadCorsiForAnno(anno) {
     if (!anno) {
         document.getElementById('selectCds').innerHTML = '<option value="">Seleziona un corso</option>';
@@ -77,23 +74,14 @@ function loadCorsiForAnno(anno) {
         });
 }
 
-/**
- * Azione quando viene selezionato un CdS
- * In questo caso non facciamo nulla, ma manteniamo la funzione
- * per mantenere lo stesso pattern di gestioneCds.js
- */
-function cdsSelected(value) {
-    // In questo caso non facciamo nulla di speciale quando viene selezionato il CdS
-    // Ma manteniamo la funzione per coerenza con gestioneCds.js
-}
-
-/**
- * Genera il calendario degli esami
- */
+// Genera il calendario degli esami
 function generaCalendario() {
     const cdsSelectValue = document.getElementById('selectCds').value;
+    const annoAccademicoValue = document.getElementById('selectAnnoAccademico').value;
+    const calendarioContainer = document.getElementById('calendarioContainer');
     
-    if (!cdsSelectValue) {
+    // Verifica entrambi i valori
+    if (!cdsSelectValue || !annoAccademicoValue) {
         mostraErrore('Seleziona sia il Corso di Studi che l\'Anno Accademico');
         return;
     }
@@ -103,13 +91,23 @@ function generaCalendario() {
     
     // Mostra messaggio di caricamento
     calendarioContainer.innerHTML = '<div class="loading">Generazione calendario in corso...</div>';
-    
+        
     // Richiedi il calendario al server
     fetch(`/api/oh-issa/getCalendarioEsami?cds=${codiceCds}&anno=${annoAccademico}`)
-        .then(response => response.json())
-        .then(data => {
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Errore HTTP: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {            
             if (data.error) {
                 mostraErrore(data.error);
+                return;
+            }
+            
+            if (!data || !data.insegnamenti || data.insegnamenti.length === 0) {
+                mostraErrore('Nessun dato disponibile per il calendario con i parametri specificati');
                 return;
             }
             
@@ -118,21 +116,20 @@ function generaCalendario() {
         })
         .catch(error => {
             console.error('Errore nella generazione del calendario:', error);
-            mostraErrore('Si è verificato un errore nella generazione del calendario');
+            mostraErrore('Si è verificato un errore nella generazione del calendario: ' + error.message);
         });
 }
 
-/**
- * Visualizza il calendario degli esami
- * @param {Object} data - Dati del calendario
- */
+// Visualizza il calendario degli esami
 function visualizzaCalendario(data) {
+    const calendarioContainer = document.getElementById('calendarioContainer');
+    
     // Pulisci il container
     calendarioContainer.innerHTML = '';
     
-    // Se non ci sono dati, mostra un messaggio
+    // Se non ci sono dati o non ci sono insegnamenti, mostra un messaggio
     if (!data || !data.insegnamenti || data.insegnamenti.length === 0) {
-        calendarioContainer.innerHTML = '<p class="text-center">Nessun dato disponibile per il calendario</p>';
+        calendarioContainer.innerHTML = '<p class="alert alert-warning text-center">Nessun dato disponibile per il calendario</p>';
         return;
     }
     
@@ -150,6 +147,12 @@ function visualizzaCalendario(data) {
     
     // Crea una lista ordinata di periodi
     const periodi = data.periodi || [];
+    
+    // Se non ci sono periodi, mostra un messaggio
+    if (periodi.length === 0) {
+        calendarioContainer.innerHTML = '<p class="alert alert-warning text-center">Nessun periodo di esame definito per questo corso di studi</p>';
+        return;
+    }
     
     // Per ogni anno di corso, crea una tabella separata
     Object.keys(insegnamentiPerAnno).sort().forEach(anno => {
@@ -211,15 +214,14 @@ function visualizzaCalendario(data) {
                     return esame.mese === periodo.mese && esame.anno === periodo.anno;
                 });
                 
-                // Se ci sono esami, mostra i giorni e le durate
+                // Se ci sono esami, mostra i giorni
                 if (esamiPeriodo.length > 0) {
                     // Estrai i giorni e ordinali
                     const giorni = esamiPeriodo.map(esame => {
-                        const durata = esame.durata_appello ? ` (${esame.durata_appello} min)` : '';
-                        return `${esame.giorno}${durata}`;
+                        return `${esame.giorno}`;
                     }).sort((a, b) => parseInt(a) - parseInt(b));
                     
-                    // Crea la stringa con i giorni separati da virgola
+                    // Crea la stringa con i giorni separati da trattino
                     tdEsami.textContent = giorni.join(' - ');
                 }
                 
@@ -234,40 +236,16 @@ function visualizzaCalendario(data) {
         calendarioContainer.appendChild(annoDiv);
     });
     
-    // Aggiungi stili CSS per rendere la tabella più leggibile
-    const style = document.createElement('style');
-    style.textContent = `
-        .table-calendar {
-            margin-bottom: 30px;
-            border-collapse: collapse;
-            width: 100%;
-        }
-        .table-calendar th, .table-calendar td {
-            text-align: center;
-            vertical-align: middle;
-            border: 1px solid #dee2e6;
-            padding: 8px;
-        }
-        .table-calendar th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-        }
-        .table-calendar td:first-child {
-            text-align: left;
-            font-weight: bold;
-            background-color: #f8f9fa;
-        }
-        .anno-corso {
-            margin-bottom: 40px;
-        }
-    `;
-    document.head.appendChild(style);
+    // Aggiungi la descrizione del corso
+    if (data.nome_corso) {
+        const corsoInfo = document.createElement('div');
+        corsoInfo.className = 'corso-info';
+        corsoInfo.innerHTML = `<h2>Calendario esami: ${data.nome_corso}</h2>`;
+        calendarioContainer.prepend(corsoInfo);
+    }
 }
 
-/**
- * Mostra un messaggio di errore
- * @param {string} message - Messaggio di errore
- */
+// Mostra un messaggio di errore
 function mostraErrore(message) {
     const calendarioContainer = document.getElementById('calendarioContainer');
     calendarioContainer.innerHTML = `
