@@ -1402,6 +1402,7 @@ tbody tr:hover td {
   .navlinks.open {
     max-height: 300px;
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+    background-color: var(--color-nav);
   }
 
   .navlinks a {
@@ -1415,7 +1416,7 @@ tbody tr:hover td {
     right: 4rem;
     top: 50%;
     transform: translateY(-50%);
-    margin-left: 0;
+    margin-right: 0;
   }
   
   /* Stili footer */
