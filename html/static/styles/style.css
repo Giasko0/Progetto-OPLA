@@ -86,31 +86,191 @@ body {
   min-height: 100dvh;
 }
 
+/* Content layout */
 .content {
   position: relative;
   width: var(--body-width);
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   text-align: left;
   flex: 1;
-  padding-bottom: 40px;
+}
+
+/* Quando la sidebar è visibile, modifica solo la disposizione di content-inner */
+.content.sidebar-visible .content-inner {
+  transform: translateX(calc(-1 * var(--sidebar-width) / 2));
 }
 
 /* Wrapper interno per gli elementi del content */
 .content-inner {
   width: var(--content-inner-width);
-  max-width: 100%;
+  margin: 0 10vw;
   display: flex;
   flex-direction: column;
   align-items: center;
-  transition: width 0.3s ease, transform 0.3s ease;
+  flex: 1;
+  position: relative;
 }
 
+/* Nuovo stile per content-row */
+.content-row {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  gap: 20px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
 
-/* Quando la sidebar è visibile, modifica solo la disposizione di content-inner */
-.content.sidebar-visible .content-inner {
-  transform: translateX(calc(-1 * var(--sidebar-width) / 2));
+/* Content sidebar - contiene sia il pulsante che la sidebar */
+.content-sidebar {
+  position: relative;
+  height: 100%;
+}
+
+/* Form container */
+#form-container {
+  position: relative;
+  width: 100%;
+}
+
+/* Form container quando contiene il form */
+#form-container.has-form {
+  margin-top: 20px;
+}
+
+/* Riposizionamento del toggle-sidebar-float */
+.toggle-sidebar-float {
+  position: absolute;
+  right: 0;
+  top: 2em;
+  width: 30px;
+  height: 60px;
+  background-color: var(--color-nav);
+  color: var(--color-text);
+  border: 1px solid #ccc;
+  border-right: none;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  z-index: 91;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px 0 0 8px;
+  transform: translateX(0);
+}
+
+/* Message sidebar */
+.message-sidebar {
+  position: absolute;
+  height: 100%;
+  right: 0;
+  width: var(--sidebar-width);
+  background-color: var(--color-nav);
+  border-left: 1px solid var(--color-border);
+  z-index: 90;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  transform: translateX(100%); /* Chiusa di default */
+}
+
+.message-sidebar.visible {
+  transform: translateX(0); /* Visibile */
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: var(--color-blue);
+  border-bottom: 1px solid var(--color-nav);
+}
+
+.sidebar-header h3 {
+  color: var(--color-bg-light);
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 500;
+}
+
+/* Formattazione del form quando è visibile */
+.side-form {
+  position: relative;
+  transform: translateX(100%);
+  display: block;
+  width: clamp(400px, 30vw, 600px);
+  height: 100%;
+  max-height: calc(100vh - var(--nav-height) - 40px); /* Altezza massima considerando navbar e padding */
+  background-color: transparent;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.side-form.active {
+  transform: translateX(0);
+}
+
+.side-form .popup {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  pointer-events: auto;
+  z-index: 200;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Quando la sidebar è visibile, gestisce il posizionamento del pulsante */
+.content-sidebar.sidebar-visible .toggle-sidebar-float {
+  transform: translateX(calc(-1 * var(--sidebar-width))); /* Si sposta quando la sidebar è visibile */
+}
+
+/* Media queries per layout responsive */
+@media (max-width: 768px) {
+  .content {
+    flex-direction: column;
+  }
+  
+  .content-inner {
+    width: var(--mobile-content-width);
+  }
+  
+  .content-row {
+    flex-direction: column;
+    gap: 30px;
+  }
+  
+  #calendar, #form-container {
+    width: 100%;
+    min-width: 100%;
+  }
+  
+  .content-sidebar {
+    width: 100%;
+  }
+  
+  .message-sidebar {
+    width: var(--mobile-sidebar-width);
+  }
+  
+  .message-sidebar.visible {
+    transform: translateX(0);
+  }
+  
+  .side-form {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .side-form .popup {
+    width: 100%;
+  }
 }
 
 .titolo {
@@ -119,7 +279,6 @@ body {
   font-size: clamp(1rem, 4vh, 2.5rem);
   align-self: flex-start;
   color: var(--color-text);
-  width: 100%;
 }
 
 .email-link {
@@ -331,6 +490,7 @@ body {
 /*---------CALENDARIO---------*/
 #calendar {
   width: 100%;
+  max-width: 80vw;
 }
 
 .fc-button-primary {
@@ -432,6 +592,21 @@ body {
   z-index: 100;
 }
 
+/* Nuovo stile per form laterale */
+.popup-overlay.side-form {
+  display: block;
+  background-color: transparent;
+  pointer-events: none;
+  position: absolute;
+  width: auto;
+  height: auto;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+}
+
 .popup {
   height: auto;
   max-height: 95vh;
@@ -442,12 +617,40 @@ body {
   overflow: auto;
 }
 
+/* Stile specifico per il form laterale */
+.side-form .popup {
+  position: absolute;
+  transform: translateX(100%);
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: clamp(400px, 30vw, 600px);
+  max-height: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  pointer-events: auto;
+  z-index: 200;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.side-form .popup.active {
+  transform: translateX(0);
+}
+
 .popup-header {
   background: var(--color-bg);
   padding: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Fissa l'header nel form laterale */
+.side-form .popup-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .popup-header h2 {
@@ -464,6 +667,24 @@ body {
   padding: 20px;
   font-size: 1em;
   color: var(--color-text);
+}
+
+/* Dimensione popup-body per il form laterale */
+.side-form .popup-body {
+  height: calc(100% - 60px);
+  overflow-y: auto;
+}
+
+/* Media queries per form laterale */
+@media (max-width: 768px) {
+  .side-form .popup {
+    width: 85vw;
+    transform: translateX(100%);
+  }
+
+  .side-form .popup.active {
+    transform: translateX(0);
+  }
 }
 
 .popup input,
@@ -495,7 +716,6 @@ body {
   border: none;
   border-radius: var(--radius);
   font-weight: 600;
-  transition: all 0.3s ease;
 }
 
 .invia:hover {
@@ -561,6 +781,18 @@ body {
   padding: 8px;
   margin-bottom: 15px;
   box-sizing: border-box;
+}
+
+/* Media queries per form laterale */
+@media (max-width: 768px) {
+  .side-form .popup {
+    width: 85vw;
+    right: -100%;
+  }
+
+  .side-form .popup.active {
+    right: 0;
+  }
 }
 
 .two-column-layout {
@@ -837,42 +1069,6 @@ body {
   color: var (--color-text);
 }
 
-/*---------SIDEBAR PER MESSAGGI---------*/
-.message-sidebar {
-  position: absolute;
-  height: 100%;
-  right: 0;
-  width: var(--sidebar-width);
-  background-color: var(--color-nav);
-  border-left: 1px solid var(--color-border);
-  z-index: 90;
-  overflow-x: hidden;
-  overflow-y: auto;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-  transform: translateX(100%); /* Chiusa di default */
-  transition: transform 0.3s ease;
-}
-
-.message-sidebar.visible {
-  transform: translateX(0); /* Visibile */
-}
-
-.sidebar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  background-color: var(--color-blue);
-  border-bottom: 1px solid var(--color-nav);
-}
-
-.sidebar-header h3 {
-  color: var(--color-bg-light);
-  margin: 0;
-  font-size: 1.2em;
-  font-weight: 500;
-}
-
 /* Pulsante chiusura nel header */
 .close-sidebar-btn {
   color: var(--color-bg-light);
@@ -912,7 +1108,6 @@ body {
   justify-content: center;
   border-radius: 8px 0 0 8px;
   transform: translateX(0);
-  transition: right 0.3s ease;
 }
 
 .toggle-sidebar-float.sidebar-open {

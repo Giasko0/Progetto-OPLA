@@ -6,12 +6,14 @@
  * @param {string} options.type - Tipo di popup (info, error, success, warning)
  * @param {Function} options.callback - Funzione da chiamare alla chiusura
  * @param {boolean} options.showButton - Se mostrare il pulsante OK (default: false)
+ * @param {boolean} options.sideForm - Se mostrare come form laterale (default: false)
  */
 function showPopup(message, title = "Errore", options = {}) {
   const defaultOptions = {
     type: "error", // info, error, success, warning
     callback: null, // callback da eseguire alla chiusura
     showButton: false, // se mostrare il pulsante OK
+    sideForm: false, // se mostrare come form laterale
   };
 
   const settings = { ...defaultOptions, ...options };
@@ -22,6 +24,11 @@ function showPopup(message, title = "Errore", options = {}) {
   // Crea l'overlay
   const overlay = document.createElement("div");
   overlay.className = "popup-overlay";
+  
+  // Aggiungi classe side-form se richiesto
+  if (settings.sideForm) {
+    overlay.classList.add("side-form");
+  }
 
   // Costruisco il contenuto HTML
   let buttonHTML = "";
@@ -47,15 +54,44 @@ function showPopup(message, title = "Errore", options = {}) {
   `;
 
   document.body.appendChild(overlay);
-  // Mostra l'overlay impostando display: flex
-  overlay.style.display = "flex";
+  
+  // Mostra l'overlay impostando display: flex o block in base al tipo
+  if (settings.sideForm) {
+    overlay.style.display = "block";
+    // Aggiungi animazione di apertura dopo un piccolo delay
+    setTimeout(() => {
+      const popupElement = overlay.querySelector('.popup');
+      if (popupElement) {
+        popupElement.classList.add('active');
+      }
+    }, 10);
+  } else {
+    overlay.style.display = "flex";
+  }
 
   // Funzione per chiudere il popup
   const closePopup = () => {
-    overlay.remove();
-    // Esegui il callback se fornito
-    if (settings.callback && typeof settings.callback === "function") {
-      settings.callback();
+    if (settings.sideForm) {
+      // Animazione di chiusura per form laterale
+      const popupElement = overlay.querySelector('.popup');
+      if (popupElement) {
+        popupElement.classList.remove('active');
+        // Attendiamo che l'animazione di chiusura sia completata
+        setTimeout(() => {
+          overlay.remove();
+          // Esegui il callback se fornito
+          if (settings.callback && typeof settings.callback === "function") {
+            settings.callback();
+          }
+        }, 300); // Tempo dell'animazione CSS
+      }
+    } else {
+      // Rimozione immediata per popup standard
+      overlay.remove();
+      // Esegui il callback se fornito
+      if (settings.callback && typeof settings.callback === "function") {
+        settings.callback();
+      }
     }
   };
 
@@ -69,7 +105,8 @@ function showPopup(message, title = "Errore", options = {}) {
   }
 
   overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) {
+    if (event.target === overlay && !settings.sideForm) {
+      // Chiudi al click fuori solo per popup standard, non per form laterali
       closePopup();
     }
   });
