@@ -331,6 +331,21 @@ body {
 /*---------CALENDARIO---------*/
 #calendar {
   width: 100%;
+  position: relative;
+}
+
+/* Stile per rendere scrollabile solo il contenuto del calendario ma non l'header */
+.fc .fc-view-harness {
+  max-height: calc(70vh - 50px); /* Altezza massima per il contenuto scrollabile */
+  overflow-y: auto;
+}
+
+/* Fissa la posizione dell'header */
+.fc .fc-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 10px 0;
 }
 
 .fc-button-primary {
