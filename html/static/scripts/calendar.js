@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Configurazione calendario
           calendar = new FullCalendar.Calendar(calendarEl, {
-            contentHeight: "auto",
+            contentHeight: 600,
             locale: "it",
             initialView: 'multiMonthList',
             duration: { months: 16 },

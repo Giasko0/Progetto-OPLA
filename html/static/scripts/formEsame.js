@@ -432,7 +432,7 @@ const EsameForm = (function() {
     ora_h?.addEventListener("change", aggiornaAuleDisponibili);
     ora_m?.addEventListener("change", aggiornaAuleDisponibili);
 
-    // Gestione opzioni avanzate
+    // Gestione opzioni aggiuntive
     const pulsanteAdv = document.getElementById("buttonOpzioniAvanzate");
     pulsanteAdv?.addEventListener("click", toggleOpzioniAvanzate);
 
@@ -564,7 +564,7 @@ const EsameForm = (function() {
     setupTimeCombiningHandlers();
   }
 
-  // Mostra/nasconde le opzioni avanzate
+  // Mostra/nasconde le opzioni aggiuntive
   function toggleOpzioniAvanzate() {
     const opzioni = document.getElementById("opzioniAvanzate");
     const button = document.getElementById("buttonOpzioniAvanzate");
@@ -574,8 +574,8 @@ const EsameForm = (function() {
     const isVisible = opzioni.style.display === "grid";
     opzioni.style.display = isVisible ? "none" : "grid";
     button.innerHTML = isVisible 
-      ? "Opzioni avanzate <span class='material-symbols-outlined'>arrow_right</span>" // freccia verso destra
-      : "Opzioni avanzate <span class='material-symbols-outlined'>arrow_drop_down</span>"; // freccia verso il basso
+      ? "Opzioni aggiuntive <span class='material-symbols-outlined'>arrow_right</span>" // freccia verso destra
+      : "Opzioni aggiuntive <span class='material-symbols-outlined'>arrow_drop_down</span>"; // freccia verso il basso
   }
   
   // Aggiorna le opzioni di verbalizzazione in base al checkbox di prova parziale

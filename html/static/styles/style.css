@@ -348,6 +348,10 @@ body {
   padding: 10px 0;
 }
 
+.fc-multimonth-daygrid-table tr, .fc-multimonth-daygrid-table td {
+  height: 8rem;
+}
+
 .fc-button-primary {
   background-color: var(--color-blue);
 }
@@ -371,6 +375,10 @@ body {
 
 .fc-event-main-frame {
   overflow: hidden;
+}
+
+.fc-h-event .fc-event-main-frame {
+  display: block;
 }
 
 .calendar-dropdown {
@@ -450,7 +458,7 @@ body {
 .popup {
   height: auto;
   max-height: 95vh;
-  width: clamp(500px, 30vw, 800px);
+  width: clamp(600px, 30vw, 800px);
   background: var(--color-bg-light);
   border-radius: var(--radius);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
