@@ -5,7 +5,9 @@ import {
   populateInsegnamentiDropdown,
   fetchCalendarEvents,
   loadDateValide,
-  getInitialDate
+  getInitialDate,
+  formatDateForInput,
+  isDateValid
 } from "./calendarUtils.js";
 
 function createAnnoDropdown() {
@@ -362,51 +364,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
             // Click su una data
             dateClick: function (info) {
-              const dataClick = info.date;
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              
-              if (dataClick < today) {
-                showMessage(
-                  "Non è possibile inserire esami in date passate",
-                  "Informazione",
-                  "notification"
-                );
-                return;
-              }
-              
-              const dataValida = isAdmin || dateValide.some(([start, end]) => {
-                const startDate = new Date(start);
-                startDate.setHours(0, 0, 0, 0);
+              // Ottieni la data come oggetto Date e formattata
+              const selDate = info.date;
+              const selDateFormatted = formatDateForInput(selDate);
 
-                const endDate = new Date(end);
-                endDate.setHours(23, 59, 59, 999);
+              // Se l'utente NON è admin, valida la data
+              if (!isAdmin) {
+                const validationResult = isDateValid(selDate, dateValide);
 
-                return dataClick >= startDate && dataClick <= endDate;
-              });
-
-              if (!dataValida) {
-                showMessage(
-                  "Non è possibile inserire esami al di fuori delle sessioni o delle pause didattiche",
-                  "Informazione",
-                  "notification"
-                );
-                return;
-              }
-
-              if (userData?.authenticated) {
-                if (window.EsameForm) {
-                  window.EsameForm.showForm({ date: info.dateStr }, false);
-                } else {
-                  console.error("EsameForm non disponibile");
+                if (!validationResult.isValid) {
+                  showMessage(
+                    validationResult.message,
+                    "Informazione",
+                    "notification"
+                  );
+                  return; // Esci se la validazione fallisce per un non-admin
                 }
-              } else {
-                showMessage(
-                  "Effettua il login per inserire un esame",
-                  "Informazione",
-                  "notification"
-                );
               }
+
+              window.EsameForm.showForm({ date: selDateFormatted }, false);
             },
 
             // Dettagli evento al click
@@ -527,9 +503,13 @@ document.addEventListener("DOMContentLoaded", function () {
                   endDate.setHours(23, 59, 59, 999);
                   return dataCorrente >= startDate && dataCorrente <= endDate;
                 });
-                return dataValida ? [] : ["fc-disabled-day"];
+                // Applica la classe solo se la data NON è valida
+                if (!dataValida) {
+                  return ["fc-disabled-day"];
+                }
               }
               
+              // Nessuna classe speciale se la data è valida o l'utente è admin
               return [];
             },
             

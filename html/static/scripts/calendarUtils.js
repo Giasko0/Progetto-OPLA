@@ -17,6 +17,7 @@ export function getValidDateRange(selectedYear = null) {
   return {
     start: `${startYear}-01-01`,
     end: `${endYear}-04-30`,
+    today: today.toISOString().split("T")[0], // YYYY-MM-DD
   };
 }
 
@@ -336,4 +337,48 @@ export function getInitialDate(dateValide) {
 
   // Se non ci sono sessioni future, usa la data odierna
   return today;
+}
+
+// Funzione per formattare una data nel formato YYYY-MM-DD per gli input di tipo date
+export function formatDateForInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Funzione per validare una data selezionata
+export function isDateValid(selectedDate, dateValide) {
+  const selDate = new Date(selectedDate); // Assicurati che sia un oggetto Date
+  selDate.setHours(0, 0, 0, 0); // Normalizza l'ora per il confronto
+
+  let today = new Date(); // Usa la data corrente
+  today.setHours(0, 0, 0, 0);
+
+  // Controlla se la data è passata
+  if (selDate < today) {
+    return {
+      isValid: false,
+      message: "Non è possibile inserire esami in date passate",
+    };
+  }
+
+  // Controlla se la data è all'interno di una sessione valida
+  const isInSession = dateValide.some(([start, end]) => {
+    const startDate = new Date(start);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(end);
+    endDate.setHours(23, 59, 59, 999); // Includi l'intero giorno finale
+    return selDate >= startDate && selDate <= endDate;
+  });
+
+  if (!isInSession) {
+    return {
+      isValid: false,
+      message: "Non è possibile inserire esami al di fuori delle sessioni o delle pause didattiche",
+    };
+  }
+
+  // Se tutti i controlli sono superati, la data è valida
+  return { isValid: true };
 }

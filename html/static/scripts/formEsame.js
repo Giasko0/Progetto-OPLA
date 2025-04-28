@@ -23,26 +23,25 @@ const EsameForm = (function() {
         throw new Error('Elemento form-container non trovato');
       }
       
-      // Carica il form tramite fetch
-      console.log("Caricamento del form da /formEsame.html");
-      const response = await fetch('/formEsame.html');
-      if (!response.ok) {
-        throw new Error(`Errore nel caricamento del form: ${response.status}`);
+      // Se il contenuto è già stato caricato, non è necessario ricaricare
+      if (formContainer.querySelector('#formEsame')) {
+        isLoaded = true;
+        isLoading = false;
+        return formContainer;
       }
       
-      const html = await response.text();
+      // Ottieni il contenuto del form
+      const formContent = document.getElementById('form-esame-content');
+      if (!formContent) {
+        throw new Error('Elemento form-esame-content non trovato');
+      }
       
-      // Inserisci direttamente nel form-container
-      formContainer.innerHTML = html;
+      // Inserisci il contenuto dal template nel form-container
+      formContainer.innerHTML = formContent.innerHTML;
       
       // Aggiungi la classe side-form al form-container
       formContainer.classList.add('side-form');
       formContainer.classList.add('popup');
-      // Nascondi inizialmente il form
-      formContainer.style.display = 'none';
-      
-      // Aggiungi la classe per indicare che contiene un form
-      formContainer.classList.add('has-form');
       
       // Inizializza il listener di chiusura
       const closeBtn = formContainer.querySelector("#closeOverlay");
@@ -79,13 +78,12 @@ const EsameForm = (function() {
         return false;
       }
       
-      // Mostra il form
-      formContainer.style.display = 'block';
-      
-      // Aggiungi la classe active con un breve ritardo per l'animazione
-      setTimeout(() => {
-        formContainer.classList.add('active');
-      }, 10);
+      // Mostra il form container e il calendario
+      formContainer.classList.add('active');
+      const calendar = document.getElementById('calendar');
+      if (calendar) {
+        calendar.classList.add('form-visible');
+      }
       
       // Reset dello stato e impostazione modalità
       isEditMode = isEdit;
@@ -1744,39 +1742,37 @@ const EsameForm = (function() {
   // Nasconde il form e pulisce gli handler degli eventi
   function hideForm() {
     if (formContainer) {
-      // Rimuovi prima la classe active per animare la chiusura
+      // Rimuovi la classe active per animare la chiusura
       formContainer.classList.remove('active');
       
-      // Nasconde il form dopo che l'animazione è completata
-      setTimeout(() => {
-        formContainer.style.display = 'none';
-        
-        try {
-          // Resetta il dropdown
-          const dropdown = document.getElementById('insegnamentoDropdown');
-          if (dropdown) {
-            dropdown.style.display = 'none';
-          }
-          
-          // Pulisci gli event listener per evitare duplicazioni
-          if (window.InsegnamentiManager && window.InsegnamentiManager.cleanup) {
-            window.InsegnamentiManager.cleanup();
-          }
-          
-          // Forziamo la ricarica del form la prossima volta
-          isLoaded = false;
-          
-          // Notifica che il form è stato chiuso
-          console.log("Form chiuso correttamente");
-          
-          // Se esiste una funzione di callback nel calendario, richiamiamo il refresh
-          if (window.forceCalendarRefresh) {
-            window.forceCalendarRefresh();
-          }
-        } catch (error) {
-          console.error('Errore durante la chiusura del form:', error);
+      // Ripristina il calendario a larghezza piena
+      const calendar = document.getElementById('calendar');
+      if (calendar) {
+        calendar.classList.remove('form-visible');
+      }
+      
+      try {
+        // Resetta il dropdown
+        const dropdown = document.getElementById('insegnamentoDropdown');
+        if (dropdown) {
+          dropdown.style.display = 'none';
         }
-      }, 300); // Tempo corrispondente alla durata dell'animazione CSS
+        
+        // Pulisci gli event listener per evitare duplicazioni
+        if (window.InsegnamentiManager && window.InsegnamentiManager.cleanup) {
+          window.InsegnamentiManager.cleanup();
+        }
+        
+        // Notifica che il form è stato chiuso
+        console.log("Form chiuso correttamente");
+        
+        // Se esiste una funzione di callback nel calendario, richiamiamo il refresh
+        if (window.forceCalendarRefresh) {
+          window.forceCalendarRefresh();
+        }
+      } catch (error) {
+        console.error('Errore durante la chiusura del form:', error);
+      }
     } else {
       console.warn('formContainer non trovato durante la chiusura del form');
     }
