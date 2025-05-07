@@ -149,7 +149,8 @@ body {
 
 /* Form container quando è attivo */
 #form-container.active {
-  width: clamp(400px, 30%, 600px);
+  width: auto;
+  max-width: 30vw;
 }
 
 /* Calendar container quando form è attivo */

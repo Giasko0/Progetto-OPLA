@@ -210,22 +210,25 @@ document.addEventListener("DOMContentLoaded", function () {
                 },
               } : undefined,
               aggiungiEsame: {
-                text: "Aggiungi Esame",
+                text: "Importa da file",
                 click: function () {
-                  if (userData?.authenticated) {
-                    if (window.EsameForm) {
-                      window.EsameForm.showForm({}, false);
-                    } else {
-                      console.error("EsameForm non disponibile");
-                      showMessage("Modulo non disponibile", "Errore", "error");
-                    }
-                  } else {
-                    showMessage(
-                      "Effettua il login per inserire un esame",
-                      "Informazione",
-                      "notification"
-                    );
+                  // Crea input file se non esiste già
+                  let fileInput = document.getElementById("importEsamiFileInput");
+                  if (!fileInput) {
+                    fileInput = document.createElement("input");
+                    fileInput.type = "file";
+                    fileInput.accept = ".csv";
+                    fileInput.style.display = "none";
+                    fileInput.id = "importEsamiFileInput";
+                    document.body.appendChild(fileInput);
                   }
+                  fileInput.value = ""; // resetta per permettere più upload
+                  fileInput.onchange = function (e) {
+                    if (fileInput.files && fileInput.files.length > 0) {
+                      alert("Funzionalità di import non ancora implementata.");
+                    }
+                  };
+                  fileInput.click();
                 },
               },
             },
