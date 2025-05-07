@@ -41,7 +41,7 @@ const EsameForm = (function() {
       
       // Aggiungi la classe side-form al form-container
       formContainer.classList.add('side-form');
-      formContainer.classList.add('popup');
+      formContainer.classList.add('form-content-area');
       
       // Inizializza il listener di chiusura
       const closeBtn = formContainer.querySelector("#closeOverlay");
@@ -92,10 +92,10 @@ const EsameForm = (function() {
       console.log("Dati ricevuti:", data);
       
       // Componenti principali del form
-      const popupTitle = formContainer.querySelector(".popup-header h2");
+      const formTitle = formContainer.querySelector(".form-header h2");
       const esameForm = formContainer.querySelector("#formEsame");
       
-      if (popupTitle) popupTitle.textContent = isEdit ? "Modifica Esame" : "Aggiungi Esame";
+      if (formTitle) formTitle.textContent = isEdit ? "Modifica Esame" : "Aggiungi Esame";
       
       // Gestione campo ID per modifica
       const idField = formContainer.querySelector("#examIdField");
@@ -432,8 +432,8 @@ const EsameForm = (function() {
     ora_m?.addEventListener("change", aggiornaAuleDisponibili);
 
     // Gestione opzioni aggiuntive
-    const pulsanteAdv = document.getElementById("buttonOpzioniAvanzate");
-    pulsanteAdv?.addEventListener("click", toggleOpzioniAvanzate);
+    const pulsanteAdv = document.getElementById("buttonOpzioniAggiuntive");
+    pulsanteAdv?.addEventListener("click", toggleOpzioniAggiuntive);
 
     // Gestione prova parziale
     const provaParzialeCheckbox = document.getElementById("provaParziale");
@@ -564,9 +564,9 @@ const EsameForm = (function() {
   }
 
   // Mostra/nasconde le opzioni aggiuntive
-  function toggleOpzioniAvanzate() {
-    const opzioni = document.getElementById("opzioniAvanzate");
-    const button = document.getElementById("buttonOpzioniAvanzate");
+  function toggleOpzioniAggiuntive() {
+    const opzioni = document.getElementById("opzioniAggiuntive");
+    const button = document.getElementById("buttonOpzioniAggiuntive");
 
     if (!opzioni || !button) return;
 
@@ -758,30 +758,30 @@ const EsameForm = (function() {
     return durata >= 30 && durata <= 480; // min 30 minuti, max 8 ore (480 minuti)
   }
 
-  // Mostra il popup di conferma per la validazione degli esami
+  // Mostra il dialogo di conferma per la validazione degli esami
   function mostraPopupConferma(data) {
-    // Crea il contenitore del popup
-    const popupContainer = document.createElement("div");
-    popupContainer.id = "popupConferma";
-    popupContainer.className = "popup-overlay";
-    popupContainer.style.display = "flex";
+    // Crea il contenitore del dialogo
+    const dialogContainer = document.createElement("div");
+    dialogContainer.id = "exam-confirmation-dialog";
+    dialogContainer.className = "specific-confirmation-overlay";
+    dialogContainer.style.display = "flex";
 
-    // Crea il contenuto del popup
-    const popupContent = document.createElement("div");
-    popupContent.className = "popup";
-    popupContent.style.width = "clamp(500px, 50vw, 800px)";
+    // Crea il contenuto del dialogo
+    const dialogContent = document.createElement("div");
+    dialogContent.className = "specific-confirmation-panel";
+    dialogContent.style.width = "clamp(500px, 50vw, 800px)";
 
-    // Header del popup
+    // Header del dialogo
     const header = document.createElement("div");
-    header.className = "popup-header";
+    header.className = "specific-confirmation-header";
     header.innerHTML = `
       <h2>Conferma inserimento esami</h2>
-      <span id="closeConferma" class="popup-close">&times;</span>
+      <span id="closeExamConfirmationDialog" class="form-close">&times;</span>
     `;
 
-    // Contenuto del popup
+    // Contenuto del dialogo
     const content = document.createElement("div");
-    content.className = "popup-content";
+    content.className = "specific-confirmation-body";
 
     // Costruisci l'HTML per gli esami validi e invalidi
     let htmlContent = "";
@@ -855,20 +855,20 @@ const EsameForm = (function() {
 
     content.innerHTML = htmlContent;
 
-    // Assembla il popup
-    popupContent.appendChild(header);
-    popupContent.appendChild(content);
-    popupContainer.appendChild(popupContent);
+    // Assembla il dialogo
+    dialogContent.appendChild(header);
+    dialogContent.appendChild(content);
+    dialogContainer.appendChild(dialogContent);
 
-    // Aggiungi il popup al DOM
-    document.body.appendChild(popupContainer);
+    // Aggiungi il dialogo al DOM
+    document.body.appendChild(dialogContainer);
 
-    // Funzione per rimuovere il popup
-    const removePopup = () => document.body.removeChild(popupContainer);
+    // Funzione per rimuovere il dialogo
+    const removeDialog = () => document.body.removeChild(dialogContainer);
 
     // Aggiungi event listeners
-    document.getElementById("closeConferma")?.addEventListener("click", removePopup);
-    document.getElementById("btnAnnullaEsami")?.addEventListener("click", removePopup);
+    document.getElementById("closeExamConfirmationDialog")?.addEventListener("click", removeDialog);
+    document.getElementById("btnAnnullaEsami")?.addEventListener("click", removeDialog);
 
     // Event listener per "Seleziona tutti"
     const selectAllCheckbox = document.getElementById("selectAllExams");
@@ -922,8 +922,8 @@ const EsameForm = (function() {
             return response.json();
           })
           .then((response) => {
-            // Rimuovi il popup
-            removePopup();
+            // Rimuovi il dialogo
+            removeDialog();
 
             if (
               response.status === "success" ||
@@ -1744,6 +1744,7 @@ const EsameForm = (function() {
     if (formContainer) {
       // Rimuovi la classe active per animare la chiusura
       formContainer.classList.remove('active');
+      formContainer.classList.remove('form-content-area'); // Rimuovi la classe specifica del form
       
       // Ripristina il calendario a larghezza piena
       const calendar = document.getElementById('calendar');

@@ -77,11 +77,11 @@
 
   <!-- Template del form esame (nascosto) -->
   <template id="form-esame-content">
-    <div class="popup-header">
+    <div class="form-header">
       <h2>Inserisci Esame</h2>
-      <span id="closeOverlay" class="popup-close">&times;</span>
+      <span id="closeOverlay" class="form-close">&times;</span>
     </div>
-    <div class="popup-body">
+    <div class="form-body">
       <form id="formEsame" method="post">
 
         <!-- Pannello preferenze -->
@@ -93,22 +93,22 @@
           </div>
           <div id="preferencesMenu" class="preferences-menu" style="display: none;"></div>
           <div id="savePreferenceForm" class="preferences-form" style="display: none;">
-            <input type="text" id="preferenceNameInput" placeholder="Nome preferenza">
-            <button type="button" id="confirmSavePreference">Salva</button>
-            <button type="button" id="cancelSavePreference">Annulla</button>
+            <input type="text" id="preferenceNameInput" class="form-input" placeholder="Nome preferenza">
+            <button type="button" id="confirmSavePreference" class="form-button">Salva</button>
+            <button type="button" id="cancelSavePreference" class="form-button">Annulla</button>
           </div>
         </div>
 
         <p style="margin: 0; float: right">* Campi obbligatori</p>
 
         <!-- Hidden values -->
-        <input type="text" id="docente" name="docente" hidden>
-        <input type="text" id="anno_accademico" name="anno_accademico" hidden>
-        <input type="text" id="examIdField" name="examIdField" hidden>
+        <input type="text" id="docente" name="docente" class="form-input" hidden>
+        <input type="text" id="anno_accademico" name="anno_accademico" class="form-input" hidden>
+        <input type="text" id="examIdField" name="examIdField" class="form-input" hidden>
 
         <div class="checkbox-container">
           <label for="mostra_nel_calendario">Mostra nel calendario:</label>
-          <input type="checkbox" id="mostra_nel_calendario" name="mostra_nel_calendario" checked>
+          <input type="checkbox" id="mostra_nel_calendario" name="mostra_nel_calendario" class="form-checkbox" checked>
             <span class="tooltip">
               <span class="material-symbols-outlined">help</span>
               <span class="tooltiptext">Spunta quest'opzione se questo appello finirà sul calendario. Se l'opzione è spuntata l'esame conterà per il numero minimo (8) di esami annuali.</span>
@@ -117,11 +117,11 @@
 
         <div class="checkbox-container">
           <label for="provaParziale">Prova parziale:</label>
-          <input type="checkbox" id="provaParziale" name="provaParziale">
+          <input type="checkbox" id="provaParziale" name="provaParziale" class="form-checkbox">
         </div>
 
         <label for="descrizione">Descrizione*</label>
-        <input type="text" id="descrizione" name="descrizione" placeholder="Inserisci una descrizione" required>
+        <input type="text" id="descrizione" name="descrizione" class="form-input" placeholder="Inserisci una descrizione" required>
 
         <label for="insegnamento">Insegnamenti*</label>
         <div class="multi-select-container">
@@ -131,17 +131,17 @@
           <div id="insegnamentoDropdown" class="multi-select-dropdown">
             <div id="insegnamentoOptions"></div>
           </div>
-          <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden" required></select>
+          <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden form-input" required></select>
         </div>
 
         <label for="dataora">Data Appello*</label>
-        <input type="date" id="dataora" name="dataora" required>
+        <input type="date" id="dataora" name="dataora" class="form-input" required>
 
         <div class="two-column-layout">
           <div class="column">
             <label for="ora_h">Ora Appello*</label>
             <div class="time-select-container">
-              <select id="ora_h" name="ora_h" required>
+              <select id="ora_h" name="ora_h" class="form-input" required>
                 <option value="" disabled selected hidden>Ora</option>
                 <option value="08">08</option>
                 <option value="09">09</option>
@@ -156,65 +156,65 @@
                 <option value="18">18</option>
               </select>
               <span class="time-separator">:</span>
-              <select id="ora_m" name="ora_m" required>
+              <select id="ora_m" name="ora_m" class="form-input" required>
                 <option value="" disabled selected hidden>Min</option>
                 <option value="00">00</option>
                 <option value="15">15</option>
                 <option value="30">30</option>
                 <option value="45">45</option>
               </select>
-              <input type="hidden" id="ora" name="ora">
+              <input type="hidden" id="ora" name="ora" class="form-input">
             </div>
           </div>
           <div class="column">
             <label for="durata_h">Durata*</label>
             <div class="time-select-container">
-              <select id="durata_h" name="durata_h" required>
+              <select id="durata_h" name="durata_h" class="form-input" required>
                 <option value="0">0 ore</option>
                 <option value="1">1 ora</option>
                 <option value="2" selected>2 ore</option>
                 <option value="3">3 ore</option>
                 <option value="4">4 ore</option>
               </select>
-              <select id="durata_m" name="durata_m" required>
+              <select id="durata_m" name="durata_m" class="form-input" required>
                 <option value="0" selected>0 minuti</option>
                 <option value="15">15 minuti</option>
                 <option value="30">30 minuti</option>
                 <option value="45">45 minuti</option>
               </select>
-              <input type="hidden" id="durata" name="durata">
+              <input type="hidden" id="durata" name="durata" class="form-input">
             </div>
           </div>
         </div>
 
         <label for="aula">Aule disponibili*</label>
-        <select id="aula" name="aula" required>
+        <select id="aula" name="aula" class="form-input" required>
           <option value="" disabled selected hidden>Seleziona prima data e ora</option>
         </select>
 
         <label for="verbalizzazione">Verbalizzazione*</label>
-        <select id="verbalizzazione" name="verbalizzazione">
+        <select id="verbalizzazione" name="verbalizzazione" class="form-input">
           <option value="FSS" selected>Firma digitale singola</option>
           <option value="FWP">Firma digitale con pubblicazione</option>
         </select>
 
-        <span id="buttonOpzioniAvanzate">Opzioni aggiuntive <span class="material-symbols-outlined">arrow_right</span></span>
+        <span id="buttonOpzioniAggiuntive">Opzioni aggiuntive <span class="material-symbols-outlined">arrow_right</span></span>
 
-        <!-- Opzioni avanzate -->
-        <div id="opzioniAvanzate">
+        <!-- Opzioni aggiuntive -->
+        <div id="opzioniAggiuntive">
           <div>
             <label for="inizioIscrizione">Data inizio iscrizione</label>
-            <input type="date" id="inizioIscrizione" name="inizioIscrizione">
+            <input type="date" id="inizioIscrizione" name="inizioIscrizione" class="form-input">
           </div>
 
           <div>
             <label for="fineIscrizione">Data fine iscrizione</label>
-            <input type="date" id="fineIscrizione" name="fineIscrizione">
+            <input type="date" id="fineIscrizione" name="fineIscrizione" class="form-input">
           </div>
 
           <div>
             <label for="tipoEsame">Tipo esame</label>
-            <select id="tipoEsame" name="tipoEsame">
+            <select id="tipoEsame" name="tipoEsame" class="form-input">
               <option value="" disabled selected hidden>Non definito</option>
               <option value="S">Scritto</option>
               <option value="O">Orale</option>
@@ -224,12 +224,12 @@
 
           <div>
             <label for="posti">Posti</label>
-            <input type="number" id="posti" name="posti" min="1">
+            <input type="number" id="posti" name="posti" class="form-input" min="1">
           </div>
 
           <div>
             <label for="note">Note</label>
-            <textarea id="note" name="note" rows="2"></textarea>
+            <textarea id="note" name="note" class="form-textarea" rows="2"></textarea>
           </div>
 
           <span>
@@ -240,25 +240,25 @@
           <!--
           <div>
             <label class="formEsame-label" for="tipoAppello">Tipo appello</label>
-            <select id="tipoAppello" name="tipoAppello">
+            <select id="tipoAppello" name="tipoAppello" class="form-input">
               <option value="PF" selected>PF</option>
             </select>
           </div>
           <div>
             <label class="formEsame-label" for="riservato">Riservato</label>
-            <input type="checkbox" id="riservato" name="riservato">  
+            <input type="checkbox" id="riservato" name="riservato" class="form-checkbox">
           </div>
           <div>
             <label class="formEsame-label" for="definizioneAppello">Definizione appello</label>
-            <select id="definizioneAppello" name="definizioneAppello">
+            <select id="definizioneAppello" name="definizioneAppello" class="form-input">
               <option value="STD" selected>Standard</option>
             </select>
           </div>
           <div>
             <label class="formEsame-label" for="gestionePrenotazione">Gestione pren.</label>
-            <select id="gestionePrenotazione" name="gestionePrenotazione">
+            <select id="gestionePrenotazione" name="gestionePrenotazione" class="form-input">
               <option value="STD" selected>Standard</option>
-            </select>  
+            </select>
           </div>
           -->
         </div>
