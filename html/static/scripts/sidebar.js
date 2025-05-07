@@ -19,6 +19,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function initSidebar() {
     if (!sidebar || !toggleBtn || !closeBtn) return;
 
+    // Imposta lo stato iniziale (chiusa)
+    sidebar.classList.remove("visible");
+    content.classList.remove("sidebar-visible");
+    toggleBtn.classList.remove("sidebar-open");
+    toggleBtnIcon.textContent = "keyboard_double_arrow_left";
+
     // Gestori apertura/chiusura sidebar
     toggleBtn.addEventListener("click", toggleSidebar);
     closeBtn.addEventListener("click", closeSidebar);
@@ -49,9 +55,6 @@ document.addEventListener("DOMContentLoaded", function () {
       closeSidebar();
     } else {
       openSidebar();
-      // Reset notifiche quando si apre
-      notificationCount = 0;
-      updateBadge();
     }
   }
 

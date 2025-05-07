@@ -29,46 +29,246 @@
   <div class="content">
     <div class="content-inner">
       <h1 class="titolo">Benvenuto, utente! - Fai il login per iniziare.</h1>
-      <div id="calendar"></div>
+
+      <div class="content-row">
+        <div id="calendar"></div>
+        <div id="form-container"></div>
+      </div>
     </div>
     
-    <!-- Pulsante e Sidebar -->
-    <button id="toggleSidebarFloat" class="toggle-sidebar-float" aria-label="Apri centro messaggi" aria-expanded="false">
-      <span class="material-symbols-outlined">keyboard_double_arrow_left</span>
-      <span class="notification-badge" id="notificationBadge">0</span>
-    </button>
+    <div class="content-sidebar">
+      <button id="toggleSidebarFloat" class="toggle-sidebar-float" aria-label="Apri centro messaggi" aria-expanded="false">
+        <span class="material-symbols-outlined">keyboard_double_arrow_left</span>
+        <span class="notification-badge" id="notificationBadge">0</span>
+      </button>
 
-    <!-- Sidebar -->
-    <div class="message-sidebar" id="messageSidebar">
-      <div class="sidebar-header">
-        <h3>Centro Messaggi</h3>
-        <button id="closeSidebar" class="close-sidebar-btn" aria-label="Chiudi sidebar">
-          <span class="material-symbols-outlined">close</span>
-        </button>
-      </div>
-      <div class="sidebar-content">
-        <div class="sidebar-section">
-          <div class="section-header">
-            <span class="material-symbols-outlined section-icon">warning</span>
-            <h4>Avvisi</h4>
-          </div>
-          <div id="alertsContainer" class="alerts-container">
-            <!-- Qui verranno inseriti gli avvisi -->
-          </div>
+      <!-- Corpo sidebar -->
+      <div class="message-sidebar" id="messageSidebar">
+        <div class="sidebar-header">
+          <h3>Centro Messaggi</h3>
+          <button id="closeSidebar" class="close-sidebar-btn" aria-label="Chiudi sidebar">
+            <span class="material-symbols-outlined">close</span>
+          </button>
         </div>
-        <div class="sidebar-divider"></div>
-        <div class="sidebar-section">
-          <div class="section-header">
-            <span class="material-symbols-outlined section-icon">notifications</span>
-            <h4>Notifiche</h4>
+        <div class="sidebar-content">
+          <div class="sidebar-section">
+            <div class="section-header">
+              <span class="material-symbols-outlined section-icon">warning</span>
+              <h4>Avvisi</h4>
+            </div>
+            <div id="alertsContainer" class="alerts-container">
+              <!-- Qui verranno inseriti gli avvisi -->
+            </div>
           </div>
-          <div id="notificationsContainer" class="notifications-container">
-            <!-- Qui verranno inserite le notifiche -->
+          <div class="sidebar-divider"></div>
+          <div class="sidebar-section">
+            <div class="section-header">
+              <span class="material-symbols-outlined section-icon">notifications</span>
+              <h4>Notifiche</h4>
+            </div>
+            <div id="notificationsContainer" class="notifications-container">
+              <!-- Qui verranno inserite le notifiche -->
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Template del form esame (nascosto) -->
+  <template id="form-esame-content">
+    <div class="popup-header">
+      <h2>Inserisci Esame</h2>
+      <span id="closeOverlay" class="popup-close">&times;</span>
+    </div>
+    <div class="popup-body">
+      <form id="formEsame" method="post">
+
+        <!-- Pannello preferenze -->
+        <div id="preferencesPanel" class="preferences-panel">
+          <div class="preferences-header">
+            <span>Preferenze</span>
+            <button type="button" id="savePreferenceBtn" class="preference-btn" title="Salva preferenza"><span class="material-symbols-outlined">save</span></button>
+            <button type="button" id="loadPreferenceBtn" class="preference-btn" title="Carica preferenza"><span class="material-symbols-outlined">folder_open</span></button>
+          </div>
+          <div id="preferencesMenu" class="preferences-menu" style="display: none;"></div>
+          <div id="savePreferenceForm" class="preferences-form" style="display: none;">
+            <input type="text" id="preferenceNameInput" placeholder="Nome preferenza">
+            <button type="button" id="confirmSavePreference">Salva</button>
+            <button type="button" id="cancelSavePreference">Annulla</button>
+          </div>
+        </div>
+
+        <p style="margin: 0; float: right">* Campi obbligatori</p>
+
+        <!-- Hidden values -->
+        <input type="text" id="docente" name="docente" hidden>
+        <input type="text" id="anno_accademico" name="anno_accademico" hidden>
+        <input type="text" id="examIdField" name="examIdField" hidden>
+
+        <div class="checkbox-container">
+          <label for="mostra_nel_calendario">Mostra nel calendario:</label>
+          <input type="checkbox" id="mostra_nel_calendario" name="mostra_nel_calendario" checked>
+            <span class="tooltip">
+              <span class="material-symbols-outlined">help</span>
+              <span class="tooltiptext">Spunta quest'opzione se questo appello finirà sul calendario. Se l'opzione è spuntata l'esame conterà per il numero minimo (8) di esami annuali.</span>
+            </span>
+        </div>
+
+        <div class="checkbox-container">
+          <label for="provaParziale">Prova parziale:</label>
+          <input type="checkbox" id="provaParziale" name="provaParziale">
+        </div>
+
+        <label for="descrizione">Descrizione*</label>
+        <input type="text" id="descrizione" name="descrizione" placeholder="Inserisci una descrizione" required>
+
+        <label for="insegnamento">Insegnamenti*</label>
+        <div class="multi-select-container">
+          <div id="insegnamentoBox" class="multi-select-box">
+            <span class="multi-select-placeholder">Seleziona gli insegnamenti</span>
+          </div>
+          <div id="insegnamentoDropdown" class="multi-select-dropdown">
+            <div id="insegnamentoOptions"></div>
+          </div>
+          <select id="insegnamento" name="insegnamento" multiple class="multi-select-hidden" required></select>
+        </div>
+
+        <label for="dataora">Data Appello*</label>
+        <input type="date" id="dataora" name="dataora" required>
+
+        <div class="two-column-layout">
+          <div class="column">
+            <label for="ora_h">Ora Appello*</label>
+            <div class="time-select-container">
+              <select id="ora_h" name="ora_h" required>
+                <option value="" disabled selected hidden>Ora</option>
+                <option value="08">08</option>
+                <option value="09">09</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+              </select>
+              <span class="time-separator">:</span>
+              <select id="ora_m" name="ora_m" required>
+                <option value="" disabled selected hidden>Min</option>
+                <option value="00">00</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="45">45</option>
+              </select>
+              <input type="hidden" id="ora" name="ora">
+            </div>
+          </div>
+          <div class="column">
+            <label for="durata_h">Durata*</label>
+            <div class="time-select-container">
+              <select id="durata_h" name="durata_h" required>
+                <option value="0">0 ore</option>
+                <option value="1">1 ora</option>
+                <option value="2" selected>2 ore</option>
+                <option value="3">3 ore</option>
+                <option value="4">4 ore</option>
+              </select>
+              <select id="durata_m" name="durata_m" required>
+                <option value="0" selected>0 minuti</option>
+                <option value="15">15 minuti</option>
+                <option value="30">30 minuti</option>
+                <option value="45">45 minuti</option>
+              </select>
+              <input type="hidden" id="durata" name="durata">
+            </div>
+          </div>
+        </div>
+
+        <label for="aula">Aule disponibili*</label>
+        <select id="aula" name="aula" required>
+          <option value="" disabled selected hidden>Seleziona prima data e ora</option>
+        </select>
+
+        <label for="verbalizzazione">Verbalizzazione*</label>
+        <select id="verbalizzazione" name="verbalizzazione">
+          <option value="FSS" selected>Firma digitale singola</option>
+          <option value="FWP">Firma digitale con pubblicazione</option>
+        </select>
+
+        <span id="buttonOpzioniAvanzate">Opzioni avanzate <span class="material-symbols-outlined">arrow_right</span></span>
+
+        <!-- Opzioni avanzate -->
+        <div id="opzioniAvanzate">
+          <div>
+            <label for="inizioIscrizione">Data inizio iscrizione</label>
+            <input type="date" id="inizioIscrizione" name="inizioIscrizione">
+          </div>
+
+          <div>
+            <label for="fineIscrizione">Data fine iscrizione</label>
+            <input type="date" id="fineIscrizione" name="fineIscrizione">
+          </div>
+
+          <div>
+            <label for="tipoEsame">Tipo esame</label>
+            <select id="tipoEsame" name="tipoEsame">
+              <option value="" disabled selected hidden>Non definito</option>
+              <option value="S">Scritto</option>
+              <option value="O">Orale</option>
+              <option value="SO">Scritto e orale</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="posti">Posti</label>
+            <input type="number" id="posti" name="posti" min="1">
+          </div>
+
+          <div>
+            <label for="note">Note</label>
+            <textarea id="note" name="note" rows="2"></textarea>
+          </div>
+
+          <span>
+            Se non si inseriscono date inizio/fine iscrizione, il sistema le imposterà automaticamente a 20 giorni
+            dall'inizio sessione fino al giorno prima dell'esame.
+          </span>
+
+          <!--
+          <div>
+            <label class="formEsame-label" for="tipoAppello">Tipo appello</label>
+            <select id="tipoAppello" name="tipoAppello">
+              <option value="PF" selected>PF</option>
+            </select>
+          </div>
+          <div>
+            <label class="formEsame-label" for="riservato">Riservato</label>
+            <input type="checkbox" id="riservato" name="riservato">  
+          </div>
+          <div>
+            <label class="formEsame-label" for="definizioneAppello">Definizione appello</label>
+            <select id="definizioneAppello" name="definizioneAppello">
+              <option value="STD" selected>Standard</option>
+            </select>
+          </div>
+          <div>
+            <label class="formEsame-label" for="gestionePrenotazione">Gestione pren.</label>
+            <select id="gestionePrenotazione" name="gestionePrenotazione">
+              <option value="STD" selected>Standard</option>
+            </select>  
+          </div>
+          -->
+        </div>
+
+        <div class="form-actions">
+          <!-- I pulsanti verranno inseriti dinamicamente -->
+        </div>
+      </form>
+    </div>
+  </template>
 
   <footer id="footer"></footer>
 </body>

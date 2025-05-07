@@ -3,7 +3,7 @@ const EsameForm = (function() {
   // Variabili private
   let isLoaded = false;
   let isLoading = false;
-  let formElement = null;
+  let formContainer = null;
   let popupOverlay = null;
   let currentUsername = null;
   let userPreferences = [];
@@ -12,45 +12,39 @@ const EsameForm = (function() {
   
   // Carica il form HTML dinamicamente
   async function loadForm() {
-    if (isLoaded || isLoading) return Promise.resolve(formElement);
+    if (isLoaded || isLoading) return Promise.resolve(formContainer);
     
     isLoading = true;
     
     try {
-      // Verifica se l'overlay esiste già, altrimenti crealo
-      if (!popupOverlay) {
-        popupOverlay = document.getElementById('popupOverlay');
-        
-        if (!popupOverlay) {
-          popupOverlay = document.createElement('div');
-          popupOverlay.id = 'popupOverlay';
-          popupOverlay.className = 'popup-overlay';
-          document.body.appendChild(popupOverlay);
-        }
+      // Usa il form-container dal calendario.html
+      formContainer = document.getElementById('form-container');
+      if (!formContainer) {
+        throw new Error('Elemento form-container non trovato');
       }
       
-      // Carica il form tramite fetch
-      console.log("Caricamento del form da /formEsame.html");
-      const response = await fetch('/formEsame.html');
-      if (!response.ok) {
-        throw new Error(`Errore nel caricamento del form: ${response.status}`);
+      // Se il contenuto è già stato caricato, non è necessario ricaricare
+      if (formContainer.querySelector('#formEsame')) {
+        isLoaded = true;
+        isLoading = false;
+        return formContainer;
       }
       
-      const html = await response.text();
-      
-      // Inserisci il contenuto HTML
-      popupOverlay.innerHTML = html;
-      
-      // Ottieni il riferimento all'elemento contenitore
-      formElement = document.getElementById('formEsameContainer');
-      
-      if (!formElement) {
-        console.error("Errore: formEsameContainer non trovato nel DOM");
-        throw new Error("Elemento formEsameContainer non trovato");
+      // Ottieni il contenuto del form
+      const formContent = document.getElementById('form-esame-content');
+      if (!formContent) {
+        throw new Error('Elemento form-esame-content non trovato');
       }
       
-      // Inizializza il listener di chiusura subito dopo aver caricato il form
-      const closeBtn = document.getElementById("closeOverlay");
+      // Inserisci il contenuto dal template nel form-container
+      formContainer.innerHTML = formContent.innerHTML;
+      
+      // Aggiungi la classe side-form al form-container
+      formContainer.classList.add('side-form');
+      formContainer.classList.add('popup');
+      
+      // Inizializza il listener di chiusura
+      const closeBtn = formContainer.querySelector("#closeOverlay");
       if (closeBtn) {
         closeBtn.removeEventListener("click", hideForm);
         closeBtn.addEventListener("click", function(e) {
@@ -58,7 +52,7 @@ const EsameForm = (function() {
           console.log("Pulsante di chiusura cliccato");
           hideForm();
         });
-        console.log("Pulsante di chiusura inizializzato");
+        console.log("Event listener per closeOverlay aggiunto");
       } else {
         console.warn("Pulsante di chiusura non trovato dopo il caricamento del form");
       }
@@ -66,7 +60,7 @@ const EsameForm = (function() {
       isLoaded = true;
       isLoading = false;
       
-      return formElement;
+      return formContainer;
     } catch (error) {
       console.error('Errore nel caricamento del form:', error);
       isLoading = false;
@@ -79,12 +73,17 @@ const EsameForm = (function() {
     try {
       await loadForm();
       
-      if (!popupOverlay) {
-        console.error('Errore: popupOverlay non disponibile');
+      if (!formContainer) {
+        console.error('Errore: formContainer non disponibile');
         return false;
       }
       
-      popupOverlay.style.display = 'flex';
+      // Mostra il form container e il calendario
+      formContainer.classList.add('active');
+      const calendar = document.getElementById('calendar');
+      if (calendar) {
+        calendar.classList.add('form-visible');
+      }
       
       // Reset dello stato e impostazione modalità
       isEditMode = isEdit;
@@ -93,27 +92,27 @@ const EsameForm = (function() {
       console.log("Dati ricevuti:", data);
       
       // Componenti principali del form
-      const popupTitle = document.querySelector(".popup-header h2");
-      const esameForm = document.getElementById("esameForm");
+      const popupTitle = formContainer.querySelector(".popup-header h2");
+      const esameForm = formContainer.querySelector("#formEsame");
       
       if (popupTitle) popupTitle.textContent = isEdit ? "Modifica Esame" : "Aggiungi Esame";
       
       // Gestione campo ID per modifica
-      const idField = document.getElementById("examIdField");
+      const idField = formContainer.querySelector("#examIdField");
       if (idField) idField.value = isEdit && data.id ? data.id : "";
       
       // Reset form per partire puliti
       if (esameForm) esameForm.reset();
       
       // Aggiorna pulsante submit
-      const submitButton = document.querySelector('#esameForm button[type="submit"]');
+      const submitButton = formContainer.querySelector('#formEsame button[type="submit"]');
       if (submitButton) submitButton.textContent = isEdit ? "Salva Modifiche" : "Crea Esame";
       
       // Gestione pulsante eliminazione
       setupButtons(isEdit, data.id);
       
       // Popolamento form
-      const elements = document.querySelectorAll("#esameForm input, #esameForm select");
+      const elements = formContainer.querySelectorAll("#formEsame input, #formEsame select");
       
       // Prima imposta i valori di default
       setDefaultValues(elements);
@@ -1742,8 +1741,15 @@ const EsameForm = (function() {
 
   // Nasconde il form e pulisce gli handler degli eventi
   function hideForm() {
-    if (popupOverlay) {
-      popupOverlay.style.display = 'none';
+    if (formContainer) {
+      // Rimuovi la classe active per animare la chiusura
+      formContainer.classList.remove('active');
+      
+      // Ripristina il calendario a larghezza piena
+      const calendar = document.getElementById('calendar');
+      if (calendar) {
+        calendar.classList.remove('form-visible');
+      }
       
       try {
         // Resetta il dropdown
@@ -1757,9 +1763,6 @@ const EsameForm = (function() {
           window.InsegnamentiManager.cleanup();
         }
         
-        // Forziamo la ricarica del form la prossima volta
-        isLoaded = false;
-        
         // Notifica che il form è stato chiuso
         console.log("Form chiuso correttamente");
         
@@ -1771,7 +1774,7 @@ const EsameForm = (function() {
         console.error('Errore durante la chiusura del form:', error);
       }
     } else {
-      console.warn('popupOverlay non trovato durante la chiusura del form');
+      console.warn('formContainer non trovato durante la chiusura del form');
     }
   }
 
@@ -1779,7 +1782,7 @@ const EsameForm = (function() {
   return {
     loadForm,
     showForm,
-    hideForm, // Assicurati che hideForm sia esposto nell'interfaccia pubblica
+    hideForm,
     isFormLoaded: () => isLoaded,
     loadPreferences: loadUserPreferences,
     applyPreference,
@@ -1790,7 +1793,7 @@ const EsameForm = (function() {
   };
 })();
 
-// Esportazione globale (solo l'oggetto EsameForm)
+// Esportazione globale
 window.EsameForm = EsameForm;
 
 // Aggiungi un listener per l'evento DOMContentLoaded per assicurarti che 
