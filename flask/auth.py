@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, make_r
 from db import get_db_connection, release_connection
 from functools import wraps
 import os
+import re
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.utils import OneLogin_Saml2_Utils
@@ -209,6 +210,8 @@ def metadata_saml():
         auth = init_saml_auth(req)
         settings = auth.get_settings()
         metadata = settings.get_sp_metadata()
+        # Rimuovi il tag validUntil dai metadata
+        metadata = re.sub(b'validUntil="[^"]*"', b'', metadata)
         errors = settings.validate_metadata(metadata)
 
         if len(errors) == 0:
