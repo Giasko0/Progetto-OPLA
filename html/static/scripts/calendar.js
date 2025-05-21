@@ -322,25 +322,29 @@ document.addEventListener("DOMContentLoaded", function () {
                   info.el.title = info.event.extendedProps.description;
               }
 
-              const isOwnExam = info.event.extendedProps.docente === currentUsername;
-              const isOwnInsegnamento = info.event.extendedProps.insegnamentoDocente;
+              // Applica i colori solo se NON siamo nella vista listaEventi
+              const currentView = info.view.type;
+              if (currentView !== "listaEventi") {
+                const isOwnExam = info.event.extendedProps.docente === currentUsername;
+                const isOwnInsegnamento = info.event.extendedProps.insegnamentoDocente;
 
-              const eventColor = (isOwnExam || isOwnInsegnamento)
-                  ? "var(--color-light-blue)"
-                  : "#FFD700";
+                const eventColor = (isOwnExam || isOwnInsegnamento)
+                    ? "var(--color-light-blue)"
+                    : "#FFD700";
 
-              const textColor = (isOwnExam || isOwnInsegnamento)
-                  ? "var(--color-bg)"
-                  : "#000";
+                const textColor = (isOwnExam || isOwnInsegnamento)
+                    ? "var(--color-bg)"
+                    : "#000";
 
-              info.el.style.backgroundColor = eventColor;
-              info.el.style.borderColor = eventColor;
+                info.el.style.backgroundColor = eventColor;
+                info.el.style.borderColor = eventColor;
 
-              const innerContent = info.el.querySelector('.fc-event-main-frame');
-              if (innerContent) {
-                  innerContent.style.color = textColor;
-                  const links = innerContent.querySelectorAll('a');
-                  links.forEach(link => link.style.color = textColor);
+                const innerContent = info.el.querySelector('.fc-event-main-frame');
+                if (innerContent) {
+                    innerContent.style.color = textColor;
+                    const links = innerContent.querySelectorAll('a');
+                    links.forEach(link => link.style.color = textColor);
+                }
               }
             },
 

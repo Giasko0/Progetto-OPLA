@@ -1126,7 +1126,7 @@ body {
 }
 
 /*---------------------------------------------MIEI ESAMI---------------------------------------------*/
-table {
+.esami-table {
   border-collapse: collapse;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
@@ -1137,19 +1137,19 @@ table {
   width: 100%;
 }
 
-thead th {
+.esami-thead .esami-th {
   background-color: var(--color-blue);
   color: var(--color-bg-light);
   font-weight: bold;
   cursor: pointer;
 }
 
-th, td {
+.esami-th, .esami-td {
   padding: 12px;
   border: 1px solid var(--color-border);
 }
 
-tbody tr:hover td {
+.esami-tbody .esami-tr:hover .esami-td {
   background-color: var(--color-bg);
 }
 

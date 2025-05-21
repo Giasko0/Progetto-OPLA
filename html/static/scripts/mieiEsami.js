@@ -141,42 +141,58 @@ function displayTabelleEsami(data, insegnamento, container) {
 
     const table = document.createElement("table");
     table.id = `tabella-${insegnamento.replace(/\s+/g, "-")}`;
+    table.className = "esami-table";
 
     table.innerHTML = `
-      <thead>
-          <tr>
-              <th onclick="sortTable('${table.id}', 0)">Tipo prova</th>
-              <th onclick="sortTable('${table.id}', 1)">CDS</th>
-              <th onclick="sortTable('${table.id}', 2)">Insegnamento</th>
-              <th onclick="sortTable('${table.id}', 3)">Docente</th>
-              <th onclick="sortTable('${table.id}', 4, 'date')">Data</th>
-              <th onclick="sortTable('${table.id}', 5)">Aula</th>
-              <th onclick="sortTable('${table.id}', 6)">Durata (min)</th>
-              <th>Azioni</th>
+      <thead class="esami-thead">
+          <tr class="esami-tr">
+              <th class="esami-th" onclick="sortTable('${table.id}', 0)">Tipo prova</th>
+              <th class="esami-th" onclick="sortTable('${table.id}', 1)">CDS</th>
+              <th class="esami-th" onclick="sortTable('${table.id}', 2)">Insegnamento</th>
+              <th class="esami-th" onclick="sortTable('${table.id}', 3)">Docente</th>
+              <th class="esami-th" onclick="sortTable('${table.id}', 4, 'date')">Data</th>
+              <th class="esami-th" onclick="sortTable('${table.id}', 5)">Aula</th>
+              <th class="esami-th" onclick="sortTable('${table.id}', 6)">Durata (min)</th>
+              <th class="esami-th">Azioni</th>
           </tr>
       </thead>
-      <tbody></tbody>
+      <tbody class="esami-tbody"></tbody>
     `;
 
     const tbody = table.querySelector("tbody");
 
     esamiInsegnamento.forEach((esame) => {
       const row = tbody.insertRow();
-      row.insertCell(0).textContent = esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale";
-      row.insertCell(1).textContent = esame.cds || "N/A";
-      row.insertCell(2).textContent = esame.insegnamento;
-      row.insertCell(3).textContent = esame.docenteNome;
+      row.className = "esami-tr";
+      let cell0 = row.insertCell(0);
+      cell0.className = "esami-td";
+      cell0.textContent = esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale";
+      let cell1 = row.insertCell(1);
+      cell1.className = "esami-td";
+      cell1.textContent = esame.cds || "N/A";
+      let cell2 = row.insertCell(2);
+      cell2.className = "esami-td";
+      cell2.textContent = esame.insegnamento;
+      let cell3 = row.insertCell(3);
+      cell3.className = "esami-td";
+      cell3.textContent = esame.docenteNome;
 
       // Aggiungo il data-datetime come attributo nascosto per l'ordinamento
       const dataCell = row.insertCell(4);
+      dataCell.className = "esami-td";
       dataCell.textContent = formatDateTime(esame.dataora);
       dataCell.setAttribute("data-datetime", esame.dataora);
 
-      row.insertCell(5).textContent = esame.aula;
-      row.insertCell(6).textContent = formatDurata(esame.durata_appello);
+      let cell5 = row.insertCell(5);
+      cell5.className = "esami-td";
+      cell5.textContent = esame.aula;
+      let cell6 = row.insertCell(6);
+      cell6.className = "esami-td";
+      cell6.textContent = formatDurata(esame.durata_appello);
       
       // Cella Azioni con pulsante Modifica
       const actionCell = row.insertCell(7);
+      actionCell.className = "esami-td esami-td-actions";
       const modifyButton = document.createElement("button");
       modifyButton.className = "invia";
       modifyButton.textContent = "Modifica";
@@ -345,21 +361,22 @@ function displayAllExams(data, container) {
 
   const tableAllExams = document.createElement("table");
   tableAllExams.id = "tabella-tutti-appelli";
+  tableAllExams.className = "esami-table";
 
   tableAllExams.innerHTML = `
-    <thead>
-        <tr>
-            <th onclick="sortTable('${tableAllExams.id}', 0)">Tipo prova</th>
-            <th onclick="sortTable('${tableAllExams.id}', 1)">CDS</th>
-            <th onclick="sortTable('${tableAllExams.id}', 2)">Insegnamento</th>
-            <th onclick="sortTable('${tableAllExams.id}', 3)">Docente</th>
-            <th onclick="sortTable('${tableAllExams.id}', 4, 'date')">Data</th>
-            <th onclick="sortTable('${tableAllExams.id}', 5)">Aula</th>
-            <th onclick="sortTable('${tableAllExams.id}', 6)">Durata</th>
-            <th>Azioni</th>
+    <thead class="esami-thead">
+        <tr class="esami-tr">
+            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 0)">Tipo prova</th>
+            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 1)">CDS</th>
+            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 2)">Insegnamento</th>
+            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 3)">Docente</th>
+            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 4, 'date')">Data</th>
+            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 5)">Aula</th>
+            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 6)">Durata</th>
+            <th class="esami-th">Azioni</th>
         </tr>
     </thead>
-    <tbody></tbody>
+    <tbody class="esami-tbody"></tbody>
   `;
 
   const tbodyAllExams = tableAllExams.querySelector("tbody");
@@ -372,21 +389,36 @@ function displayAllExams(data, container) {
 
   esamiOrdinati.forEach((esame) => {
     const row = tbodyAllExams.insertRow();
-    row.insertCell(0).textContent = esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale";
-    row.insertCell(1).textContent = esame.cds || "N/A";
-    row.insertCell(2).textContent = esame.insegnamento;
-    row.insertCell(3).textContent = esame.docenteNome;
+    row.className = "esami-tr";
+    let cell0 = row.insertCell(0);
+    cell0.className = "esami-td";
+    cell0.textContent = esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale";
+    let cell1 = row.insertCell(1);
+    cell1.className = "esami-td";
+    cell1.textContent = esame.cds || "N/A";
+    let cell2 = row.insertCell(2);
+    cell2.className = "esami-td";
+    cell2.textContent = esame.insegnamento;
+    let cell3 = row.insertCell(3);
+    cell3.className = "esami-td";
+    cell3.textContent = esame.docenteNome;
 
     // Aggiungo il data-datetime come attributo nascosto per l'ordinamento
     const dataCell = row.insertCell(4);
+    dataCell.className = "esami-td";
     dataCell.textContent = formatDateTime(esame.dataora);
     dataCell.setAttribute("data-datetime", esame.dataora);
 
-    row.insertCell(5).textContent = esame.aula;
-    row.insertCell(6).textContent = formatDurata(esame.durata_appello);
+    let cell5 = row.insertCell(5);
+    cell5.className = "esami-td";
+    cell5.textContent = esame.aula;
+    let cell6 = row.insertCell(6);
+    cell6.className = "esami-td";
+    cell6.textContent = formatDurata(esame.durata_appello);
     
     // Cella Azioni con pulsante Modifica
     const actionCell = row.insertCell(7);
+    actionCell.className = "esami-td esami-td-actions";
     const modifyButton = document.createElement("button");
     modifyButton.className = "invia";
     modifyButton.textContent = "Modifica";
