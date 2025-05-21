@@ -346,49 +346,6 @@ export function setupGlobalClickListeners(dropdowns) {
   });
 }
 
-// Funzione per aggiornare il calendario (disabilitazione giorni e titolo)
-export function updateCalendarWithDates(calendar, dates) {
-  if (!calendar) return;
-  // Forza il ricalcolo delle classi delle celle (dayCellClassNames)
-  // e il rendering generale per applicare le modifiche
-  calendar.render();
-
-  // Aggiorna il titolo del mese corrente con la sessione attiva
-  updateCalendarTitle(calendar.getDate(), dates);
-}
-
-// Funzione helper per aggiornare il titolo del calendario
-export function updateCalendarTitle(currentDate, dateValide) {
-    if (!currentDate || !Array.isArray(dateValide)) return;
-
-    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-
-    let sessioneCorrente = "";
-    for (let [start, end, nome] of dateValide) {
-        const sessioneStart = new Date(start);
-        const sessioneEnd = new Date(end);
-        // Controlla sovrapposizione tra il mese visualizzato e la sessione
-        if (monthStart <= sessioneEnd && monthEnd >= sessioneStart) {
-            sessioneCorrente = ` - ${nome}`;
-            break; // Trovata la prima sessione sovrapposta
-        }
-    }
-
-    // Formatta il nome del mese e anno
-    const monthName = currentDate.toLocaleString("it-IT", { month: "long", year: "numeric" });
-    const title = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)}${sessioneCorrente}`;
-
-    // Aggiorna l'elemento del titolo nella toolbar di FullCalendar
-    const titleElement = document.querySelector(".fc-toolbar .fc-toolbar-title");
-    if (titleElement) {
-        titleElement.textContent = title;
-    } else {
-        // Fallback se il selettore cambia
-        console.warn("Elemento titolo FullCalendar non trovato.");
-    }
-}
-
 // Gestione chiusura form esami
 export function setupCloseHandlers(calendar) {
   const closeButton = document.getElementById("closeOverlay");

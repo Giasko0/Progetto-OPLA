@@ -8,7 +8,6 @@ import {
   handleDropdownButtonClick,
   setupDropdownClickListeners,
   setupGlobalClickListeners,
-  updateCalendarWithDates,
   setupCloseHandlers
 } from "./calendarUtils.js";
 
@@ -89,11 +88,6 @@ document.addEventListener("DOMContentLoaded", function () {
           // Popola dropdown sessioni iniziale
           updateSessioniDropdown(dropdowns.sessioni, dateValide);
 
-          // Determina quali pulsanti mostrare in base ai permessi
-          const rightButtons = isAdmin
-            ? "pulsanteInsegnamenti pulsanteDebug"
-            : "pulsanteInsegnamenti";
-
           // Configurazione calendario
           calendar = new FullCalendar.Calendar(calendarEl, {
             contentHeight: 600,
@@ -166,9 +160,9 @@ document.addEventListener("DOMContentLoaded", function () {
             },
 
             headerToolbar: {
-              left: "title",
-              center: "pulsanteSessioni multiMonthList,multiMonthGrid,listaEventi",
-              right: rightButtons + " aggiungiEsame", // Pulsanti personalizzati e viste
+              left: "pulsanteInsegnamenti pulsanteSessioni",
+              center: "multiMonthList,multiMonthGrid,listaEventi",
+              right: "aggiungiEsame"
             },
 
             // Pulsanti personalizzati
@@ -197,18 +191,6 @@ document.addEventListener("DOMContentLoaded", function () {
                   });
                 },
               },
-              // Debug: tutti gli esami (solo admin)
-              pulsanteDebug: isAdmin ? {
-                text: "(Debug) Tutti gli esami",
-                click: function () {
-                  eventsCache = [];
-                  lastFetchTime = 0;
-                  const originalUsername = currentUsername;
-                  currentUsername = 'admin';
-                  calendar.refetchEvents();
-                  currentUsername = originalUsername;
-                },
-              } : undefined,
               aggiungiEsame: {
                 text: "Importa da file",
                 click: function () {
@@ -244,11 +226,6 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             showNonCurrentDates: false,
             fixedWeekCount: false,
-
-            // Aggiorna titolo con mese e sessione quando cambia la vista/data
-            datesSet: function (dateInfo) {
-              updateCalendarWithDates(calendar, dateValide);
-            },
 
             // Click su una data per aggiungere esame
             dateClick: function (info) {
@@ -420,7 +397,6 @@ document.addEventListener("DOMContentLoaded", function () {
                   .then(newDates => {
                     dateValide = newDates;
                     updateSessioniDropdown(dropdowns.sessioni, dateValide);
-                    updateCalendarWithDates(calendar, dateValide);
                     eventsCache = [];
                     lastFetchTime = 0;
                     calendar.refetchEvents();
