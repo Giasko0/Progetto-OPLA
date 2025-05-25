@@ -537,8 +537,8 @@ def download_esse3():
     cursor.execute("""
       SELECT 
         e.tipo_appello,           -- Tipo appello
-        ic.anno_accademico,       -- Anno
-        ic.cds,                   -- CDS
+        e.anno_accademico,        -- Anno
+        e.cds,                    -- CDS
         i.codice,                 -- AD (codice insegnamento, non ID)
         e.descrizione,            -- Des. Appello
         e.data_appello,           -- Data Appello
@@ -553,7 +553,7 @@ def download_esse3():
         e.tipo_esame,             -- Tipo Esa.
         a.edificio,               -- Edificio
         a.nome,                   -- Nome Aula
-        d.matricola,              -- Matricola Docente
+        u.matricola,              -- Matricola Docente
         a.sede,                   -- Sede
         e.condizione_sql,         -- Condizione SQL
         e.partizionamento,        -- Partizionamento
@@ -563,10 +563,8 @@ def download_esse3():
         e.codice_turno            -- Codice Turno
       FROM esami e
       JOIN insegnamenti i ON e.insegnamento = i.id
-      LEFT JOIN insegnamenti_cds ic ON i.id = ic.insegnamento 
-        AND ic.anno_accademico = EXTRACT(YEAR FROM e.data_appello) - 1
       LEFT JOIN aule a ON e.aula = a.nome
-      LEFT JOIN utenti d ON e.docente = d.username
+      LEFT JOIN utenti u ON e.docente = u.username
       ORDER BY e.data_appello, e.insegnamento
     """)
     esami = cursor.fetchall()
@@ -582,7 +580,16 @@ def download_esse3():
     time_format = xlwt.XFStyle()
     time_format.num_format_str = 'HH:MM'
 
-    # Intestazioni
+    # Formattazione per il grassetto
+    bold_format = xlwt.XFStyle()
+    bold_font = xlwt.Font()
+    bold_font.bold = True
+    bold_format.font = bold_font
+
+    # Riga 1: HEADER nella cella A1
+    worksheet.write(0, 0, 'HEADER')
+
+    # Riga 2: Valori Header
     headers = [
       'Tipo appello',
       'Anno',
@@ -614,12 +621,58 @@ def download_esse3():
       'Note Sist Log' # Colonna AB del file, non usata
     ]
 
-    # Scrivi le intestazioni
+    # Scrivi le intestazioni nella riga 2
     for col, header in enumerate(headers):
-      worksheet.write(0, col, header)
+      worksheet.write(1, col, header, bold_format)
 
-    # Scrivi i dati
-    for row_idx, esame in enumerate(esami, start=1):
+    # Riga 3: DETAILS nella cella A3
+    worksheet.write(2, 0, 'DETAILS')
+
+    # Riga 4: Codici template ESSE3
+    template_codes = [
+      '!tipo_app_cod!',
+      '!aa_cal_id!',
+      '!cds_cod!',
+      '!ad_cod!',
+      '!des_app!',
+      '!data_app!',
+      '!data_inizio_iscr!',
+      '!data_fine_iscr!',
+      '!ora_app!',
+      '!tipo_iscr!',
+      '!tgest_app!',
+      '!tdef_app!',
+      '!tgest_pren!',
+      '!riservato_flg!',
+      '!tipo_iscr_cod_prev!',
+      '!tipo_esa_prev!',
+      '!edificio_cod!',
+      '!aula_cod!',
+      '!matricola_doc!',
+      '!sede_id!',
+      '!cond_cod!',
+      '!fat_part_cod!',
+      '!dom_part_cod!',
+      '!errore_imp!',
+      '!note!',
+      '!numero_max!',
+      '!templ_turno_cod!',
+      '!note_sist_log!'
+    ]
+
+    # Scrivi i codici template nella riga 4
+    for col, code in enumerate(template_codes):
+      worksheet.write(3, col, code)
+
+    # Righe (1, 3 e 4) e colonne (J e X) nascoste per conformità con file export ESSE3
+    worksheet.row(0).hidden = True
+    worksheet.row(2).hidden = True
+    worksheet.row(3).hidden = True
+    worksheet.col(9).hidden = True
+    worksheet.col(23).hidden = True
+
+    # Scrivi i dati (inizia dalla riga 5, indice 4)
+    for row_idx, esame in enumerate(esami, start=4):
       (tipo_appello, anno_corso, cds, codice, titolo,
        data_appello, data_inizio_iscr, data_fine_iscr,
        ora_appello, verbalizzazione, def_appello,
@@ -663,9 +716,13 @@ def download_esse3():
     workbook.save(output)
     output.seek(0)
 
+    # Genera il nome del file con la data odierna
+    data_oggi = datetime.now().strftime('%Y%m%d')
+    filename = f'opla_esse3_{data_oggi}.xls'
+
     # Prepara la risposta
     response = make_response(output.getvalue())
-    response.headers['Content-Disposition'] = 'attachment; filename=esami.xls'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
     response.headers['Content-type'] = 'application/vnd.ms-excel'
     
     return response
@@ -698,7 +755,7 @@ def download_ea():
         a.codice AS aula_codice,
         a.nome AS aula_nome,
         i.codice AS insegnamento_codice,
-        ic.anno_accademico,
+        e.anno_accademico,
         e.docente,
         u.nome AS docente_nome,
         u.cognome AS docente_cognome,
@@ -707,8 +764,6 @@ def download_ea():
       JOIN insegnamenti i ON e.insegnamento = i.id
       LEFT JOIN aule a ON e.aula = a.nome
       LEFT JOIN utenti u ON e.docente = u.username
-      LEFT JOIN insegnamenti_cds ic ON i.id = ic.insegnamento 
-        AND ic.anno_accademico = EXTRACT(YEAR FROM e.data_appello) - 1
       ORDER BY e.data_appello, e.insegnamento
     """)
     
@@ -845,9 +900,13 @@ def download_ea():
     workbook.save(output)
     output.seek(0)
 
+    # Genera il nome del file con la data odierna
+    data_oggi = datetime.now().strftime('%Y%m%d')
+    filename = f'opla_easyacademy_{data_oggi}.xls'
+
     # Prepara la risposta
     response = make_response(output.getvalue())
-    response.headers['Content-Disposition'] = 'attachment; filename=Prenotazioni.xls'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
     response.headers['Content-type'] = 'application/vnd.ms-excel'
     
     return response
