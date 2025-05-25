@@ -483,6 +483,90 @@ body {
   cursor: pointer;
 }
 
+/* Mini-form bubble */
+.mini-form-bubble {
+  position: absolute;
+  z-index: 1050; /* Assicurati che sia sopra altri elementi, come l'overlay del form principale */
+  background: var(--color-bg-light);
+  border-radius: 8px; /* Consistente con il form principale */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15); /* Ombra più definita */
+  padding: 16px;
+  min-width: 280px; /* Larghezza minima per accomodare i campi */
+  border: 1px solid var(--color-border-light);
+  font-size: 0.9rem; /* Leggermente più piccolo del form principale */
+  color: var(--color-text);
+  animation: fadeInBubble 0.15s ease-out;
+}
+
+.mini-form-bubble label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500; /* Simile alle label del form principale */
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+/* Gli input e i button useranno le classi .form-input e .form-button definite globalmente */
+.mini-form-bubble .form-input {
+  width: calc(100% - 12px); /* Riempi lo spazio meno padding */
+  margin-bottom: 10px;
+}
+
+.mini-form-actions {
+  text-align: right;
+  margin-top: 15px;
+}
+
+.mini-form-actions .form-button {
+  margin-left: 8px;
+  padding: 6px 12px; /* Leggermente più piccoli */
+}
+
+/* Stile specifico per il pulsante Annulla/Chiudi nel mini-form */
+.mini-form-bubble #miniFormClose {
+  background-color: var(--color-grey-light); /* Colore diverso per distinguerlo */
+  color: var(--color-text-dark);
+  border: 1px solid var(--color-border-medium);
+}
+
+.mini-form-bubble #miniFormClose:hover {
+  background-color: var(--color-grey-medium);
+}
+
+.mini-form-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  filter: drop-shadow(0 0 1px rgba(0,0,0,0.1)); /* Ombra leggera per la freccia */
+}
+
+.mini-form-arrow.arrow-points-up {
+  border-width: 0 10px 10px 10px;
+  border-color: transparent transparent var(--color-bg-light) transparent;
+  top: -10px; /* Posiziona sopra il bubble */
+  left: calc(50% - 10px); /* Centra orizzontalmente */
+}
+
+.mini-form-arrow.arrow-points-left {
+  border-width: 10px 10px 10px 0;
+  border-color: transparent var(--color-bg-light) transparent transparent;
+  left: -10px; /* Posiziona a sinistra del bubble */
+  top: calc(50% - 10px); /* Centra verticalmente */
+}
+
+.mini-form-arrow.arrow-points-right {
+  border-width: 10px 0 10px 10px;
+  border-color: transparent transparent transparent var(--color-bg-light);
+  right: -10px; /* Posiziona a destra del bubble */
+  top: calc(50% - 10px); /* Centra verticalmente */
+}
+
+@keyframes fadeInBubble {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /*---------------------------------------------FORM ESAMI---------------------------------------------*/
 .form-header {
   position: sticky;

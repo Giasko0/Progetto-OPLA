@@ -210,7 +210,7 @@ def metadata_saml():
         auth = init_saml_auth(req)
         settings = auth.get_settings()
         metadata = settings.get_sp_metadata()
-        # Rimuovi il tag validUntil dai metadata
+        # Rimuovo il tag validUntil dai metadata
         metadata = re.sub(b'validUntil="[^"]*"', b'', metadata)
         errors = settings.validate_metadata(metadata)
 
