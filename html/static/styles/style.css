@@ -25,9 +25,7 @@
   /* Layout constants */
   --nav-height: 10dvh;
   --foot-height: 10dvh;
-  --sidebar-width: calc(100vw / 6);
-  --content-inner-width: 80vw;
-  --body-width: 100%;
+  --sidebar-width: calc(100dvw / 6);
   --radius: 8px;
   
   /* Responsive layout constants */
@@ -61,9 +59,9 @@ html.dark {
   --color-border: #444;
 }
 
-/* Transition per dark-mode */
+/* Transizioni globali */
 *, *::before, *::after {
-  transition: all .1s linear !important;
+  transition: all .3s ease;
 }
 
 * {
@@ -97,22 +95,23 @@ body {
 /*------------------------------------CONTENT DIV------------------------------------*/
 .content {
   flex: 1;
-  width: var(--body-width);
+  width: 100dvw;
   display: flex;
   align-items: flex-start;
   text-align: left;
 }
 
-/* Quando la sidebar è visibile, modifica solo la disposizione di content-inner */
+/* Quando la sidebar è visibile, sposto il content e riduco il margin */
 .content.sidebar-visible .content-inner {
-  transform: translateX(calc(-1 * var(--sidebar-width) / 2));
+  transform: translateX(calc(-1 * var(--sidebar-width) / 8));
+  margin-left: calc(var(--sidebar-width) / 4);
 }
 
 /* Wrapper interno per gli elementi del content */
 .content-inner {
-  width: var(--content-inner-width);
-  margin: 0 10vw;
+  transform: translateX(calc(var(--sidebar-width) / 2));
   display: flex;
+  width: 100%;
   flex-direction: column;
   align-items: center;
   position: relative;
@@ -127,13 +126,17 @@ body {
   gap: 20px;
   justify-content: space-between;
   align-items: flex-start;
-  transition: all 0.3s ease;
 }
 
 /* Content sidebar - contiene sia il pulsante che la sidebar */
 .content-sidebar {
   position: relative;
-  height: 100%;
+  height: calc(100vh - var(--nav-height) - var(--foot-height));
+  transform: translateX(var(--sidebar-width));
+}
+
+.content-sidebar.sidebar-visible {
+  transform: translateX(0);
 }
 
 /* Form container */
@@ -141,7 +144,6 @@ body {
   position: relative;
   width: 0;
   overflow: hidden;
-  transition: width 0.3s ease;
   background-color: var(--color-bg-light);
   border-radius: var(--radius);
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
@@ -149,31 +151,16 @@ body {
 
 /* Form container quando è attivo */
 #form-container.active {
-  width: auto;
-  max-width: 30vw;
-}
-
-/* Calendar container quando form è attivo */
-#calendar.form-visible {
-  width: 70%;
-  transition: width 0.3s ease;
+  width: clamp(300px, 25vw, 600px);
 }
 
 /* Calendar container normale */
 #calendar {
   width: 100%;
-  transition: width 0.3s ease;
-}
-
-/* Quando la sidebar è visibile, gestisce il posizionamento del pulsante */
-.content-sidebar.sidebar-visible .toggle-sidebar-float {
-  transform: translateX(calc(-1 * var(--sidebar-width))); /* Si sposta quando la sidebar è visibile */
 }
 
 .titolo {
   position: relative;
-  margin-bottom: 1em;
-  font-size: clamp(1rem, 4vh, 2.5rem);
   align-self: flex-start;
   color: var(--color-text);
 }
@@ -412,6 +399,11 @@ body {
   max-width: 80vw;
 }
 
+.fc-multimonth-title {
+  color: var(--color-bg);
+  background-color: var(--color-blue);
+}
+
 .fc-button-primary {
   background-color: var(--color-blue);
 }
@@ -439,6 +431,11 @@ body {
 
 .fc-h-event .fc-event-main-frame {
   display: block;
+}
+
+.fc-list-event {
+  background-color: var(--color-bg-light);
+  border: 1px solid var(--color-border);
 }
 
 .calendar-dropdown {
@@ -492,7 +489,7 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15); /* Ombra più definita */
   padding: 16px;
   min-width: 280px; /* Larghezza minima per accomodare i campi */
-  border: 1px solid var(--color-border-light);
+  border: 1px solid var(--color-border);
   font-size: 0.9rem; /* Leggermente più piccolo del form principale */
   color: var(--color-text);
   animation: fadeInBubble 0.15s ease-out;
@@ -502,7 +499,7 @@ body {
   display: block;
   margin-bottom: 5px;
   font-weight: 500; /* Simile alle label del form principale */
-  color: var(--color-text-secondary);
+  color: var(--color-text-light);
   font-size: 0.85rem;
 }
 
@@ -524,13 +521,13 @@ body {
 
 /* Stile specifico per il pulsante Annulla/Chiudi nel mini-form */
 .mini-form-bubble #miniFormClose {
-  background-color: var(--color-grey-light); /* Colore diverso per distinguerlo */
-  color: var(--color-text-dark);
-  border: 1px solid var(--color-border-medium);
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
 }
 
 .mini-form-bubble #miniFormClose:hover {
-  background-color: var(--color-grey-medium);
+  background-color: var(--color-bg-secondary);
 }
 
 .mini-form-arrow {
@@ -790,11 +787,10 @@ body {
 }
 
 .preference-item .delete-btn {
-  color: var(--color-red);
+  color: var(--color-error);
   cursor: pointer;
   visibility: hidden;
   flex-grow: 0;
-  transition: all 0s !important;
 }
 
 .preference-item:hover .delete-btn {
@@ -943,6 +939,24 @@ body {
 }
 
 /*---------------------------------------------SIDEBAR---------------------------------------------*/
+/* Header della sidebar */
+.sidebar-header {
+  background-color: var(--color-blue);
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  color: var(--color-bg-light);
+  font-size: 1.2em;
+}
+
 /* Pulsante chiusura nel header */
 .close-sidebar-btn {
   color: var(--color-bg-light);
@@ -962,28 +976,10 @@ body {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Header della sidebar */
-.sidebar-header {
-  background-color: var(--color-blue);
-  padding: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.sidebar-header h3 {
-  margin: 0;
-  color: var(--color-bg-light);
-  font-size: 1.2em;
-}
-
 /* Pulsante a linguetta per aprire/chiudere la sidebar */
 .toggle-sidebar-float {
   position: absolute;
-  right: 0;
+  right: var(--sidebar-width);
   top: 2em;
   width: 30px;
   height: 60px;
@@ -998,29 +994,6 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 8px 0 0 8px;
-  transform: translateX(0);
-}
-
-.toggle-sidebar-float.sidebar-open {
-  right: var(--sidebar-width); /* Si sposta quando la sidebar è visibile */
-}
-
-/* Sidebar per messaggi e notifiche */
-.message-sidebar {
-  position: fixed;
-  top: var(--nav-height); /* Inizia dalla fine della navbar */
-  right: 0;
-  width: var(--sidebar-width);
-  height: inherit;
-  background-color: var(--color-nav);
-  overflow-y: auto;
-  transform: translateX(100%); /* Inizialmente fuori dallo schermo */
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
-}
-
-/* Stato visibile della sidebar */
-.message-sidebar.visible {
-  transform: translateX(0); /* Visibile quando ha la classe .visible */
 }
 
 /* Badge di notifica */
@@ -1039,6 +1012,16 @@ body {
   align-items: center;
   justify-content: center;
   opacity: 0;
+}
+
+/* Sidebar per messaggi e notifiche */
+.message-sidebar {
+  position: static;
+  width: var(--sidebar-width);
+  height: inherit;
+  background-color: var(--color-nav);
+  overflow-y: auto;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
 }
 
 .notification-badge.has-notifications {
@@ -1175,7 +1158,7 @@ body {
 .footer-content {
   display: flex;
   justify-content: space-between;
-  max-width: var(--content-inner-width);
+  max-width: 100dvw;
   margin: 0 auto;
   padding: 0 20px;
 }

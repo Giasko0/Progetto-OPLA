@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Riferimenti agli elementi DOM
   const sidebar = document.getElementById("messageSidebar");
   const content = document.querySelector(".content");
+  const contentSidebar = document.querySelector(".content-sidebar");
   const toggleBtn = document.getElementById("toggleSidebarFloat");
   const toggleBtnIcon = toggleBtn.querySelector(".material-symbols-outlined");
   const closeBtn = document.getElementById("closeSidebar");
@@ -17,12 +18,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Inizializza la sidebar e configura gli event listener
   function initSidebar() {
-    if (!sidebar || !toggleBtn || !closeBtn) return;
+    if (!sidebar || !toggleBtn || !closeBtn || !contentSidebar) return;
 
     // Imposta lo stato iniziale (chiusa)
-    sidebar.classList.remove("visible");
-    content.classList.remove("sidebar-visible");
-    toggleBtn.classList.remove("sidebar-open");
+    contentSidebar.classList.remove("sidebar-visible");
     toggleBtnIcon.textContent = "keyboard_double_arrow_left";
 
     // Gestori apertura/chiusura sidebar
@@ -49,7 +48,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Apre/chiude la sidebar
   function toggleSidebar() {
-    const isVisible = sidebar.classList.contains("visible");
+    const isVisible = contentSidebar.classList.contains("sidebar-visible");
 
     if (isVisible) {
       closeSidebar();
@@ -60,18 +59,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Apre la sidebar
   function openSidebar() {
-    sidebar.classList.add("visible");
+    contentSidebar.classList.add("sidebar-visible");
     content.classList.add("sidebar-visible");
-    toggleBtn.classList.add("sidebar-open");
     // Cambia l'icona a doppia freccia verso destra quando la sidebar è aperta
     toggleBtnIcon.textContent = "keyboard_double_arrow_right";
   }
 
   // Chiude la sidebar
   function closeSidebar() {
-    sidebar.classList.remove("visible");
+    contentSidebar.classList.remove("sidebar-visible");
     content.classList.remove("sidebar-visible");
-    toggleBtn.classList.remove("sidebar-open");
     // Cambia l'icona a doppia freccia verso sinistra quando la sidebar è chiusa
     toggleBtnIcon.textContent = "keyboard_double_arrow_left";
   }
