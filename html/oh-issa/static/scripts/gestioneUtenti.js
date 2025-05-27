@@ -76,16 +76,6 @@ function populateUsersTable(users) {
         cognomeCell.textContent = user.cognome || '-';
         row.appendChild(cognomeCell);
         
-        // Permessi Docente
-        const docenteCell = document.createElement('td');
-        docenteCell.className = 'centered';
-        const docenteCheckbox = document.createElement('input');
-        docenteCheckbox.type = 'checkbox';
-        docenteCheckbox.checked = user.permessi_docente;
-        docenteCheckbox.disabled = true; // I permessi docente non sono modificabili direttamente
-        docenteCell.appendChild(docenteCheckbox);
-        row.appendChild(docenteCell);
-        
         // Permessi Admin
         const adminCell = document.createElement('td');
         adminCell.className = 'centered';
@@ -150,7 +140,7 @@ function applyFilters() {
         const username = row.cells[0].textContent.toLowerCase();
         const nome = row.cells[2].textContent.toLowerCase();
         const cognome = row.cells[3].textContent.toLowerCase();
-        const isAdmin = row.cells[5].querySelector('input').checked;
+        const isAdmin = row.cells[4].querySelector('input').checked;
         
         // Applica filtro di ricerca
         const matchesSearch = username.includes(searchQuery) || 

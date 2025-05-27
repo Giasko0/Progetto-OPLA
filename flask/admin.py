@@ -425,7 +425,7 @@ def upload_ugov():
         
         # Aggiungi utente se not already present
         if username_docente not in utenti_set:
-          utenti_data.append((username_docente, matricola_docente, nome_docente, cognome_docente, True, False))
+          utenti_data.append((username_docente, matricola_docente, nome_docente, cognome_docente, False))
           utenti_set.add(username_docente)
         
         # Aggiungi insegnamento_docente
@@ -485,13 +485,12 @@ def upload_ugov():
     for item in utenti_data:
       try:
         cursor.execute("""
-          INSERT INTO utenti (username, matricola, nome, cognome, permessi_docente, permessi_admin)
-          VALUES (%s, %s, %s, %s, %s, %s)
+          INSERT INTO utenti (username, matricola, nome, cognome, permessi_admin)
+          VALUES (%s, %s, %s, %s, %s)
           ON CONFLICT (username) DO UPDATE 
           SET matricola = EXCLUDED.matricola,
               nome = EXCLUDED.nome,
-              cognome = EXCLUDED.cognome,
-              permessi_docente = EXCLUDED.permessi_docente
+              cognome = EXCLUDED.cognome
         """, item)
       except Exception as e:
         print(f"Errore nell'inserimento utente {item}: {str(e)}")
@@ -1730,7 +1729,7 @@ def get_users():
     
     # Recupera tutti gli utenti
     cursor.execute("""
-      SELECT username, matricola, nome, cognome, permessi_docente, permessi_admin
+      SELECT username, matricola, nome, cognome, permessi_admin
       FROM utenti
       ORDER BY username
     """)
@@ -1742,7 +1741,6 @@ def get_users():
         'matricola': row['matricola'],
         'nome': row['nome'],
         'cognome': row['cognome'],
-        'permessi_docente': row['permessi_docente'],
         'permessi_admin': row['permessi_admin']
       })
       
