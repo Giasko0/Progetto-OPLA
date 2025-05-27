@@ -625,8 +625,8 @@ def download_esse3():
     for col, header in enumerate(headers):
       worksheet.write(1, col, header, bold_format)
 
-    # Riga 3: DETAILS nella cella A3
-    worksheet.write(2, 0, 'DETAILS')
+    # Riga 3: DETAIL nella cella A3
+    worksheet.write(2, 0, 'DETAIL')
 
     # Riga 4: Codici template ESSE3
     template_codes = [
@@ -664,12 +664,13 @@ def download_esse3():
     for col, code in enumerate(template_codes):
       worksheet.write(3, col, code)
 
-    # Righe (1, 3 e 4) e colonne (J e X) nascoste per conformità con file export ESSE3
+    # Righe (1, 3 e 4) e colonne (J, X e AB) nascoste per conformità con file export ESSE3
     worksheet.row(0).hidden = True
     worksheet.row(2).hidden = True
     worksheet.row(3).hidden = True
     worksheet.col(9).hidden = True
     worksheet.col(23).hidden = True
+    worksheet.col(27).hidden = True
 
     # Scrivi i dati (inizia dalla riga 5, indice 4)
     for row_idx, esame in enumerate(esami, start=4):
