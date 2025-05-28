@@ -111,14 +111,15 @@ def getEsami():
         cursor = conn.cursor(cursor_factory=DictCursor)
         
         docente = request.args.get('docente', None)
-        anno = request.args.get('anno', None)
         insegnamenti = request.args.get('insegnamenti', None)
-        cds = request.args.get('cds', None)
         
         if not docente:
             return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
 
-        # Query base per tutti gli esami
+        current_date = datetime.now()
+        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+        
+        # Query base per tutti gli esami del docente
         base_query = """
             SELECT e.id, e.descrizione, e.docente, 
                    concat(u.nome, ' ', u.cognome) as docente_nome,
@@ -129,37 +130,49 @@ def getEsami():
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.id
         """
+        
         params = []
         where_conditions = []
-
-        # Se non è admin, filtra per insegnamenti del docente
+        
         if docente != 'admin':
-            current_date = datetime.now()
-            planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+            # Ottieni tutti gli insegnamenti del docente
             insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, planning_year)
             insegnamenti_docente = [data['codice'] for data in insegnamenti_docente_dict.values()]
             
             if insegnamenti_docente:
                 where_conditions.append("i.codice = ANY(%s)")
                 params.append(insegnamenti_docente)
-
-        # Aggiungi filtro per insegnamenti specifici
+            else:
+                # Se il docente non ha insegnamenti, non mostrare nulla
+                return jsonify([])
+        
+        # Se sono specificati insegnamenti, aggiungi anche gli esami di insegnamenti 
+        # dello stesso anno, semestre e CdS
         if insegnamenti:
             insegnamenti_list = insegnamenti.split(',')
-            if where_conditions:
-                where_conditions.append("AND i.codice = ANY(%s)")
-            else:
-                where_conditions.append("i.codice = ANY(%s)")
-            params.append(insegnamenti_list)
-
-        # Aggiungi altri filtri
-        if anno:
-            where_conditions.append("EXTRACT(YEAR FROM data_appello) = %s")
-            params.append(int(anno))
-        
-        if cds:
-            where_conditions.append("i.id IN (SELECT insegnamento FROM insegnamenti_cds WHERE cds = %s)")
-            params.append(cds)
+            
+            # Query per trovare insegnamenti correlati (stesso anno, semestre, CdS)
+            cursor.execute("""
+                SELECT DISTINCT i2.codice
+                FROM insegnamenti i1
+                JOIN insegnamenti_cds ic1 ON i1.id = ic1.insegnamento
+                JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
+                    AND ic1.anno_corso = ic2.anno_corso 
+                    AND ic1.semestre = ic2.semestre
+                    AND ic1.anno_accademico = ic2.anno_accademico
+                JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
+                WHERE i1.codice = ANY(%s)
+                AND ic1.anno_accademico = %s
+            """, (insegnamenti_list, planning_year))
+            
+            insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
+            
+            if insegnamenti_correlati:
+                if where_conditions:
+                    where_conditions.append("OR i.codice = ANY(%s)")
+                else:
+                    where_conditions.append("i.codice = ANY(%s)")
+                params.append(insegnamenti_correlati)
 
         # Costruisci la query finale
         if where_conditions:
@@ -172,6 +185,12 @@ def getEsami():
         cursor.execute(base_query, tuple(params))
         
         exams = []
+        # Determina gli insegnamenti del docente per la proprietà insegnamentoDocente
+        insegnamenti_docente = []
+        if docente != 'admin':
+            insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, planning_year)
+            insegnamenti_docente = [data['codice'] for data in insegnamenti_docente_dict.values()]
+        
         for row in cursor.fetchall():
             # Se docente è 'admin', considera tutti gli esami come propri
             esame_del_docente = True if docente == 'admin' else row['insegnamento'] in insegnamenti_docente
