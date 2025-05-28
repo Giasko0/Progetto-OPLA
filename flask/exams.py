@@ -5,8 +5,18 @@ import json
 import os
 from db import get_db_connection, release_connection
 from utils.examUtils import generaDatiEsame, controllaVincoli, inserisciEsami, costruisciRispostaParziale
+from functools import wraps
 
 exam_bp = Blueprint('exam_bp', __name__)
+
+# Decorator per verificare il login
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return jsonify({'status': 'error', 'message': 'Login richiesto'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Funzione helper per la serializzazione JSON di tipi Python
 def serialize_for_json(obj):
@@ -57,19 +67,26 @@ def inserisciEsame():
       conn = get_db_connection()
       cursor = conn.cursor()
       
-      for codice in dati_esame['insegnamenti']:
-        # Cerca il titolo dell'insegnamento
-        cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (codice,))
-        result = cursor.fetchone()
-        titolo = result[0] if result else codice
-        
-        # Aggiungi alla lista
-        insegnamenti_dict.append({
-          'codice': codice,
-          'titolo': titolo,
-          'data_inizio_iscrizione': dati_esame['inizio_iscrizione'],
-          'data_fine_iscrizione': dati_esame['fine_iscrizione']
-        })
+      # Per ogni combinazione data-insegnamento
+      for data_info in dati_esame['date_appelli']:
+        for codice in dati_esame['insegnamenti']:
+          # Cerca il titolo dell'insegnamento
+          cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (codice,))
+          result = cursor.fetchone()
+          titolo = result[0] if result else codice
+          
+          # Aggiungi alla lista
+          insegnamenti_dict.append({
+            'codice': codice,
+            'titolo': titolo,
+            'data_appello': data_info['data_appello'],
+            'aula': data_info['aula'],
+            'ora_appello': data_info['ora_appello'],
+            'durata_appello': data_info['durata_appello'],
+            'periodo': data_info['periodo'],
+            'data_inizio_iscrizione': dati_esame['inizio_iscrizione'],
+            'data_fine_iscrizione': dati_esame['fine_iscrizione']
+          })
       
       # Inserisci direttamente senza controlli
       esami_inseriti, errori = inserisciEsami(dati_esame, insegnamenti_dict)
@@ -119,7 +136,9 @@ def inserisciEsame():
     if conn:
       release_connection(conn)
 
+# Metodo API per la conferma degli esami
 @exam_bp.route('/api/confermaEsami', methods=['POST'])
+@login_required
 def confermaEsami():
   # API per inserire gli esami selezionati dall'utente
   try:
@@ -134,17 +153,38 @@ def confermaEsami():
     if not esami_da_inserire:
       return jsonify({'status': 'error', 'message': 'Nessun esame selezionato per l\'inserimento'}), 400
     
-    # Inserisci gli esami selezionati usando la nuova funzione
-    esami_inseriti, errori = inserisciEsami(dati_comuni, esami_da_inserire)
+    # Convertiamo i dati nella struttura che inserisciEsami si aspetta
+    esami_formattati = []
+    for esame in esami_da_inserire:
+      esame_formattato = {
+        'codice': esame['codice'],
+        'data_appello': esame['data_appello'],
+        'aula': esame['aula'],
+        'ora_appello': esame['ora_appello'],
+        'durata_appello': esame['durata_appello'],
+        'periodo': esame['periodo'],
+        'data_inizio_iscrizione': esame['data_inizio_iscrizione'],
+        'data_fine_iscrizione': esame['data_fine_iscrizione']
+      }
+      
+      # Aggiungi il titolo se disponibile nei dati comuni
+      conn = get_db_connection()
+      cursor = conn.cursor()
+      cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (esame['codice'],))
+      result = cursor.fetchone()
+      if result:
+        esame_formattato['titolo'] = result[0]
+      cursor.close()
+      release_connection(conn)
+      
+      esami_formattati.append(esame_formattato)
+    
+    # Inserisci gli esami selezionati usando la funzione aggiornata
+    esami_inseriti, errori = inserisciEsami(dati_comuni, esami_formattati)
     
     # Se ci sono stati errori ma almeno un esame è stato inserito, restituisci avviso
     if errori and esami_inseriti:
-      return jsonify({
-        'status': 'partial', 
-        'message': 'Alcuni esami sono stati inseriti con successo', 
-        'inserted': esami_inseriti, 
-        'errors': errori
-      }), 207
+      return jsonify(costruisciRispostaParziale(esami_inseriti, errori)), 207
     elif errori and not esami_inseriti:
       return jsonify({
         'status': 'error',

@@ -286,15 +286,29 @@ document.addEventListener("DOMContentLoaded", function () {
               }
               return { html: htmlContent };
             }
-            // Logica di rendering esistente per altri eventi
-            let titleHtml = `<div class="fc-event-title-custom">${arg.event.title}</div>`;
-            if (arg.event.extendedProps.aula) {
-              titleHtml += `<div class="fc-event-details-custom">Aula: ${arg.event.extendedProps.aula}</div>`;
+            
+            // Per eventi normali: Prima riga ora, seconda riga materia, terza riga docente
+            let htmlContent = '';
+            
+            // Prima riga: Ora dell'esame
+            if (arg.event.start) {
+              const timeString = arg.event.start.toLocaleTimeString('it-IT', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              });
+              htmlContent += `<div class="fc-event-time fc-sticky">${timeString}</div>`;
             }
-            if (arg.event.extendedProps.stato) {
-              titleHtml += `<div class="fc-event-details-custom">Stato: ${arg.event.extendedProps.stato}</div>`;
-            }
-            return { html: titleHtml };
+            
+            // Seconda riga: Materia/Insegnamento
+            const materia = arg.event.extendedProps.insegnamento || arg.event.title || 'Materia non specificata';
+            htmlContent += `<div class="fc-event-title">${materia}</div>`;
+            
+            // Terza riga: Docente (nome e cognome)
+            const docenteDisplay = arg.event.extendedProps.docenteNome || 'Docente non specificato';
+            htmlContent += `<div class="fc-event-description">${docenteDisplay}</div>`;
+            
+            return { html: htmlContent };
           },
 
           dayCellClassNames: function (arg) {

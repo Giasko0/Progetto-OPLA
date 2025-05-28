@@ -139,20 +139,26 @@ document.addEventListener("DOMContentLoaded", function () {
         containerId = "alertsContainer";
         itemClass = "alert-item";
         isNotification = false;
-        borderColor = "var(--color-error)";
+        borderColor = "var(--color-error, #dc3545)";
         break;
       case "warning":
         containerId = "alertsContainer";
         itemClass = "alert-item";
         isNotification = false;
-        borderColor = "var(--color-warning)";
+        borderColor = "var(--color-warning, #ffc107)";
+        break;
+      case "success":
+        containerId = "notificationsContainer";
+        itemClass = "notification-item";
+        isNotification = true;
+        borderColor = "var(--color-success, #28a745)";
         break;
       case "notification":
       default:
         containerId = "notificationsContainer";
         itemClass = "notification-item";
         isNotification = true;
-        borderColor = "var(--color-blue)";
+        borderColor = "var(--color-blue, #007bff)";
         break;
     }
 

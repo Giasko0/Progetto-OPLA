@@ -7,6 +7,7 @@ def generaDatiEsame():
   """
   Raccoglie i dati dal form, li valida e genera un dizionario con tutti i dati 
   necessari per l'inserimento di un esame secondo la struttura della tabella esami.
+  Gestisce multiple date/appelli dal form modulare.
   """
   try:
     # Raccolta dati dal form
@@ -26,10 +27,6 @@ def generaDatiEsame():
     descrizione = data.get('descrizione', '')
     prova_parziale = data.get('provaParziale') == 'on'
     mostra_nel_calendario = data.get('mostra_nel_calendario') == 'on'
-    aula = data.get('aula')
-    data_appello = data.get('dataora')
-    ora_appello = data.get('ora')
-    durata_appello = data.get('durata')
     inizio_iscrizione = data.get('inizioIscrizione')
     fine_iscrizione = data.get('fineIscrizione')
     tipo_esame = data.get('tipoEsame')
@@ -38,26 +35,130 @@ def generaDatiEsame():
     posti = data.get('posti')
     anno_accademico = data.get('anno_accademico')
     
-    # Validazione campi obbligatori
-    if not all([docente, aula, data_appello, ora_appello]):
-      return {'status': 'error', 'message': 'Dati incompleti'}
-      
-    # Validazione ora appello
-    try:
-      ora_parts = ora_appello.split(':')
-      ora_int = int(ora_parts[0])
-      if ora_int < 8 or ora_int > 23:
-        return {'status': 'error', 'message': 'L\'ora dell\'appello deve essere compresa tra le 08:00 e le 23:00'}
-    except (ValueError, IndexError):
-      return {'status': 'error', 'message': 'Formato ora non valido'}
+    # Raccolta delle multiple date/appelli dal form modulare
+    date_appelli = []
     
-    # Periodo (mattina/pomeriggio)
-    periodo = 1 if ora_int > 13 else 0
+    # Cerca tutti i campi che seguono il pattern dataora_X
+    date_keys = [key for key in data.keys() if key.startswith('dataora_')]
+    
+    for date_key in date_keys:
+      # Estrai l'indice dalla chiave (dataora_1 -> 1)
+      index = date_key.split('_')[1]
+      
+      # Raccogli tutti i dati per questa data
+      data_appello = data.get(f'dataora_{index}')
+      ora_h = data.get(f'ora_h_{index}')
+      ora_m = data.get(f'ora_m_{index}')
+      aula_appello = data.get(f'aula_{index}')
+      durata_appello = data.get(f'durata_{index}', '120')  # Default 120 minuti
+      
+      # Validazione campi obbligatori per questa data
+      if not all([data_appello, ora_h, ora_m, aula_appello]):
+        continue  # Salta questa data se non è completa
+      
+      # Costruisci l'ora completa
+      ora_appello = f"{ora_h}:{ora_m}"
+      
+      # Validazione ora appello
+      try:
+        ora_int = int(ora_h)
+        if ora_int < 8 or ora_int > 18:
+          return {'status': 'error', 'message': f'Ora non valida per l\'appello {index}: {ora_appello}. Deve essere tra le 08:00 e le 18:00'}
+      except (ValueError, TypeError):
+        return {'status': 'error', 'message': f'Formato ora non valido per l\'appello {index}: {ora_appello}'}
+      
+      # Periodo (mattina/pomeriggio) - 0 per mattina, 1 per pomeriggio
+      periodo = 1 if ora_int >= 14 else 0
+      
+      # Durata appello (default 120 minuti)
+      try:
+        durata_appello = int(durata_appello)
+        if durata_appello < 30 or durata_appello > 480:
+          return {'status': 'error', 'message': f'La durata deve essere compresa tra 30 e 480 minuti per l\'appello {index}'}
+      except (ValueError, TypeError):
+        durata_appello = 120
+      
+      date_appelli.append({
+        'data_appello': data_appello,
+        'ora_appello': ora_appello,
+        'aula': aula_appello,
+        'durata_appello': durata_appello,
+        'periodo': periodo
+      })
+    
+    # Se non ci sono date valide, fallback ai campi legacy o al campo combinato
+    if not date_appelli:
+      # Prova prima con i campi legacy separati
+      aula = data.get('aula')
+      data_appello = data.get('dataora')
+      
+      # Prova a recuperare l'ora dai campi separati ora_h e ora_m
+      ora_h = data.get('ora_h')
+      ora_m = data.get('ora_m')
+      ora_appello = None
+      
+      if ora_h and ora_m:
+        ora_appello = f"{ora_h}:{ora_m}"
+      else:
+        # Fallback al campo ora combinato
+        ora_appello = data.get('ora')
+      
+      # Prova a recuperare la durata dai campi separati durata_h e durata_m
+      durata_h = data.get('durata_h', '0')
+      durata_m = data.get('durata_m', '0')
+      durata_appello = None
+      
+      try:
+        durata_ore = int(durata_h) if durata_h else 0
+        durata_minuti = int(durata_m) if durata_m else 0
+        durata_appello = (durata_ore * 60) + durata_minuti
+      except (ValueError, TypeError):
+        # Fallback al campo durata combinato
+        durata_appello = data.get('durata')
+      
+      if not all([aula, data_appello, ora_appello]):
+        return {'status': 'error', 'message': 'Dati incompleti: mancano data, ora o aula'}
+        
+      # Validazione ora appello legacy
+      try:
+        ora_parts = ora_appello.split(':')
+        ora_int = int(ora_parts[0])
+        if ora_int < 8 or ora_int > 18:
+          return {'status': 'error', 'message': 'L\'ora dell\'appello deve essere compresa tra le 08:00 e le 18:00'}
+      except (ValueError, IndexError):
+        return {'status': 'error', 'message': 'Formato ora non valido'}
+      
+      periodo = 1 if ora_int >= 14 else 0
+      
+      if not durata_appello:
+        durata_appello = 120
+      else:
+        try:
+          durata_appello = int(durata_appello)
+          if durata_appello < 30 or durata_appello > 480:
+            return {'status': 'error', 'message': 'La durata deve essere compresa tra 30 e 480 minuti'}
+        except ValueError:
+          durata_appello = 120
+      
+      date_appelli.append({
+        'data_appello': data_appello,
+        'ora_appello': ora_appello,
+        'aula': aula,
+        'durata_appello': durata_appello,
+        'periodo': periodo
+      })
+    
+    if not date_appelli:
+      return {'status': 'error', 'message': 'Nessuna data/appello valida inserita'}
+    
+    # Validazione campi obbligatori comuni
+    if not all([docente, insegnamenti]):
+      return {'status': 'error', 'message': 'Dati incompleti: mancano docente o insegnamenti'}
     
     # Tipo appello
     tipo_appello = 'PP' if prova_parziale else 'PF'
 
-    # Tipo iscrizione (Questo campo è strano nel file export. Che confusione)
+    # Tipo iscrizione
     tipo_iscrizione = 'SOC' if tipo_esame == 'SO' else tipo_esame
 
     # Valori standard per campi opzionali
@@ -78,48 +179,17 @@ def generaDatiEsame():
     else:
       posti = None
     
-    # Durata appello (default 120 minuti)
-    if not durata_appello:
-      durata_appello = 120
-    else:
-      try:
-        durata_appello = int(durata_appello)
-        if durata_appello < 30 or durata_appello > 480:
-          return {'status': 'error', 'message': 'La durata dell\'esame deve essere tra 30 e 480 minuti'}
-      except ValueError:
-        durata_appello = 120
-    
     # Gestione delle date di iscrizione
     inizio_iscrizione = data.get('inizioIscrizione')
     fine_iscrizione = data.get('fineIscrizione')
-    
-    # Segna se le date sono quelle di default (per eventuale sovrascrittura)
-    date_default = {'inizio': False, 'fine': False}
-    
-    # Se le date non sono specificate, impostiamo i valori predefiniti
-    if not inizio_iscrizione and data_appello:
-      # Default: 20 giorni prima della data dell'esame
-      data_esame = datetime.fromisoformat(data_appello)
-      inizio_iscrizione = (data_esame - timedelta(days=30)).strftime("%Y-%m-%d")
-      date_default['inizio'] = True
-    
-    if not fine_iscrizione and data_appello:
-      # Default: 1 giorno prima della data dell'esame
-      data_esame = datetime.fromisoformat(data_appello)
-      fine_iscrizione = (data_esame - timedelta(days=1)).strftime("%Y-%m-%d")
-      date_default['fine'] = True
     
     # Restituisci dizionario con tutti i dati raccolti e validati
     return {
       'insegnamenti': insegnamenti,
       'docente': docente,
-      'aula': aula,
-      'data_appello': data_appello,
-      'ora_appello': ora_appello,
-      'durata_appello': durata_appello,
+      'date_appelli': date_appelli,  # Lista di tutte le date/appelli
       'inizio_iscrizione': inizio_iscrizione,
       'fine_iscrizione': fine_iscrizione,
-      'periodo': periodo,
       'tipo_esame': tipo_esame,
       'verbalizzazione': verbalizzazione,
       'descrizione': descrizione,
@@ -131,7 +201,6 @@ def generaDatiEsame():
       'gestione_prenotazione': gestione_prenotazione,
       'riservato': riservato,
       'tipo_iscrizione': tipo_iscrizione,
-      'date_default': date_default,
       'mostra_nel_calendario': mostra_nel_calendario
     }
   except Exception as e:
@@ -160,23 +229,9 @@ def controllaVincoli(dati_esame):
     # Liste per raccogliere risultati
     esami_validi = []
     esami_invalidi = []
+    
     # Verifica se è una prova da mostrare nel calendario
     mostra_nel_calendario = dati_esame.get('mostra_nel_calendario', True)
-    
-    # 1. Verifica conflitti di aula
-    aula = dati_esame['aula']
-    data_appello = dati_esame['data_appello']
-    periodo = dati_esame['periodo']
-    
-    # Aggiungiamo una condizione speciale per lo studio del docente
-    if aula != "Studio docente DMI":
-      cursor.execute("""
-        SELECT COUNT(*) FROM esami 
-        WHERE data_appello = %s AND aula = %s AND periodo = %s
-      """, (data_appello, aula, periodo))
-      
-      if cursor.fetchone()[0] > 0:
-        return dati_esame, [], [], 'Aula già occupata in questo periodo'
     
     # Verifica se anno_accademico è presente e valido
     anno_accademico = dati_esame.get('anno_accademico')
@@ -194,106 +249,93 @@ def controllaVincoli(dati_esame):
       except ValueError:
         return dati_esame, [], [], 'Anno accademico non valido'
     
-    # 2. Verifica ogni insegnamento
+    # Ottieni dati comuni
     insegnamenti = dati_esame['insegnamenti']
     docente = dati_esame['docente']
     inizio_iscrizione = dati_esame['inizio_iscrizione']
     fine_iscrizione = dati_esame['fine_iscrizione']
-    date_default = dati_esame.get('date_default', {'inizio': False, 'fine': False})
+    date_appelli = dati_esame['date_appelli']
     
-    # Converti in oggetto data
-    data_esame = datetime.fromisoformat(data_appello)
-    
-    # Verifica se il giorno è sabato o domenica
-    giorno_settimana = data_esame.weekday()
-    if giorno_settimana >= 5:  # 5 = sabato, 6 = domenica
-      return dati_esame, [], [], 'Non è possibile inserire esami di sabato o domenica'
-    
-    # Dizionario per memorizzare le informazioni delle sessioni trovate
-    periodi_sessione = {}
-    
-    for insegnamento in insegnamenti:
-      try:
-        # Ottieni titolo per messaggi di errore
-        cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
-        titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
-        
-        # 2.1 Verifica che l'insegnamento esista per l'anno corrente
+    # Per ogni combinazione data-insegnamento, verifica i vincoli
+    for data_appello_info in date_appelli:
+      data_appello = data_appello_info['data_appello']
+      aula = data_appello_info['aula']
+      periodo = data_appello_info['periodo']
+      
+      # Converti in oggetto data
+      data_esame = datetime.fromisoformat(data_appello)
+      
+      # Verifica se il giorno è sabato o domenica
+      giorno_settimana = data_esame.weekday()
+      if giorno_settimana >= 5:  # 5 = sabato, 6 = domenica
+        return dati_esame, [], [], f'Non è possibile inserire esami di sabato o domenica ({data_appello})'
+      
+      # 1. Verifica conflitti di aula per questa data
+      if aula != "Studio docente DMI":
         cursor.execute("""
-          SELECT ic.cds, ic.anno_accademico 
-          FROM insegnamenti_cds ic
-          JOIN insegnamenti i ON ic.insegnamento = i.id
-          WHERE i.codice = %s 
-            AND ic.anno_accademico = %s
-        """, (insegnamento, anno_accademico))
+          SELECT COUNT(*) FROM esami 
+          WHERE data_appello = %s AND aula = %s AND periodo = %s
+        """, (data_appello, aula, periodo))
         
-        cds_info = cursor.fetchone()
-        if not cds_info:
-          esami_invalidi.append({
-            'codice': insegnamento,
-            'titolo': titolo_insegnamento,
-            'errore': "Insegnamento non trovato per l'anno accademico specificato"
-          })
-          continue
-        
-        cds_code, anno_acc = cds_info
-        
-        # 2.2 Verifica che la data rientri in una sessione d'esame valida
-        sessione_info = getSessionePerData(data_esame.strftime('%Y-%m-%d'), cds_code, anno_acc)
-        if not sessione_info or not sessione_info[0]:
-          esami_invalidi.append({
-            'codice': insegnamento,
-            'titolo': titolo_insegnamento,
-            'errore': "La data selezionata non rientra in nessuna sessione d'esame valida"
-          })
-          continue
-        
-        sessione, data_inizio_sessione = sessione_info
-        
-        # Converti data_inizio_sessione da stringa a datetime se necessario
-        if isinstance(data_inizio_sessione, str):
-          data_inizio_sessione = datetime.fromisoformat(data_inizio_sessione)
-        
-        # Se le date sono quelle di default, calcola le migliori date basate sulla sessione
-        data_inizio_iscrizione = inizio_iscrizione
-        data_fine_iscrizione = fine_iscrizione
-        
-        # Se la data di inizio iscrizione è quella di default, 
-        # la sovrascriviamo con 20 giorni prima dell'inizio sessione
-        if date_default['inizio']:
-          data_inizio_iscrizione = (data_inizio_sessione - timedelta(days=20)).strftime("%Y-%m-%d")
-          # Aggiorniamo anche il valore globale per gli altri esami
-          if not periodi_sessione:  # Solo la prima volta
-            dati_esame['inizio_iscrizione'] = data_inizio_iscrizione
-        
-        # 2.4 Verifica il limite di esami nella sessione (solo se la prova viene mostrata nel calendario)
-        # if mostra_nel_calendario:
-        #   # Salta il controllo del numero massimo se stiamo modificando un esame esistente
-        #   exam_id_to_exclude = dati_esame.get('exam_id')
-        #   if not exam_id_to_exclude:  # Solo se non stiamo modificando un esame esistente
-        #     cursor.execute("""
-        #       SELECT COUNT(*) 
-        #       FROM esami e
-        #       JOIN insegnamenti i ON e.insegnamento = i.id
-        #       JOIN periodi_esame pe ON pe.cds = %s 
-        #           AND pe.anno_accademico = %s
-        #           AND pe.tipo_periodo = %s
-        #       WHERE e.docente = %s 
-        #         AND i.codice = %s
-        #         AND e.data_appello BETWEEN pe.inizio AND pe.fine
-        #         AND e.mostra_nel_calendario = TRUE
-        #     """, (cds_code, anno_acc, sessione, docente, insegnamento))
-            
-        #     if cursor.fetchone()[0] >= limite_max:
-        #       esami_invalidi.append({
-        #         'codice': insegnamento,
-        #         'titolo': titolo_insegnamento,
-        #         'errore': f"Limite di {limite_max} esami nella sessione {sessione} raggiunto"
-        #       })
-        #       continue
-        
-          # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento
-          # Metto 13 giorni perché il vincolo dice "non inferiore a due settimane"
+        if cursor.fetchone()[0] > 0:
+          return dati_esame, [], [], f'Aula {aula} già occupata in questo periodo per la data {data_appello}'
+      
+      # Per ogni insegnamento verifica i vincoli specifici
+      for insegnamento in insegnamenti:
+        try:
+          # Ottieni titolo per messaggi di errore
+          cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+          titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
+          
+          # Verifica che l'insegnamento esista per l'anno corrente
+          cursor.execute("""
+            SELECT ic.cds, ic.anno_accademico 
+            FROM insegnamenti_cds ic
+            JOIN insegnamenti i ON ic.insegnamento = i.id
+            WHERE i.codice = %s 
+              AND ic.anno_accademico = %s
+          """, (insegnamento, anno_accademico))
+          
+          cds_info = cursor.fetchone()
+          if not cds_info:
+            esami_invalidi.append({
+              'codice': insegnamento,
+              'titolo': titolo_insegnamento,
+              'data_appello': data_appello,
+              'errore': "Insegnamento non trovato per l'anno accademico specificato"
+            })
+            continue
+          
+          cds_code, anno_acc = cds_info
+          
+          # Verifica che la data rientri in una sessione d'esame valida
+          sessione_info = getSessionePerData(data_esame.strftime('%Y-%m-%d'), cds_code, anno_acc)
+          if not sessione_info or not sessione_info[0]:
+            esami_invalidi.append({
+              'codice': insegnamento,
+              'titolo': titolo_insegnamento,
+              'data_appello': data_appello,
+              'errore': f"La data {data_appello} non rientra in nessuna sessione d'esame valida"
+            })
+            continue
+          
+          sessione, data_inizio_sessione = sessione_info
+          
+          # Converti data_inizio_sessione da stringa a datetime se necessario
+          if isinstance(data_inizio_sessione, str):
+            data_inizio_sessione = datetime.fromisoformat(data_inizio_sessione)
+          
+          # Calcola le date di iscrizione se non specificate
+          data_inizio_iscrizione = inizio_iscrizione
+          data_fine_iscrizione = fine_iscrizione
+          
+          if not data_inizio_iscrizione:
+            data_inizio_iscrizione = (data_inizio_sessione - timedelta(days=20)).strftime("%Y-%m-%d")
+          
+          if not data_fine_iscrizione:
+            data_fine_iscrizione = (data_esame - timedelta(days=1)).strftime("%Y-%m-%d")
+          
+          # Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento
           data_min = data_esame - timedelta(days=13)
           data_max = data_esame + timedelta(days=13)
           
@@ -321,108 +363,106 @@ def controllaVincoli(dati_esame):
             esami_invalidi.append({
               'codice': insegnamento,
               'titolo': titolo_insegnamento,
+              'data_appello': data_appello,
               'errore': f"Non puoi inserire esami a meno di 14 giorni di distanza. Hai già esami nelle date: {', '.join(date_esami)}"
             })
             continue
-        
-        # 2.5 Verifica sovrapposizione con altri esami dello stesso CDS, curriculum, anno e semestre
-        # La sovrapposizione vale anche se uno dei due esami ha curriculum 'CORSO GENERICO'
-        cursor.execute("""
-          WITH stesso_contesto AS (
-            SELECT DISTINCT i2.id, i2.codice, i2.titolo
-            FROM insegnamenti_cds ic1
-            JOIN insegnamenti i1 ON ic1.insegnamento = i1.id
-            JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
-              AND (
-                ic1.curriculum = ic2.curriculum 
-                OR ic1.curriculum = 'CORSO GENERICO'
-                OR ic2.curriculum = 'CORSO GENERICO'
-              )
-              AND ic1.anno_corso = ic2.anno_corso 
-              AND ic1.semestre = ic2.semestre
-              AND ic1.anno_accademico = ic2.anno_accademico
-            JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
-            WHERE i1.codice = %s
-              AND ic1.anno_accademico = %s
-          )
-          SELECT e.data_appello, e.ora_appello, e.durata_appello, 
-                 i.codice, i.titolo
-          FROM esami e
-          JOIN insegnamenti i ON e.insegnamento = i.id
-          WHERE i.id IN (SELECT id FROM stesso_contesto)
-            AND e.data_appello = %s
-            AND e.id != COALESCE(%s, -1)
-        """, (insegnamento, anno_acc, data_appello, dati_esame.get('exam_id')))
-        
-        esami_sovrapposti = cursor.fetchall()
-        
-        if esami_sovrapposti:
-          # Converti l'ora dell'appello corrente in datetime per i calcoli
-          ora_parts = dati_esame['ora_appello'].split(':')
-          ora_base = datetime.now().replace(hour=int(ora_parts[0]), 
-                                         minute=int(ora_parts[1]), 
-                                         second=0, microsecond=0)
-          durata = int(dati_esame['durata_appello'])
-          fine_appello = ora_base + timedelta(minutes=durata)
           
-          for esame in esami_sovrapposti:
-            # Converti l'ora dell'altro esame in datetime per i calcoli
-            altro_ora = esame[1]  # ora_appello è già un oggetto time
-            altra_ora_base = datetime.now().replace(hour=altro_ora.hour,
-                                                 minute=altro_ora.minute,
-                                                 second=0, microsecond=0)
-            altra_durata = int(esame[2])
-            altra_fine = altra_ora_base + timedelta(minutes=altra_durata)
+          # Verifica sovrapposizione con altri esami dello stesso CDS, curriculum, anno e semestre
+          cursor.execute("""
+            WITH stesso_contesto AS (
+              SELECT DISTINCT i2.id, i2.codice, i2.titolo
+              FROM insegnamenti_cds ic1
+              JOIN insegnamenti i1 ON ic1.insegnamento = i1.id
+              JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
+                AND (
+                  ic1.curriculum = ic2.curriculum 
+                  OR ic1.curriculum = 'CORSO GENERICO'
+                  OR ic2.curriculum = 'CORSO GENERICO'
+                )
+                AND ic1.anno_corso = ic2.anno_corso 
+                AND ic1.semestre = ic2.semestre
+                AND ic1.anno_accademico = ic2.anno_accademico
+              JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
+              WHERE i1.codice = %s
+                AND ic1.anno_accademico = %s
+            )
+            SELECT e.data_appello, e.ora_appello, e.durata_appello, 
+                   i.codice, i.titolo
+            FROM esami e
+            JOIN insegnamenti i ON e.insegnamento = i.id
+            WHERE i.id IN (SELECT id FROM stesso_contesto)
+              AND e.data_appello = %s
+              AND e.id != COALESCE(%s, -1)
+          """, (insegnamento, anno_acc, data_appello, dati_esame.get('exam_id')))
+          
+          esami_sovrapposti = cursor.fetchall()
+          
+          if esami_sovrapposti:
+            # Converti l'ora dell'appello corrente in datetime per i calcoli
+            ora_parts = data_appello_info['ora_appello'].split(':')
+            ora_base = datetime.now().replace(hour=int(ora_parts[0]), 
+                                           minute=int(ora_parts[1]), 
+                                           second=0, microsecond=0)
+            durata = int(data_appello_info['durata_appello'])
+            fine_appello = ora_base + timedelta(minutes=durata)
             
-            # Verifica sovrapposizione
-            if (ora_base <= altra_fine and fine_appello >= altra_ora_base):
-              esami_invalidi.append({
-                'codice': insegnamento,
-                'titolo': titolo_insegnamento,
-                'errore': f"Sovrapposizione con l'esame di {esame[4]} ({esame[3]}) dello stesso CDS/curriculum/anno/semestre"
-              })
-              break  # Usciamo dal ciclo alla prima sovrapposizione trovata
+            for esame in esami_sovrapposti:
+              # Converti l'ora dell'altro esame in datetime per i calcoli
+              altro_ora = esame[1]  # ora_appello è già un oggetto time
+              altra_ora_base = datetime.now().replace(hour=altro_ora.hour,
+                                                   minute=altro_ora.minute,
+                                                   second=0, microsecond=0)
+              altra_durata = int(esame[2])
+              altra_fine = altra_ora_base + timedelta(minutes=altra_durata)
+              
+              # Verifica sovrapposizione
+              if (ora_base <= altra_fine and fine_appello >= altra_ora_base):
+                esami_invalidi.append({
+                  'codice': insegnamento,
+                  'titolo': titolo_insegnamento,
+                  'data_appello': data_appello,
+                  'errore': f"Sovrapposizione con l'esame di {esame[4]} ({esame[3]}) dello stesso CDS/curriculum/anno/semestre"
+                })
+                break  # Usciamo dal ciclo alla prima sovrapposizione trovata
 
-        # Se non ci sono state sovrapposizioni, aggiungi alla lista dei validi
-        if insegnamento not in [x['codice'] for x in esami_invalidi]:
-          esami_validi.append({
+          # Se non ci sono state sovrapposizioni per questa combinazione, aggiungi alla lista dei validi
+          combinazione_key = f"{insegnamento}_{data_appello}"
+          if not any(x.get('combinazione_key') == combinazione_key for x in esami_invalidi):
+            esami_validi.append({
+              'codice': insegnamento,
+              'titolo': titolo_insegnamento,
+              'data_appello': data_appello,
+              'aula': aula,
+              'ora_appello': data_appello_info['ora_appello'],
+              'durata_appello': data_appello_info['durata_appello'],
+              'periodo': data_appello_info['periodo'],
+              'data_inizio_iscrizione': data_inizio_iscrizione,
+              'data_fine_iscrizione': data_fine_iscrizione,
+              'combinazione_key': combinazione_key
+            })
+          
+        except Exception as e:
+          # Gestione errori durante la verifica
+          try:
+            cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+            titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
+          except:
+            titolo_insegnamento = insegnamento
+            
+          esami_invalidi.append({
             'codice': insegnamento,
             'titolo': titolo_insegnamento,
-            'data_inizio_iscrizione': data_inizio_iscrizione,
-            'data_fine_iscrizione': data_fine_iscrizione
+            'data_appello': data_appello,
+            'errore': f"Errore nella verifica dell'esame: {str(e)}"
           })
-        
-      except Exception as e:
-        # Gestione errori durante la verifica
-        try:
-          cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
-          titolo_insegnamento = cursor.fetchone()[0] if cursor.rowcount > 0 else insegnamento
-        except:
-          titolo_insegnamento = insegnamento
-          
-        esami_invalidi.append({
-          'codice': insegnamento,
-          'titolo': titolo_insegnamento,
-          'errore': f"Errore nella verifica dell'esame: {str(e)}"
-        })
     
-    # Validazione durata
-    try:
-      durata = int(dati_esame.get('durata_appello', 0))
-      if durata < 30 or durata > 480:  # min 30 minuti, max 8 ore (480 minuti)
-        esami_invalidi.append({
-          'codice': 'DURATA',
-          'titolo': 'Durata esame',
-          'errore': 'La durata deve essere compresa tra 30 minuti e 8 ore'
-        })
-    except (ValueError, TypeError):
-      esami_invalidi.append({
-        'codice': 'DURATA',
-        'titolo': 'Durata esame',
-        'errore': 'La durata deve essere un numero valido'
-      })
+    # Aggiorna il dizionario con le date di iscrizione calcolate
+    if esami_validi and not dati_esame.get('inizio_iscrizione'):
+      dati_esame['inizio_iscrizione'] = esami_validi[0]['data_inizio_iscrizione']
+    if esami_validi and not dati_esame.get('fine_iscrizione'):
+      dati_esame['fine_iscrizione'] = esami_validi[0]['data_fine_iscrizione']
     
-    # Aggiorna il dizionario con le date di iscrizione
     return dati_esame, esami_validi, esami_invalidi, None
     
   except Exception as e:
@@ -473,6 +513,11 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
       try:
         # Estrai informazioni per l'inserimento
         insegnamento_codice = esame['codice']
+        data_appello = esame['data_appello']
+        aula = esame['aula']
+        ora_appello = esame['ora_appello']
+        durata_appello = esame['durata_appello']
+        periodo = esame['periodo']
         inizio_iscrizione = esame.get('data_inizio_iscrizione')
         fine_iscrizione = esame.get('data_fine_iscrizione')
         anno_accademico = dati_comuni['anno_accademico']
@@ -509,24 +554,26 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
             riservato, tipo_iscrizione, periodo, durata_appello,
             cds, anno_accademico, curriculum, mostra_nel_calendario)
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-          (dati_comuni['docente'], insegnamento_id, dati_comuni['aula'], 
-           dati_comuni['data_appello'], dati_comuni['ora_appello'], 
+          (dati_comuni['docente'], insegnamento_id, aula, 
+           data_appello, ora_appello, 
            inizio_iscrizione, fine_iscrizione, 
            dati_comuni['tipo_esame'], dati_comuni['verbalizzazione'],
            dati_comuni['descrizione'], dati_comuni['note_appello'],
            dati_comuni['posti'], dati_comuni['tipo_appello'],
            dati_comuni['definizione_appello'], dati_comuni['gestione_prenotazione'],
            dati_comuni['riservato'], dati_comuni['tipo_iscrizione'],
-           dati_comuni['periodo'], dati_comuni['durata_appello'],
+           periodo, durata_appello,
            cds, anno_accademico, curriculum, dati_comuni['mostra_nel_calendario'])
         )
-        esami_inseriti.append(esame.get('titolo', insegnamento_codice))
+        esami_inseriti.append(f"{esame.get('titolo', insegnamento_codice)} - {data_appello}")
       except Exception as e:
         # Gestisci il caso in cui 'titolo' non è disponibile
         titolo = esame.get('titolo', esame.get('codice', 'Sconosciuto'))
+        data_appello = esame.get('data_appello', 'Data sconosciuta')
         errori.append({
           'codice': esame.get('codice', 'Sconosciuto'),
           'titolo': titolo,
+          'data_appello': data_appello,
           'errore': f"Errore nell'inserimento dell'esame: {str(e)}"
         })
     

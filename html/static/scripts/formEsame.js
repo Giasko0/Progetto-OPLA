@@ -621,9 +621,12 @@ const EsameForm = (function() {
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee;">
               <input type="checkbox" class="esame-checkbox" data-codice="${esame.codice}" 
-                     data-inizio="${esame.data_inizio_iscrizione}" data-fine="${esame.data_fine_iscrizione}" checked>
+                     data-data="${esame.data_appello}" data-aula="${esame.aula}" 
+                     data-ora="${esame.ora_appello}" data-durata="${esame.durata_appello}"
+                     data-periodo="${esame.periodo}" data-inizio="${esame.data_inizio_iscrizione}" 
+                     data-fine="${esame.data_fine_iscrizione}" checked>
             </td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">${esame.titolo}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${esame.titolo} - ${esame.data_appello}</td>
           </tr>
         `;
       });
@@ -683,6 +686,11 @@ const EsameForm = (function() {
 
         const esamiSelezionati = Array.from(checkboxes).map((checkbox) => ({
           codice: checkbox.dataset.codice,
+          data_appello: checkbox.dataset.data,
+          aula: checkbox.dataset.aula,
+          ora_appello: checkbox.dataset.ora,
+          durata_appello: parseInt(checkbox.dataset.durata),
+          periodo: parseInt(checkbox.dataset.periodo),
           data_inizio_iscrizione: checkbox.dataset.inizio,
           data_fine_iscrizione: checkbox.dataset.fine,
         }));
@@ -729,7 +737,10 @@ const EsameForm = (function() {
               const messageType = response.status === "success" ? "notification" : "warning";
               const messageTitle = response.status === "success" ? "Operazione completata" : "Inserimento parziale";
 
-              window.showMessage(response.message, messageTitle, messageType);
+              // Usa la funzione showMessage per mostrare notifiche nella sidebar
+              if (window.showMessage) {
+                window.showMessage(response.message, messageTitle, messageType, { timeout: 5000 });
+              }
 
               // Aggiorna calendario
               if (window.calendar) {
@@ -740,28 +751,40 @@ const EsameForm = (function() {
               // Se ci sono errori specifici in caso di inserimento parziale
               if (response.status === "partial" && response.errors) {
                 response.errors.forEach((error) => {
-                  window.showMessage(
-                    `Errore per ${error.codice}: ${error.errore}`,
-                    "Dettagli errore",
-                    "warning"
-                  );
+                  if (window.showMessage) {
+                    window.showMessage(
+                      `Errore per ${error.codice}: ${error.errore}`,
+                      "Dettagli errore",
+                      "warning"
+                    );
+                  }
                 });
               }
             } else {
-              window.showMessage(
-                "Errore: " + response.message,
-                "Errore",
-                "error"
-              );
+              // Errore
+              if (window.showMessage) {
+                window.showMessage(
+                  response.message || "Errore durante l'inserimento degli esami",
+                  "Errore",
+                  "error"
+                );
+              }
             }
           })
           .catch((error) => {
             console.error("Error:", error);
-            window.showMessage(
-              "Si è verificato un errore durante l'inserimento degli esami",
-              "Errore",
-              "error"
-            );
+            // Rimuovi il dialogo anche in caso di errore
+            if (document.body.contains(dialogContainer)) {
+              removeDialog();
+            }
+            
+            if (window.showMessage) {
+              window.showMessage(
+                "Si è verificato un errore durante l'inserimento degli esami",
+                "Errore di rete",
+                "error"
+              );
+            }
           });
       });
     }
@@ -1406,127 +1429,161 @@ const EsameForm = (function() {
 
     // Se siamo in modalità modifica, inviamo JSON
     if (isEditMode) {
-      const formData = new FormData(form);
-      
-      // Recupera i tag degli insegnamenti selezionati dal box
-      const selectedTags = document.querySelectorAll('#insegnamentoBox .multi-select-tag');
-      const selectedCodes = Array.from(selectedTags).map(tag => {
-        const codiceMatch = tag.textContent.match(/\(([A-Z0-9]+)\)/);
-        return codiceMatch ? codiceMatch[1] : null;
-      }).filter(code => code);
-
-      // Uso il primo insegnamento per la modifica (modalità edit supporta solo un insegnamento)
-      const insegnamento = selectedCodes[0] || formData.get('insegnamento');
-
-      // Recupera i dati dalla prima sezione per la modifica (edit mode supporta solo una sezione)
-      const firstDateInput = document.querySelector('[id^="dataora_"]');
-      const firstOraH = document.querySelector('[id^="ora_h_"]');
-      const firstOraM = document.querySelector('[id^="ora_m_"]');
-      const firstAula = document.querySelector('[id^="aula_"]');
-      
-      const oraAppello = firstOraH && firstOraM ? `${firstOraH.value}:${firstOraM.value}` : '';
-      
-      const examData = {
-        id: formData.get('examIdField'),
-        insegnamento: insegnamento,
-        descrizione: formData.get('descrizione'),
-        tipo_appello: document.querySelector('input[name="tipo_appello_radio"]:checked')?.value,
-        aula: firstAula ? firstAula.value : '',
-        data_appello: firstDateInput ? firstDateInput.value : '',
-        data_inizio_iscrizione: formData.get('inizioIscrizione'),
-        data_fine_iscrizione: formData.get('fineIscrizione'),
-        ora_appello: oraAppello,
-        durata_appello: formData.get('durata'),
-        periodo: oraAppello ? (parseInt(oraAppello.split(':')[0]) >= 14 ? 1 : 0) : 0,
-        verbalizzazione: formData.get('verbalizzazione'),
-        definizione_appello: 'STD',
-        gestione_prenotazione: 'STD',
-        riservato: false,
-        tipo_iscrizione: formData.get('tipoEsame'),
-        tipo_esame: formData.get('tipoEsame'),
-        note_appello: formData.get('note'),
-        posti: formData.get('posti') ? parseInt(formData.get('posti')) : 200,
-        mostra_nel_calendario: formData.get('mostra_nel_calendario') === 'on'
-      };
-
-      // Per la modifica inviamo JSON
-      fetch("/api/updateEsame", {
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(examData)
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          window.showMessage("Esame modificato con successo", "Operazione completata", "notification");
-          window.forceCalendarRefresh?.();
-          hideForm();
-        } else {
-          window.showMessage(data.message || "Errore durante la modifica", "Errore", "error");
-        }
-      })
-      .catch(error => {
-        console.error("Error:", error);
-        window.showMessage("Si è verificato un errore durante la modifica dell'esame", "Errore", "error");
-      });
+      // ...existing code...
       return;
     }
 
-    // Per l'inserimento, prepara il FormData con gli insegnamenti
-    const formData = new FormData(form);
-
-    if (!isEditMode) {
-      // Rimuovi eventuali vecchi valori di insegnamento
-      formData.delete('insegnamento');
-
-      // Recupera i codici degli insegnamenti direttamente da InsegnamentiManager
-      const selectedCodes = window.InsegnamentiManager?.getSelectedCodes() || [];
-
-      // Aggiungi ogni codice insegnamento al FormData
-      selectedCodes.forEach(code => {
-        formData.append('insegnamento', code);
-      });
-
-      if (selectedCodes.length === 0) {
-        window.showMessage("Seleziona almeno un insegnamento", "Errore", "error");
-        return;
-      }
-
-      // Continua con l'invio dei dati
-      fetch("/api/inserisciEsame", {
-        method: "POST",
-        body: formData,
-      })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.status === "error") {
-          window.showMessage(data.message, "Errore", "error");
-        } else if (data.status === "validation") {
-          mostraPopupConferma(data);
-        } else {
-          // Pulizia dopo l'inserimento riuscito
-          window.InsegnamentiManager?.clearSelection();
-          window.forceCalendarRefresh?.();
-
-          const successMessage = options.bypassChecks 
-            ? "Esame inserito con successo (controlli bypassati)"
-            : data.message || "Esami inseriti con successo";
-            
-          window.showMessage(successMessage, "Operazione completata", "notification");
-          hideForm(); // Assicurati che questa funzione sia definita e accessibile
+    // Per l'inserimento, prepara il FormData con gli insegnamenti e sezioni multiple
+    const formData = new FormData();
+    
+    // Aggiungi i campi base del form
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+      if (input.type === 'checkbox') {
+        if (input.checked) {
+          formData.append(input.name, 'on');
         }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        window.showMessage(
-          "Si è verificato un errore durante l'inserimento dell'esame",
-          "Errore",
-          "error"
-        );
+      } else if (input.type === 'radio') {
+        if (input.checked) {
+          formData.append(input.name, input.value);
+        }
+      } else if (input.name && input.value) {
+        // Salta campi che gestiremo separatamente
+        if (!input.name.includes('dataora_') && 
+            !input.name.includes('ora_h_') && 
+            !input.name.includes('ora_m_') && 
+            !input.name.includes('aula_') &&
+            !input.name.includes('durata_') &&
+            input.name !== 'insegnamento') {
+          formData.append(input.name, input.value);
+        }
+      }
+    });
+    
+    // Gestisci gli insegnamenti multipli
+    const insegnamentoSelect = document.getElementById('insegnamento');
+    if (insegnamentoSelect && insegnamentoSelect.selectedOptions.length > 0) {
+      Array.from(insegnamentoSelect.selectedOptions).forEach(option => {
+        formData.append('insegnamento', option.value);
       });
     }
+    
+    // Gestisci le sezioni di date multiple
+    const dateSections = document.querySelectorAll('.date-appello-section');
+    let sectionIndex = 1;
+    
+    dateSections.forEach(section => {
+      const dataInput = section.querySelector(`[id^="dataora_"]`);
+      const oraHInput = section.querySelector(`[id^="ora_h_"]`);
+      const oraMInput = section.querySelector(`[id^="ora_m_"]`);
+      const aulaSelect = section.querySelector(`[id^="aula_"]`);
+      
+      if (dataInput && dataInput.value && 
+          oraHInput && oraHInput.value && 
+          oraMInput && oraMInput.value && 
+          aulaSelect && aulaSelect.value) {
+        
+        formData.append(`dataora_${sectionIndex}`, dataInput.value);
+        formData.append(`ora_h_${sectionIndex}`, oraHInput.value);
+        formData.append(`ora_m_${sectionIndex}`, oraMInput.value);
+        formData.append(`aula_${sectionIndex}`, aulaSelect.value);
+        
+        // Gestisci la durata dalla sezione globale
+        const durataField = document.getElementById('durata');
+        if (durataField && durataField.value) {
+          formData.append(`durata_${sectionIndex}`, durataField.value);
+        }
+        
+        sectionIndex++;
+      }
+    });
+    
+    // Se non ci sono sezioni di date, fallback ai campi legacy
+    if (sectionIndex === 1) {
+      const legacyData = document.getElementById('dataora');
+      const legacyOra = document.getElementById('ora');
+      const legacyAula = document.getElementById('aula');
+      
+      if (legacyData && legacyData.value) {
+        formData.append('dataora', legacyData.value);
+      }
+      if (legacyOra && legacyOra.value) {
+        formData.append('ora', legacyOra.value);
+      }
+      if (legacyAula && legacyAula.value) {
+        formData.append('aula', legacyAula.value);
+      }
+    }
+
+    // Aggiungi flag per bypass se richiesto
+    if (options.bypassChecks) {
+      formData.append('bypass_checks', 'true');
+    }
+
+    // Invia il form
+    fetch('/api/inserisciEsame', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Risposta ricevuta:', data);
+      
+      if (data.status === 'success' || data.status === 'direct_insert') {
+        // Successo - mostra notifica verde
+        if (window.showMessage) {
+          window.showMessage(
+            data.message || 'Esami inseriti con successo',
+            'Operazione completata',
+            'notification',
+            { timeout: 5000 }
+          );
+        }
+        
+        // Reset del form dopo successo
+        setTimeout(() => {
+          if (document.getElementById('formEsame')) {
+            document.getElementById('formEsame').reset();
+            // Ricarica eventuali select dinamiche
+            location.reload();
+          }
+        }, 2000);
+        
+      } else if (data.status === 'validation') {
+        // Mostra popup di conferma
+        mostraPopupConferma(data);
+        
+      } else if (data.status === 'partial') {
+        // Inserimento parziale - mostra warning
+        if (window.showMessage) {
+          window.showMessage(
+            `${data.message}. Inseriti: ${data.inserted.join(', ')}`,
+            'Inserimento parziale',
+            'warning'
+          );
+        }
+        
+      } else if (data.status === 'error') {
+        // Errore - mostra notifica rossa
+        if (window.showMessage) {
+          window.showMessage(
+            data.message || 'Errore durante l\'inserimento',
+            'Errore',
+            'error'
+          );
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Errore di rete:', error);
+      if (window.showMessage) {
+        window.showMessage(
+          'Errore di connessione al server',
+          'Errore di rete',
+          'error'
+        );
+      }
+    });
   }
 
   // Gestisce l'invio del form con bypass dei controlli
