@@ -1,6 +1,7 @@
 from flask import request, jsonify
 from datetime import datetime, timedelta
 from db import get_db_connection, release_connection
+from utils.sessions import getSessionePerData
 
 def generaDatiEsame():
   """
@@ -238,8 +239,8 @@ def controllaVincoli(dati_esame):
         cds_code, anno_acc = cds_info
         
         # 2.2 Verifica che la data rientri in una sessione d'esame valida
-        sessione_info = getSessionePerData(data_esame, cds_code, anno_acc, cursor)
-        if not sessione_info:
+        sessione_info = getSessionePerData(data_esame.strftime('%Y-%m-%d'), cds_code, anno_acc)
+        if not sessione_info or not sessione_info[0]:
           esami_invalidi.append({
             'codice': insegnamento,
             'titolo': titolo_insegnamento,
@@ -247,7 +248,11 @@ def controllaVincoli(dati_esame):
           })
           continue
         
-        sessione, limite_max, data_inizio_sessione = sessione_info
+        sessione, data_inizio_sessione = sessione_info
+        
+        # Converti data_inizio_sessione da stringa a datetime se necessario
+        if isinstance(data_inizio_sessione, str):
+          data_inizio_sessione = datetime.fromisoformat(data_inizio_sessione)
         
         # Se le date sono quelle di default, calcola le migliori date basate sulla sessione
         data_inizio_iscrizione = inizio_iscrizione
@@ -262,30 +267,30 @@ def controllaVincoli(dati_esame):
             dati_esame['inizio_iscrizione'] = data_inizio_iscrizione
         
         # 2.4 Verifica il limite di esami nella sessione (solo se la prova viene mostrata nel calendario)
-        if mostra_nel_calendario:
-          # Salta il controllo del numero massimo se stiamo modificando un esame esistente
-          exam_id_to_exclude = dati_esame.get('exam_id')
-          if not exam_id_to_exclude:  # Solo se non stiamo modificando un esame esistente
-            cursor.execute("""
-              SELECT COUNT(*) 
-              FROM esami e
-              JOIN insegnamenti i ON e.insegnamento = i.id
-              JOIN periodi_esame pe ON pe.cds = %s 
-                  AND pe.anno_accademico = %s
-                  AND pe.tipo_periodo = %s
-              WHERE e.docente = %s 
-                AND i.codice = %s
-                AND e.data_appello BETWEEN pe.inizio AND pe.fine
-                AND e.mostra_nel_calendario = TRUE
-            """, (cds_code, anno_acc, sessione, docente, insegnamento))
+        # if mostra_nel_calendario:
+        #   # Salta il controllo del numero massimo se stiamo modificando un esame esistente
+        #   exam_id_to_exclude = dati_esame.get('exam_id')
+        #   if not exam_id_to_exclude:  # Solo se non stiamo modificando un esame esistente
+        #     cursor.execute("""
+        #       SELECT COUNT(*) 
+        #       FROM esami e
+        #       JOIN insegnamenti i ON e.insegnamento = i.id
+        #       JOIN periodi_esame pe ON pe.cds = %s 
+        #           AND pe.anno_accademico = %s
+        #           AND pe.tipo_periodo = %s
+        #       WHERE e.docente = %s 
+        #         AND i.codice = %s
+        #         AND e.data_appello BETWEEN pe.inizio AND pe.fine
+        #         AND e.mostra_nel_calendario = TRUE
+        #     """, (cds_code, anno_acc, sessione, docente, insegnamento))
             
-            if cursor.fetchone()[0] >= limite_max:
-              esami_invalidi.append({
-                'codice': insegnamento,
-                'titolo': titolo_insegnamento,
-                'errore': f"Limite di {limite_max} esami nella sessione {sessione} raggiunto"
-              })
-              continue
+        #     if cursor.fetchone()[0] >= limite_max:
+        #       esami_invalidi.append({
+        #         'codice': insegnamento,
+        #         'titolo': titolo_insegnamento,
+        #         'errore': f"Limite di {limite_max} esami nella sessione {sessione} raggiunto"
+        #       })
+        #       continue
         
           # 2.5 Verifica vincolo dei 14 giorni tra esami dello stesso insegnamento
           # Metto 13 giorni perché il vincolo dice "non inferiore a due settimane"
@@ -320,7 +325,7 @@ def controllaVincoli(dati_esame):
             })
             continue
         
-        # 2.6 Verifica sovrapposizione con altri esami dello stesso CDS, curriculum, anno e semestre
+        # 2.5 Verifica sovrapposizione con altri esami dello stesso CDS, curriculum, anno e semestre
         # La sovrapposizione vale anche se uno dei due esami ha curriculum 'CORSO GENERICO'
         cursor.execute("""
           WITH stesso_contesto AS (
@@ -540,43 +545,6 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
       cursor.close()
     if conn:
       release_connection(conn)
-
-def getSessionePerData(data_esame, cds_code, anno_acc, cursor=None):
-  # Questa funzione rimane invariata
-  close_connection = False
-  conn = None
-  
-  try:
-    if not cursor:
-      close_connection = True
-      conn = get_db_connection()
-      cursor = conn.cursor()
-    
-    # Trova la sessione in cui ricade la data
-    data_str = data_esame.strftime('%Y-%m-%d')
-    cursor.execute("""
-      SELECT tipo_periodo, max_esami, inizio
-      FROM periodi_esame
-      WHERE cds = %s
-        AND anno_accademico = %s
-        AND %s BETWEEN inizio AND fine
-    """, (cds_code, anno_acc, data_str))
-    
-    result = cursor.fetchone()
-    
-    if result:
-      sessione, limite_max, data_inizio_sessione = result
-      return sessione, limite_max, data_inizio_sessione
-      
-    return None
-    
-  except Exception as e:
-    return None
-  finally:
-    if close_connection and 'conn' in locals() and conn:
-      release_connection(conn)
-    if 'cursor' in locals() and cursor and close_connection:
-      cursor.close()
 
 def costruisciRispostaParziale(esami_inseriti, errori):
   # Questa funzione rimane invariata

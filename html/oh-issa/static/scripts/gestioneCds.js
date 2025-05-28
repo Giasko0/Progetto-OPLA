@@ -176,27 +176,24 @@ function loadCdsDetails(value) {
                 </div>
             `;
             
-            // Date primo semestre
-            document.getElementById('inizio_primo').value = formatDateForInput(data.inizio_lezioni_primo_semestre);
-            document.getElementById('fine_primo').value = formatDateForInput(data.fine_lezioni_primo_semestre);
-            document.getElementById('pausa_primo_inizio').value = formatDateForInput(data.pausa_primo_inizio);
-            document.getElementById('pausa_primo_fine').value = formatDateForInput(data.pausa_primo_fine);
-            
-            // Date secondo semestre
-            document.getElementById('inizio_secondo').value = formatDateForInput(data.inizio_lezioni_secondo_semestre);
-            document.getElementById('fine_secondo').value = formatDateForInput(data.fine_lezioni_secondo_semestre);
-            document.getElementById('pausa_secondo_inizio').value = formatDateForInput(data.pausa_secondo_inizio);
-            document.getElementById('pausa_secondo_fine').value = formatDateForInput(data.pausa_secondo_fine);
-            
-            // Date sessioni d'esame
-            document.getElementById('anticipata_inizio').value = formatDateForInput(data.anticipata_inizio);
-            document.getElementById('anticipata_fine').value = formatDateForInput(data.anticipata_fine);
-            document.getElementById('estiva_inizio').value = formatDateForInput(data.estiva_inizio);
-            document.getElementById('estiva_fine').value = formatDateForInput(data.estiva_fine);
-            document.getElementById('autunnale_inizio').value = formatDateForInput(data.autunnale_inizio);
-            document.getElementById('autunnale_fine').value = formatDateForInput(data.autunnale_fine);
-            document.getElementById('invernale_inizio').value = formatDateForInput(data.invernale_inizio);
-            document.getElementById('invernale_fine').value = formatDateForInput(data.invernale_fine);
+            // Popola i campi delle sessioni d'esame
+            const sessionTypes = ['anticipata', 'estiva', 'autunnale', 'invernale'];
+            sessionTypes.forEach(tipo => {
+                // Date
+                if (data[`${tipo}_inizio`]) {
+                    document.getElementById(`${tipo}_inizio`).value = formatDateForInput(data[`${tipo}_inizio`]);
+                }
+                if (data[`${tipo}_fine`]) {
+                    document.getElementById(`${tipo}_fine`).value = formatDateForInput(data[`${tipo}_fine`]);
+                }
+                // Numero esami per semestre
+                if (data[`${tipo}_esami_primo`] !== undefined) {
+                    document.getElementById(`${tipo}_esami_primo`).value = data[`${tipo}_esami_primo`] || '';
+                }
+                if (data[`${tipo}_esami_secondo`] !== undefined) {
+                    document.getElementById(`${tipo}_esami_secondo`).value = data[`${tipo}_esami_secondo`] || '';
+                }
+            });
             
             // Scroll to form
             document.getElementById('cdsFormContainer').scrollIntoView({ behavior: 'smooth' });
@@ -236,47 +233,26 @@ function saveCdsData() {
     
     cdsData.nome_corso = formData.get('nome_corso');
     
-    // Date primo semestre
-    cdsData.inizio_primo = formData.get('inizio_primo');
-    cdsData.fine_primo = formData.get('fine_primo');
-    cdsData.pausa_primo_inizio = formData.get('pausa_primo_inizio') || null;
-    cdsData.pausa_primo_fine = formData.get('pausa_primo_fine') || null;
+    // Date delle sessioni esame e numero esami per semestre
+    const sessionTypes = ['anticipata', 'estiva', 'autunnale', 'invernale'];
+    sessionTypes.forEach(tipo => {
+        const inizio = formData.get(`${tipo}_inizio`);
+        const fine = formData.get(`${tipo}_fine`);
+        const esamiPrimo = formData.get(`${tipo}_esami_primo`);
+        const esamiSecondo = formData.get(`${tipo}_esami_secondo`);
+        
+        if (inizio) cdsData[`${tipo}_inizio`] = inizio;
+        if (fine) cdsData[`${tipo}_fine`] = fine;
+        if (esamiPrimo) cdsData[`${tipo}_esami_primo`] = parseInt(esamiPrimo) || null;
+        if (esamiSecondo) cdsData[`${tipo}_esami_secondo`] = parseInt(esamiSecondo) || null;
+    });
     
-    // Date secondo semestre
-    cdsData.inizio_secondo = formData.get('inizio_secondo');
-    cdsData.fine_secondo = formData.get('fine_secondo');
-    cdsData.pausa_secondo_inizio = formData.get('pausa_secondo_inizio') || null;
-    cdsData.pausa_secondo_fine = formData.get('pausa_secondo_fine') || null;
-    
-    // Date sessioni esame
-    cdsData.anticipata_inizio = formData.get('anticipata_inizio') || null;
-    cdsData.anticipata_fine = formData.get('anticipata_fine') || null;
-    cdsData.estiva_inizio = formData.get('estiva_inizio') || null;
-    cdsData.estiva_fine = formData.get('estiva_fine') || null;
-    cdsData.autunnale_inizio = formData.get('autunnale_inizio') || null;
-    cdsData.autunnale_fine = formData.get('autunnale_fine') || null;
-    cdsData.invernale_inizio = formData.get('invernale_inizio') || null;
-    cdsData.invernale_fine = formData.get('invernale_fine') || null;
-    
-    // Validazione date obbligatorie
-    if (!cdsData.inizio_primo || !cdsData.fine_primo || !cdsData.inizio_secondo || !cdsData.fine_secondo) {
-        showMessage('error', 'Le date di inizio e fine dei semestri sono obbligatorie');
-        return;
-    }
-
     // Validazione coppie di date
-    const datesPairs = [
-        {inizio: cdsData.pausa_primo_inizio, fine: cdsData.pausa_primo_fine, name: 'pausa primo semestre'},
-        {inizio: cdsData.pausa_secondo_inizio, fine: cdsData.pausa_secondo_fine, name: 'pausa secondo semestre'},
-        {inizio: cdsData.anticipata_inizio, fine: cdsData.anticipata_fine, name: 'sessione anticipata'},
-        {inizio: cdsData.estiva_inizio, fine: cdsData.estiva_fine, name: 'sessione estiva'},
-        {inizio: cdsData.autunnale_inizio, fine: cdsData.autunnale_fine, name: 'sessione autunnale'},
-        {inizio: cdsData.invernale_inizio, fine: cdsData.invernale_fine, name: 'sessione invernale'}
-    ];
-
-    for (const pair of datesPairs) {
-        if ((pair.inizio && !pair.fine) || (!pair.inizio && pair.fine)) {
-            showMessage('error', `Entrambe le date di inizio e fine ${pair.name} devono essere specificate o lasciate vuote`);
+    for (const tipo of sessionTypes) {
+        const inizio = cdsData[`${tipo}_inizio`];
+        const fine = cdsData[`${tipo}_fine`];
+        if ((inizio && !fine) || (!inizio && fine)) {
+            showMessage('error', `Entrambe le date di inizio e fine della sessione ${tipo} devono essere specificate o lasciate vuote`);
             return;
         }
     }
@@ -477,27 +453,17 @@ function copyDatesFromSource() {
                 return;
             }
             
-            // Date primo semestre
-            document.getElementById('inizio_primo').value = formatDateForInput(data.inizio_lezioni_primo_semestre);
-            document.getElementById('fine_primo').value = formatDateForInput(data.fine_lezioni_primo_semestre);
-            document.getElementById('pausa_primo_inizio').value = formatDateForInput(data.pausa_primo_inizio);
-            document.getElementById('pausa_primo_fine').value = formatDateForInput(data.pausa_primo_fine);
-            
-            // Date secondo semestre
-            document.getElementById('inizio_secondo').value = formatDateForInput(data.inizio_lezioni_secondo_semestre);
-            document.getElementById('fine_secondo').value = formatDateForInput(data.fine_lezioni_secondo_semestre);
-            document.getElementById('pausa_secondo_inizio').value = formatDateForInput(data.pausa_secondo_inizio);
-            document.getElementById('pausa_secondo_fine').value = formatDateForInput(data.pausa_secondo_fine);
-            
-            // Date sessioni d'esame
-            document.getElementById('anticipata_inizio').value = formatDateForInput(data.anticipata_inizio);
-            document.getElementById('anticipata_fine').value = formatDateForInput(data.anticipata_fine);
-            document.getElementById('estiva_inizio').value = formatDateForInput(data.estiva_inizio);
-            document.getElementById('estiva_fine').value = formatDateForInput(data.estiva_fine);
-            document.getElementById('autunnale_inizio').value = formatDateForInput(data.autunnale_inizio);
-            document.getElementById('autunnale_fine').value = formatDateForInput(data.autunnale_fine);
-            document.getElementById('invernale_inizio').value = formatDateForInput(data.invernale_inizio);
-            document.getElementById('invernale_fine').value = formatDateForInput(data.invernale_fine);
+            // Popola i campi delle sessioni d'esame
+            const sessionTypes = ['anticipata', 'estiva', 'autunnale', 'invernale'];
+            sessionTypes.forEach(tipo => {
+                // Date
+                if (data[`${tipo}_inizio`]) {
+                    document.getElementById(`${tipo}_inizio`).value = formatDateForInput(data[`${tipo}_inizio`]);
+                }
+                if (data[`${tipo}_fine`]) {
+                    document.getElementById(`${tipo}_fine`).value = formatDateForInput(data[`${tipo}_fine`]);
+                }
+            });
             
             // Chiudi il modal e mostra messaggio di successo
             document.getElementById('copyDatesModal').style.display = 'none';

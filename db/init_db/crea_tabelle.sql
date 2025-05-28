@@ -1,7 +1,9 @@
 -- Droppa tutte le tabelle
 DROP TABLE IF EXISTS aule CASCADE;
 DROP TABLE IF EXISTS cds CASCADE;
+-- Da rimuovere riga 5
 DROP TABLE IF EXISTS periodi_esame CASCADE;
+DROP TABLE IF EXISTS sessioni CASCADE;
 DROP TABLE IF EXISTS insegnamenti CASCADE;
 DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
 DROP TABLE IF EXISTS utenti CASCADE;
@@ -34,28 +36,24 @@ CREATE TABLE cds (
     anno_accademico INT NOT NULL,        -- Anno accademico (2025 per 2025/2026)
     nome_corso TEXT NOT NULL,            -- Nome del corso di studio (INFORMATICA)
     curriculum TEXT NOT NULL,            -- Curriculum del corso di studio (CYBERSECURITY)
-    inizio_lezioni_primo_semestre DATE,  -- Inizio lezioni primo semestre
-    fine_lezioni_primo_semestre DATE,    -- Fine lezioni primo semestre
-    inizio_lezioni_secondo_semestre DATE,-- Inizio lezioni secondo semestre
-    fine_lezioni_secondo_semestre DATE,  -- Fine lezioni secondo semestre
     PRIMARY KEY (codice, anno_accademico, curriculum),
     CONSTRAINT check_anno_accademico CHECK (anno_accademico >= 1900 AND anno_accademico <= 2100)
 );
 
--- Creazione della tabella "periodi_esame"
-CREATE TABLE periodi_esame (
+-- Creazione della tabella "sessioni"
+CREATE TABLE sessioni (
     cds TEXT,
     anno_accademico INTEGER,
-    curriculum TEXT,  -- Aggiunta del campo curriculum
-    tipo_periodo TEXT, -- 'ESTIVA', 'AUTUNNALE', 'INVERNALE', 'PAUSA_AUTUNNALE', 'PAUSA_PRIMAVERILE'
+    curriculum TEXT,
+    tipo_sessione TEXT, -- 'anticipata', 'estiva', 'autunnale', 'invernale'
     inizio DATE NOT NULL,
     fine DATE NOT NULL,
-    max_esami INTEGER DEFAULT 3,
-    PRIMARY KEY (cds, anno_accademico, curriculum, tipo_periodo),
+    esami_primo_semestre INTEGER,
+    esami_secondo_semestre INTEGER,
+    PRIMARY KEY (cds, anno_accademico, curriculum, tipo_sessione),
     FOREIGN KEY (cds, anno_accademico, curriculum) REFERENCES cds(codice, anno_accademico, curriculum) ON DELETE CASCADE,
-    CONSTRAINT check_tipo_periodo CHECK (tipo_periodo IN (
-        'ESTIVA', 'AUTUNNALE', 'INVERNALE', 'ANTICIPATA',
-        'PAUSA_AUTUNNALE', 'PAUSA_PRIMAVERILE'
+    CONSTRAINT check_tipo_sessione CHECK (tipo_sessione IN (
+        'anticipata', 'estiva', 'autunnale', 'invernale'
     ))
 );
 
@@ -176,15 +174,13 @@ CREATE INDEX idx_aule_nome ON aule(nome);
 -- Inserimento dell'utente 'admin' con permessi di amministratore
 INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', 'password', true);
 
-INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum, inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre, inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre) VALUES
-('L062', 2023, 'INFORMATICA', 'CORSO GENERICO', '2023-10-01', '2023-12-20', '2023-02-01', '2023-05-31'),
-('L062', 2024, 'INFORMATICA', 'CORSO GENERICO', '2024-10-01', '2024-12-20', '2025-02-01', '2025-05-31');
+INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum) VALUES
+('L062', 2023, 'INFORMATICA', 'CORSO GENERICO'),
+('L062', 2024, 'INFORMATICA', 'CORSO GENERICO');
 
-INSERT INTO periodi_esame (cds, anno_accademico, curriculum, tipo_periodo, inizio, fine, max_esami) VALUES
-('L062', 2023, 'CORSO GENERICO', 'INVERNALE', '2025-01-07', '2025-02-22', 3),
-('L062', 2024, 'CORSO GENERICO', 'ANTICIPATA', '2025-01-07', '2025-02-22', 3),
-('L062', 2024, 'CORSO GENERICO', 'ESTIVA', '2025-06-10', '2025-07-25', 3),
-('L062', 2024, 'CORSO GENERICO', 'AUTUNNALE', '2025-09-01', '2025-9-30', 2),
-('L062', 2024, 'CORSO GENERICO', 'INVERNALE', '2026-01-10', '2026-02-25', 3),
-('L062', 2024, 'CORSO GENERICO', 'PAUSA_AUTUNNALE', '2025-11-04', '2025-11-08', 1),
-('L062', 2024, 'CORSO GENERICO', 'PAUSA_PRIMAVERILE', '2025-04-07', '2025-04-11', 1);
+INSERT INTO sessioni (cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre) VALUES
+('L062', 2023, 'CORSO GENERICO', 'invernale', '2025-01-07', '2025-02-22', 2, 3),
+('L062', 2024, 'CORSO GENERICO', 'anticipata', '2025-01-07', '2025-02-22', 2, 0),
+('L062', 2024, 'CORSO GENERICO', 'estiva', '2025-06-10', '2025-07-25', 2, 3),
+('L062', 2024, 'CORSO GENERICO', 'autunnale', '2025-09-01', '2025-9-30', 2, 2),
+('L062', 2024, 'CORSO GENERICO', 'invernale', '2026-01-10', '2026-02-25', 2, 3);

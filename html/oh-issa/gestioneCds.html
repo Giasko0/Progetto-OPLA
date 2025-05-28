@@ -42,7 +42,7 @@
     </section>
 
     <section class="form-section" id="cdsFormContainer" style="display: none;">
-      <h2>Modifica Date Corso di Studio</h2>
+      <h2>Modifica Sessioni d'Esame</h2>
 
       <!-- Informazioni del corso (solo visualizzazione) -->
       <div id="cdsInfoContainer" class="info-container">
@@ -55,95 +55,97 @@
         <input type="hidden" id="anno_accademico" name="anno_accademico">
         <input type="hidden" id="nome_corso" name="nome_corso">
 
-        <!-- Periodi di lezione in due colonne -->
-        <div class="columns-container">
-          <!-- Primo semestre -->
-          <fieldset class="column">
-            <legend>Primo Semestre</legend>
-            <div class="form-group">
-              <label for="inizio_primo">Inizio lezioni:</label>
-              <input type="date" id="inizio_primo" name="inizio_primo" required>
-            </div>
-            
-            <div class="form-group">
-              <label for="fine_primo">Fine lezioni:</label>
-              <input type="date" id="fine_primo" name="fine_primo" required>
-            </div>
-
-            <div class="form-group">
-              <label for="pausa_primo_inizio">Inizio pausa didattica:</label>
-              <input type="date" id="pausa_primo_inizio" name="pausa_primo_inizio">
-              <small class="form-text">Entrambe le date devono essere specificate o lasciate vuote</small>
-            </div>
-
-            <div class="form-group">
-              <label for="pausa_primo_fine">Fine pausa didattica:</label>
-              <input type="date" id="pausa_primo_fine" name="pausa_primo_fine">
-            </div>
-          </fieldset>
-
-          <!-- Secondo semestre -->
-          <fieldset class="column">
-            <legend>Secondo Semestre</legend>
-            <div class="form-group">
-              <label for="inizio_secondo">Inizio lezioni:</label>
-              <input type="date" id="inizio_secondo" name="inizio_secondo" required>
-            </div>
-            
-            <div class="form-group">
-              <label for="fine_secondo">Fine lezioni:</label>
-              <input type="date" id="fine_secondo" name="fine_secondo" required>
-            </div>
-
-            <div class="form-group">
-              <label for="pausa_secondo_inizio">Inizio pausa didattica:</label>
-              <input type="date" id="pausa_secondo_inizio" name="pausa_secondo_inizio">
-              <small class="form-text">Entrambe le date devono essere specificate o lasciate vuote</small>
-            </div>
-
-            <div class="form-group">
-              <label for="pausa_secondo_fine">Fine pausa didattica:</label>
-              <input type="date" id="pausa_secondo_fine" name="pausa_secondo_fine">
-            </div>
-          </fieldset>
-        </div>
-
-        <!-- Sessioni d'esame riordinate -->
+        <!-- Sessioni d'esame -->
         <fieldset>
           <legend>Sessioni d'Esame</legend>
-          <small class="form-text">Per ogni sessione, entrambe le date devono essere specificate o entrambe lasciate vuote</small>
 
           <div class="session-group">
-            <label for="anticipata_inizio">Inizio sessione anticipata:</label>
-            <input type="date" id="anticipata_inizio" name="anticipata_inizio">
-
-            <label for="anticipata_fine">Fine sessione anticipata:</label>
-            <input type="date" id="anticipata_fine" name="anticipata_fine">
+            <h4>Sessione Anticipata</h4>
+            <div class="session-dates">
+              <div>
+                <label for="anticipata_inizio">Inizio:</label>
+                <input type="date" id="anticipata_inizio" name="anticipata_inizio">
+              </div>
+              <div>
+                <label for="anticipata_fine">Fine:</label>
+                <input type="date" id="anticipata_fine" name="anticipata_fine">
+              </div>
+              <div>
+                <label for="anticipata_esami_primo">Esami 1° sem:</label>
+                <input type="number" id="anticipata_esami_primo" name="anticipata_esami_primo" min="0">
+              </div>
+              <div>
+                <label for="anticipata_esami_secondo">Esami 2° sem:</label>
+                <input type="number" id="anticipata_esami_secondo" name="anticipata_esami_secondo" min="0">
+              </div>
+            </div>
             <small class="form-text">Corrisponde alla sessione invernale dell'anno accademico precedente</small>
           </div>
 
           <div class="session-group">
-            <label for="estiva_inizio">Inizio sessione estiva:</label>
-            <input type="date" id="estiva_inizio" name="estiva_inizio">
-
-            <label for="estiva_fine">Fine sessione estiva:</label>
-            <input type="date" id="estiva_fine" name="estiva_fine">
+            <h4>Sessione Estiva</h4>
+            <div class="session-dates">
+              <div>
+                <label for="estiva_inizio">Inizio:</label>
+                <input type="date" id="estiva_inizio" name="estiva_inizio">
+              </div>
+              <div>
+                <label for="estiva_fine">Fine:</label>
+                <input type="date" id="estiva_fine" name="estiva_fine">
+              </div>
+              <div>
+                <label for="estiva_esami_primo">Esami 1° sem:</label>
+                <input type="number" id="estiva_esami_primo" name="estiva_esami_primo" min="0">
+              </div>
+              <div>
+                <label for="estiva_esami_secondo">Esami 2° sem:</label>
+                <input type="number" id="estiva_esami_secondo" name="estiva_esami_secondo" min="0">
+              </div>
+            </div>
           </div>
 
           <div class="session-group">
-            <label for="autunnale_inizio">Inizio sessione autunnale:</label>
-            <input type="date" id="autunnale_inizio" name="autunnale_inizio">
-
-            <label for="autunnale_fine">Fine sessione autunnale:</label>
-            <input type="date" id="autunnale_fine" name="autunnale_fine">
+            <h4>Sessione Autunnale</h4>
+            <div class="session-dates">
+              <div>
+                <label for="autunnale_inizio">Inizio:</label>
+                <input type="date" id="autunnale_inizio" name="autunnale_inizio">
+              </div>
+              <div>
+                <label for="autunnale_fine">Fine:</label>
+                <input type="date" id="autunnale_fine" name="autunnale_fine">
+              </div>
+              <div>
+                <label for="autunnale_esami_primo">Esami 1° sem:</label>
+                <input type="number" id="autunnale_esami_primo" name="autunnale_esami_primo" min="0">
+              </div>
+              <div>
+                <label for="autunnale_esami_secondo">Esami 2° sem:</label>
+                <input type="number" id="autunnale_esami_secondo" name="autunnale_esami_secondo" min="0">
+              </div>
+            </div>
           </div>
 
           <div class="session-group">
-            <label for="invernale_inizio">Inizio sessione invernale:</label>
-            <input type="date" id="invernale_inizio" name="invernale_inizio">
-
-            <label for="invernale_fine">Fine sessione invernale:</label>
-            <input type="date" id="invernale_fine" name="invernale_fine">
+            <h4>Sessione Invernale</h4>
+            <div class="session-dates">
+              <div>
+                <label for="invernale_inizio">Inizio:</label>
+                <input type="date" id="invernale_inizio" name="invernale_inizio">
+              </div>
+              <div>
+                <label for="invernale_fine">Fine:</label>
+                <input type="date" id="invernale_fine" name="invernale_fine">
+              </div>
+              <div>
+                <label for="invernale_esami_primo">Esami 1° sem:</label>
+                <input type="number" id="invernale_esami_primo" name="invernale_esami_primo" min="0">
+              </div>
+              <div>
+                <label for="invernale_esami_secondo">Esami 2° sem:</label>
+                <input type="number" id="invernale_esami_secondo" name="invernale_esami_secondo" min="0">
+              </div>
+            </div>
           </div>
         </fieldset>
 

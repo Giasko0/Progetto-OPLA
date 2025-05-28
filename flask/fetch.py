@@ -268,25 +268,22 @@ def miei_esami():
             
             # Determina la sessione a cui appartiene l'esame
             cursor.execute("""
-                SELECT tipo_periodo
-                FROM periodi_esame
+                SELECT tipo_sessione
+                FROM sessioni
                 WHERE cds = %s
                 AND anno_accademico = %s
                 AND %s::date BETWEEN inizio AND fine
             """, (codice_cds, planning_year, data_appello))
             
-            tipo_periodo = None
-            periodo_row = cursor.fetchone()
-            if periodo_row:
-                tipo_periodo = periodo_row[0]
+            tipo_sessione = None
+            sessione_row = cursor.fetchone()
+            if sessione_row:
+                tipo_sessione = sessione_row[0]
             
-            # Se tipo_periodo include "PAUSA", lo mappiamo come periodo speciale
+            # Determina il nome della sessione dalla tabella sessioni
             sessione = None
-            if tipo_periodo:
-                if "PAUSA" in tipo_periodo:
-                    sessione = "Pausa Didattica"
-                else:
-                    sessione = tipo_periodo.capitalize()
+            if tipo_sessione:
+                sessione = tipo_sessione.capitalize()
             
             # Formatta l'esame (aggiunto docente_nome)
             exam = {
@@ -312,8 +309,7 @@ def miei_esami():
                         'Anticipata': 0,
                         'Estiva': 0,
                         'Autunnale': 0,
-                        'Invernale': 0,
-                        'Pausa Didattica': 0
+                        'Invernale': 0
                     }
                 if sessione:
                     insegnamenti_with_esami[titolo][sessione] += 1
@@ -329,8 +325,7 @@ def miei_esami():
                     'Anticipata': 0,
                     'Estiva': 0,
                     'Autunnale': 0,
-                    'Invernale': 0,
-                    'Pausa Didattica': 0
+                    'Invernale': 0
                 }
         
         return jsonify({'esami': esami, 'insegnamenti': insegnamenti}), 200

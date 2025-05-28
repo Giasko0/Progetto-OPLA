@@ -8,6 +8,7 @@ import xlrd
 from psycopg2.extras import DictCursor
 import re
 import requests
+from auth import require_auth
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/oh-issa')
 
@@ -173,7 +174,7 @@ def upload_ugov():
                 moduli_per_padre[cod_insegnamento][cod_unita_didattica]['docenti'].add(username_docente)
             
       except Exception as e:
-        print(f"Errore nell'analisi preliminare della riga {row_idx}: {str(e)}")
+        continue
     
     # Seconda fase: assegna numeri modulo in base all'ID (il maggiore è modulo 2)
     for cod_padre, moduli in moduli_per_padre.items():
@@ -184,7 +185,6 @@ def upload_ugov():
             # Assegna i numeri modulo (1, 2, 3, ...)
             for i, (cod_modulo, _) in enumerate(moduli_ordinati, 1):
                 moduli_per_padre[cod_padre][cod_modulo]['num_modulo'] = i
-                print(f"Modulo {cod_modulo} è il modulo {i} dell'insegnamento {cod_padre}")
         else:
             # Se c'è un solo modulo, assegniamo 1
             for cod_modulo in moduli:
@@ -287,11 +287,9 @@ def upload_ugov():
               # Il padre della mutuazione è il padre comune dei moduli
               padre_comune = padri.pop()
               padri_mutua = [padre_comune]
-              print(f"Insegnamento mutuato {cod_insegnamento} ha come padre {padre_comune} (comune a moduli {', '.join(codici_moduli)})")
             elif codici_trovati:
               # Salvare tutti i codici trovati come padri mutuati
               padri_mutua = codici_trovati
-              print(f"Insegnamento mutuato {cod_insegnamento} ha come padri: {', '.join(padri_mutua)}")
 
         # Funzione per gestire moduli
         def gestisci_modulo():
@@ -340,7 +338,6 @@ def upload_ugov():
               
               # Se il docente insegna tutti i moduli, aggiungi ANCHE l'insegnamento padre
               if len(moduli_di_questo_docente) == len(tutti_codici_moduli):
-                  print(f"Docente {username_docente} insegna tutti i moduli di {cod_insegnamento}: registrando sia moduli che insegnamento padre")
                   
                   # Aggiungi insegnamento padre se non già presente
                   if id_insegnamento not in insegnamenti_set:
@@ -434,7 +431,7 @@ def upload_ugov():
           insegnamento_docente_data.append((id_effettivo, username_docente, anno_accademico))
           insegnamento_docente_set.add(insegnamento_docente_key)
       except Exception as e:
-        print(f"Errore nell'elaborazione della riga {row_idx}: {str(e)}")
+        continue
     
     # Inserisci dati nel database
     # 1. Cds
@@ -447,7 +444,7 @@ def upload_ugov():
           SET nome_corso = EXCLUDED.nome_corso
         """, item)
       except Exception as e:
-        print(f"Errore nell'inserimento CDS {item}: {str(e)}")
+        continue
     
     # 2. Insegnamenti
     for item in insegnamenti_data:
@@ -460,7 +457,7 @@ def upload_ugov():
               titolo = EXCLUDED.titolo
         """, item)
       except Exception as e:
-        print(f"Errore nell'inserimento insegnamento {item}: {str(e)}")
+        continue
     
     # 3. Insegnamenti_cds
     for item in insegnamenti_cds_data:
@@ -479,7 +476,7 @@ def upload_ugov():
               codice_modulo = EXCLUDED.codice_modulo
         """, item)
       except Exception as e:
-        print(f"Errore nell'inserimento insegnamento_cds {item}: {str(e)}")
+        continue
     
     # 4. Utenti
     for item in utenti_data:
@@ -493,7 +490,7 @@ def upload_ugov():
               cognome = EXCLUDED.cognome
         """, item)
       except Exception as e:
-        print(f"Errore nell'inserimento utente {item}: {str(e)}")
+        continue
     
     # 5. Insegnamento_docente
     for item in insegnamento_docente_data:
@@ -504,7 +501,7 @@ def upload_ugov():
           ON CONFLICT (insegnamento, docente, annoaccademico) DO NOTHING
         """, item)
       except Exception as e:
-        print(f"Errore nell'inserimento insegnamento_docente {item}: {str(e)}")
+        continue
     
     # Commit delle modifiche
     conn.commit()
@@ -930,14 +927,8 @@ def save_cds_dates():
   try:
     data = request.get_json()
     
-    # Log dei dati ricevuti per debug
-    print("\n=== DATI RICEVUTI NEL BACKEND ===")
-    print(data)
-    print("=================================\n")
-    
     # Estrai i parametri dal JSON ricevuto
     codice_cds = data.get('codice_cds')
-    print(f"Codice CdS estratto: {codice_cds}")
     
     if not codice_cds:
       return jsonify({'status': 'error', 'message': 'Codice CdS mancante'}), 400
@@ -946,26 +937,13 @@ def save_cds_dates():
     try:
       anno_accademico = int(data.get('anno_accademico'))
     except (ValueError, TypeError) as e:
-      print(f"ERRORE CONVERSIONE ANNO: {str(e)}")
       return jsonify({'status': 'error', 'message': f'Anno accademico non valido: {data.get("anno_accademico")}. Errore: {str(e)}'}), 400
       
     nome_corso = data.get('nome_corso')
     if not nome_corso:
       return jsonify({'status': 'error', 'message': 'Nome corso mancante'}), 400
     
-    # Date del primo semestre
-    inizio_primo = data.get('inizio_primo')
-    fine_primo = data.get('fine_primo')
-    
-    # Date del secondo semestre
-    inizio_secondo = data.get('inizio_secondo')
-    fine_secondo = data.get('fine_secondo')
-    
-    # Date di pausa didattica e sessioni d'esame
-    pausa_primo_inizio = data.get('pausa_primo_inizio') or None
-    pausa_primo_fine = data.get('pausa_primo_fine') or None
-    pausa_secondo_inizio = data.get('pausa_secondo_inizio') or None
-    pausa_secondo_fine = data.get('pausa_secondo_fine') or None
+    # Date di sessioni d'esame
     anticipata_inizio = data.get('anticipata_inizio') or None
     anticipata_fine = data.get('anticipata_fine') or None
     estiva_inizio = data.get('estiva_inizio') or None
@@ -975,30 +953,22 @@ def save_cds_dates():
     invernale_inizio = data.get('invernale_inizio') or None
     invernale_fine = data.get('invernale_fine') or None
     
-    # Stampa tutte le date per debug
-    print("\n=== DATE ESTRATTE ===")
-    print(f"Primo semestre: {inizio_primo} - {fine_primo}")
-    print(f"Secondo semestre: {inizio_secondo} - {fine_secondo}")
-    print(f"Pausa primo: {pausa_primo_inizio} - {pausa_primo_fine}")
-    print(f"Pausa secondo: {pausa_secondo_inizio} - {pausa_secondo_fine}")
-    print(f"Anticipata: {anticipata_inizio} - {anticipata_fine}")
-    print(f"Estiva: {estiva_inizio} - {estiva_fine}")
-    print(f"Autunnale: {autunnale_inizio} - {autunnale_fine}")
-    print(f"Invernale: {invernale_inizio} - {invernale_fine}")
-    print("=====================\n")
-    
-    # Verifica che tutti i campi obbligatori siano presenti per la tabella CDS
-    if not codice_cds or not anno_accademico or not nome_corso or not inizio_primo or not fine_primo or not inizio_secondo or not fine_secondo:
-      return jsonify({'status': 'error', 'message': 'Tutti i campi obbligatori per il CDS devono essere completati'}), 400
+    # Limiti esami per ogni sessione
+    anticipata_esami_primo = data.get('anticipata_esami_primo') or None
+    anticipata_esami_secondo = data.get('anticipata_esami_secondo') or None
+    estiva_esami_primo = data.get('estiva_esami_primo') or None
+    estiva_esami_secondo = data.get('estiva_esami_secondo') or None
+    autunnale_esami_primo = data.get('autunnale_esami_primo') or None
+    autunnale_esami_secondo = data.get('autunnale_esami_secondo') or None
+    invernale_esami_primo = data.get('invernale_esami_primo') or None
+    invernale_esami_secondo = data.get('invernale_esami_secondo') or None
     
     # Verifica che i periodi d'esame abbiano date di inizio e fine
     period_pairs = [
       (anticipata_inizio, anticipata_fine, 'Sessione anticipata'),
       (estiva_inizio, estiva_fine, 'Sessione estiva'),
       (autunnale_inizio, autunnale_fine, 'Sessione autunnale'),
-      (invernale_inizio, invernale_fine, 'Sessione invernale'),
-      (pausa_primo_inizio, pausa_primo_fine, 'Pausa primo semestre'),
-      (pausa_secondo_inizio, pausa_secondo_fine, 'Pausa secondo semestre')
+      (invernale_inizio, invernale_fine, 'Sessione invernale')
     ]
     
     for start, end, name in period_pairs:
@@ -1013,7 +983,6 @@ def save_cds_dates():
     curriculum = "CORSO GENERICO"
     
     # Verifica se esistono record per questo corso e anno accademico
-    print(f"Verifica dei record esistenti per CdS: {codice_cds}, Anno: {anno_accademico}")
     cursor.execute(
       "SELECT COUNT(*) FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum = %s",
       (codice_cds, anno_accademico, curriculum)
@@ -1023,53 +992,39 @@ def save_cds_dates():
     
     # Upsert per il record CDS (INSERT o UPDATE)
     if exists:
-      print("Aggiornamento record esistente...")
       cursor.execute("""
         UPDATE cds SET 
-          nome_corso = %s,
-          inizio_lezioni_primo_semestre = %s,
-          fine_lezioni_primo_semestre = %s,
-          inizio_lezioni_secondo_semestre = %s,
-          fine_lezioni_secondo_semestre = %s
+          nome_corso = %s
         WHERE codice = %s AND anno_accademico = %s AND curriculum = %s
       """, (
         nome_corso, 
-        inizio_primo, fine_primo,
-        inizio_secondo, fine_secondo,
         codice_cds, anno_accademico, curriculum
       ))
       message = f"Date del corso {codice_cds} per l'anno accademico {anno_accademico} aggiornate con successo"
     else:
-      print("Inserimento nuovo record...")
       cursor.execute("""
         INSERT INTO cds (
-          codice, anno_accademico, nome_corso, curriculum,
-          inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
-          inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre
+          codice, anno_accademico, nome_corso, curriculum
         ) VALUES (
-          %s, %s, %s, %s,
           %s, %s, %s, %s
         )
       """, (
-        codice_cds, anno_accademico, nome_corso, curriculum,
-        inizio_primo, fine_primo,
-        inizio_secondo, fine_secondo
+        codice_cds, anno_accademico, nome_corso, curriculum
       ))
       message = f"Nuovo corso {codice_cds} per l'anno accademico {anno_accademico} creato con successo"
     
-    # Elimina tutti i periodi esistenti per questo CDS e anno accademico
-    print("Eliminazione periodi esame esistenti...")
+    # Elimina tutte le sessioni esistenti per questo CDS e anno accademico
     cursor.execute("""
-      DELETE FROM periodi_esame 
+      DELETE FROM sessioni 
       WHERE cds = %s AND anno_accademico = %s AND curriculum = %s
     """, (codice_cds, anno_accademico, curriculum))
     
-    # Prepara i periodi da inserire in un array
-    periodi = []
+    # Prepara le sessioni da inserire con i relativi limiti esami
+    sessioni = []
     
-    # Aggiungi i periodi solo se entrambe le date sono specificate
+    # Aggiungi le sessioni d'esame
     if anticipata_inizio and anticipata_fine:
-      periodi.append(('ANTICIPATA', anticipata_inizio, anticipata_fine, 3))
+      sessioni.append(('anticipata', anticipata_inizio, anticipata_fine, anticipata_esami_primo, anticipata_esami_secondo))
       
       # Gestisci la sessione invernale dell'anno precedente
       try:
@@ -1084,7 +1039,6 @@ def save_cds_dates():
         
         if not exists_prev_year:
           # Se non esiste, creiamo un record base
-          print(f"Creazione record base per anno precedente {anno_precedente}")
           cursor.execute("""
             INSERT INTO cds (
               codice, anno_accademico, nome_corso, curriculum
@@ -1097,44 +1051,37 @@ def save_cds_dates():
         
         # In entrambi i casi, eliminiamo eventuali periodi invernali esistenti
         cursor.execute("""
-          DELETE FROM periodi_esame 
-          WHERE cds = %s AND anno_accademico = %s AND curriculum = %s AND tipo_periodo = 'INVERNALE'
+          DELETE FROM sessioni 
+          WHERE cds = %s AND anno_accademico = %s AND curriculum = %s AND tipo_sessione = 'invernale'
         """, (codice_cds, anno_precedente, curriculum))
         
         # E inseriamo la nuova sessione invernale per l'anno precedente
         cursor.execute("""
-          INSERT INTO periodi_esame (cds, anno_accademico, curriculum, tipo_periodo, inizio, fine, max_esami)
-          VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (codice_cds, anno_precedente, curriculum, 'INVERNALE', anticipata_inizio, anticipata_fine, 3))
+          INSERT INTO sessioni (cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (codice_cds, anno_precedente, curriculum, 'invernale', anticipata_inizio, anticipata_fine, anticipata_esami_primo, anticipata_esami_secondo))
         
-        print(f"Sessione invernale per anno precedente {anno_precedente} aggiornata")
       except Exception as e:
-        print(f"AVVISO: Errore nella gestione dell'anno precedente: {str(e)}")
         # Non interrompiamo il flusso principale se questa parte fallisce
+        pass
     
-    # Aggiungi gli altri periodi
+    # Aggiungi le altre sessioni
     if estiva_inizio and estiva_fine:
-      periodi.append(('ESTIVA', estiva_inizio, estiva_fine, 3))
+      sessioni.append(('estiva', estiva_inizio, estiva_fine, estiva_esami_primo, estiva_esami_secondo))
     if autunnale_inizio and autunnale_fine:
-      periodi.append(('AUTUNNALE', autunnale_inizio, autunnale_fine, 2))
+      sessioni.append(('autunnale', autunnale_inizio, autunnale_fine, autunnale_esami_primo, autunnale_esami_secondo))
     if invernale_inizio and invernale_fine:
-      periodi.append(('INVERNALE', invernale_inizio, invernale_fine, 3))
-    if pausa_primo_inizio and pausa_primo_fine:
-      periodi.append(('PAUSA_AUTUNNALE', pausa_primo_inizio, pausa_primo_fine, 1))
-    if pausa_secondo_inizio and pausa_secondo_fine:
-      periodi.append(('PAUSA_PRIMAVERILE', pausa_secondo_inizio, pausa_secondo_fine, 1))
+      sessioni.append(('invernale', invernale_inizio, invernale_fine, invernale_esami_primo, invernale_esami_secondo))
     
-    # Inserisci i periodi d'esame
-    for tipo_periodo, inizio, fine, max_esami in periodi:
+    # Inserisci le sessioni d'esame
+    for tipo_sessione, inizio, fine, esami_primo, esami_secondo in sessioni:
       cursor.execute("""
-        INSERT INTO periodi_esame (cds, anno_accademico, curriculum, tipo_periodo, inizio, fine, max_esami)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-      """, (codice_cds, anno_accademico, curriculum, tipo_periodo, inizio, fine, max_esami))
-      print(f"Periodo {tipo_periodo} inserito")
+        INSERT INTO sessioni (cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+      """, (codice_cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo, esami_secondo))
     
     # Commit delle modifiche
     conn.commit()
-    print("Operazione completata con successo")
     
     return jsonify({
       'status': 'success',
@@ -1143,10 +1090,6 @@ def save_cds_dates():
     
   except Exception as e:
     import traceback
-    print("\n=== ERRORE IN save_cds_dates ===")
-    print(f"Errore: {str(e)}")
-    traceback.print_exc()
-    print("===============================\n")
     
     if conn:
       conn.rollback()
@@ -1317,18 +1260,18 @@ def get_calendario_esami():
           'giorno': int(row['giorno'])
         })
     
-    # Ottieni i periodi di esame per questo CdS
+    # Ottieni le sessioni di esame per questo CdS
     cursor.execute("""
-      SELECT tipo_periodo, inizio, fine
-      FROM periodi_esame
+      SELECT tipo_sessione, inizio, fine
+      FROM sessioni
       WHERE cds = %s AND anno_accademico = %s
       ORDER BY inizio
     """, (cds_code, anno_accademico))
     
-    periodi = cursor.fetchall()
+    sessioni = cursor.fetchall()
     
     # Calcola i mesi con esami per il calendario
-    mesi_periodi = {}
+    mesi_sessioni = {}
     nomi_mesi = {
       "01": "GEN", "02": "FEB", "03": "MAR", 
       "04": "APR", "05": "MAG", "06": "GIU",
@@ -1336,15 +1279,15 @@ def get_calendario_esami():
       "10": "OTT", "11": "NOV", "12": "DIC"
     }
     
-    # Processa ogni periodo per aggiungere i mesi
-    for periodo in periodi:
-      tipo_periodo, inizio, fine = periodo
-      mesi_periodi = add_months_to_periods(mesi_periodi, inizio, fine, nomi_mesi)
+    # Processa ogni sessione per aggiungere i mesi
+    for sessione in sessioni:
+      tipo_sessione, inizio, fine = sessione
+      mesi_sessioni = add_months_to_periods(mesi_sessioni, inizio, fine, nomi_mesi)
     
     return jsonify({
       'nome_corso': cds_info['nome_corso'],
       'insegnamenti': insegnamenti,
-      'periodi': list(mesi_periodi.values())
+      'periodi': list(mesi_sessioni.values())
     })
   except Exception as e:
     return jsonify({"error": str(e)}), 500
@@ -1385,9 +1328,6 @@ def add_months_to_periods(periodi_map, start_date, end_date, mesi_nomi):
 # API per ottenere i dettagli di un corso di studio
 @admin_bp.route('/getCdsDetails')
 def get_cds_details():
-  if not session.get('admin'):
-    return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
-    
   codice = request.args.get('codice')
   anno = request.args.get('anno')
   
@@ -1401,9 +1341,7 @@ def get_cds_details():
     # Query per ottenere le informazioni di base del CdS
     query_cds = """
       SELECT 
-        codice, anno_accademico, nome_corso,
-        inizio_lezioni_primo_semestre, fine_lezioni_primo_semestre,
-        inizio_lezioni_secondo_semestre, fine_lezioni_secondo_semestre
+        codice, anno_accademico, nome_corso
       FROM cds 
       WHERE codice = %s
     """
@@ -1430,53 +1368,54 @@ def get_cds_details():
     # Otteniamo l'anno accademico per recuperare i periodi d'esame
     anno_accademico = cds_data['anno_accademico']
     
-    # Query per ottenere i periodi d'esame dell'anno corrente
+    # Query per ottenere le sessioni d'esame dell'anno corrente
     cursor.execute("""
-      SELECT tipo_periodo, inizio, fine, max_esami
-      FROM periodi_esame
+      SELECT tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre
+      FROM sessioni
       WHERE cds = %s AND anno_accademico = %s
     """, (codice, anno_accademico))
     
-    periodi_data = {}
+    sessioni_data = {}
     
-    # Mappa per convertire i tipi di periodo dal database ai nomi dei campi nella risposta
-    tipo_periodo_field_map = {
-      'ANTICIPATA': ('anticipata_inizio', 'anticipata_fine'),
-      'ESTIVA': ('estiva_inizio', 'estiva_fine'),
-      'AUTUNNALE': ('autunnale_inizio', 'autunnale_fine'),
-      'INVERNALE': ('invernale_inizio', 'invernale_fine'),
-      'PAUSA_AUTUNNALE': ('pausa_primo_inizio', 'pausa_primo_fine'),
-      'PAUSA_PRIMAVERILE': ('pausa_secondo_inizio', 'pausa_secondo_fine')
+    # Mappa per convertire i tipi di sessione dal database ai nomi dei campi nella risposta
+    tipo_sessione_field_map = {
+      'anticipata': ('anticipata_inizio', 'anticipata_fine', 'anticipata_esami_primo', 'anticipata_esami_secondo'),
+      'estiva': ('estiva_inizio', 'estiva_fine', 'estiva_esami_primo', 'estiva_esami_secondo'),
+      'autunnale': ('autunnale_inizio', 'autunnale_fine', 'autunnale_esami_primo', 'autunnale_esami_secondo'),
+      'invernale': ('invernale_inizio', 'invernale_fine', 'invernale_esami_primo', 'invernale_esami_secondo')
     }
     
-    # Processa i risultati dei periodi d'esame
-    for tipo_periodo, inizio, fine, max_esami in cursor.fetchall():
-      if tipo_periodo in tipo_periodo_field_map:
-        inizio_field, fine_field = tipo_periodo_field_map[tipo_periodo]
-        periodi_data[inizio_field] = inizio.isoformat() if inizio else None
-        periodi_data[fine_field] = fine.isoformat() if fine else None
+    # Processa i risultati delle sessioni d'esame
+    for tipo_sessione, inizio, fine, esami_primo, esami_secondo in cursor.fetchall():
+      if tipo_sessione in tipo_sessione_field_map:
+        inizio_field, fine_field, esami_primo_field, esami_secondo_field = tipo_sessione_field_map[tipo_sessione]
+        sessioni_data[inizio_field] = inizio.isoformat() if inizio else None
+        sessioni_data[fine_field] = fine.isoformat() if fine else None
+        sessioni_data[esami_primo_field] = esami_primo
+        sessioni_data[esami_secondo_field] = esami_secondo
     
     # Se non c'è una sessione anticipata, cerca la sessione invernale dell'anno precedente
-    if 'anticipata_inizio' not in periodi_data or not periodi_data['anticipata_inizio']:
+    if 'anticipata_inizio' not in sessioni_data or not sessioni_data['anticipata_inizio']:
       try:
         anno_precedente = anno_accademico - 1
         cursor.execute("""
-          SELECT inizio, fine
-          FROM periodi_esame
-          WHERE cds = %s AND anno_accademico = %s AND tipo_periodo = 'INVERNALE'
+          SELECT inizio, fine, esami_primo_semestre, esami_secondo_semestre
+          FROM sessioni
+          WHERE cds = %s AND anno_accademico = %s AND tipo_sessione = 'invernale'
         """, (codice, anno_precedente))
         
         prev_winter = cursor.fetchone()
         if prev_winter:
-          inizio, fine = prev_winter
-          periodi_data['anticipata_inizio'] = inizio.isoformat() if inizio else None
-          periodi_data['anticipata_fine'] = fine.isoformat() if fine else None
-          print(f"Recuperata sessione invernale dell'anno precedente {anno_precedente} come sessione anticipata")
+          inizio, fine, esami_primo, esami_secondo = prev_winter
+          sessioni_data['anticipata_inizio'] = inizio.isoformat() if inizio else None
+          sessioni_data['anticipata_fine'] = fine.isoformat() if fine else None
+          sessioni_data['anticipata_esami_primo'] = esami_primo
+          sessioni_data['anticipata_esami_secondo'] = esami_secondo
       except Exception as e:
-        print(f"Errore nel recupero della sessione invernale dell'anno precedente: {str(e)}")
+        pass
     
-    # Combina i dati del CdS con i periodi d'esame
-    cds_data.update(periodi_data)
+    # Combina i dati del CdS con le sessioni d'esame
+    cds_data.update(sessioni_data)
     
     # Converti le date in stringhe
     from datetime import date
@@ -1567,7 +1506,7 @@ def upload_aule():
           # Aggiorna l'aula esistente
           cursor.execute("""
             UPDATE aule 
-            SET nome = %s, sede = %s, edificio = %s, posti = %s s 
+            SET codice = %s, sede = %s, edificio = %s, posti = %s 
             WHERE nome = %s
           """, (aula['codice'], aula['sede'], aula['edificio'], posti, aula['nome']))
           updated_count += 1

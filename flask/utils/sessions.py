@@ -9,8 +9,8 @@ def ottieni_sessioni_da_cds(cds_code, year):
     
     # Recupera tutti i periodi del CdS che iniziano nell'anno corrente o nell'anno successivo fino ad aprile
     cursor.execute("""
-      SELECT tipo_periodo, inizio, fine, max_esami 
-      FROM periodi_esame
+      SELECT tipo_sessione, inizio, fine 
+      FROM sessioni
       WHERE cds = %s 
       AND (
         (EXTRACT(YEAR FROM inizio) = %s) OR
@@ -21,13 +21,12 @@ def ottieni_sessioni_da_cds(cds_code, year):
     
     sessions = []
     for row in cursor.fetchall():
-      tipo_periodo, inizio, fine, max_esami = row
+      tipo_sessione, inizio, fine = row
       sessions.append({
-        'tipo': tipo_periodo.lower(),
+        'tipo': tipo_sessione.lower(),
         'inizio': inizio,
         'fine': fine,
-        'max_esami': max_esami,
-        'nome': format_session_name(tipo_periodo.lower())
+        'nome': format_session_name(tipo_sessione.lower())
       })
     
     return sessions
@@ -68,8 +67,8 @@ def ottieni_intersezione_sessioni_docente(docente, year, cds_list=None):
     
     for cds_code in cds_list:
       cursor.execute("""
-        SELECT tipo_periodo, inizio, fine, max_esami 
-        FROM periodi_esame
+        SELECT tipo_sessione, inizio, fine 
+        FROM sessioni
         WHERE cds = %s 
         AND (
           (EXTRACT(YEAR FROM inizio) = %s) OR
@@ -80,13 +79,12 @@ def ottieni_intersezione_sessioni_docente(docente, year, cds_list=None):
       
       cds_sessions = []
       for row in cursor.fetchall():
-        tipo_periodo, inizio, fine, max_esami = row
+        tipo_sessione, inizio, fine = row
         cds_sessions.append({
           'cds': cds_code,
-          'tipo': tipo_periodo,
+          'tipo': tipo_sessione,
           'inizio': inizio,
-          'fine': fine,
-          'max_esami': max_esami
+          'fine': fine
         })
       
       all_sessions.append(cds_sessions)
@@ -105,7 +103,6 @@ def ottieni_intersezione_sessioni_docente(docente, year, cds_list=None):
         'tipo': session1['tipo'],
         'inizio': session1['inizio'],
         'fine': session1['fine'],
-        'max_esami': session1['max_esami'],
         'shared_with_all': True
       }
       
@@ -140,7 +137,6 @@ def ottieni_intersezione_sessioni_docente(docente, year, cds_list=None):
           'tipo': intersection['tipo'].lower(),
           'inizio': intersection['inizio'],
           'fine': intersection['fine'],
-          'max_esami': intersection['max_esami'],
           'nome': format_session_name(intersection['tipo'].lower())
         })
     
@@ -161,9 +157,7 @@ def format_session_name(tipo_periodo):
     'anticipata': 'Sessione Anticipata',
     'estiva': 'Sessione Estiva', 
     'autunnale': 'Sessione Autunnale', 
-    'invernale': 'Sessione Invernale',
-    'pausa_autunnale': 'Pausa Didattica (1° sem)',
-    'pausa_primaverile': 'Pausa Didattica (2° sem)'
+    'invernale': 'Sessione Invernale'
   }
   
   return mapping.get(tipo_periodo.lower(), tipo_periodo.capitalize())
@@ -183,9 +177,7 @@ def rimuovi_sessioni_duplicate(sessions):
         'anticipata': 6,
         'estiva': 5,
         'autunnale': 4, 
-        'invernale': 3,
-        'pausa_primaverile': 2,
-        'pausa_autunnale': 1
+        'invernale': 3
     }
     
     # Dizionario per tenere traccia delle sessioni univoche
@@ -223,11 +215,11 @@ def ottieni_tutte_sessioni(anno_accademico):
         
         # Ottieni tutti i periodi d'esame per tutti i CdS
         cursor.execute("""
-            SELECT pe.cds, pe.tipo_periodo, pe.inizio, pe.fine
-            FROM periodi_esame pe
-            JOIN cds c ON pe.cds = c.codice AND pe.anno_accademico = c.anno_accademico
-            WHERE pe.anno_accademico = %s
-            ORDER BY pe.inizio
+            SELECT s.cds, s.tipo_periodo, s.inizio, s.fine
+            FROM sessioni pe
+            JOIN cds c ON s.cds = c.codice AND s.anno_accademico = c.anno_accademico
+            WHERE s.anno_accademico = %s
+            ORDER BY s.inizio
         """, (anno_accademico,))
         
         sessioni = []
@@ -296,3 +288,34 @@ def ottieni_sessioni_da_insegnamenti(insegnamenti_list, year):
       cursor.close()
     if 'conn' in locals() and conn:
       release_connection(conn)
+
+def getSessionePerData(data, cds_codice, anno_accademico):
+    """
+    Restituisce il tipo di sessione per una data specifica e CdS
+    Returns: (nome_sessione, data_inizio_sessione)
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT tipo_sessione, inizio
+            FROM sessioni 
+            WHERE cds = %s 
+            AND anno_accademico = %s 
+            AND %s BETWEEN inizio AND fine
+        """, (cds_codice, anno_accademico, data))
+        
+        result = cursor.fetchone()
+        return result if result else (None, None)
+        
+    except Exception as e:
+        print(f"Errore in getSessionePerData: {str(e)}")
+        return (None, None)
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            release_connection(conn)
