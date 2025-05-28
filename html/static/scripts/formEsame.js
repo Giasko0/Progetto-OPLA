@@ -148,42 +148,6 @@ const EsameForm = (function() {
     }
   }
   
-  // Funzione per setup del pulsante elimina
-  function setupDeleteButton(isEdit, examId) {
-    const deleteButton = document.getElementById("deleteExamBtn");
-    
-    // Procedi solo se entrambi gli elementi necessari sono disponibili
-    if (isEdit) {
-      if (!deleteButton) {
-        const submitBtn = document.querySelector('#esameForm button[type="submit"]');
-        if (!submitBtn || !submitBtn.parentNode) {
-          console.warn('Impossibile aggiungere pulsante elimina: elementi necessari non trovati');
-          return;
-        }
-        
-        const newDeleteBtn = document.createElement("button");
-        newDeleteBtn.id = "deleteExamBtn";
-        newDeleteBtn.className = "delete-btn";
-        newDeleteBtn.textContent = "Elimina Esame";
-        newDeleteBtn.type = "button";
-        newDeleteBtn.onclick = () => {
-          if (confirm("Sei sicuro di voler eliminare questo esame?")) {
-            if (typeof window.deleteEsame === 'function') {
-              window.deleteEsame(examId);
-            } else {
-              console.error("Errore: funzione deleteEsame non disponibile");
-              window.showMessage("Errore: funzione di eliminazione non disponibile", "Errore", "error");
-            }
-          }
-        };
-        
-        submitBtn.parentNode.insertBefore(newDeleteBtn, submitBtn.nextSibling);
-      }
-    } else if (deleteButton) {
-      deleteButton.remove();
-    }
-  }
-  
   // Imposta valori di default sui campi
   function setDefaultValues(elements) {
     const defaults = {
@@ -345,63 +309,6 @@ const EsameForm = (function() {
       if (dateField) dateField.value = partialData.date;
     }
     // Altri dati preselezionati possono essere gestiti qui
-  }
-  
-  // Inizializza il form con gli eventi e i valori predefiniti
-  function initForm(options = {}, isEdit = false) {
-    // Imposta l'anno accademico
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1;
-    const anno_accademico = currentMonth >= 9 ? currentDate.getFullYear() : currentDate.getFullYear() - 1;
-    
-    const anno_field = document.getElementById("anno_accademico");
-    if (anno_field) {
-      anno_field.value = anno_accademico;
-    }
-    
-    // PARTE FONDAMENTALE: Compilazione del form
-    
-    // Seleziona gli elementi del form
-    const elements = document.querySelectorAll("#esameForm input, #esameForm select");
-    
-    // Su tutti i campi, applica prima i valori di default base
-    setDefaultValues(elements);
-    
-    // Se è modalità modifica, applica i dati dell'esame esistente
-    if (isEdit) {
-      fillFormWithExamData(elements, options);
-    } else {
-      // Applica eventuali dati preselezionati (es. data dal click sul calendario)
-      if (Object.keys(options).length > 0) {
-        fillFormWithPartialData(elements, options);
-      }
-      
-      // Prima inizializziamo l'UI
-      initUI(options);
-      // Poi aggiungiamo gli event listeners
-      initEventListeners();
-      
-      // Ottieni l'username corrente e poi carica le preferenze
-      getUserData()
-        .then((data) => {
-          if (data?.authenticated && data?.user_data) {
-            currentUsername = data.user_data.username;
-            
-            // Applica le preferenze salvate SOLO in modalità creazione
-            if (usePreferences) {
-              loadUserPreferences();
-            } else {
-              console.log("Preferenze disabilitate: non applicate");
-            }
-          }
-        })
-        .catch((error) => {
-          console.error("Errore nel recupero dei dati utente:", error);
-        });
-    }
-    
-    // Aggiorna i campi dinamici in base alle selezioni correnti
-    updateDynamicFields();
   }
   
   // Inizializza gli ascoltatori di eventi
