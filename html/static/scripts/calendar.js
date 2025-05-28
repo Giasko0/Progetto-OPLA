@@ -8,7 +8,8 @@ import {
   handleDropdownButtonClick,
   setupDropdownClickListeners,
   setupGlobalClickListeners,
-  setupCloseHandlers
+  setupCloseHandlers,
+  populateAnnoAccademicoDropdown
 } from "./calendarUtils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -32,7 +33,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let eventsCache = [];
   let lastFetchTime = 0;
   let disabledDates = new Set();
-  let dropdowns = { insegnamenti: null, sessioni: null };
+  let dropdowns = { insegnamenti: null, sessioni: null, annoAccademico: null };
   let calendar = null;
   let miniFormEl = null;
   let tempEvents = {};
@@ -356,6 +357,7 @@ document.addEventListener("DOMContentLoaded", function () {
         dateValide = dateValideResponse;
         dropdowns.sessioni = createDropdown("sessioni");
         dropdowns.insegnamenti = createDropdown("insegnamenti");
+        dropdowns.annoAccademico = createDropdown("annoAccademico");
         updateSessioniDropdown(dropdowns.sessioni, dateValide);
 
         calendar = new FullCalendar.Calendar(calendarEl, {
@@ -402,12 +404,18 @@ document.addEventListener("DOMContentLoaded", function () {
           },
 
           headerToolbar: {
-            left: "pulsanteInsegnamenti pulsanteSessioni",
+            left: "pulsanteAnnoAccademico pulsanteSessioni pulsanteInsegnamenti",
             center: "multiMonthList,multiMonthGrid,listaEventi",
             right: "aggiungiEsame"
           },
 
           customButtons: {
+            pulsanteAnnoAccademico: {
+              text: "Anno Accademico",
+              click: (e) => handleDropdownButtonClick(e, "annoAccademico", calendar, dropdowns, () => {
+                populateAnnoAccademicoDropdown(dropdowns.annoAccademico);
+              })
+            },
             pulsanteSessioni: {
               text: "Sessioni",
               click: (e) => handleDropdownButtonClick(e, "sessioni", calendar, dropdowns)

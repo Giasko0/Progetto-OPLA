@@ -37,6 +37,7 @@ export function createDropdown(type) {
   dropdown.className = "calendar-dropdown";
   if (type === "sessioni") dropdown.id = "sessioniDropdown";
   if (type === "insegnamenti") dropdown.id = "insegnamentiDropdown";
+  if (type === "annoAccademico") dropdown.id = "annoAccademicoDropdown";
   document.body.appendChild(dropdown);
 
   // Aggiungi classe per stile responsive
@@ -219,15 +220,23 @@ export function handleDropdownButtonClick(e, type, calendar, dropdowns, populate
   const dropdown = dropdowns[type];
   if (!dropdown) return;
 
+  // Se il dropdown è già aperto, chiudilo e termina
+  if (dropdown.classList.contains("show")) {
+    dropdown.classList.remove("show");
+    dropdown.style.display = "none";
+    return;
+  }
+
   // Posiziona il dropdown relativo al pulsante
   const rect = button.getBoundingClientRect();
-  dropdown.style.top = `${rect.bottom + window.scrollY}px`; // Considera lo scroll
+  dropdown.style.top = `${rect.bottom + window.scrollY}px`;
   dropdown.style.left = `${rect.left + window.scrollX}px`;
 
   // Chiudi *altri* dropdown aperti
   Object.entries(dropdowns).forEach(([key, value]) => {
     if (key !== type && value && value.classList.contains("show")) {
       value.classList.remove("show");
+      value.style.display = "none";
     }
   });
 
@@ -236,8 +245,9 @@ export function handleDropdownButtonClick(e, type, calendar, dropdowns, populate
     populateCallback();
   }
 
-  // Toggle della visibilità del dropdown corrente
-  dropdown.classList.toggle("show");
+  // Mostra il dropdown
+  dropdown.classList.add("show");
+  dropdown.style.display = "block";
 }
 
 // Aggiunge listener per i click *dentro* i dropdown
@@ -286,38 +296,28 @@ export function setupDropdownClickListeners(calendar, dropdowns, currentUsername
         dropdowns.sessioni.addEventListener("click", (e) => {
             const item = e.target.closest(".dropdown-item");
             if (item) {
-                const startDateString = item.dataset.data;
-                const endDateString = item.dataset.end; // Recupera data fine sessione
-                if (startDateString && calendar && dateRange && dateRange.end) {
-                    try {
-                        const startDateSession = new Date(startDateString);
-                        const endDateRange = new Date(dateRange.end);
-
-                        // Calcola la durata in mesi tra inizio sessione e fine range
-                        // +1 per includere sia il mese di inizio che quello di fine
-                        let durationMonths = (endDateRange.getFullYear() - startDateSession.getFullYear()) * 12 +
-                                             endDateRange.getMonth() - startDateSession.getMonth() + 1;
-                        durationMonths = Math.max(1, durationMonths); // Assicura almeno 1 mese
-
-                        // Aggiorna la durata del calendario
-                        calendar.setOption('duration', { months: durationMonths });
-
-                        // Naviga alla data di inizio sessione
-                        calendar.gotoDate(startDateString);
-
-                        // Chiudi il dropdown
-                        dropdowns.sessioni.classList.remove("show");
-                    } catch (error) {
-                        console.error("Errore nel calcolo della durata o navigazione:", error);
-                        // Fallback: comportamento originale se c'è un errore
-                        calendar.gotoDate(startDateString);
-                        dropdowns.sessioni.classList.remove("show");
-                    }
-                } else if (startDateString && calendar) {
-                    // Fallback se dateRange non è disponibile
-                    console.warn("dateRange non disponibile per calcolo durata dinamica.");
-                    calendar.gotoDate(startDateString);
-                    dropdowns.sessioni.classList.remove("show");
+                const targetDate = item.dataset.data;
+                if (targetDate && calendar) {
+                    // Naviga alla data della sessione selezionata
+                    calendar.gotoDate(targetDate);
+                    
+                    // Aggiorna il range del calendario per garantire 14 mesi di durata
+                    const sessionDate = new Date(targetDate);
+                    const startYear = sessionDate.getFullYear();
+                    const endYear = startYear + 1;
+                    
+                    // Il calendario inizia sempre a gennaio dell'anno della sessione
+                    // e termina a febbraio dell'anno successivo (14 mesi totali)
+                    const newValidRange = {
+                        start: `${startYear}-01-01`,
+                        end: `${endYear}-02-28`
+                    };
+                    
+                    calendar.setOption('validRange', newValidRange);
+                    calendar.setOption('duration', { months: 14 });
+                    
+                    dropdowns.sessioni.classList.remove('show');
+                    dropdowns.sessioni.style.display = 'none';
                 }
             }
         });
@@ -332,7 +332,7 @@ export function setupGlobalClickListeners(dropdowns) {
         const buttonClasses = e.target.closest('.fc-button').classList;
         if (buttonClasses.contains('fc-pulsanteInsegnamenti-button') ||
             buttonClasses.contains('fc-pulsanteSessioni-button') ||
-            buttonClasses.contains('fc-pulsanteAnno-button')) {
+            buttonClasses.contains('fc-pulsanteAnnoAccademico-button')) {
             return;
         }
     }
@@ -411,4 +411,36 @@ export function isDateValid(selectedDate, dateValide) {
 
   // Se tutti i controlli sono superati, la data è valida
   return { isValid: true };
+}
+
+// Popola il dropdown degli anni accademici
+export async function populateAnnoAccademicoDropdown(dropdown) {
+  try {
+    const response = await fetch('/api/getAnniAccademici');
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    const anniAccademici = await response.json();
+
+    if (!Array.isArray(anniAccademici) || anniAccademici.length === 0) {
+      dropdown.innerHTML = "<div class='dropdown-error'>Nessun anno accademico disponibile</div>";
+      return;
+    }
+
+    dropdown.innerHTML = '';
+    anniAccademici.forEach(anno => {
+      const item = document.createElement('div');
+      item.className = 'dropdown-item';
+      item.textContent = anno;
+      item.dataset.anno = anno;
+      item.addEventListener('click', () => {
+        console.log(`Anno accademico selezionato: ${anno}`);
+        dropdown.classList.remove('show');
+      });
+      dropdown.appendChild(item);
+    });
+  } catch (error) {
+    console.error("Errore durante il caricamento degli anni accademici:", error);
+    dropdown.innerHTML = "<div class='dropdown-error'>Errore durante il caricamento</div>";
+  }
 }

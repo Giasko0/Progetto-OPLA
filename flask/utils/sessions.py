@@ -12,12 +12,13 @@ def ottieni_sessioni_da_cds(cds_code, year):
       SELECT tipo_sessione, inizio, fine 
       FROM sessioni
       WHERE cds = %s 
+      AND anno_accademico = %s
       AND (
         (EXTRACT(YEAR FROM inizio) = %s) OR
         (EXTRACT(YEAR FROM inizio) = %s AND EXTRACT(MONTH FROM inizio) <= 4)
       )
       ORDER BY inizio
-    """, (cds_code, year+1, year+2))
+    """, (cds_code, year, year+1, year+2))
     
     sessions = []
     for row in cursor.fetchall():
@@ -70,12 +71,13 @@ def ottieni_intersezione_sessioni_docente(docente, year, cds_list=None):
         SELECT tipo_sessione, inizio, fine 
         FROM sessioni
         WHERE cds = %s 
+        AND anno_accademico = %s
         AND (
           (EXTRACT(YEAR FROM inizio) = %s) OR
           (EXTRACT(YEAR FROM inizio) = %s AND EXTRACT(MONTH FROM inizio) <= 4)
         )
         ORDER BY inizio
-      """, (cds_code, year+1, year+2))
+      """, (cds_code, year, year+1, year+2))
       
       cds_sessions = []
       for row in cursor.fetchall():
@@ -110,21 +112,19 @@ def ottieni_intersezione_sessioni_docente(docente, year, cds_list=None):
       for cds_sessions in all_sessions[1:]:
         found_intersection = False
         
-        for session2 in cds_sessions:
-          # Verifica solo se sono dello stesso tipo
-          if session2['tipo'] == session1['tipo']:
-            # Calcola l'intersezione
-            intersection_start = max(intersection['inizio'], session2['inizio'])
-            intersection_end = min(intersection['fine'], session2['fine'])
-            
-            # Verifica se l'intersezione è valida
-            if intersection_start <= intersection_end:
-              # Aggiorna l'intersezione
-              intersection['inizio'] = intersection_start
-              intersection['fine'] = intersection_end
-              intersection['max_esami'] = min(intersection['max_esami'], session2['max_esami'])
-              found_intersection = True
-              break
+        for session2 in cds_sessions:            # Verifica solo se sono dello stesso tipo
+            if session2['tipo'] == session1['tipo']:
+              # Calcola l'intersezione
+              intersection_start = max(intersection['inizio'], session2['inizio'])
+              intersection_end = min(intersection['fine'], session2['fine'])
+              
+              # Verifica se l'intersezione è valida
+              if intersection_start <= intersection_end:
+                # Aggiorna l'intersezione
+                intersection['inizio'] = intersection_start
+                intersection['fine'] = intersection_end
+                found_intersection = True
+                break
         
         # Se non è stata trovata intersezione con questo CdS, questa sessione non è comune a tutti
         if not found_intersection:
@@ -215,23 +215,23 @@ def ottieni_tutte_sessioni(anno_accademico):
         
         # Ottieni tutti i periodi d'esame per tutti i CdS
         cursor.execute("""
-            SELECT s.cds, s.tipo_periodo, s.inizio, s.fine
-            FROM sessioni pe
-            JOIN cds c ON s.cds = c.codice AND s.anno_accademico = c.anno_accademico
+            SELECT s.cds, s.tipo_sessione, s.inizio, s.fine
+            FROM sessioni s
+            JOIN cds c ON s.cds = c.codice AND s.anno_accademico = c.anno_accademico AND s.curriculum = c.curriculum
             WHERE s.anno_accademico = %s
             ORDER BY s.inizio
         """, (anno_accademico,))
         
         sessioni = []
         for row in cursor.fetchall():
-            codice_cds, tipo_periodo, inizio, fine = row
+            codice_cds, tipo_sessione, inizio, fine = row
             
             # Formattazione del nome del periodo
-            nome_periodo = tipo_periodo.capitalize()
+            nome_periodo = format_session_name(tipo_sessione)
             
             sessioni.append({
                 'cds': codice_cds,
-                'tipo': tipo_periodo,
+                'tipo': tipo_sessione,
                 'nome': nome_periodo,
                 'inizio': inizio,
                 'fine': fine
