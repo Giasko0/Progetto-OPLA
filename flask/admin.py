@@ -14,11 +14,11 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/api/oh-issa')
 
 @admin_bp.route('/uploadFileUGOV', methods=['POST'])
 def upload_ugov():
+    if not session.get('permessi_admin'):
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+    
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    if not session.get('admin'):
-      return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
 
     if 'file' not in request.files:
       return jsonify({'status': 'error', 'message': 'Nessun file selezionato'}), 400
@@ -523,7 +523,7 @@ def upload_ugov():
 
 @admin_bp.route('/downloadFileESSE3')
 def download_esse3():
-  if not session.get('admin'):
+  if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:
@@ -734,7 +734,7 @@ def download_esse3():
 
 @admin_bp.route('/downloadFileEA')
 def download_ea():
-  if not session.get('admin'):
+  if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:
@@ -918,7 +918,7 @@ def download_ea():
 
 @admin_bp.route('/save-cds-dates', methods=['POST'])
 def save_cds_dates():
-  if not session.get('admin'):
+  if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
   
   conn = None
@@ -1472,7 +1472,7 @@ def get_anni_accademici():
 
 @admin_bp.route('/uploadAule', methods=['POST'])
 def upload_aule():
-  if not session.get('admin'):
+  if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
   
   try:
@@ -1546,7 +1546,7 @@ def upload_aule():
 
 @admin_bp.route('/loadAuleEasyAcademy', methods=['POST'])
 def load_aule_easy_academy():
-  if not session.get('admin'):
+  if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
   
   try:
@@ -1659,7 +1659,7 @@ def load_aule_easy_academy():
 # API per ottenere la lista degli utenti
 @admin_bp.route('/getUsers')
 def get_users():
-  if not session.get('admin'):
+  if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:
@@ -1696,7 +1696,7 @@ def get_users():
 # API per aggiornare i permessi di amministratore di un utente
 @admin_bp.route('/updateUserAdmin', methods=['POST'])
 def update_user_admin():
-  if not session.get('admin'):
+  if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:
@@ -1742,7 +1742,7 @@ def update_user_admin():
 # API per eliminare un utente
 @admin_bp.route('/deleteUser', methods=['POST'])
 def delete_user():
-  if not session.get('admin'):
+  if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   try:
