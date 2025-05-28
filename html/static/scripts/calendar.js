@@ -9,7 +9,9 @@ import {
   setupDropdownClickListeners,
   setupGlobalClickListeners,
   setupCloseHandlers,
-  populateAnnoAccademicoDropdown
+  populateAnnoAccademicoDropdown,
+  creaEventoProvvisorio,
+  aggiornaAulaEventoProvvisorio
 } from "./calendarUtils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -70,6 +72,8 @@ document.addEventListener("DOMContentLoaded", function () {
   window.clearCalendarProvisionalEvents = clearProvisionalEvents;
   window.removeProvisionalEvents = removeProvisionalEvents;
   window.provisionalEvents = provisionalEvents;
+  window.creaEventoProvvisorio = creaEventoProvvisorio;
+  window.aggiornaAulaEventoProvvisorio = aggiornaAulaEventoProvvisorio;
 
   window.forceCalendarRefresh = function () {
     eventsCache = [];
@@ -127,10 +131,9 @@ document.addEventListener("DOMContentLoaded", function () {
         updateSessioniDropdown(dropdowns.sessioni, dateValide);
 
         calendar = new FullCalendar.Calendar(calendarEl, {
-          contentHeight: 600,
           locale: "it",
           initialView: 'multiMonthList',
-          duration: { months: 16 },
+          duration: { months: 14 },
           initialDate: dateRange.start,
           validRange: dateRange,
           selectable: true,
@@ -227,7 +230,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 return;
               } else if (validationResult.isProvisionalConflict) {
-                // Mostra notifica nella sidebar per conflitto ±14 giorni
+                // Mostra notifica nella sidebar per conflitto 14 giorni
                 if (window.showMessage) {
                   window.showMessage(
                     'Non è possibile inserire esami a meno di 14 giorni di distanza.',
@@ -247,23 +250,8 @@ document.addEventListener("DOMContentLoaded", function () {
             const formOpened = EsameForm.showForm({ date: selDateFormatted });
 
             if (formOpened) {
-              // Crea l'evento provvisorio nel calendario
-              const provisionalEventId = `provisional_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-              const provisionalEvent = {
-                id: provisionalEventId,
-                start: selDateFormatted,
-                allDay: true,
-                backgroundColor: '#FFBF00',
-                borderColor: '#E6A200',
-                textColor: '#FFFFFF',
-                extendedProps: {
-                  isProvisional: true,
-                  formSectionDate: selDateFormatted,
-                  aula: ''
-                }
-              };
-              calendar.addEvent(provisionalEvent);
-              provisionalEvents.push(provisionalEvent);
+              // Crea l'evento provvisorio nel calendario usando la funzione unificata
+              creaEventoProvvisorio(selDateFormatted, calendar, provisionalEvents);
             }
           },
 
@@ -282,8 +270,20 @@ document.addEventListener("DOMContentLoaded", function () {
           eventContent: function (arg) {
             if (arg.event.extendedProps.isProvisional) {
               const aula = arg.event.extendedProps.aula || '';
-              // Usa solo le classi standard di FullCalendar
-              let htmlContent = `<div class="fc-event-title fc-sticky"><strong>Nuovo esame</strong></div><div class="fc-event-time">${aula || '&nbsp;'}</div>`;
+              const dataAppello = arg.event.start ? arg.event.start.toLocaleDateString('it-IT') : '';
+              
+              // Prima riga: titolo in grassetto
+              // Seconda riga: data dell'appello
+              // Terza riga: aula
+              let htmlContent = `<div class="fc-event-time fc-sticky">Nuovo esame</div>`;
+              if (dataAppello) {
+                htmlContent += `<div class="fc-event-title">${dataAppello}</div>`;
+              }
+              if (aula) {
+                htmlContent += `<div class="fc-event-description">${aula}</div>`;
+              } else {
+                htmlContent += `<div class="fc-event-description">Aula non specificata</div>`;
+              }
               return { html: htmlContent };
             }
             // Logica di rendering esistente per altri eventi
@@ -294,7 +294,6 @@ document.addEventListener("DOMContentLoaded", function () {
             if (arg.event.extendedProps.stato) {
               titleHtml += `<div class="fc-event-details-custom">Stato: ${arg.event.extendedProps.stato}</div>`;
             }
-            // Aggiungi qui altre proprietà estese se necessario
             return { html: titleHtml };
           },
 

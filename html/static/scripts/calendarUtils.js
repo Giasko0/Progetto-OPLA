@@ -342,12 +342,12 @@ export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
     }
 
     // Controlla vincolo dei 14 giorni con altri eventi provvisori
-    const fourteenDaysInMillis = 14 * 24 * 60 * 60 * 1000;
+    const days = 13;
     for (const provDateStr of provisionalDates) {
       const provDate = new Date(provDateStr);
       provDate.setHours(0, 0, 0, 0);
-      const diff = Math.abs(selDate.getTime() - provDate.getTime());
-      if (diff <= fourteenDaysInMillis && selDate.getTime() !== provDate.getTime()) {
+      const diffDays = Math.abs(selDate - provDate) / (1000 * 60 * 60 * 24);
+      if (diffDays <= days && selDate.getTime() !== provDate.getTime()) {
         return {
           isValid: false,
           message: "Non è possibile inserire esami a meno di 14 giorni di distanza.",
@@ -405,4 +405,90 @@ export async function populateAnnoAccademicoDropdown(dropdown) {
     console.error("Errore durante il caricamento degli anni accademici:", error);
     dropdown.innerHTML = "<div class='dropdown-error'>Errore durante il caricamento</div>";
   }
+}
+
+// Crea un evento provvisorio nel calendario
+export function creaEventoProvvisorio(date, calendar, provisionalEvents, options = {}) {
+  if (!calendar || !date) {
+    console.warn('Calendario o data non validi per la creazione dell\'evento provvisorio');
+    return null;
+  }
+
+  // Controlla se esiste già un evento provvisorio per questa data
+  const existingEvent = provisionalEvents.find(event => 
+    event.start === date || (event.extendedProps && event.extendedProps.formSectionDate === date)
+  );
+  
+  if (existingEvent) {
+    console.log('Evento provvisorio già esistente per la data:', date);
+    return existingEvent;
+  }
+
+  // Genera un ID unico per l'evento
+  const provisionalEventId = `provisional_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Crea l'oggetto evento con valori di default
+  const provisionalEvent = {
+    id: provisionalEventId,
+    start: date,
+    allDay: true,
+    backgroundColor: options.backgroundColor || '#77DD77',
+    borderColor: options.borderColor || '#77DD77',
+    textColor: options.textColor || '#000',
+    title: options.title || 'Nuovo esame',
+    extendedProps: {
+      isProvisional: true,
+      formSectionDate: date,
+      aula: options.aula || '',
+      ...options.extendedProps
+    }
+  };
+
+  // Aggiungi l'evento al calendario
+  const calendarEvent = calendar.addEvent(provisionalEvent);
+  
+  if (calendarEvent) {
+    // Aggiungi alla lista degli eventi provvisori
+    provisionalEvents.push(provisionalEvent);
+    
+    console.log('Evento provvisorio creato per la data:', date);
+    return provisionalEvent;
+  } else {
+    console.error('Errore nella creazione dell\'evento provvisorio per la data:', date);
+    return null;
+  }
+}
+
+// Aggiorna l'aula di un evento provvisorio esistente
+export function aggiornaAulaEventoProvvisorio(date, aula, calendar, provisionalEvents) {
+  if (!calendar || !date) {
+    console.warn('Calendario o data non validi per l\'aggiornamento dell\'aula');
+    return false;
+  }
+
+  // Trova l'evento provvisorio per questa data
+  const provisionalEvent = provisionalEvents.find(event => 
+    event.start === date || (event.extendedProps && event.extendedProps.formSectionDate === date)
+  );
+
+  if (!provisionalEvent) {
+    console.warn('Nessun evento provvisorio trovato per la data:', date);
+    return false;
+  }
+
+  // Ottieni l'evento dal calendario
+  const calendarEvent = calendar.getEventById(provisionalEvent.id);
+  if (!calendarEvent) {
+    console.warn('Evento del calendario non trovato per ID:', provisionalEvent.id);
+    return false;
+  }
+
+  // Aggiorna l'aula nell'evento del calendario
+  calendarEvent.setExtendedProp('aula', aula || '');
+  
+  // Aggiorna anche l'oggetto nell'array provisionalEvents
+  provisionalEvent.extendedProps.aula = aula || '';
+
+  console.log(`Aula aggiornata per evento provvisorio del ${date}: ${aula || 'rimossa'}`);
+  return true;
 }

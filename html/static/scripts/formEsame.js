@@ -1962,41 +1962,16 @@ const EsameForm = (function() {
     return false;
   }
   
-  // Modificata per prevenire la creazione di eventi duplicati
+  // Modificata per prevenire la creazione di eventi duplicati usando la funzione unificata
   function createProvisionalEventForDate(date) {
     if (!window.calendar || !date) {
       return;
     }
 
-    // Controlla se un evento per questa data esiste già
-    if (isProvisionalEventExistsForDate(date)) {
-      return; // Non creare un duplicato
-    }
-
-    const provisionalEventId = `provisional_form_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const provisionalEvent = {
-      id: provisionalEventId,
-      start: date,
-      allDay: true,
-      backgroundColor: '#FFBF00',
-      borderColor: '#E6A200',
-      textColor: '#FFFFFF',
-      extendedProps: {
-        isProvisional: true,
-        formSectionDate: date,
-        aula: ''
-      }
-    };
-
-    window.calendar.addEvent(provisionalEvent);
-
-    if (window.provisionalEvents) {
-      window.provisionalEvents.push(provisionalEvent);
-    } else {
-      window.provisionalEvents = [provisionalEvent];
-    }
-
-    if (window.updateDateValideWithExclusions) {
+    // Usa la funzione unificata importata da calendarUtils
+    const provisionalEvent = window.creaEventoProvvisorio(date, window.calendar, window.provisionalEvents || []);
+    
+    if (provisionalEvent && window.updateDateValideWithExclusions) {
       window.updateDateValideWithExclusions();
     }
   }
@@ -2053,6 +2028,13 @@ const EsameForm = (function() {
           }
           
           aulaSelect.appendChild(option);
+        });
+        
+        // Aggiungi listener per aggiornare l'evento provvisorio quando cambia l'aula
+        aulaSelect.addEventListener('change', function() {
+          if (window.aggiornaAulaEventoProvvisorio && window.calendar && window.provisionalEvents) {
+            window.aggiornaAulaEventoProvvisorio(data, this.value, window.calendar, window.provisionalEvents);
+          }
         });
       })
       .catch(error => {
