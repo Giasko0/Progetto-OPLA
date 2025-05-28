@@ -1,37 +1,4 @@
-// Determina il range di date valido in base al periodo dell'anno
-export function getValidDateRange(selectedYear = null) {
-  if (selectedYear) {
-    return {
-      start: `${selectedYear}-01-01`,
-      end: `${selectedYear + 1}-04-30`,
-    };
-  }
-
-  const today = new Date();
-  const currentYear = today.getFullYear();  
-  const currentMonth = today.getMonth() + 1;
-
-  const startYear = currentMonth >= 9 ? currentYear + 1 : currentYear;
-  const endYear = startYear + 1;
-
-  return {
-    start: `${startYear}-01-01`,
-    end: `${endYear}-04-30`,
-    today: today.toISOString().split("T")[0], // YYYY-MM-DD
-  };
-}
-
-// Restituisce l'anno accademico per la pianificazione
-export function getPlanningYear(selectedYear = null) {
-  if (selectedYear) return selectedYear;
-  
-  const currentDate = new Date();
-  return currentDate.getMonth() >= 9
-    ? currentDate.getFullYear()
-    : currentDate.getFullYear() - 1;
-}
-
-// Crea un dropdown unificato per sessioni, insegnamenti o cds
+// Crea un dropdown unificato per sessioni, insegnamenti o anni accademici
 export function createDropdown(type) {
   const dropdown = document.createElement("div");
   dropdown.className = "calendar-dropdown";
@@ -53,6 +20,48 @@ export function populateInsegnamentiDropdown(
   cdsFiltro = null,
   preloadedInsegnamenti = null
 ) {
+  // Funzione helper privata per renderizzare il dropdown degli insegnamenti
+  function renderInsegnamentiDropdown(insegnamentiPerCds, dropdownElement) {
+    let dropdownHTML = "";
+
+    if (Object.keys(insegnamentiPerCds).length === 0) {
+      dropdownHTML = "<div class='dropdown-error'>Nessun insegnamento disponibile</div>";
+      dropdownElement.innerHTML = dropdownHTML;
+      return;
+    }
+
+    // Ordina i CdS per codice
+    const sortedCdsKeys = Object.keys(insegnamentiPerCds).sort((a, b) => a.localeCompare(b));
+
+    sortedCdsKeys.forEach((cdsCodice) => {
+      const cds = insegnamentiPerCds[cdsCodice];
+      if (!cds || !cds.insegnamenti || cds.insegnamenti.length === 0) return;
+
+      dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
+
+      // Ordina insegnamenti per titolo
+      const sortedInsegnamenti = cds.insegnamenti.sort((a, b) => a.titolo.localeCompare(b.titolo));
+
+      sortedInsegnamenti.forEach((ins) => {
+        const isSelected = window.InsegnamentiManager &&
+                          window.InsegnamentiManager.isSelected(ins.codice);
+
+        dropdownHTML += `
+          <div class="dropdown-item dropdown-item-indented" data-codice="${ins.codice}"
+               data-semestre="${ins.semestre || ""}" data-anno-corso="${ins.anno_corso || ""}"
+               data-cds="${cdsCodice || ''}">
+            <input type="checkbox" id="ins-${ins.codice}"
+                value="${ins.codice}"
+                ${isSelected ? "checked" : ""}>
+            <label for="ins-${ins.codice}">${ins.titolo}</label>
+          </div>
+        `;
+      });
+    });
+
+    dropdownElement.innerHTML = dropdownHTML;
+  }
+
   // Utilizziamo InsegnamentiManager se disponibile
   if (window.InsegnamentiManager) {
     const options = {};
@@ -68,7 +77,7 @@ export function populateInsegnamentiDropdown(
           if (!insegnamentiPerCds[cdsKey]) {
             insegnamentiPerCds[cdsKey] = { nome: cdsNome, insegnamenti: [] };
           }
-          // Aggiungi solo se non già presente (potrebbe esserci duplicazione se non filtrato per anno)
+          // Aggiungi solo se non già presente
           if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.codice === ins.codice)) {
              insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
           }
@@ -77,7 +86,7 @@ export function populateInsegnamentiDropdown(
       });
     };
 
-    // Se abbiamo già dati precaricati (dal caricamento iniziale), li utilizziamo
+    // Se abbiamo già dati precaricati, li utilizziamo
     if (preloadedInsegnamenti) {
       let insegnamentiPerCds = {};
       if (preloadedInsegnamenti.cds && Array.isArray(preloadedInsegnamenti.cds)) {
@@ -93,7 +102,7 @@ export function populateInsegnamentiDropdown(
              };
            }
          });
-      } else if (Array.isArray(preloadedInsegnamenti)) { // Formato piatto
+      } else if (Array.isArray(preloadedInsegnamenti)) {
          preloadedInsegnamenti.forEach((ins) => {
            const cdsKey = ins.cds_codice || 'altro';
            const cdsNome = ins.cds_nome || 'Altro';
@@ -106,68 +115,15 @@ export function populateInsegnamentiDropdown(
          });
       }
       renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
-    }
-    // Altrimenti usiamo InsegnamentiManager per caricare i dati
-    else {
+    } else {
        loadAndRender(options);
     }
     return;
   }
 
-  // Fallback se InsegnamentiManager non è disponibile (raro)
-  // ... (codice fallback omesso per brevità, dato che InsegnamentiManager è centrale) ...
-   console.warn("InsegnamentiManager non disponibile, caricamento insegnamenti fallback.");
-   dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Errore: InsegnamentiManager non trovato</div>";
-}
-
-// Funzione helper per renderizzare il dropdown degli insegnamenti
-function renderInsegnamentiDropdown(insegnamentiPerCds, dropdownElement) {
-  let dropdownHTML = "";
-
-  if (Object.keys(insegnamentiPerCds).length === 0) {
-    dropdownHTML = "<div class='dropdown-error'>Nessun insegnamento disponibile</div>";
-    dropdownElement.innerHTML = dropdownHTML;
-    return;
-  }
-
-  // Ordina i CdS per codice (o nome)
-  const sortedCdsKeys = Object.keys(insegnamentiPerCds).sort((a, b) => {
-      const cdsA = insegnamentiPerCds[a];
-      const cdsB = insegnamentiPerCds[b];
-      // Puoi ordinare per nome: return cdsA.nome.localeCompare(cdsB.nome);
-      // O per codice:
-      return a.localeCompare(b);
-  });
-
-
-  sortedCdsKeys.forEach((cdsCodice) => {
-    const cds = insegnamentiPerCds[cdsCodice];
-    if (!cds || !cds.insegnamenti || cds.insegnamenti.length === 0) return; // Salta CdS vuoti
-
-    dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
-
-    // Ordina insegnamenti per titolo
-    const sortedInsegnamenti = cds.insegnamenti.sort((a, b) => a.titolo.localeCompare(b.titolo));
-
-    sortedInsegnamenti.forEach((ins) => {
-      const isSelected = window.InsegnamentiManager &&
-                        window.InsegnamentiManager.isSelected(ins.codice);
-
-      // Assicurati che tutti i data attribute necessari siano presenti
-      dropdownHTML += `
-        <div class="dropdown-item dropdown-item-indented" data-codice="${ins.codice}"
-             data-semestre="${ins.semestre || ""}" data-anno-corso="${ins.anno_corso || ""}"
-             data-cds="${cdsCodice || ''}">
-          <input type="checkbox" id="ins-${ins.codice}"
-              value="${ins.codice}"
-              ${isSelected ? "checked" : ""}>
-          <label for="ins-${ins.codice}">${ins.titolo}</label>
-        </div>
-      `;
-    });
-  });
-
-  dropdownElement.innerHTML = dropdownHTML;
+  // Fallback se InsegnamentiManager non è disponibile
+  console.warn("InsegnamentiManager non disponibile, caricamento insegnamenti fallback.");
+  dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Errore: InsegnamentiManager non trovato</div>";
 }
 
 // Carica le date valide direttamente dal backend
@@ -187,28 +143,29 @@ export async function loadDateValide(docente, insegnamenti = null) {
       throw new Error(`HTTP error ${response.status}`);
     }
     const data = await response.json();
-    // Assicurati che restituisca un array, anche vuoto
     return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("Errore durante il caricamento delle date valide:", error);
-    return []; // Ritorna un array vuoto in caso di errore
+    return [];
   }
 }
 
 // Aggiorna il dropdown delle sessioni
 export function updateSessioniDropdown(dropdown, dates) {
   if (!dropdown) return;
-  dropdown.innerHTML = ""; // Pulisci
+  dropdown.innerHTML = "";
+  
   if (!Array.isArray(dates) || dates.length === 0) {
       dropdown.innerHTML = "<div class='dropdown-error'>Nessuna sessione definita</div>";
       return;
   }
+  
   // Aggiungi le voci di menu per ogni tipo di sessione
   for (const [start, end, nome] of dates) {
     const item = document.createElement("div");
     item.className = "dropdown-item";
-    item.dataset.data = start; // Usa la data di inizio per navigare
-    item.dataset.end = end; // Aggiungi data di fine
+    item.dataset.data = start;
+    item.dataset.end = end;
     item.textContent = nome;
     dropdown.appendChild(item);
   }
@@ -220,7 +177,7 @@ export function handleDropdownButtonClick(e, type, calendar, dropdowns, populate
   const dropdown = dropdowns[type];
   if (!dropdown) return;
 
-  // Se il dropdown è già aperto, chiudilo e termina
+  // Se il dropdown è già aperto, chiudilo
   if (dropdown.classList.contains("show")) {
     dropdown.classList.remove("show");
     dropdown.style.display = "none";
@@ -232,7 +189,7 @@ export function handleDropdownButtonClick(e, type, calendar, dropdowns, populate
   dropdown.style.top = `${rect.bottom + window.scrollY}px`;
   dropdown.style.left = `${rect.left + window.scrollX}px`;
 
-  // Chiudi *altri* dropdown aperti
+  // Chiudi altri dropdown aperti
   Object.entries(dropdowns).forEach(([key, value]) => {
     if (key !== type && value && value.classList.contains("show")) {
       value.classList.remove("show");
@@ -240,7 +197,7 @@ export function handleDropdownButtonClick(e, type, calendar, dropdowns, populate
     }
   });
 
-  // Popola se necessario (es. Anno Accademico)
+  // Popola se necessario
   if (populateCallback) {
     populateCallback();
   }
@@ -250,11 +207,9 @@ export function handleDropdownButtonClick(e, type, calendar, dropdowns, populate
   dropdown.style.display = "block";
 }
 
-// Aggiunge listener per i click *dentro* i dropdown
-export function setupDropdownClickListeners(calendar, dropdowns, currentUsername, // Rimosse dipendenze non più necessarie qui
-                                            updateDateValideCallback, // Callback per aggiornare dateValide in calendar.js
-                                            dateRange) { // Aggiunto dateRange
-    // Dropdown insegnamenti - Gestito principalmente da InsegnamentiManager.onChange in calendar.js
+// Aggiunge listener per i click dentro i dropdown
+export function setupDropdownClickListeners(calendar, dropdowns, currentUsername, updateDateValideCallback, dateRange) {
+    // Dropdown insegnamenti
     if (dropdowns.insegnamenti) {
         dropdowns.insegnamenti.addEventListener("click", (e) => {
             const item = e.target.closest(".dropdown-item, .dropdown-item-indented");
@@ -266,18 +221,17 @@ export function setupDropdownClickListeners(calendar, dropdowns, currentUsername
             if (e.target.type !== "checkbox") {
                 e.preventDefault();
                 checkbox.checked = !checkbox.checked;
-                // Simula evento change per coerenza
                 checkbox.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
-            // Aggiorna InsegnamentiManager (l'evento 'change' lo farà già)
+            // Aggiorna InsegnamentiManager
             if (window.InsegnamentiManager) {
                 const codice = item.dataset.codice;
                 const semestre = parseInt(item.dataset.semestre) || null;
                 const annoCorso = parseInt(item.dataset.annoCorso) || null;
                 const cds = item.dataset.cds || "";
 
-                // Sincronizza stato manager (necessario se il change non è stato triggerato)
+                // Sincronizza stato manager se necessario
                 if (e.target.type !== "checkbox") {
                    if (checkbox.checked) {
                        window.InsegnamentiManager.selectInsegnamento(codice, { semestre, anno_corso: annoCorso, cds });
@@ -285,8 +239,6 @@ export function setupDropdownClickListeners(calendar, dropdowns, currentUsername
                        window.InsegnamentiManager.deselectInsegnamento(codice);
                    }
                 }
-                // L'aggiornamento delle date valide e del calendario verrà gestito
-                // dall'handler InsegnamentiManager.onChange in calendar.js
             }
         });
     }
@@ -298,24 +250,7 @@ export function setupDropdownClickListeners(calendar, dropdowns, currentUsername
             if (item) {
                 const targetDate = item.dataset.data;
                 if (targetDate && calendar) {
-                    // Naviga alla data della sessione selezionata
                     calendar.gotoDate(targetDate);
-                    
-                    // Aggiorna il range del calendario per garantire 14 mesi di durata
-                    const sessionDate = new Date(targetDate);
-                    const startYear = sessionDate.getFullYear();
-                    const endYear = startYear + 1;
-                    
-                    // Il calendario inizia sempre a gennaio dell'anno della sessione
-                    // e termina a febbraio dell'anno successivo (14 mesi totali)
-                    const newValidRange = {
-                        start: `${startYear}-01-01`,
-                        end: `${endYear}-02-28`
-                    };
-                    
-                    calendar.setOption('validRange', newValidRange);
-                    calendar.setOption('duration', { months: 14 });
-                    
                     dropdowns.sessioni.classList.remove('show');
                     dropdowns.sessioni.style.display = 'none';
                 }
@@ -327,7 +262,7 @@ export function setupDropdownClickListeners(calendar, dropdowns, currentUsername
 // Listener per chiudere i dropdown cliccando fuori
 export function setupGlobalClickListeners(dropdowns) {
   document.addEventListener("click", (e) => {
-    // Se il click è su un pulsante che apre un dropdown, non fare nulla qui
+    // Se il click è su un pulsante che apre un dropdown, non fare nulla
     if (e.target.closest('.fc-button')) {
         const buttonClasses = e.target.closest('.fc-button').classList;
         if (buttonClasses.contains('fc-pulsanteInsegnamenti-button') ||
@@ -337,7 +272,7 @@ export function setupGlobalClickListeners(dropdowns) {
         }
     }
 
-    // Altrimenti, chiudi tutti i dropdown se il click è fuori da essi
+    // Chiudi tutti i dropdown se il click è fuori da essi
     Object.values(dropdowns).forEach(dropdown => {
         if (dropdown && dropdown.classList.contains('show') && !dropdown.contains(e.target)) {
             dropdown.classList.remove('show');
@@ -354,22 +289,19 @@ export function setupCloseHandlers(calendar) {
   if (closeButton) {
     closeButton.addEventListener("click", function () {
       if (popupOverlay) popupOverlay.style.display = "none";
-      // refreshCalendarOnClose(); // Decidi se fare refresh alla chiusura manuale
     });
   }
 
   if (popupOverlay) {
     popupOverlay.addEventListener("click", function (event) {
-      // Chiudi solo se si clicca sullo sfondo (overlay stesso)
       if (event.target === popupOverlay) {
         popupOverlay.style.display = "none";
-        // refreshCalendarOnClose();
       }
     });
   }
 }
 
-// Funzione per formattare una data nel formato YYYY-MM-DD per gli input di tipo date
+// Formatta una data nel formato YYYY-MM-DD per input HTML
 export function formatDateForInput(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -377,39 +309,70 @@ export function formatDateForInput(date) {
   return `${year}-${month}-${day}`;
 }
 
-// Funzione per validare una data selezionata
-export function isDateValid(selectedDate, dateValide) {
-  const selDate = new Date(selectedDate); // Assicurati che sia un oggetto Date
-  selDate.setHours(0, 0, 0, 0); // Normalizza l'ora per il confronto
+// Valida una data selezionata
+export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
+  const selDate = new Date(selectedDate);
+  selDate.setHours(0, 0, 0, 0);
 
-  let today = new Date(); // Usa la data corrente
+  let today = new Date();
   today.setHours(0, 0, 0, 0);
 
   // Controlla se la data è passata
   if (selDate < today) {
     return {
       isValid: false,
-      message: "Non è possibile inserire esami in date passate",
+      message: "Non è possibile inserire esami in date passate.",
     };
   }
 
-  // Controlla se la data è all'interno di una sessione valida
+  // Controlla se c'è già un evento provvisorio nello stesso giorno
+  if (provisionalDates && provisionalDates.length > 0) {
+    const sameDayEvent = provisionalDates.some(provDateStr => {
+      const provDate = new Date(provDateStr);
+      provDate.setHours(0, 0, 0, 0);
+      return selDate.getTime() === provDate.getTime();
+    });
+
+    if (sameDayEvent) {
+      return {
+        isValid: false,
+        message: "Non è possibile inserire due esami nello stesso giorno.",
+        isSameDayConflict: true
+      };
+    }
+
+    // Controlla vincolo dei 14 giorni con altri eventi provvisori
+    const fourteenDaysInMillis = 14 * 24 * 60 * 60 * 1000;
+    for (const provDateStr of provisionalDates) {
+      const provDate = new Date(provDateStr);
+      provDate.setHours(0, 0, 0, 0);
+      const diff = Math.abs(selDate.getTime() - provDate.getTime());
+      if (diff <= fourteenDaysInMillis && selDate.getTime() !== provDate.getTime()) {
+        return {
+          isValid: false,
+          message: "Non è possibile inserire esami a meno di 14 giorni di distanza.",
+          isProvisionalConflict: true
+        };
+      }
+    }
+  }
+
+  // Controlla se la data è in una sessione valida
   const isInSession = dateValide.some(([start, end]) => {
     const startDate = new Date(start);
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(end);
-    endDate.setHours(23, 59, 59, 999); // Includi l'intero giorno finale
+    endDate.setHours(23, 59, 59, 999);
     return selDate >= startDate && selDate <= endDate;
   });
 
   if (!isInSession) {
     return {
       isValid: false,
-      message: "Non è possibile inserire esami al di fuori delle sessioni o delle pause didattiche",
+      message: "Non è possibile inserire esami al di fuori delle sessioni valide o delle pause didattiche.",
     };
   }
 
-  // Se tutti i controlli sono superati, la data è valida
   return { isValid: true };
 }
 
@@ -434,7 +397,6 @@ export async function populateAnnoAccademicoDropdown(dropdown) {
       item.textContent = anno;
       item.dataset.anno = anno;
       item.addEventListener('click', () => {
-        console.log(`Anno accademico selezionato: ${anno}`);
         dropdown.classList.remove('show');
       });
       dropdown.appendChild(item);

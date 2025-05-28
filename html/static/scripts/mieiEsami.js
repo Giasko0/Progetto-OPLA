@@ -522,16 +522,12 @@ function formatDurata(durataMinuti) {
 function editEsame(esameId) {
   // Verificare che EsameForm esista
   if (window.EsameForm) {
-    console.log("Richiesta modifica esame con ID:", esameId);
-    
     // Carica i dettagli dell'esame e mostra il form
     fetch(`/api/getEsameById?id=${esameId}`)
       .then(response => {
-        console.log("Risposta API getEsameById status:", response.status);
         return response.json();
       })
       .then(data => {
-        console.log("Dati ricevuti da getEsameById:", data);
         if (data.success) {
           try {
             // Assicurati che InsegnamentiManager sia disponibile

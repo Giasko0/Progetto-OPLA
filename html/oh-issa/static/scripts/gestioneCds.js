@@ -151,8 +151,6 @@ function loadCdsDetails(value) {
                 return;
             }
             
-            console.log("Dati ricevuti:", data);
-            
             // Popola i campi nascosti con i dati del corso
             document.getElementById('codice').value = data.codice;
             document.getElementById('anno_accademico').value = data.anno_accademico;
