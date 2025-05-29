@@ -790,22 +790,8 @@ const EsameForm = (function() {
       .then(data => {
         if (data.status === 'success' && data.preferences) {
           userPreferences = data.preferences;
-          
           // Aggiorna il menu delle preferenze
           updatePreferencesMenu();
-          
-          // Se ci sono preferenze, carica l'ultima come predefinita
-          if (userPreferences.length > 0 && !document.getElementById("preferenceAlreadyLoaded")) {
-            applyPreference(userPreferences[0].preferences);
-            
-            // Aggiungi un marker nascosto per evitare caricamenti multipli
-            const marker = document.createElement('input');
-            marker.type = 'hidden';
-            marker.id = 'preferenceAlreadyLoaded';
-            document.getElementById('formEsame')?.appendChild(marker);
-          } else {
-            console.log("Nessuna preferenza trovata o già caricata");
-          }
         } else {
           console.error("Errore nel caricamento delle preferenze:", data.message);
         }
