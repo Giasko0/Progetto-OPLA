@@ -4,11 +4,11 @@
   "sp": {
       "entityId": "https://opla.dmi.unipg.it/",
       "assertionConsumerService": {
-          "url": "https://opla.dmi.unipg.it/saml/acs",
+          "url": "https://opla.dmi.unipg.it:5000/saml/acs",
           "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
       },
       "singleLogoutService": {
-          "url": "https://opla.dmi.unipg.it/saml/sls",
+          "url": "https://opla.dmi.unipg.it:5000/saml/sls",
           "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
       },
       "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified",
