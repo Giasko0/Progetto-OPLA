@@ -394,7 +394,9 @@ export async function populateAnnoAccademicoDropdown(dropdown) {
     anniAccademici.forEach(anno => {
       const item = document.createElement('div');
       item.className = 'dropdown-item';
-      item.textContent = anno;
+      // Converti anno singolo in formato accademico (es. "2023" -> "2023/2024")
+      const annoAccademico = `${anno}/${parseInt(anno) + 1}`;
+      item.textContent = annoAccademico;
       item.dataset.anno = anno;
       item.addEventListener('click', () => {
         dropdown.classList.remove('show');
