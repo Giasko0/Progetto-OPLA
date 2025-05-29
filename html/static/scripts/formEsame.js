@@ -1,23 +1,54 @@
 // Script per la gestione del form di inserimento esame
 const EsameForm = (function() {
-  // Variabili private
-  let isLoaded = false;
-  let isLoading = false;
+  // Verifica che FormUtils sia caricato
+  if (!window.FormUtils) {
+    throw new Error('FormUtils non è caricato. Assicurati che formUtils.js sia incluso prima di formEsame.js');
+  }
+
+  // Importa tutte le utilità da FormUtils
+  const {
+    setElementValue,
+    setRadioValue,
+    setCheckboxValue,
+    showValidationError,
+    showOperationMessage,
+    validateFormField,
+    validators,
+    getCommonValidationRules,
+    setupEventListeners: setupCommonEventListeners,
+    setDurationFromMinutes,
+    combineTimeValues: combineTimeValuesUtil,
+    saveFormPreference,
+    loadFormPreferences,
+    deleteFormPreference,
+    setFormDefaults,
+    resetForm,
+    parseTimeString,
+    formatTimeFromHourMinute,
+    isValidDate,
+    isWeekday,
+    loadAuleForDateTime,
+    populateAulaSelect,
+    checkUserPermissions,
+    createConfirmationDialog
+  } = window.FormUtils;
+
+  // Configurazione validatori e regole
+  const validaOraAppello = validators.oraAppello;
+  const validaDurataEsame = validators.durataEsame;
+  const validaGiornoSettimana = validators.giornoSettimana;
+  const formValidationRules = getCommonValidationRules();
+
   let formContainer = null;
-  let popupOverlay = null;
   let currentUsername = null;
   let userPreferences = [];
   let isEditMode = false;
   let usePreferences = true;
   let dateAppelliCounter = 0;
   let selectedDates = [];
-  
+
   // Carica il form HTML dinamicamente
   async function loadForm() {
-    if (isLoaded || isLoading) return Promise.resolve(formContainer);
-    
-    isLoading = true;
-    
     try {
       // Usa il form-container dal calendario.html
       formContainer = document.getElementById('form-container');
@@ -27,8 +58,6 @@ const EsameForm = (function() {
       
       // Se il contenuto è già stato caricato, non è necessario ricaricare
       if (formContainer.querySelector('#formEsame')) {
-        isLoaded = true;
-        isLoading = false;
         return formContainer;
       }
       
@@ -43,25 +72,23 @@ const EsameForm = (function() {
       
       // Aggiungi la classe side-form al form-container
       formContainer.classList.add('side-form');
-      formContainer.classList.add('form-content-area');        // Inizializza il listener di chiusura
-        const closeBtn = formContainer.querySelector("#closeOverlay");
-        if (closeBtn) {
-          closeBtn.removeEventListener("click", hideForm);
-          closeBtn.addEventListener("click", function(e) {
-            e.preventDefault();
-            hideForm();
-          });
-        } else {
-          console.warn("Pulsante di chiusura non trovato dopo il caricamento del form");
-        }
-        
-        isLoaded = true;
-        isLoading = false;
-        
-        return formContainer;
+      formContainer.classList.add('form-content-area');
+      
+      // Inizializza il listener di chiusura
+      const closeBtn = formContainer.querySelector("#closeOverlay");
+      if (closeBtn) {
+        closeBtn.removeEventListener("click", hideForm);
+        closeBtn.addEventListener("click", function(e) {
+          e.preventDefault();
+          hideForm();
+        });
+      } else {
+        console.warn("Pulsante di chiusura non trovato dopo il caricamento del form");
+      }
+      
+      return formContainer;
     } catch (error) {
       console.error('Errore nel caricamento del form:', error);
-      isLoading = false;
       throw error;
     }
   }
@@ -114,7 +141,7 @@ const EsameForm = (function() {
       
       // Inizializza componenti UI PRIMA di compilare il form
       initUI(data);
-      initEventListeners();
+      setupEventListeners();
       
       if (isEdit) {       
         // Compila il form con i dati dell'esame
@@ -157,73 +184,26 @@ const EsameForm = (function() {
       "posti": "100"
     };
     
-    elements.forEach(element => {
-      const name = element.name || element.id;
-      if (name && defaults[name]) element.value = defaults[name];
-    });
+    setFormDefaults(elements, defaults);
   }
   
   // Compila il form con i dati dell'esame (modalità modifica)
   function fillFormWithExamData(elements, examData) {
-    // Prima imposta i campi diretti
-    const fieldsToSet = {
-      'descrizione': examData.descrizione,
-      'dataora': examData.data_appello,
-      'inizioIscrizione': examData.data_inizio_iscrizione,
-      'fineIscrizione': examData.data_fine_iscrizione,
-      'note': examData.note_appello,
-      'posti': examData.posti,
-      'verbalizzazione': examData.verbalizzazione,
-      'tipoEsame': examData.tipo_esame,
-    };
-
-    // Imposta i valori dei campi
-    Object.entries(fieldsToSet).forEach(([id, value]) => {
-      const element = document.getElementById(id);
-      if (element && value !== undefined && value !== null) {
-        element.value = value;
-      }
-    });
+    // Imposta i campi diretti usando la funzione helper
+    setFormFields(examData);
 
     // Gestione tipo appello (radio buttons)
-    if (examData.tipo_appello === 'PP') {
-      document.getElementById('tipoAppelloPP').checked = true;
-    } else {
-      document.getElementById('tipoAppelloPF').checked = true;
-    }
+    setRadioValue('tipo_appello_radio', examData.tipo_appello === 'PP' ? 'PP' : 'PF');
     aggiornaVerbalizzazione(); // Aggiorna le opzioni di verbalizzazione
     
     // Gestione checkbox mostra_nel_calendario
-    const mostraInCalendarioCheckbox = document.getElementById('mostra_nel_calendario');
-    if (mostraInCalendarioCheckbox) {
-      // Impostiamo il checkbox basandoci sul valore dal backend
-      mostraInCalendarioCheckbox.checked = examData.mostra_nel_calendario === true || examData.mostra_nel_calendario === 'true';
-    }
+    setCheckboxValue('mostra_nel_calendario', examData.mostra_nel_calendario);
 
     // Usa handleSpecialFields per gestire ora e durata
     handleSpecialFields(examData);
 
     // Gestione insegnamento
-    if (window.InsegnamentiManager && examData.insegnamento_codice) {
-      window.InsegnamentiManager.clearSelection();
-      window.InsegnamentiManager.selectInsegnamento(examData.insegnamento_codice, {
-        semestre: examData.semestre || 1,
-        anno_corso: examData.anno_corso || 1,
-        cds: examData.cds_codice || ""
-      });
-      
-      const multiSelectBox = document.getElementById("insegnamentoBox");
-      if (multiSelectBox) {
-        const username = document.getElementById("docente")?.value;
-        if (username) {
-          window.InsegnamentiManager.loadInsegnamenti(
-            username, 
-            { filter: [examData.insegnamento_codice] }, 
-            (data) => window.InsegnamentiManager.syncUI(multiSelectBox, data)
-          );
-        }
-      }
-    }
+    handleInsegnamentoSelection(examData);
   }
   
   // Gestione campi speciali (es. data, ora) - aggiornato per sezioni modulari
@@ -236,13 +216,13 @@ const EsameForm = (function() {
     
     // Ora appello - imposta nella prima sezione disponibile
     if (data.ora_appello) {
-      const oraParts = data.ora_appello.split(':');
-      if (oraParts.length >= 2) {
+      const oraParts = parseTimeString(data.ora_appello);
+      if (oraParts && oraParts.hours) {
         const firstOraH = document.querySelector('[id^="ora_h_"]');
         const firstOraM = document.querySelector('[id^="ora_m_"]');
         
-        if (firstOraH) firstOraH.value = oraParts[0].padStart(2, '0');
-        if (firstOraM) firstOraM.value = oraParts[1].padStart(2, '0');
+        if (firstOraH) firstOraH.value = oraParts.hours.padStart(2, '0');
+        if (firstOraM) firstOraM.value = oraParts.minutes.padStart(2, '0');
         
         // Trigger update aule per la prima sezione
         const firstSectionCounter = firstOraH?.id.split('_')[2];
@@ -257,7 +237,6 @@ const EsameForm = (function() {
       setTimeout(() => {
         const firstAulaSelect = document.querySelector('[id^="aula_"]');
         if (firstAulaSelect) {
-          // Cerca l'opzione con il valore dell'aula
           const aulaOption = Array.from(firstAulaSelect.options).find(option => option.value === data.aula);
           if (aulaOption) {
             firstAulaSelect.value = data.aula;
@@ -268,28 +247,7 @@ const EsameForm = (function() {
     
     // Durata
     if (data.durata_appello) {
-      const durata = parseInt(data.durata_appello);
-      if (!isNaN(durata)) {
-        const ore = Math.floor(durata / 60);
-        const minuti = durata % 60;
-        
-        const durataH = document.getElementById("durata_h");
-        const durataM = document.getElementById("durata_m");
-        
-        if (durataH) {
-          durataH.value = ore.toString();
-        }
-        
-        if (durataM) {
-          // Forza sempre il valore dei minuti a "0" quando è un'ora tonda
-          durataM.value = minuti.toString().padStart(2, '0');
-        }
-        
-        const durataField = document.getElementById("durata");
-        if (durataField) {
-          durataField.value = durata.toString();
-        }
-      }
+      setDurationFromMinutes(data.durata_appello);
     }
     
     // Tipo appello (prova parziale)
@@ -311,57 +269,44 @@ const EsameForm = (function() {
     // Altri dati preselezionati possono essere gestiti qui
   }
   
-  // Inizializza gli ascoltatori di eventi
-  function initEventListeners() {
-    // Gestione opzioni aggiuntive
-    const pulsanteAdv = document.getElementById("buttonOpzioniAggiuntive");
-    pulsanteAdv?.addEventListener("click", toggleOpzioniAggiuntive);
+  // Funzione unificata per la gestione degli event listener
+  function setupEventListeners() {
+    const eventListeners = [
+      { id: "buttonOpzioniAggiuntive", event: "click", handler: toggleOpzioniAggiuntive },
+      { id: "formEsame", event: "submit", handler: handleFormSubmit },
+      { id: "savePreferenceBtn", event: "click", handler: toggleSavePreferenceForm },
+      { id: "loadPreferenceBtn", event: "click", handler: togglePreferencesMenu },
+      { id: "confirmSavePreference", event: "click", handler: handleSavePreference },
+      { id: "cancelSavePreference", event: "click", handler: toggleSavePreferenceForm },
+      { id: "closeOverlay", event: "click", handler: hideForm }
+    ];
+
+    eventListeners.forEach(({ id, event, handler }) => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.removeEventListener(event, handler); // Rimuovi listener esistenti
+        element.addEventListener(event, handler);
+      }
+    });
 
     // Gestione tipo appello (radio buttons)
     const tipoAppelloRadios = document.querySelectorAll('input[name="tipo_appello_radio"]');
     tipoAppelloRadios.forEach(radio => {
+      radio.removeEventListener("change", aggiornaVerbalizzazione);
       radio.addEventListener("change", aggiornaVerbalizzazione);
     });
 
-    // Gestione submit del form
-    const form = document.getElementById("formEsame");
-    form?.addEventListener("submit", handleFormSubmit);
-    
     // Gestione del pulsante bypass controlli (solo per admin)
-    const bypassChecksBtn = document.getElementById("bypassChecksBtn");
-    if (bypassChecksBtn) {
-      // Mostra solo agli admin
-      isUserAdmin().then(isAdmin => {
-        if (isAdmin) {
-          bypassChecksBtn.style.display = "block";
-          bypassChecksBtn.addEventListener("click", handleBypassChecksSubmit);
-        } else {
-          bypassChecksBtn.style.display = "none";
-        }
-      });
-    }
+    isUserAdmin().then(isAdmin => {
+      const bypassChecksBtn = document.getElementById("bypassChecksBtn");
+      if (bypassChecksBtn && isAdmin) {
+        bypassChecksBtn.style.display = "block";
+        bypassChecksBtn.removeEventListener("click", handleBypassChecksSubmit);
+        bypassChecksBtn.addEventListener("click", handleBypassChecksSubmit);
+      }
+    });
 
-    // Gestione chiusura overlay
-    const closeOverlay = document.getElementById("closeOverlay");
-    if (closeOverlay) {
-      // Rimuovi eventuali listener esistenti per evitare duplicazioni
-      closeOverlay.removeEventListener("click", hideForm);
-      // Aggiungi un nuovo listener
-      closeOverlay.addEventListener("click", function(e) {
-        e.preventDefault();
-        hideForm();
-      });
-    } else {
-      console.warn("Elemento closeOverlay non trovato");
-    }
-
-    // Aggiungi event listeners per le preferenze
-    document.getElementById("savePreferenceBtn")?.addEventListener("click", toggleSavePreferenceForm);
-    document.getElementById("loadPreferenceBtn")?.addEventListener("click", togglePreferencesMenu);
-    document.getElementById("confirmSavePreference")?.addEventListener("click", handleSavePreference);
-    document.getElementById("cancelSavePreference")?.addEventListener("click", toggleSavePreferenceForm);
-    
-    // Aggiungi event listener per combinare durata_h e durata_m
+    // Configura i gestori per combinare durata_h e durata_m
     setupTimeCombiningHandlers();
   }
   
@@ -449,6 +394,9 @@ const EsameForm = (function() {
       });
     }
 
+    // Configura gli event listeners
+    setupEventListeners();
+
     // Configura i gestori per combinare ora e durata
     setupTimeCombiningHandlers();
   }
@@ -535,20 +483,61 @@ const EsameForm = (function() {
     );
   }
 
+  // Funzione unificata per impostare i valori dei campi del form
+  function setFormFields(data) {
+    const fieldMappings = {
+      // Campi di testo semplici
+      'descrizione': data.descrizione,
+      'dataora': data.data_appello,
+      'inizioIscrizione': data.data_inizio_iscrizione,
+      'fineIscrizione': data.data_fine_iscrizione,
+      'note': data.note_appello,
+      'posti': data.posti,
+      'verbalizzazione': data.verbalizzazione,
+      'tipoEsame': data.tipo_esame,
+    };
 
+    // Imposta campi di testo
+    Object.entries(fieldMappings).forEach(([id, value]) => {
+      if (value !== undefined && value !== null) {
+        setElementValue(id, value);
+      }
+    });
 
-  // Valida l'ora dell'appello
-  function validaOraAppello(ora) {
-    if (!ora) return false;
-    const [hours, minutes] = ora.split(":").map(Number);
-    return hours >= 8 && hours <= 23;
+    // Imposta radio buttons
+    if (data.tipo_appello) {
+      setRadioValue('tipo_appello_radio', data.tipo_appello === 'PP' ? 'PP' : 'PF');
+    }
+
+    // Imposta checkbox
+    if (data.hasOwnProperty('mostra_nel_calendario')) {
+      setCheckboxValue('mostra_nel_calendario', data.mostra_nel_calendario);
+    }
   }
 
-  // Valida la durata dell'esame
-  function validaDurataEsame(durataMinuti) {
-    if (!durataMinuti) return false;
-    const durata = parseInt(durataMinuti, 10);
-    return durata >= 30 && durata <= 480; // min 30 minuti, max 8 ore (480 minuti)
+  // Funzioni helper rimosse - ora usano FormUtils
+
+  function handleInsegnamentoSelection(data) {
+    if (window.InsegnamentiManager && data.insegnamento_codice) {
+      window.InsegnamentiManager.clearSelection();
+      window.InsegnamentiManager.selectInsegnamento(data.insegnamento_codice, {
+        semestre: data.semestre || 1,
+        anno_corso: data.anno_corso || 1,
+        cds: data.cds_codice || ""
+      });
+      
+      const multiSelectBox = document.getElementById("insegnamentoBox");
+      if (multiSelectBox) {
+        const username = document.getElementById("docente")?.value;
+        if (username) {
+          window.InsegnamentiManager.loadInsegnamenti(
+            username, 
+            { filter: [data.insegnamento_codice] }, 
+            (data) => window.InsegnamentiManager.syncUI(multiSelectBox, data)
+          );
+        }
+      }
+    }
   }
 
   // Mostra il dialogo di conferma per la validazione degli esami
@@ -726,27 +715,22 @@ const EsameForm = (function() {
             // Rimuovi il dialogo
             removeDialog();
 
-            if (
-              response.status === "success" ||
-              response.status === "partial"
-            ) {
-              window.preselectedInsegnamenti = [];
-              window.InsegnamentiManager?.clearSelection();
-              window.forceCalendarRefresh?.();
+      if (
+        response.status === "success" ||
+        response.status === "partial"
+      ) {
+        cleanupAndHideForm();
 
-              const messageType = response.status === "success" ? "notification" : "warning";
-              const messageTitle = response.status === "success" ? "Operazione completata" : "Inserimento parziale";
+        const messageType = response.status === "success" ? "notification" : "warning";
+        const messageTitle = response.status === "success" ? "Operazione completata" : "Inserimento parziale";
 
-              // Usa la funzione showMessage per mostrare notifiche nella sidebar
-              if (window.showMessage) {
-                window.showMessage(response.message, messageTitle, messageType, { timeout: 5000 });
-              }
+        // Usa la funzione showMessage per mostrare notifiche nella sidebar
+        if (window.showMessage) {
+          window.showMessage(response.message, messageTitle, messageType, { timeout: 5000 });
+        }
 
-              // Aggiorna calendario
-              if (window.calendar) {
-                window.calendar.refetchEvents();
-                hideForm();
-              }
+        // Aggiorna calendario
+        hideForm();
 
               // Se ci sono errori specifici in caso di inserimento parziale
               if (response.status === "partial" && response.errors) {
@@ -795,21 +779,14 @@ const EsameForm = (function() {
   // Carica le preferenze dell'utente
   function loadUserPreferences() {
     if (!currentUsername) {
-      // Ottieni l'username dal campo nascosto
       currentUsername = document.getElementById("docente")?.value;
       if (!currentUsername) {
         console.error("Username non trovato, impossibile caricare le preferenze");
         return;
       }
     }
-        
-    fetch(`/api/getPreferenzeForm?username=${encodeURIComponent(currentUsername)}&form_type=esame`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Errore nella risposta del server: ${response.status}`);
-        }
-        return response.json();
-      })
+    
+    loadFormPreferences(currentUsername, 'esame')
       .then(data => {
         if (data.status === 'success' && data.preferences) {
           userPreferences = data.preferences;
@@ -843,7 +820,7 @@ const EsameForm = (function() {
     if (!currentUsername) {
       currentUsername = document.getElementById("docente")?.value;
       if (!currentUsername) {
-        window.showMessage("Errore: nessun utente identificato", "Errore", "error");
+        showValidationError("Errore: nessun utente identificato");
         return;
       }
     }
@@ -892,34 +869,19 @@ const EsameForm = (function() {
       note: document.getElementById("note")?.value
     };
     
-    // Invia i dati al server
-    fetch('/api/salvaPreferienzaForm', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username: currentUsername,
-        form_type: 'esame',
-        name: preferenceName,
-        preferences: preferences
+    saveFormPreference(currentUsername, 'esame', preferenceName, preferences)
+      .then(data => {
+        if (data.status === 'success') {
+          showOperationMessage(data.message, "Preferenze salvate", "notification");
+          loadUserPreferences();
+        } else {
+          showValidationError(data.message);
+        }
       })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.status === 'success') {
-        window.showMessage(data.message, "Preferenze salvate", "notification");
-        
-        // Ricarica le preferenze
-        loadUserPreferences();
-      } else {
-        window.showMessage(data.message, "Errore", "error");
-      }
-    })
-    .catch(error => {
-      console.error('Errore nel salvataggio delle preferenze:', error);
-      window.showMessage("Errore nel salvataggio delle preferenze", "Errore", "error");
-    });
+      .catch(error => {
+        console.error('Errore nel salvataggio delle preferenze:', error);
+        showValidationError("Errore nel salvataggio delle preferenze");
+      });
   }
   
   // Applica una preferenza
@@ -1002,7 +964,7 @@ const EsameForm = (function() {
     
     // Imposta durata
     if (preference.durata) {
-      impostaDurataFromMinuti(preference.durata);
+      setDurationFromMinutes(preference.durata);
     }
     
     // Imposta posti
@@ -1042,36 +1004,7 @@ const EsameForm = (function() {
   }
 
   // Funzione per impostare la durata negli elementi di interfaccia a partire dai minuti
-  function impostaDurataFromMinuti(durataMinuti) {
-    const durata = parseInt(durataMinuti, 10);
-    if (!isNaN(durata)) {
-      const ore = Math.floor(durata / 60);
-      const minuti = durata % 60;
-      
-      const durata_h = document.getElementById("durata_h");
-      const durata_m = document.getElementById("durata_m");
-      
-      if (durata_h) {
-        durata_h.value = ore.toString();
-      }
-      
-      if (durata_m) {
-        // Usa sempre "0" come valore quando i minuti sono 0
-        durata_m.value = "0";
-        
-        // Se ci sono minuti diversi da zero, usa il valore corretto
-        if (minuti > 0) {
-          durata_m.value = minuti.toString();
-        }
-      }
-      
-      // Aggiorniamo anche il campo nascosto
-      const durataHidden = document.getElementById("durata");
-      if (durataHidden) {
-        durataHidden.value = durata.toString();
-      }
-    }
-  }
+  // Rimossa funzione duplicata - usa setDurationFromMinutes
 
   // Aggiorna il menu delle preferenze
   function updatePreferencesMenu() {
@@ -1120,31 +1053,19 @@ const EsameForm = (function() {
   function deletePreference(id) {
     if (!confirm("Sei sicuro di voler eliminare questa preferenza?")) return;
     
-    fetch('/api/eliminaPreferenzaForm', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username: currentUsername,
-        id: id
+    deleteFormPreference(currentUsername, id)
+      .then(data => {
+        if (data.status === 'success') {
+          showOperationMessage(data.message, "Preferenze", "notification");
+          loadUserPreferences();
+        } else {
+          showValidationError(data.message);
+        }
       })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.status === 'success') {
-        window.showMessage(data.message, "Preferenze", "notification");
-        
-        // Ricarica le preferenze
-        loadUserPreferences();
-      } else {
-        window.showMessage(data.message, "Errore", "error");
-      }
-    })
-    .catch(error => {
-      console.error('Errore nell\'eliminazione della preferenza:', error);
-      window.showMessage("Errore nell'eliminazione della preferenza", "Errore", "error");
-    });
+      .catch(error => {
+        console.error('Errore nell\'eliminazione della preferenza:', error);
+        showValidationError("Errore nell'eliminazione della preferenza");
+      });
   }
   
   // Mostra/nasconde il form per salvare le preferenze
@@ -1240,32 +1161,13 @@ const EsameForm = (function() {
   
   // Combina i valori di ora e durata
   function combineTimeValues() {
-    // Combina ora_h e ora_m in ora (formato HH:MM)
-    const ora_h = document.getElementById('ora_h')?.value;
-    const ora_m = document.getElementById('ora_m')?.value;
-    if (ora_h && ora_m) {
-      const oraField = document.getElementById('ora');
-      if (oraField) oraField.value = `${ora_h}:${ora_m}`;
-    }
-    
-    // Converte durata_h e durata_m in durata totale in minuti
-    const durata_h = parseInt(document.getElementById('durata_h')?.value) || 0;
-    const durata_m = parseInt(document.getElementById('durata_m')?.value) || 0;
-    const durata_totale = (durata_h * 60) + durata_m;
-    
-    const durataField = document.getElementById('durata');
-    if (durataField) durataField.value = durata_totale.toString();
+    combineTimeValuesUtil();
   }
   
   // Controlla se l'utente è un amministratore
   async function isUserAdmin() {
-    try {
-      const data = await getUserData();
-      return data.authenticated && data.user_data && data.user_data.permessi_admin;
-    } catch (error) {
-      console.error("Errore nel controllo dei permessi admin:", error);
-      return false;
-    }
+    const permissions = await checkUserPermissions();
+    return permissions.isAdmin;
   }
 
   // Configura i pulsanti del form
@@ -1540,14 +1442,12 @@ const EsameForm = (function() {
           );
         }
         
-        // Reset del form dopo successo
-        setTimeout(() => {
-          if (document.getElementById('formEsame')) {
-            document.getElementById('formEsame').reset();
-            // Ricarica eventuali select dinamiche
-            location.reload();
-          }
-        }, 2000);
+        // Reset del form e pulisci eventi provvisori
+        document.getElementById('formEsame').reset();
+        cleanupAndHideForm();
+        
+        window.forceCalendarRefresh();
+        hideForm();
         
       } else if (data.status === 'validation') {
         // Mostra popup di conferma
@@ -1590,11 +1490,7 @@ const EsameForm = (function() {
   function handleBypassChecksSubmit() {
     isUserAdmin().then(isAdmin => {
       if (!isAdmin) {
-        window.showMessage(
-          "Solo gli amministratori possono utilizzare questa funzione",
-          "Accesso negato",
-          "error"
-        );
+        showValidationError("Solo gli amministratori possono utilizzare questa funzione");
         return;
       }
       
@@ -1605,12 +1501,6 @@ const EsameForm = (function() {
     });
   }
 
-  // Valida il giorno della settimana
-  function validaGiornoSettimana(data) {
-    const giorno = new Date(data).getDay();
-    return giorno !== 0 && giorno !== 6; // 0 = domenica, 6 = sabato
-  }
-
   // Gestisce l'invio standard del form
   function handleFormSubmit(e) {
     e.preventDefault();
@@ -1618,55 +1508,49 @@ const EsameForm = (function() {
     // Combina ora e durata
     combineTimeValues();
 
-    // Validazione per la prima sezione di date
-    const firstDateInput = document.querySelector('[id^="dataora_"]');
-    if (firstDateInput) {
-      const dataAppello = firstDateInput.value;
-      if (!validaGiornoSettimana(dataAppello)) {
-        window.showMessage(
-          "Non è possibile inserire esami di sabato o domenica",
-          "Errore di validazione",
-          "error"
-        );
+    // Validazione usando le regole unificate
+    const validationResults = {
+      giorno_settimana: validateFormField('giorno_settimana', getFirstDateValue(), formValidationRules),
+      ora_appello: validateFormField('ora_appello', getFirstTimeValue(), formValidationRules),
+      durata_esame: validateFormField('durata_esame', getDurationValue(), formValidationRules)
+    };
+
+    // Controlla se ci sono errori di validazione
+    for (const [field, result] of Object.entries(validationResults)) {
+      if (!result.isValid) {
+        showValidationError(result.message);
         return;
       }
     }
 
-    const firstOraH = document.querySelector('[id^="ora_h_"]');
-    const firstOraM = document.querySelector('[id^="ora_m_"]');
-    if (firstOraH && firstOraM) {
-      const oraAppello = `${firstOraH.value}:${firstOraM.value}`;
-      if (!validaOraAppello(oraAppello)) {
-        window.showMessage(
-          "L'ora dell'appello deve essere compresa tra le 08:00 e le 23:00",
-          "Errore di validazione",
-          "error"
-        );
-        return;
-      }
-    }
-
+    // Validazione aula
     const firstAulaSelect = document.querySelector('[id^="aula_"]');
     if (firstAulaSelect && !firstAulaSelect.value) {
-      window.showMessage(
-        "Seleziona un'aula disponibile",
-        "Errore di validazione",
-        "error"
-      );
-      return;
-    }
-
-    const durataEsame = document.getElementById("durata")?.value;
-    if (!validaDurataEsame(durataEsame)) {
-      window.showMessage(
-        "La durata dell'esame deve essere di almeno 30 minuti e non superiore a 480 minuti (8 ore)",
-        "Errore di validazione",
-        "error"
-      );
+      showValidationError("Seleziona un'aula disponibile");
       return;
     }
 
     submitFormData();
+  }
+
+  // Helper functions per la validazione
+  function getFirstDateValue() {
+    const firstDateInput = document.querySelector('[id^="dataora_"]');
+    return firstDateInput ? firstDateInput.value : null;
+  }
+
+  function getFirstTimeValue() {
+    const firstOraH = document.querySelector('[id^="ora_h_"]');
+    const firstOraM = document.querySelector('[id^="ora_m_"]');
+    if (firstOraH && firstOraM && firstOraH.value && firstOraM.value) {
+      return `${firstOraH.value}:${firstOraM.value}`;
+    }
+    return null;
+  }
+
+  function getDurationValue() {
+    const durataField = document.getElementById("durata");
+    return durataField ? durataField.value : null;
   }
 
   // Aggiorna i campi dinamici del form
@@ -1735,6 +1619,26 @@ const EsameForm = (function() {
     } else {
       console.warn('formContainer non trovato durante la chiusura del form');
     }
+  }
+
+  // Funzione helper per gestire la chiusura di overlay e pulizia
+  function cleanupAndHideForm() {
+    // Pulisci eventi provvisori
+    if (window.clearCalendarProvisionalEvents) {
+      window.clearCalendarProvisionalEvents();
+    }
+    selectedDates = [];
+    
+    // Ricarica le date valide per rimuovere i "dintorni" degli eventi provvisori
+    if (currentUsername && window.loadDateValide) {
+      window.loadDateValide(currentUsername).then(newDates => {
+        dateValide = newDates;
+      }).catch(error => {
+        console.error('Errore nel ricaricare le date valide:', error);
+      });
+    }
+    
+    window.forceCalendarRefresh();
   }
 
   // Gestione sezioni modulari per date e appelli
@@ -1964,35 +1868,11 @@ const EsameForm = (function() {
     
     aulaSelect.innerHTML = '<option value="" disabled selected hidden>Caricamento aule in corso...</option>';
     
-    const ora = `${ora_hValue}:${ora_mValue}`;
     const periodo = parseInt(ora_hValue) >= 14 ? 1 : 0;
     
-    fetch(`/api/getAule?data=${data}&periodo=${periodo}`)
-      .then(response => response.ok ? response.json() : Promise.reject(`HTTP ${response.status}`))
+    loadAuleForDateTime(data, periodo)
       .then(aule => {
-        aulaSelect.innerHTML = '<option value="" disabled selected hidden>Scegli l\'aula</option>';
-        
-        const studioDocenteNome = "Studio docente DMI";
-        let studioDocentePresente = aule.some(aula => aula.nome === studioDocenteNome);
-        
-        if (!studioDocentePresente) {
-          aule.push({ nome: studioDocenteNome });
-          aule.sort((a, b) => a.nome.localeCompare(b.nome));
-        }
-        
-        aule.forEach(aula => {
-          const option = document.createElement("option");
-          option.value = aula.nome;
-          option.textContent = aula.nome === studioDocenteNome 
-            ? aula.nome 
-            : `${aula.nome} (${aula.posti} posti)`;
-          
-          if (aula.nome === studioDocenteNome && aule.length === 1) {
-            option.selected = true;
-          }
-          
-          aulaSelect.appendChild(option);
-        });
+        populateAulaSelect(aulaSelect, aule, true);
         
         // Aggiungi listener per aggiornare l'evento provvisorio quando cambia l'aula
         aulaSelect.addEventListener('change', function() {
@@ -2040,7 +1920,6 @@ const EsameForm = (function() {
     loadForm,
     showForm,
     hideForm,
-    isFormLoaded: () => isLoaded,
     loadPreferences: loadUserPreferences,
     applyPreference,
     combineTimeValues,
@@ -2056,11 +1935,9 @@ const EsameForm = (function() {
     isProvisionalEventExistsForDate
   };
 }());
-
-// Esportazione globale
 window.EsameForm = EsameForm;
 
-// Rendi disponibili le funzioni per la gestione delle sezioni date
+// Funzioni globali per la gestione delle sezioni date
 window.removeDateSection = function(sectionId) {
   const section = document.getElementById(sectionId);
   if (!section) {
