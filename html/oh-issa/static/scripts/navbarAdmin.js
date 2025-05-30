@@ -1,3 +1,33 @@
+
+// Funzione per ottenere i dati utente
+async function getUserData() {
+  // Controlla prima la cache
+  const userData = sessionStorage.getItem('userData');
+  if (userData) {
+    try {
+      return { authenticated: true, user_data: JSON.parse(userData) };
+    } catch (e) {
+      sessionStorage.removeItem('userData');
+    }
+  }
+  
+  // Se non c'è cache, fai la chiamata API
+  try {
+    const response = await fetch('/api/get_user_data');
+    const data = await response.json();
+    
+    // Salva in cache se autenticato
+    if (data.authenticated && data.user_data) {
+      sessionStorage.setItem('userData', JSON.stringify(data.user_data));
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Errore nel recupero dei dati utente:', error);
+    return { authenticated: false, user_data: null };
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   // Trova il div con id 'navbar'
   const navbarContainer = document.getElementById('navbar');

@@ -109,19 +109,62 @@ document.addEventListener("DOMContentLoaded", function () {
             "OH-ISSA <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>admin_panel_settings</span>";
           navlinksDiv.appendChild(ohIssaLink);
         }
+
+        // Caching dei dati in sessionStorage se l'utente è autenticato
+        if (data.authenticated && data.user_data) {
+          sessionStorage.setItem('userData', JSON.stringify(data.user_data));
+        }
+
+        // Imposta active status sui link della navbar dopo che sono stati aggiunti
+        setActiveNavLink();
+
+        // Chiudi il menu quando si clicca su un link (solo su mobile)
+        const navLinks = navlinksDiv.querySelectorAll("a");
+        navLinks.forEach((link) => {
+          link.addEventListener("click", () => {
+            if (window.innerWidth <= 768) {
+              navlinksDiv.classList.remove("open");
+            }
+          });
+        });
       })
       .catch((error) => {
         console.error("Errore nel controllo dell'autenticazione:", error);
       });
-
-    // Chiudi il menu quando si clicca su un link (solo su mobile)
-    const navLinks = navlinksDiv.querySelectorAll("a");
-    navLinks.forEach((link) => {
-      link.addEventListener("click", () => {
-        if (window.innerWidth <= 768) {
-          navlinksDiv.classList.remove("open");
-        }
-      });
-    });
   }
 });
+
+// Funzione per impostare lo stato active sulla navbar principale
+function setActiveNavLink() {
+  // Ottieni il path corrente
+  const currentPath = window.location.pathname;
+  const currentPage = currentPath.split('/').pop() || 'index.html';
+  
+  // Trova tutti i link nella navbar
+  const navLinks = document.querySelectorAll('.navlinks a');
+  
+  // Rimuovi prima la classe active da tutti i link
+  navLinks.forEach(link => {
+    link.classList.remove('active');
+  });
+  
+  // Imposta la classe active sul link corrispondente
+  navLinks.forEach(link => {
+    const linkHref = link.getAttribute('href');
+    
+    if (linkHref) {
+      // Rimuovi parametri di query e fragment
+      const linkPage = linkHref.split('?')[0].split('#')[0].split('/').pop();
+      
+      // Verifica il caso speciale della homepage
+      if ((linkPage === 'index.html' || linkHref === '/') && 
+          (currentPage === 'index.html' || currentPage === '' || currentPath === '/')) {
+        link.classList.add('active');
+      }
+      // Per altri link, verifica la corrispondenza diretta
+      else if (linkPage === currentPage) {
+        link.classList.add('active');
+      }
+    }
+  });
+}
