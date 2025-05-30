@@ -194,7 +194,7 @@ function displayTabelleEsami(data, insegnamento, container) {
       const actionCell = row.insertCell(7);
       actionCell.className = "esami-td esami-td-actions";
       const modifyButton = document.createElement("button");
-      modifyButton.className = "invia";
+      modifyButton.className = "form-button";
       modifyButton.textContent = "Modifica";
       modifyButton.setAttribute("data-id", esame.id);
       modifyButton.onclick = function() {
@@ -408,7 +408,7 @@ function displayAllExams(data, container) {
     const actionCell = row.insertCell(7);
     actionCell.className = "esami-td esami-td-actions";
     const modifyButton = document.createElement("button");
-    modifyButton.className = "invia";
+    modifyButton.className = "form-button";
     modifyButton.textContent = "Modifica";
     modifyButton.setAttribute("data-id", esame.id);
     modifyButton.onclick = function() {
