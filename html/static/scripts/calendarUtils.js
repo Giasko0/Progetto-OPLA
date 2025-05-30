@@ -526,10 +526,88 @@ export function aggiornaAulaEventoProvvisorio(date, aula, calendar, provisionalE
   return true;
 }
 
+// Scrolla alla prima data valida disponibile
+export function scrollToPrimaDataValida(dateValide) {
+  if (!Array.isArray(dateValide) || dateValide.length === 0) {
+    console.log('Nessuna data valida disponibile per lo scroll');
+    return;
+  }
+
+  // Trova la prima data valida
+  let primaDataValida = null;
+  const oggi = new Date();
+  oggi.setHours(0, 0, 0, 0);
+
+  for (const [start, end, nome] of dateValide) {
+    const dataInizio = new Date(start);
+    dataInizio.setHours(0, 0, 0, 0);
+    
+    // Se la data di inizio è oggi o nel futuro
+    if (dataInizio >= oggi) {
+      primaDataValida = dataInizio;
+      break;
+    }
+    
+    // Se siamo dentro una sessione attiva
+    const dataFine = new Date(end);
+    dataFine.setHours(23, 59, 59, 999);
+    if (oggi >= dataInizio && oggi <= dataFine) {
+      primaDataValida = oggi;
+      break;
+    }
+  }
+
+  if (!primaDataValida) {
+    console.log('Nessuna data valida futura trovata');
+    return;
+  }
+
+  console.log('Scrolling alla prima data valida:', primaDataValida);
+
+  // Cerca di scrollare alla data nel calendario
+  const targetYear = primaDataValida.getFullYear();
+  const targetMonth = primaDataValida.getMonth() + 1; // 1-based
+  const targetDay = primaDataValida.getDate();
+
+  // Prova diversi selettori per trovare l'elemento della data
+  const possibleSelectors = [
+    // Selezione per giorno specifico
+    `[data-date="${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}"]`,
+    // Selezione per mese
+    `[data-date*="${targetYear}-${String(targetMonth).padStart(2, '0')}"]`,
+    // Selezione per mese multimonth
+    `.fc-multimonth-month[data-date*="${targetYear}-${String(targetMonth).padStart(2, '0')}"]`,
+    // Selezione per anno
+    `[data-date*="${targetYear}"]`
+  ];
+
+  let elementToScroll = null;
+  
+  for (const selector of possibleSelectors) {
+    const elements = document.querySelectorAll(selector);
+    if (elements.length > 0) {
+      elementToScroll = elements[0];
+      break;
+    }
+  }
+
+  if (elementToScroll) {
+    elementToScroll.scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'start',
+      inline: 'nearest'
+    });
+    console.log('Scroll effettuato verso:', elementToScroll);
+  } else {
+    console.log('Elemento della data non trovato nel DOM per lo scroll');
+  }
+}
+
 // Esporta le funzioni nel namespace globale per compatibilità
 if (typeof window !== 'undefined') {
   window.formatDateForInput = formatDateForInput;
   window.isDateValid = isDateValid;
   window.creaEventoProvvisorio = creaEventoProvvisorio;
   window.aggiornaAulaEventoProvvisorio = aggiornaAulaEventoProvvisorio;
+  window.scrollToPrimaDataValida = scrollToPrimaDataValida;
 }

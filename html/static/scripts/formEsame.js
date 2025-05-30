@@ -106,6 +106,7 @@ const EsameForm = (function() {
       }
       
       // Mostra il form container e il calendario
+      formContainer.style.display = 'block';
       formContainer.classList.add('active');
       const calendar = document.getElementById('calendar');
       if (calendar) {
@@ -701,7 +702,7 @@ const EsameForm = (function() {
         }
 
         // Aggiorna calendario
-        hideForm();
+        hideForm(true);
 
               // Se ci sono errori specifici in caso di inserimento parziale
               if (response.status === "partial" && response.errors) {
@@ -1262,7 +1263,7 @@ const EsameForm = (function() {
     }
 
     // Chiudi il form
-    hideForm();
+    hideForm(true);
     
     // Mostra messaggio di conferma
     if (window.showMessage) {
@@ -1403,7 +1404,7 @@ const EsameForm = (function() {
         cleanupAndHideForm();
         
         window.forceCalendarRefresh();
-        hideForm();
+        hideForm(true);
         
       } else if (data.status === 'validation') {
         // Mostra popup di conferma
@@ -1553,41 +1554,47 @@ const EsameForm = (function() {
   }
 
   // Nasconde il form e pulisce gli handler degli eventi
-  function hideForm() {
+  function hideForm(cleanupProvisional = false) {
     if (formContainer) {
       // Rimuovi la classe active per animare la chiusura
       formContainer.classList.remove('active');
-      formContainer.classList.remove('form-content-area'); // Rimuovi la classe specifica del form
+      formContainer.classList.remove('form-content-area');
+      
+      // Nascondi completamente il form container dopo la transizione
+      setTimeout(() => {formContainer.style.display = 'none';}, 300);
       
       // Ripristina il calendario a larghezza piena
-      const calendarEl = document.getElementById('calendar'); // Rinominato per evitare conflitto
+      const calendarEl = document.getElementById('calendar');
       if (calendarEl) {
         calendarEl.classList.remove('form-visible');
       }
       
-      try {
-        // Resetta il dropdown
-        const dropdown = document.getElementById('insegnamentoDropdown');
-        if (dropdown) {
-          dropdown.style.display = 'none';
-        }
-        
-        // Pulisci gli event listener per evitare duplicazioni
-        if (window.InsegnamentiManager && window.InsegnamentiManager.cleanup) {
-          window.InsegnamentiManager.cleanup();
-        }
+      // Pulisci gli eventi provvisori solo se richiesto esplicitamente
+      if (cleanupProvisional) {
+        try {
+          // Resetta il dropdown
+          const dropdown = document.getElementById('insegnamentoDropdown');
+          if (dropdown) {
+            dropdown.style.display = 'none';
+          }
+          
+          // Pulisci gli event listener per evitare duplicazioni
+          if (window.InsegnamentiManager && window.InsegnamentiManager.cleanup) {
+            window.InsegnamentiManager.cleanup();
+          }
 
-        // Pulisci gli eventi provvisori dal calendario quando il form viene chiuso
-        if (window.clearCalendarProvisionalEvents) {
-          window.clearCalendarProvisionalEvents();
+          // Pulisci gli eventi provvisori dal calendario quando il form viene chiuso
+          if (window.clearCalendarProvisionalEvents) {
+            window.clearCalendarProvisionalEvents();
+          }
+                  
+          // Se esiste una funzione di callback nel calendario, richiamiamo il refresh
+          if (window.forceCalendarRefresh) {
+            window.forceCalendarRefresh();
+          }
+        } catch (error) {
+          console.error('Errore durante la pulizia del form:', error);
         }
-                
-        // Se esiste una funzione di callback nel calendario, richiamiamo il refresh
-        if (window.forceCalendarRefresh) {
-          window.forceCalendarRefresh();
-        }
-      } catch (error) {
-        console.error('Errore durante la chiusura del form:', error);
       }
     } else {
       console.warn('formContainer non trovato durante la chiusura del form');

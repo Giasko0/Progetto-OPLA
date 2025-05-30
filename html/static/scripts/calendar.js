@@ -11,7 +11,8 @@ import {
   setupCloseHandlers,
   populateAnnoAccademicoDropdown,
   creaEventoProvvisorio,
-  aggiornaAulaEventoProvvisorio
+  aggiornaAulaEventoProvvisorio,
+  scrollToPrimaDataValida
 } from "./calendarUtils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -358,6 +359,11 @@ document.addEventListener("DOMContentLoaded", function () {
         setupGlobalClickListeners(dropdowns);
         calendar.render();
         window.calendar = calendar;
+
+        // Scrolla alla prima data valida dopo il rendering del calendario
+        setTimeout(() => {
+          scrollToPrimaDataValida(dateValide);
+        }, 500);
 
         if (window.InsegnamentiManager) {
           let debounceTimer;
