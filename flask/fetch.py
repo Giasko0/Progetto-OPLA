@@ -241,10 +241,13 @@ def getEsami():
                 'start': f"{row['data_appello'].isoformat()}T{row['ora_appello']}" if row['ora_appello'] else row['data_appello'].isoformat(),
                 'description': row['descrizione'],
                 'allDay': False,
-                'docente': row['docente'],
-                'docenteNome': row['docente_nome'],
-                'insegnamentoDocente': esame_del_docente,
-                'tipo_appello': row['tipo_appello']
+                'extendedProps': {
+                    'docente': row['docente'],
+                    'docenteNome': row['docente_nome'],
+                    'insegnamento': row['insegnamento'],
+                    'insegnamentoDocente': esame_del_docente,
+                    'tipo_appello': row['tipo_appello']
+                }
             })
         
         return jsonify(exams)

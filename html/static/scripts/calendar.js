@@ -166,7 +166,20 @@ document.addEventListener("DOMContentLoaded", function () {
             fetch(`/api/getEsami?${params.toString()}`)
               .then(response => response.ok ? response.json() : Promise.reject(`HTTP ${response.status}`))
               .then(events => {
-                const validEvents = (events || []).filter(ev => ev && ev.start);
+                const validEvents = (events || []).filter(ev => ev && ev.start).map(event => {
+                  // Se l'esame non è del docente autenticato, applica stile giallo
+                  if (event.extendedProps?.insegnamentoDocente === false) {
+                    return {
+                      ...event,
+                      backgroundColor: '#FFD700',
+                      borderColor: '#FFD700',
+                      textColor: '#000000'
+                    };
+                  }
+                  
+                  // Altrimenti mantieni lo stile normale
+                  return event;
+                });
                 eventsCache = validEvents;
                 lastFetchTime = currentTime;
                 successCallback(validEvents);
