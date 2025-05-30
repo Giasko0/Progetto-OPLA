@@ -276,8 +276,21 @@ export function setupGlobalClickListeners(dropdowns) {
     Object.values(dropdowns).forEach(dropdown => {
         if (dropdown && dropdown.classList.contains('show') && !dropdown.contains(e.target)) {
             dropdown.classList.remove('show');
+            dropdown.style.display = 'none';
         }
     });
+  });
+
+  // Listener per chiudere dropdown con il tasto Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      Object.values(dropdowns).forEach(dropdown => {
+        if (dropdown && dropdown.classList.contains('show')) {
+          dropdown.classList.remove('show');
+          dropdown.style.display = 'none';
+        }
+      });
+    }
   });
 }
 
