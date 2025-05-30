@@ -156,6 +156,16 @@ const InsegnamentiManager = (function () {
           
           // Piattifica gli insegnamenti per compatibilità
           insegnamentiCache = flattenInsegnamenti(data.cds);
+        } else if (data.insegnamenti && Array.isArray(data.insegnamenti)) {
+          // Formato legacy per docenti non admin
+          insegnamentiCache = data.insegnamenti.map(ins => ({
+            codice: ins.codice,
+            titolo: ins.titolo,
+            semestre: 1, // default
+            anno_corso: 1, // default
+            cds_codice: '',
+            cds_nome: ''
+          }));
         } else if (Array.isArray(data)) {
           // Formato piatto (legacy)
           insegnamentiCache = data;

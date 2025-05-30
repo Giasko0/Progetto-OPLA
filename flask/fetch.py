@@ -496,13 +496,13 @@ def get_insegnamenti_docente():
         return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 403
     
     try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
         if is_admin_user:
-            # Admin può accedere a tutti gli insegnamenti
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
+            # Admin può accedere a tutti gli insegnamenti - formato gerarchico
             cursor.execute("""
-                SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum
+                SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum, ic.semestre, ic.anno_corso
                 FROM insegnamenti i
                 JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
                 JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
@@ -515,7 +515,7 @@ def get_insegnamenti_docente():
             # Organizza gli insegnamenti per CdS
             cds_dict = {}
             for row in result:
-                ins_id, codice, titolo, cds_code, nome_corso, curriculum = row
+                ins_id, codice, titolo, cds_code, nome_corso, curriculum, semestre, anno_corso = row
                 cds_key = f"{cds_code}_{curriculum}"
                 
                 if cds_key not in cds_dict:
@@ -529,7 +529,9 @@ def get_insegnamenti_docente():
                 cds_dict[cds_key]["insegnamenti"].append({
                     "id": ins_id,
                     "codice": codice,
-                    "titolo": titolo
+                    "titolo": titolo,
+                    "semestre": semestre,
+                    "anno_corso": anno_corso
                 })
             
             cds_list = list(cds_dict.values())
@@ -539,22 +541,51 @@ def get_insegnamenti_docente():
                 "cds": cds_list
             })
         else:
-            # Usa la funzione di utilità per ottenere gli insegnamenti del docente
-            insegnamenti_dict = ottieni_insegnamenti_docente(docente, anno_accademico)
+            # Per docenti normali - formato gerarchico con i loro insegnamenti
+            cursor.execute("""
+                SELECT DISTINCT 
+                    i.id, i.codice, i.titolo, 
+                    ic.cds, c.nome_corso, ic.curriculum,
+                    ic.semestre, ic.anno_corso
+                FROM insegnamenti i
+                JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
+                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
+                JOIN insegnamento_docente id ON i.id = id.insegnamento
+                WHERE ic.anno_accademico = %s
+                AND id.annoaccademico = %s
+                AND id.docente = %s
+                ORDER BY ic.cds, i.codice
+            """, (anno_accademico, anno_accademico, docente))
             
-            # Converte in formato array per l'API
-            insegnamenti_list = [
-                {
-                    'id': ins_id,
-                    'codice': data['codice'],
-                    'titolo': data['titolo']
-                }
-                for ins_id, data in insegnamenti_dict.items()
-            ]
+            result = cursor.fetchall()
+            
+            # Organizza gli insegnamenti per CdS
+            cds_dict = {}
+            for row in result:
+                ins_id, codice, titolo, cds_code, nome_corso, curriculum, semestre, anno_corso = row
+                cds_key = f"{cds_code}_{curriculum}"
+                
+                if cds_key not in cds_dict:
+                    cds_dict[cds_key] = {
+                        "codice": cds_code,
+                        "nome": nome_corso,
+                        "curriculum": curriculum,
+                        "insegnamenti": []
+                    }
+                
+                cds_dict[cds_key]["insegnamenti"].append({
+                    "id": ins_id,
+                    "codice": codice,
+                    "titolo": titolo,
+                    "semestre": semestre,
+                    "anno_corso": anno_corso
+                })
+            
+            cds_list = list(cds_dict.values())
             
             return jsonify({
-                'status': 'success',
-                'insegnamenti': insegnamenti_list
+                "status": "success",
+                "cds": cds_list
             })
     
     except Exception as e:
