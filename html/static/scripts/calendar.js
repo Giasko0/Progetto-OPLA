@@ -324,9 +324,8 @@ document.addEventListener("DOMContentLoaded", function () {
               htmlContent += `<div class="fc-event-time fc-sticky">${timeString}</div>`;
             }
             
-            // Seconda riga: Materia/Insegnamento
-            const materia = arg.event.extendedProps.insegnamento || arg.event.title || 'Materia non specificata';
-            htmlContent += `<div class="fc-event-title">${materia}</div>`;
+            // Seconda riga: Titolo dell'insegnamento
+            htmlContent += `<div class="fc-event-title">${arg.event.title}</div>`;
             
             // Terza riga: Docente (nome e cognome)
             const docenteDisplay = arg.event.extendedProps.docenteNome || 'Docente non specificato';
@@ -363,6 +362,21 @@ document.addEventListener("DOMContentLoaded", function () {
         setupGlobalClickListeners(dropdowns);
         calendar.render();
         window.calendar = calendar;
+
+        // Aggiungi listener per i pulsanti di cambio vista
+        setTimeout(() => {
+          const viewButtons = document.querySelectorAll('.fc-multiMonthList-button, .fc-multiMonthGrid-button, .fc-listaEventi-button');
+          viewButtons.forEach(button => {
+            button.addEventListener('click', () => {
+              setTimeout(() => {
+                // Forza il refresh degli eventi per aggiornare il rendering
+                eventsCache = [];
+                lastFetchTime = 0;
+                calendar.refetchEvents();
+              }, 100);
+            });
+          });
+        }, 500);
 
         if (window.InsegnamentiManager) {
           let debounceTimer;
