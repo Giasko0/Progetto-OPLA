@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
  * Carica gli anni accademici per il selettore
  */
 function loadAnniAccademici() {
-    fetch('/api/oh-issa/getAnniAccademici')
+    fetch('/api/oh-issa/get-anni-accademici')
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('selectAnnoAccademico');
@@ -338,7 +338,7 @@ function initCopyDatesModal() {
     const sourceCdsYearSelect = document.getElementById('sourceCdsYear');
     
     // Carica gli anni accademici nel modal
-    fetch('/api/oh-issa/getAnniAccademici')
+    fetch('/api/oh-issa/get-anni-accademici')
         .then(response => response.json())
         .then(data => {
             data.sort((a, b) => b - a);

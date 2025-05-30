@@ -132,7 +132,7 @@ const InsegnamentiManager = (function () {
         : currentDate.getFullYear() - 1;
 
     // Costruisci URL con l'endpoint unificato
-    const url = `/api/getInsegnamentiDocente?docente=${username}&anno=${planningYear}`;
+    const url = `/api/get-insegnamenti-docente?docente=${username}&anno=${planningYear}`;
 
     // Avvia una nuova richiesta e memorizzala
     requestInProgress = fetch(url)

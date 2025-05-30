@@ -138,7 +138,7 @@ export async function loadDateValide(docente, insegnamenti = null) {
   }
 
   try {
-    const response = await fetch("/api/getDateValide?" + params.toString());
+    const response = await fetch("/api/get-date-valide?" + params.toString());
     if (!response.ok) {
       throw new Error(`HTTP error ${response.status}`);
     }
@@ -379,7 +379,7 @@ export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
 // Popola il dropdown degli anni accademici
 export async function populateAnnoAccademicoDropdown(dropdown) {
   try {
-    const response = await fetch('/api/getAnniAccademici');
+    const response = await fetch('/api/get-anni-accademici');
     if (!response.ok) {
       throw new Error(`HTTP error ${response.status}`);
     }

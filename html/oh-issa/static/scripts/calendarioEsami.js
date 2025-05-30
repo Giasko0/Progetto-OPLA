@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Carica gli anni accademici per il selettore
 function loadAnniAccademici() {
-    fetch('/api/oh-issa/getAnniAccademici')
+    fetch('/api/oh-issa/get-anni-accademici')
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('selectAnnoAccademico');

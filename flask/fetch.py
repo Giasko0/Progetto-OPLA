@@ -3,17 +3,51 @@ from db import get_db_connection, release_connection
 from datetime import datetime
 from auth import get_user_data
 from psycopg2.extras import DictCursor
-from utils.insegnamentiUtils import ottieni_insegnamenti_docente
 
 fetch_bp = Blueprint('fetch', __name__)
 
-# Funzione utilitaria per verificare se l'utente corrente è un amministratore
-def is_admin():
+def ottieni_insegnamenti_docente(docente, anno_accademico=None):
+    # Ottiene gli insegnamenti di un docente.
+    # Restituisce un dizionario con chiave l'ID dell'insegnamento e valore un dizionario con codice e titolo.
+    if anno_accademico is None:
+        current_date = datetime.now()
+        anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
+    
+    conn = None
+    cursor = None
     try:
-        user_data = get_user_data().get_json()
-        return user_data['authenticated'] and user_data['user_data'] and user_data['user_data'].get('permessi_admin', False)
-    except Exception:
-        return False
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Query per ottenere gli insegnamenti del docente
+        cursor.execute("""
+            SELECT DISTINCT
+                i.id,
+                i.codice, 
+                i.titolo
+            FROM insegnamenti i
+            JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
+            JOIN insegnamento_docente id ON i.id = id.insegnamento
+            WHERE ic.anno_accademico = %s
+            AND id.annoaccademico = %s
+            AND id.docente = %s
+            ORDER BY i.codice
+        """, (anno_accademico, anno_accademico, docente))
+        
+        # Costruisci un dizionario dei risultati
+        insegnamenti = {row[0]: {'codice': row[1], 'titolo': row[2]} for row in cursor.fetchall()}
+        return insegnamenti
+        
+    except Exception as e:
+        print(f"Errore nell'ottenere gli insegnamenti del docente: {str(e)}")
+        return {}
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            release_connection(conn)
+
+# Funzione utilitaria per verificare se l'utente corrente è un amministratore
 
 # API per ottenere le aule disponibili. Usato in formEsame.html
 @fetch_bp.route('/api/getAule', methods=['GET'])
@@ -116,6 +150,11 @@ def getEsami():
         if not docente:
             return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
 
+        user_data = get_user_data().get_json()
+        if not user_data['authenticated']:
+            return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
+        
+        is_admin_user = user_data['user_data']['permessi_admin']
         current_date = datetime.now()
         planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
         
@@ -134,7 +173,7 @@ def getEsami():
         params = []
         where_conditions = []
         
-        if docente != 'admin':
+        if not is_admin_user:
             # Ottieni tutti gli insegnamenti del docente
             insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, planning_year)
             insegnamenti_docente = [data['codice'] for data in insegnamenti_docente_dict.values()]
@@ -187,13 +226,13 @@ def getEsami():
         exams = []
         # Determina gli insegnamenti del docente per la proprietà insegnamentoDocente
         insegnamenti_docente = []
-        if docente != 'admin':
+        if not is_admin_user:
             insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, planning_year)
             insegnamenti_docente = [data['codice'] for data in insegnamenti_docente_dict.values()]
         
         for row in cursor.fetchall():
-            # Se docente è 'admin', considera tutti gli esami come propri
-            esame_del_docente = True if docente == 'admin' else row['insegnamento'] in insegnamenti_docente
+            # Se l'utente è admin, considera tutti gli esami come propri
+            esame_del_docente = True if is_admin_user else row['insegnamento'] in insegnamenti_docente
             
             exams.append({
                 'id': str(row['id']),
@@ -221,10 +260,11 @@ def getEsami():
 @fetch_bp.route('/api/getMieiEsamiInsegnamenti', methods=['GET'])
 def miei_esami():
     user_data = get_user_data().get_json()
-    if not user_data['authenticated'] or not user_data['user_data']:
+    if not user_data['authenticated']:
         return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
-
-    docente = user_data['user_data']['username']
+    
+    is_admin_user = user_data['user_data']['permessi_admin']
+    docente = request.args.get('docente') if is_admin_user else user_data['user_data']['username']
 
     try:
         conn = get_db_connection()
@@ -357,13 +397,17 @@ def miei_esami():
             release_connection(conn)
 
 # API per ottenere le date delle sessioni d'esame
-@fetch_bp.route('/api/getDateValide', methods=['GET'])
-def getDateValide():
+@fetch_bp.route('/api/get-date-valide', methods=['GET'])
+def get_date_valide():
   try:
     docente = request.args.get('docente')
     insegnamenti = request.args.get('insegnamenti')
     
-    is_admin_user = is_admin()
+    user_data = get_user_data().get_json()
+    if not user_data['authenticated']:
+        return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
+    
+    is_admin_user = user_data['user_data']['permessi_admin']
     current_date = datetime.now()
     planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
     
@@ -407,11 +451,11 @@ def getDateValide():
     return jsonify(date_valide)
     
   except Exception as e:
-    print(f"Errore generale in getDateValide: {str(e)}")
+    print(f"Errore generale in get-date-valide: {str(e)}")
     return jsonify({'error': str(e)}), 500
 
-@fetch_bp.route('/api/getAnniAccademici', methods=['GET'])
-def getAnniAccademici():
+@fetch_bp.route('/api/get-anni-accademici', methods=['GET'])
+def get_anni_accademici():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -427,136 +471,113 @@ def getAnniAccademici():
             release_connection(conn)
 
 # API per ottenere gli insegnamenti di un docente. Usato in calendar.js e calendarUtils.js
-@fetch_bp.route('/api/getInsegnamentiDocente', methods=['GET'])
-def getInsegnamentiDocente():
+@fetch_bp.route('/api/get-insegnamenti-docente', methods=['GET'])
+def get_insegnamenti_docente():
     docente = request.args.get('docente')
     anno = request.args.get('anno')
     
     # Controlla se l'utente ha fornito un parametro docente valido
     if not docente:
-        return jsonify({"error": "Parametro docente mancante"}), 400
+        return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
     
-    # Verifica che l'anno sia valido, altrimenti usa l'anno corrente
     if not anno or not anno.isdigit():
         current_date = datetime.now()
-        anno = current_date.year if current_date.month >= 9 else current_date.year - 1
+        anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
     else:
-        anno = int(anno)
+        anno_accademico = int(anno)
     
-    # Verifica se l'utente è un amministratore direttamente qui
-    is_admin_user = is_admin()
-    
-    conn = None
-    cursor = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Se l'utente è un admin, ottiene tutti gli insegnamenti
-        if is_admin_user:
-            cursor.execute("""
-                SELECT DISTINCT ON (i.codice)
-                    i.codice, 
-                    i.titolo, 
-                    ic.semestre, 
-                    ic.anno_corso, 
-                    ic.cds, 
-                    c.nome_corso
-                FROM insegnamenti i
-                JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-                JOIN cds c ON ic.cds = c.codice 
-                     AND ic.anno_accademico = c.anno_accademico 
-                     AND ic.curriculum = c.curriculum
-                WHERE ic.anno_accademico = %s
-                AND (ic.padri_mutua IS NULL OR NOT (i.codice = ANY(ic.padri_mutua)))
-                ORDER BY i.codice, i.titolo
-            """, (anno,))
-            result = cursor.fetchall()
-        else:
-            # Otteniamo gli insegnamenti del docente usando la funzione ottieni_insegnamenti_docente
-            # che già implementa la logica per escludere mutuazioni e moduli
-            insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, anno)
-            
-            # Se non ci sono insegnamenti, restituisci una lista vuota
-            if not insegnamenti_docente_dict:
-                return jsonify({'cds': []}), 200
-                
-            # Ottieni i codici degli insegnamenti
-            codici_insegnamenti = [data['codice'] for data in insegnamenti_docente_dict.values()]
-            placeholders = ','.join(['%s'] * len(codici_insegnamenti))
-            
-            # Recupera i dettagli completi degli insegnamenti
-            cursor.execute(f"""
-                SELECT DISTINCT ON (i.codice)
-                    i.codice, 
-                    i.titolo, 
-                    ic.semestre, 
-                    ic.anno_corso, 
-                    ic.cds, 
-                    c.nome_corso
-                FROM insegnamenti i
-                JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-                JOIN cds c ON ic.cds = c.codice 
-                     AND ic.anno_accademico = c.anno_accademico 
-                     AND ic.curriculum = c.curriculum
-                WHERE ic.anno_accademico = %s
-                AND i.codice IN ({placeholders})
-                AND (ic.padri_mutua IS NULL OR NOT (i.codice = ANY(ic.padri_mutua)))
-                ORDER BY i.codice, i.titolo
-            """, (anno, *codici_insegnamenti))
-            
-            result = cursor.fetchall()
-        
-        # Organizzo gli insegnamenti per CdS
-        cds_dict = {}
-        
-        for row in result:
-            codice_ins, titolo, semestre, anno_corso, codice_cds, nome_cds = row
-            
-            # Se il CdS non è ancora nel dizionario, crealo
-            if codice_cds not in cds_dict:
-                cds_dict[codice_cds] = {
-                    "codice": codice_cds,
-                    "nome": nome_cds,
-                    "insegnamenti": []
-                }
-            
-            # Aggiungi l'insegnamento alla lista del CdS corrispondente
-            cds_dict[codice_cds]["insegnamenti"].append({
-                "codice": codice_ins,
-                "titolo": titolo,
-                "semestre": semestre,
-                "anno_corso": anno_corso
-            })
-        
-        # Converti il dizionario in una lista di CdS
-        cds_list = list(cds_dict.values())
-        
-        # Prepara la risposta nel formato gerarchico
-        response = {
-            "cds": cds_list
-        }
-        
-        return jsonify(response)
-    
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            release_connection(conn)
-
-# API per controllare gli insegnamenti con meno del numero minimo di esami
-@fetch_bp.route('/api/checkEsamiMinimi', methods=['GET'])
-def check_esami_minimi():
-    # Ottenimento dati utente e verifica
     user_data = get_user_data().get_json()
-    
-    if not user_data['authenticated'] or not user_data['user_data']:
+    if not user_data['authenticated']:
         return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
     
-    docente = user_data['user_data']['username']
+    is_admin_user = user_data['user_data']['permessi_admin']
+    
+    if not is_admin_user and user_data['user_data']['username'] != docente:
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 403
+    
+    try:
+        if is_admin_user:
+            # Admin può accedere a tutti gli insegnamenti
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum
+                FROM insegnamenti i
+                JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
+                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
+                WHERE ic.anno_accademico = %s
+                ORDER BY ic.cds, i.codice
+            """, (anno_accademico,))
+            
+            result = cursor.fetchall()
+            
+            # Organizza gli insegnamenti per CdS
+            cds_dict = {}
+            for row in result:
+                ins_id, codice, titolo, cds_code, nome_corso, curriculum = row
+                cds_key = f"{cds_code}_{curriculum}"
+                
+                if cds_key not in cds_dict:
+                    cds_dict[cds_key] = {
+                        "codice": cds_code,
+                        "nome": nome_corso,
+                        "curriculum": curriculum,
+                        "insegnamenti": []
+                    }
+                
+                cds_dict[cds_key]["insegnamenti"].append({
+                    "id": ins_id,
+                    "codice": codice,
+                    "titolo": titolo
+                })
+            
+            cds_list = list(cds_dict.values())
+            
+            return jsonify({
+                "status": "success",
+                "cds": cds_list
+            })
+        else:
+            # Usa la funzione di utilità per ottenere gli insegnamenti del docente
+            insegnamenti_dict = ottieni_insegnamenti_docente(docente, anno_accademico)
+            
+            # Converte in formato array per l'API
+            insegnamenti_list = [
+                {
+                    'id': ins_id,
+                    'codice': data['codice'],
+                    'titolo': data['titolo']
+                }
+                for ins_id, data in insegnamenti_dict.items()
+            ]
+            
+            return jsonify({
+                'status': 'success',
+                'insegnamenti': insegnamenti_list
+            })
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+@fetch_bp.route('/api/check-esami-minimi', methods=['GET'])
+def check_esami_minimi():
+    user_data = get_user_data().get_json()
+    if not user_data['authenticated']:
+        return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
+    
+    is_admin_user = user_data['user_data']['permessi_admin']
+    
+    if is_admin_user:
+        docente = request.args.get('docente')
+        if not docente:
+            return jsonify({'status': 'error', 'message': 'Parametro docente mancante per admin'}), 400
+    else:
+        docente = user_data['user_data']['username']
     
     try:
         current_date = datetime.now()

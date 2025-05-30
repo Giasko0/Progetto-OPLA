@@ -113,82 +113,22 @@ def upload_ugov():
     # Valore predefinito per annuale 
     default_semestre = 3  # 3 = annuale
     
-    # Funzione per estrarre tutti i codici di insegnamenti mutuati
-    def estrai_tutti_codici_insegnamenti_mutuati(text):
-      if not text:
-        return []
-      # Estraiamo tutti i possibili codici di insegnamento (formato AXXXXXX)
-      matches = re.findall(r'(?:Af\s+)?([A-Z][0-9]{6})', str(text), re.IGNORECASE)
-      return matches
-    
     # Dizionario per mappare codici insegnamento ai loro ID
     codice_to_id = {}
     
-    # Strutture dati per la gestione dei moduli
-    moduli_per_padre = {}  # {codice_padre: {codice_modulo: {'id': id_numerico, 'docenti': set(docenti), 'num_modulo': numero}}}
-    padri_moduli = {}      # Mappatura inversa {codice_modulo: codice_padre}
-    
-    # Prima fase: raccogliamo informazioni di base
+    # Prima fase: raccogliamo la mappatura codice -> id
     for row_idx in range(1, sheet.nrows):
       try:
         cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_insegnamento'])).strip()
         id_insegnamento_raw = sheet.cell_value(row_idx, colonna_indices['id_insegnamento'])
         id_insegnamento = str(id_insegnamento_raw).replace('.0', '') if id_insegnamento_raw else ""
-        cod_unita_didattica = str(sheet.cell_value(row_idx, colonna_indices['cod_unita_didattica'])).strip()
-        id_unita_didattica_raw = sheet.cell_value(row_idx, colonna_indices['id_unita_didattica'])
-        id_unita_didattica = str(id_unita_didattica_raw).replace('.0', '') if id_unita_didattica_raw else ""
-        username_docente = str(sheet.cell_value(row_idx, colonna_indices['username_docente'])).strip()
         
-        # Mappatura codice -> id
+        # Mappatura codice -> id solo per gli insegnamenti principali
         if cod_insegnamento and id_insegnamento:
             codice_to_id[cod_insegnamento] = id_insegnamento
-        
-        if cod_unita_didattica and id_unita_didattica:
-            codice_to_id[cod_unita_didattica] = id_unita_didattica
-        
-        # Raccogliamo informazioni sulle relazioni moduli-padre
-        if cod_unita_didattica and cod_insegnamento:
-            # Mappatura inversa: modulo -> padre
-            padri_moduli[cod_unita_didattica] = cod_insegnamento
-            
-            # Inizializza la struttura per il padre se non esiste
-            if cod_insegnamento not in moduli_per_padre:
-                moduli_per_padre[cod_insegnamento] = {}
-            
-            # Inizializza la struttura per il modulo se non esiste
-            if cod_unita_didattica not in moduli_per_padre[cod_insegnamento]:
-                # Converti l'ID in float per confronto numerico (per ordinare i moduli)
-                try:
-                    id_numerico = float(id_unita_didattica) if id_unita_didattica else 0
-                except (ValueError, TypeError):
-                    id_numerico = 0
-                    
-                moduli_per_padre[cod_insegnamento][cod_unita_didattica] = {
-                    'id': id_numerico,
-                    'docenti': set(),
-                    'num_modulo': None  # Sarà assegnato nella fase successiva
-                }
-            
-            # Registra il docente per questo modulo se presente
-            if username_docente:
-                moduli_per_padre[cod_insegnamento][cod_unita_didattica]['docenti'].add(username_docente)
             
       except Exception as e:
         continue
-    
-    # Seconda fase: assegna numeri modulo in base all'ID (il maggiore è modulo 2)
-    for cod_padre, moduli in moduli_per_padre.items():
-        if len(moduli) > 1:
-            # Ordina i moduli per ID numerico
-            moduli_ordinati = sorted(moduli.items(), key=lambda x: x[1]['id'])
-            
-            # Assegna i numeri modulo (1, 2, 3, ...)
-            for i, (cod_modulo, _) in enumerate(moduli_ordinati, 1):
-                moduli_per_padre[cod_padre][cod_modulo]['num_modulo'] = i
-        else:
-            # Se c'è un solo modulo, assegniamo 1
-            for cod_modulo in moduli:
-                moduli_per_padre[cod_padre][cod_modulo]['num_modulo'] = 1
     
     # Fase finale: elaborazione delle righe e inserimento dei dati
     for row_idx in range(1, sheet.nrows):
@@ -222,22 +162,52 @@ def upload_ugov():
         cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_insegnamento'])).strip()
         id_insegnamento_raw = sheet.cell_value(row_idx, colonna_indices['id_insegnamento'])
         id_insegnamento = str(id_insegnamento_raw).replace('.0', '') if id_insegnamento_raw else ""
-        cod_unita_didattica = str(sheet.cell_value(row_idx, colonna_indices['cod_unita_didattica'])).strip()
+        
+        # Verifica se esiste un'unità didattica (modulo)
         id_unita_didattica_raw = sheet.cell_value(row_idx, colonna_indices['id_unita_didattica'])
         id_unita_didattica = str(id_unita_didattica_raw).replace('.0', '') if id_unita_didattica_raw else ""
         
-        # Verifica che almeno un codice sia presente
-        if not cod_insegnamento and not cod_unita_didattica:
+        # Verifica se è mutuato (presenza di "MUTUAT" nelle colonne BL o CW)
+        des_raggruppamento_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento_insegnamento'])).strip()
+        des_raggruppamento_unita_didattica = str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento_unita_didattica'])).strip()
+        
+        is_mutuato = ("MUTUAT" in des_raggruppamento_insegnamento.upper() or 
+                      "MUTUAT" in des_raggruppamento_unita_didattica.upper())
+        
+        # LOGICA SEMPLIFICATA:
+        # 1. Se ha id_unita_didattica (colonna BN), è un modulo -> usa sempre l'insegnamento padre
+        # 2. Se è mutuato -> ignora completamente questa riga
+        # 3. Altrimenti usa l'insegnamento normale
+        
+        if is_mutuato:
+          # Ignora completamente gli insegnamenti mutuati
           continue
         
+        if id_unita_didattica:
+          # È un modulo -> usa sempre l'insegnamento padre
+          if not cod_insegnamento or not id_insegnamento:
+            continue  # Non possiamo procedere senza l'insegnamento padre
+          
+          id_effettivo = id_insegnamento
+          codice_effettivo = cod_insegnamento
+        else:
+          # È un insegnamento normale
+          if not cod_insegnamento or not id_insegnamento:
+            continue  # Non possiamo procedere senza l'insegnamento
+            
+          id_effettivo = id_insegnamento
+          codice_effettivo = cod_insegnamento
+        
         des_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['des_insegnamento'])).strip()
-        des_unita_didattica = str(sheet.cell_value(row_idx, colonna_indices['des_unita_didattica'])).strip()
+        descrizione_effettiva = des_insegnamento
         
         # Estrai periodo/semestre
         des_periodo = ""
-        if cod_unita_didattica:
+        if id_unita_didattica:
+            # Per i moduli, usa il periodo dell'unità didattica
             des_periodo_raw = sheet.cell_value(row_idx, colonna_indices['des_periodo_unita_didattica'])
         else:
+            # Per gli insegnamenti normali, usa il periodo dell'insegnamento
             des_periodo_raw = sheet.cell_value(row_idx, colonna_indices['des_periodo_insegnamento'])
         des_periodo = str(des_periodo_raw).strip() if des_periodo_raw else ""
         semestre = periodo_to_semestre.get(des_periodo, default_semestre)
@@ -246,144 +216,6 @@ def upload_ugov():
         matricola_docente = str(sheet.cell_value(row_idx, colonna_indices['matricola_docente'])).strip()
         cognome_docente = str(sheet.cell_value(row_idx, colonna_indices['cognome_docente'])).strip()
         nome_docente = str(sheet.cell_value(row_idx, colonna_indices['nome_docente'])).strip()
-        
-        # Variabili per tenere traccia delle caratteristiche dell'insegnamento
-        is_mutuato = False
-        is_modulo = False
-        padri_mutua = []
-        padre_modulo = None
-        codice_modulo = None
-        
-        # Determina se è un insegnamento mutuato (colonna BL o CW)
-        des_raggruppamento_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento_insegnamento'])).strip()
-        des_raggruppamento_unita_didattica = str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento_unita_didattica'])).strip()
-        
-        # Funzione per gestire insegnamenti mutuati
-        def gestisci_mutuato():
-          nonlocal is_mutuato, padri_mutua
-          
-          is_mutuato = True
-          
-          # Estrai i codici mutuati dal testo
-          codici_trovati = []
-          if "MUTUAT" in des_raggruppamento_insegnamento.upper():
-            codici_trovati = estrai_tutti_codici_insegnamenti_mutuati(des_raggruppamento_insegnamento)
-          elif "MUTUAT" in des_raggruppamento_unita_didattica.upper():
-            codici_trovati = estrai_tutti_codici_insegnamenti_mutuati(des_raggruppamento_unita_didattica)
-          
-          if codici_trovati:
-            # Verifica se i codici trovati sono moduli dello stesso insegnamento
-            padri = set()
-            codici_moduli = []
-            
-            for codice in codici_trovati:
-              # Verifica se il codice è un modulo
-              if codice in padri_moduli:
-                padri.add(padri_moduli[codice])
-                codici_moduli.append(codice)
-            
-            # Se abbiamo trovato moduli dello stesso padre
-            if len(padri) == 1 and codici_moduli:
-              # Il padre della mutuazione è il padre comune dei moduli
-              padre_comune = padri.pop()
-              padri_mutua = [padre_comune]
-            elif codici_trovati:
-              # Salvare tutti i codici trovati come padri mutuati
-              padri_mutua = codici_trovati
-
-        # Funzione per gestire moduli
-        def gestisci_modulo():
-          nonlocal is_modulo, padre_modulo, codice_modulo, id_effettivo, codice_effettivo, descrizione_effettiva
-          
-          is_modulo = True
-          padre_modulo = cod_insegnamento  # Il codice dell'insegnamento padre
-          
-          # Verifica se esiste un padre per questo modulo
-          if cod_insegnamento in moduli_per_padre and cod_unita_didattica in moduli_per_padre[cod_insegnamento]:
-              modulo_info = moduli_per_padre[cod_insegnamento][cod_unita_didattica]
-              codice_modulo = modulo_info['num_modulo']
-              
-              # Imposta i dati identificativi del modulo
-              id_effettivo = id_unita_didattica
-              codice_effettivo = cod_unita_didattica
-              if des_unita_didattica:
-                  descrizione_effettiva = f"{des_insegnamento} - {des_unita_didattica}"
-              else:
-                  descrizione_effettiva = des_insegnamento
-              
-              # Gestisci l'insegnamento padre se il docente insegna tutti i moduli
-              gestisci_insegnamento_padre_per_docente()
-          else:
-              # Caso normale per modulo senza informazioni aggiuntive
-              id_effettivo = id_unita_didattica
-              codice_effettivo = cod_unita_didattica
-              if des_unita_didattica:
-                  descrizione_effettiva = f"{des_insegnamento} - {des_unita_didattica}"
-              else:
-                  descrizione_effettiva = des_insegnamento
-        
-        # Funzione per gestire l'insegnamento padre quando il docente insegna tutti i moduli
-        def gestisci_insegnamento_padre_per_docente():
-          nonlocal insegnamenti_data, insegnamenti_set, insegnamenti_cds_data, insegnamento_docente_data, insegnamento_docente_set
-          
-          # Verifica se il docente insegna tutti i moduli del padre
-          tutti_moduli = moduli_per_padre[cod_insegnamento]
-          if len(tutti_moduli) > 1:  # Ci sono almeno 2 moduli
-              # Raccogli tutti i moduli del padre
-              tutti_codici_moduli = set(tutti_moduli.keys())
-              
-              # Raccogli tutti i moduli che insegna questo docente
-              moduli_di_questo_docente = {cod_mod for cod_mod, info in tutti_moduli.items() 
-                                        if username_docente in info['docenti']}
-              
-              # Se il docente insegna tutti i moduli, aggiungi ANCHE l'insegnamento padre
-              if len(moduli_di_questo_docente) == len(tutti_codici_moduli):
-                  
-                  # Aggiungi insegnamento padre se non già presente
-                  if id_insegnamento not in insegnamenti_set:
-                      insegnamenti_data.append((id_insegnamento, cod_insegnamento, des_insegnamento))
-                      insegnamenti_set.add(id_insegnamento)
-                  
-                  # Aggiungi insegnamento_cds per il padre se non già presente
-                  insegnamenti_cds_key_padre = (id_insegnamento, anno_accademico, cod_cds, des_curriculum)
-                  if insegnamenti_cds_key_padre not in cds_set:
-                      # Determina se l'insegnamento padre è mutuato
-                      padre_is_mutuato = is_mutuato  # Eredita lo stato mutuato
-                      padre_padri_mutua = padri_mutua  # Eredita i padri mutuati
-                      
-                      insegnamenti_cds_data.append((
-                          id_insegnamento, 
-                          anno_accademico, 
-                          cod_cds, 
-                          des_curriculum,
-                          anno_corso, 
-                          semestre, 
-                          padre_is_mutuato,
-                          False,  # Il padre non è un modulo
-                          padre_padri_mutua,  # Può ereditare i padri mutuati
-                          None,   # Non ha padre modulo
-                          None    # Non ha codice modulo
-                      ))
-                  
-                  # Aggiungi insegnamento_docente per il padre
-                  insegnamento_docente_key_padre = (id_insegnamento, username_docente, anno_accademico)
-                  if insegnamento_docente_key_padre not in insegnamento_docente_set:
-                      insegnamento_docente_data.append((id_insegnamento, username_docente, anno_accademico))
-                      insegnamento_docente_set.add(insegnamento_docente_key_padre)
-        
-        # Verifica se è un insegnamento mutuato
-        if "MUTUAT" in des_raggruppamento_insegnamento.upper() or "MUTUAT" in des_raggruppamento_unita_didattica.upper():
-          gestisci_mutuato()
-        
-        # Determina se è un modulo e gestisci l'assegnazione appropriata
-        if cod_unita_didattica:
-            # È un modulo
-            gestisci_modulo()
-        else:
-            # È un insegnamento normale (non modulo)
-            id_effettivo = id_insegnamento
-            codice_effettivo = cod_insegnamento
-            descrizione_effettiva = des_insegnamento
         
         # Aggiungi CdS se non già presente
         cds_key = (cod_cds, anno_accademico, des_curriculum)
@@ -396,13 +228,6 @@ def upload_ugov():
           insegnamenti_data.append((id_effettivo, codice_effettivo, descrizione_effettiva))
           insegnamenti_set.add(id_effettivo)
         
-        # Aggiungi insegnamento padre se necessario
-        if padre_modulo and padre_modulo in codice_to_id:
-          padre_id = codice_to_id[padre_modulo]
-          if padre_id not in insegnamenti_set:
-            insegnamenti_data.append((padre_id, padre_modulo, des_insegnamento))
-            insegnamenti_set.add(padre_id)
-        
         # Aggiungi insegnamento_cds se non già presente
         insegnamenti_cds_key = (id_effettivo, anno_accademico, cod_cds, des_curriculum)
         if insegnamenti_cds_key not in cds_set:
@@ -412,15 +237,10 @@ def upload_ugov():
             cod_cds, 
             des_curriculum,
             anno_corso, 
-            semestre, 
-            is_mutuato,
-            is_modulo,
-            padri_mutua,
-            padre_modulo,
-            codice_modulo
+            semestre
           ))
         
-        # Aggiungi utente se not already present
+        # Aggiungi utente se non già presente
         if username_docente not in utenti_set:
           utenti_data.append((username_docente, matricola_docente, nome_docente, cognome_docente, False))
           utenti_set.add(username_docente)
@@ -430,6 +250,7 @@ def upload_ugov():
         if insegnamento_docente_key not in insegnamento_docente_set:
           insegnamento_docente_data.append((id_effettivo, username_docente, anno_accademico))
           insegnamento_docente_set.add(insegnamento_docente_key)
+          
       except Exception as e:
         continue
     
@@ -464,16 +285,11 @@ def upload_ugov():
       try:
         cursor.execute("""
           INSERT INTO insegnamenti_cds 
-          (insegnamento, anno_accademico, cds, curriculum, anno_corso, semestre, is_mutuato, is_modulo, padri_mutua, padre_modulo, codice_modulo)
-          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+          (insegnamento, anno_accademico, cds, curriculum, anno_corso, semestre)
+          VALUES (%s, %s, %s, %s, %s, %s)
           ON CONFLICT (insegnamento, anno_accademico, cds, curriculum) DO UPDATE 
           SET anno_corso = EXCLUDED.anno_corso,
-              semestre = EXCLUDED.semestre,
-              is_mutuato = EXCLUDED.is_mutuato,
-              is_modulo = EXCLUDED.is_modulo,
-              padri_mutua = EXCLUDED.padri_mutua,
-              padre_modulo = EXCLUDED.padre_modulo,
-              codice_modulo = EXCLUDED.codice_modulo
+              semestre = EXCLUDED.semestre
         """, item)
       except Exception as e:
         continue
@@ -1436,7 +1252,7 @@ def get_cds_details():
       release_connection(conn)
 
 # API per ottenere gli anni accademici disponibili
-@admin_bp.route('/getAnniAccademici')
+@admin_bp.route('/get-anni-accademici')
 def get_anni_accademici():
   try:
     conn = get_db_connection()

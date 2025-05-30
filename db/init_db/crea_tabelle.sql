@@ -69,14 +69,9 @@ CREATE TABLE insegnamenti_cds (
     insegnamento TEXT,          -- ID dell'insegnamento
     anno_accademico INT,        -- Anno accademico
     cds TEXT,                   -- Codice del corso di studio
-    curriculum TEXT,            -- Curriculum del corso di studio (aggiunto)
+    curriculum TEXT,            -- Curriculum del corso di studio
     anno_corso INT NOT NULL,    -- Anno del corso di studio
     semestre INT NOT NULL,      -- Semestre (Insegnamento annuale = 3)
-    is_mutuato BOOLEAN NOT NULL,-- Insegnamento mutuato (true/false)
-    is_modulo BOOLEAN NOT NULL, -- Insegnamento modulo (true/false)
-    padri_mutua TEXT[],         -- Array di codici degli insegnamenti di riferimento per mutuazioni
-    padre_modulo TEXT,          -- Codice dell'insegnamento di riferimento per moduli
-    codice_modulo INT,          -- Numero modulo
     PRIMARY KEY (insegnamento, anno_accademico, cds, curriculum),
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
     FOREIGN KEY (cds, anno_accademico, curriculum) REFERENCES cds(codice, anno_accademico, curriculum) ON DELETE CASCADE,

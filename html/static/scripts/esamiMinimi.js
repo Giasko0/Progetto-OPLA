@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   // Controlla gli esami minimi all'avvio della pagina
-  fetch("/api/checkEsamiMinimi")
+  fetch("/api/check-esami-minimi")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Errore nella richiesta API");
