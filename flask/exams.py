@@ -357,7 +357,6 @@ def update_esame():
             'verbalizzazione': data.get('verbalizzazione'),
             'descrizione': data.get('descrizione'),
             'note_appello': data.get('note_appello'),
-            'posti': data.get('posti'),
             'anno_accademico': esame_dict.get('anno_accademico')
         }
 
@@ -392,7 +391,6 @@ def update_esame():
             partizionamento = %s,
             partizione = %s,
             note_appello = %s,
-            posti = %s,
             codice_turno = %s,
             mostra_nel_calendario = %s
         WHERE id = %s
@@ -419,7 +417,6 @@ def update_esame():
             data.get('partizionamento'),
             data.get('partizione'),
             data.get('note_appello'),
-            data.get('posti'),
             data.get('codice_turno'),
             data.get('mostra_nel_calendario', True),
             exam_id

@@ -516,12 +516,14 @@ body {
 .form-textarea {
   width: 100%;
   padding: 8px;
+  height: 38px;
   box-sizing: border-box;
   background-color: var(--color-bg-light);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   font-size: 1em;
+  resize: vertical;
 }
 
 .form-button {
@@ -558,40 +560,6 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-#buttonOpzioniAggiuntive {
-  cursor: pointer;
-  margin: 50px 0;
-  font-size: 1.2em;
-  color: var(--color-blue);
-}
-
-#buttonOpzioniAggiuntive span {
-  font-size: 2em;
-  vertical-align: middle;
-}
-
-#opzioniAggiuntive {
-  display: none;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-top: 15px;
-  padding: 15px;
-  background-color: var(--color-bg);
-  border-radius: var(--radius);
-}
-
-#opzioniAggiuntive label {
-  margin-bottom: 5px;
-}
-
-#opzioniAggiuntive select,
-#opzioniAggiuntive input,
-#opzioniAggiuntive textarea {
-  padding: 8px;
-  margin-bottom: 15px;
-  box-sizing: border-box;
 }
 
 .two-column-layout {
@@ -698,7 +666,7 @@ body {
 }
 
 .date-appelli-container {
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-bg);
   border-radius: 8px;
   padding: 8px;
   margin: 8px 0;

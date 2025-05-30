@@ -21,7 +21,6 @@ const EsameForm = (function() {
     saveFormPreference,
     loadFormPreferences,
     deleteFormPreference,
-    setFormDefaults,
     resetForm,
     parseTimeString,
     formatTimeFromHourMinute,
@@ -136,9 +135,6 @@ const EsameForm = (function() {
       // Popolamento form
       const elements = formContainer.querySelectorAll("#formEsame input, #formEsame select");
       
-      // Prima imposta i valori di default
-      setDefaultValues(elements);
-      
       // Inizializza componenti UI PRIMA di compilare il form
       initUI(data);
       setupEventListeners();
@@ -173,18 +169,6 @@ const EsameForm = (function() {
       window.showMessage("Errore nell'apertura del form", "Errore", "error");
       return false;
     }
-  }
-  
-  // Imposta valori di default sui campi
-  function setDefaultValues(elements) {
-    const defaults = {
-      "tipo_appello": "AP",
-      "verbalizzazione": "FSS",
-      "tipo_esame": "S",
-      "posti": "100"
-    };
-    
-    setFormDefaults(elements, defaults);
   }
   
   // Compila il form con i dati dell'esame (modalità modifica)
@@ -272,7 +256,6 @@ const EsameForm = (function() {
   // Funzione unificata per la gestione degli event listener
   function setupEventListeners() {
     const eventListeners = [
-      { id: "buttonOpzioniAggiuntive", event: "click", handler: toggleOpzioniAggiuntive },
       { id: "formEsame", event: "submit", handler: handleFormSubmit },
       { id: "savePreferenceBtn", event: "click", handler: toggleSavePreferenceForm },
       { id: "loadPreferenceBtn", event: "click", handler: togglePreferencesMenu },
@@ -401,20 +384,6 @@ const EsameForm = (function() {
     setupTimeCombiningHandlers();
   }
 
-  // Mostra/nasconde le opzioni aggiuntive
-  function toggleOpzioniAggiuntive() {
-    const opzioni = document.getElementById("opzioniAggiuntive");
-    const button = document.getElementById("buttonOpzioniAggiuntive");
-
-    if (!opzioni || !button) return;
-
-    const isVisible = opzioni.style.display === "grid";
-    opzioni.style.display = isVisible ? "none" : "grid";
-    button.innerHTML = isVisible 
-      ? "Opzioni aggiuntive <span class='material-symbols-outlined'>arrow_right</span>" // freccia verso destra
-      : "Opzioni aggiuntive <span class='material-symbols-outlined'>arrow_drop_down</span>"; // freccia verso il basso
-  }
-  
   // Aggiorna le opzioni di verbalizzazione in base al tipo di appello selezionato
   function aggiornaVerbalizzazione() {
     const tipoAppelloPP = document.getElementById("tipoAppelloPP");
@@ -492,7 +461,6 @@ const EsameForm = (function() {
       'inizioIscrizione': data.data_inizio_iscrizione,
       'fineIscrizione': data.data_fine_iscrizione,
       'note': data.note_appello,
-      'posti': data.posti,
       'verbalizzazione': data.verbalizzazione,
       'tipoEsame': data.tipo_esame,
     };
@@ -850,7 +818,6 @@ const EsameForm = (function() {
       verbalizzazione: document.getElementById("verbalizzazione")?.value,
       oraAppello: document.getElementById("ora")?.value,
       durata: document.getElementById("durata")?.value,
-      posti: document.getElementById("posti")?.value,
       tipo_appello: document.querySelector('input[name="tipo_appello_radio"]:checked')?.value,
       note: document.getElementById("note")?.value
     };
@@ -951,12 +918,6 @@ const EsameForm = (function() {
     // Imposta durata
     if (preference.durata) {
       setDurationFromMinutes(preference.durata);
-    }
-    
-    // Imposta posti
-    if (preference.posti) {
-      const posti = document.getElementById("posti");
-      if (posti) posti.value = preference.posti;
     }
     
     // Gestione tipo appello (radio button)
@@ -1689,6 +1650,14 @@ const EsameForm = (function() {
           <select id="aula_${dateAppelliCounter}" name="aula[]" class="form-input" required>
             <option value="" disabled selected hidden>Seleziona prima data e ora</option>
           </select>
+        </div>
+        <div>
+          <label for="inizioIscrizione_${dateAppelliCounter}">Data inizio iscrizione</label>
+          <input type="date" id="inizioIscrizione_${dateAppelliCounter}" name="inizioIscrizione[]" class="form-input">
+        </div>
+        <div>
+          <label for="fineIscrizione_${dateAppelliCounter}">Data fine iscrizione</label>
+          <input type="date" id="fineIscrizione_${dateAppelliCounter}" name="fineIscrizione[]" class="form-input">
         </div>
       </div>
     `;

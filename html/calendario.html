@@ -176,78 +176,32 @@
           </div>
         </div>
 
+        <div class="two-column-layout">
+          <div class="column">
+            <div class="form-element">
+              <label for="tipoEsame">Tipo esame</label>
+              <select id="tipoEsame" name="tipoEsame" class="form-input">
+                <option value="" disabled selected hidden>Non definito</option>
+                <option value="S">Scritto</option>
+                <option value="O">Orale</option>
+                <option value="SO">Scritto e orale</option>
+              </select>
+            </div>
+          </div>
+          <div class="column">
+            <div class="form-element">
+              <label for="note">Note</label>
+              <textarea id="note" name="note" class="form-textarea" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+
         <!-- Sezioni Date e Appelli -->
         <div class="form-separator"></div>
         <div id="dateAppelliContainer" class="date-appelli-container">
           <h3 class="section-title">Date e Appelli</h3>
           <p style="color: #666; font-size: 0.9rem; margin: 8px 0;">Aggiungi le date e orari per gli appelli d'esame</p>
           <!-- Le sezioni di date verranno aggiunte dinamicamente qui -->
-        </div>
-        <div class="form-separator"></div>
-
-        <span id="buttonOpzioniAggiuntive">Opzioni aggiuntive <span class="material-symbols-outlined">arrow_right</span></span>
-
-        <!-- Opzioni aggiuntive -->
-        <div id="opzioniAggiuntive">
-          <div class="form-element">
-            <label for="inizioIscrizione">Data inizio iscrizione</label>
-            <input type="date" id="inizioIscrizione" name="inizioIscrizione" class="form-input">
-          </div>
-
-          <div class="form-element">
-            <label for="fineIscrizione">Data fine iscrizione</label>
-            <input type="date" id="fineIscrizione" name="fineIscrizione" class="form-input">
-          </div>
-
-          <div class="form-element">
-            <label for="tipoEsame">Tipo esame</label>
-            <select id="tipoEsame" name="tipoEsame" class="form-input">
-              <option value="" disabled selected hidden>Non definito</option>
-              <option value="S">Scritto</option>
-              <option value="O">Orale</option>
-              <option value="SO">Scritto e orale</option>
-            </select>
-          </div>
-
-          <div class="form-element">
-            <label for="posti">Posti</label>
-            <input type="number" id="posti" name="posti" class="form-input" min="1">
-          </div>
-
-          <div class="form-element">
-            <label for="note">Note</label>
-            <textarea id="note" name="note" class="form-textarea" rows="2"></textarea>
-          </div>
-
-          <span>
-            Se non si inseriscono date inizio/fine iscrizione, il sistema le imposterà automaticamente a 20 giorni
-            dall'inizio sessione fino al giorno prima dell'esame.
-          </span>
-
-          <!--
-          <div>
-            <label class="formEsame-label" for="tipoAppello">Tipo appello</label>
-            <select id="tipoAppello" name="tipoAppello" class="form-input">
-              <option value="PF" selected>PF</option>
-            </select>
-          </div>
-          <div>
-            <label class="formEsame-label" for="riservato">Riservato</label>
-            <input type="checkbox" id="riservato" name="riservato" class="form-checkbox">
-          </div>
-          <div>
-            <label class="formEsame-label" for="definizioneAppello">Definizione appello</label>
-            <select id="definizioneAppello" name="definizioneAppello" class="form-input">
-              <option value="STD" selected>Standard</option>
-            </select>
-          </div>
-          <div>
-            <label class="formEsame-label" for="gestionePrenotazione">Gestione pren.</label>
-            <select id="gestionePrenotazione" name="gestionePrenotazione" class="form-input">
-              <option value="STD" selected>Standard</option>
-            </select>
-          </div>
-          -->
         </div>
 
         <div class="form-actions">

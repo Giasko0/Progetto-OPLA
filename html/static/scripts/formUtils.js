@@ -185,14 +185,6 @@ const FormUtils = (function() {
     .then(response => response.json());
   }
 
-  // Gestione form generica
-  function setFormDefaults(elements, defaults) {
-    elements.forEach(element => {
-      const name = element.name || element.id;
-      if (name && defaults[name]) element.value = defaults[name];
-    });
-  }
-
   function resetForm(formId) {
     const form = document.getElementById(formId);
     if (form) {
@@ -364,7 +356,6 @@ const FormUtils = (function() {
     saveFormPreference,
     loadFormPreferences,
     deleteFormPreference,
-    setFormDefaults,
     resetForm,
     parseTimeString,
     formatTimeFromHourMinute,

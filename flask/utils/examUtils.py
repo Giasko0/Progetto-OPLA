@@ -32,7 +32,6 @@ def generaDatiEsame():
     tipo_esame = data.get('tipoEsame')
     verbalizzazione = data.get('verbalizzazione')
     note_appello = data.get('note')
-    posti = data.get('posti')
     anno_accademico = data.get('anno_accademico')
     
     # Raccolta delle multiple date/appelli dal form modulare
@@ -51,6 +50,8 @@ def generaDatiEsame():
       ora_m = data.get(f'ora_m_{index}')
       aula_appello = data.get(f'aula_{index}')
       durata_appello = data.get(f'durata_{index}', '120')  # Default 120 minuti
+      inizio_iscrizione_sezione = data.get(f'inizioIscrizione_{index}')
+      fine_iscrizione_sezione = data.get(f'fineIscrizione_{index}')
       
       # Validazione campi obbligatori per questa data
       if not all([data_appello, ora_h, ora_m, aula_appello]):
@@ -83,7 +84,9 @@ def generaDatiEsame():
         'ora_appello': ora_appello,
         'aula': aula_appello,
         'durata_appello': durata_appello,
-        'periodo': periodo
+        'periodo': periodo,
+        'inizio_iscrizione': inizio_iscrizione_sezione,
+        'fine_iscrizione': fine_iscrizione_sezione
       })
     
     # Se non ci sono date valide, fallback ai campi legacy o al campo combinato
@@ -161,23 +164,15 @@ def generaDatiEsame():
     # Tipo iscrizione
     tipo_iscrizione = 'SOC' if tipo_esame == 'SO' else tipo_esame
 
-    # Valori standard per campi opzionali
+    # Valori che non gestiamo
     definizione_appello = 'STD'
     gestione_prenotazione = 'STD'
     riservato = False
+    posti = None
     
     # Gestione tipo_esame
     if not tipo_esame or tipo_esame.strip() == '':
       tipo_esame = None
-    
-    # Gestione posti
-    if posti:
-      try:
-        posti = int(posti)
-      except ValueError:
-        posti = None
-    else:
-      posti = None
     
     # Gestione delle date di iscrizione
     inizio_iscrizione = data.get('inizioIscrizione')
@@ -325,9 +320,9 @@ def controllaVincoli(dati_esame):
           if isinstance(data_inizio_sessione, str):
             data_inizio_sessione = datetime.fromisoformat(data_inizio_sessione)
           
-          # Calcola le date di iscrizione se non specificate
-          data_inizio_iscrizione = inizio_iscrizione
-          data_fine_iscrizione = fine_iscrizione
+          # Calcola le date di iscrizione se non specificate per questa sezione
+          data_inizio_iscrizione = data_appello_info.get('inizio_iscrizione') or inizio_iscrizione
+          data_fine_iscrizione = data_appello_info.get('fine_iscrizione') or fine_iscrizione
           
           if not data_inizio_iscrizione:
             data_inizio_iscrizione = (data_inizio_sessione - timedelta(days=20)).strftime("%Y-%m-%d")
@@ -549,17 +544,17 @@ def inserisciEsami(dati_comuni, esami_da_inserire):
           """INSERT INTO esami 
              (docente, insegnamento, aula, data_appello, ora_appello, 
             data_inizio_iscrizione, data_fine_iscrizione, 
-            tipo_esame, verbalizzazione, descrizione, note_appello, posti,
+            tipo_esame, verbalizzazione, descrizione, note_appello,
             tipo_appello, definizione_appello, gestione_prenotazione, 
             riservato, tipo_iscrizione, periodo, durata_appello,
             cds, anno_accademico, curriculum, mostra_nel_calendario)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
           (dati_comuni['docente'], insegnamento_id, aula, 
            data_appello, ora_appello, 
            inizio_iscrizione, fine_iscrizione, 
            dati_comuni['tipo_esame'], dati_comuni['verbalizzazione'],
            dati_comuni['descrizione'], dati_comuni['note_appello'],
-           dati_comuni['posti'], dati_comuni['tipo_appello'],
+           dati_comuni['tipo_appello'],
            dati_comuni['definizione_appello'], dati_comuni['gestione_prenotazione'],
            dati_comuni['riservato'], dati_comuni['tipo_iscrizione'],
            periodo, durata_appello,
