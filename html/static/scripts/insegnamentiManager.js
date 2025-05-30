@@ -293,8 +293,11 @@ const InsegnamentiManager = (function () {
         const tag = document.createElement("div");
         tag.className = "multi-select-tag";
         tag.dataset.value = ins.codice;
+        
+        // Includi il codice CdS tra parentesi se disponibile
+        const cdsText = ins.cds_codice ? ` (${ins.cds_codice})` : '';
         tag.innerHTML =
-          `${ins.titolo} <span class="multi-select-tag-remove">&times;</span>`;
+          `${ins.titolo}${cdsText} <span class="multi-select-tag-remove">&times;</span>`;
 
         // Gestione rimozione
         tag
@@ -303,6 +306,15 @@ const InsegnamentiManager = (function () {
             e.stopPropagation();
             tag.remove();
             deselectInsegnamento(ins.codice);
+
+            // Rimuovi evidenziazione dall'opzione corrispondente nel dropdown
+            const dropdown = container.parentNode?.querySelector('.multi-select-dropdown');
+            if (dropdown) {
+              const option = dropdown.querySelector(`[data-value="${ins.codice}"]`);
+              if (option) {
+                option.classList.remove("selected");
+              }
+            }
 
             // Mostra placeholder se necessario
             if (container.querySelectorAll(".multi-select-tag").length === 0) {
@@ -424,7 +436,10 @@ const InsegnamentiManager = (function () {
         option.dataset.cds = ins.cds_codice || "";
         option.dataset.semestre = ins.semestre || "1";
         option.dataset.annoCorso = ins.anno_corso || "1";
-        option.textContent = ins.titolo;
+        
+        // Includi il codice CdS tra parentesi se disponibile
+        const cdsText = ins.cds_codice ? ` (${ins.cds_codice})` : '';
+        option.textContent = `${ins.titolo}${cdsText}`;
         
         if (isSelected(ins.codice)) {
           option.classList.add("selected");

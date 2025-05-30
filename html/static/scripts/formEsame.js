@@ -798,10 +798,10 @@ const EsameForm = (function() {
       if (selectedInsegnamenti.length === 0) {
         const tags = document.querySelectorAll('#insegnamentoBox .multi-select-tag');
         tags.forEach(tag => {
-          const codiceMatch = tag.textContent.match(/\(([A-Z0-9]+)\)/);
-          if (codiceMatch && codiceMatch[1]) {
-            const codice = codiceMatch[1];
-            const titolo = tag.textContent.replace(/\s*\([A-Z0-9]+\)$/, '').trim();
+          const cdsMatch = tag.textContent.match(/\s+\(([A-Z0-9]+)\)/);
+          if (cdsMatch && cdsMatch[1]) {
+            const codice = cdsMatch[1];
+            const titolo = tag.textContent.replace(/\s+\([A-Z0-9]+\)\s*×?$/, '').trim();
             selectedInsegnamenti.push({ codice, titolo });
           }
         });
