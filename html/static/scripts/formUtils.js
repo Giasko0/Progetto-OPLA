@@ -146,7 +146,7 @@ const FormUtils = (function() {
 
   // Gestione preferenze (generica per tutti i form)
   function saveFormPreference(username, formType, preferenceName, preferences) {
-    return fetch('/api/salvaPreferienzaForm', {
+    return fetch('/api/salvaPreferenzaForm', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

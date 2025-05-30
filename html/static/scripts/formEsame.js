@@ -812,6 +812,7 @@ const EsameForm = (function() {
         
     // Raccogli i valori comuni del form escludendo i campi specifici dell'esame
     const preferences = {
+      mostra_nel_calendario: document.getElementById("mostra_nel_calendario")?.checked || false,
       descrizione: document.getElementById("descrizione")?.value,
       insegnamenti: selectedInsegnamenti,
       tipoEsame: document.getElementById("tipoEsame")?.value,
@@ -928,6 +929,11 @@ const EsameForm = (function() {
         document.getElementById('tipoAppelloPF').checked = true;
       }
       aggiornaVerbalizzazione();
+    }
+
+    // Imposta mostra_nel_calendario
+    if (preference.hasOwnProperty('mostra_nel_calendario')) {
+      setCheckboxValue('mostra_nel_calendario', preference.mostra_nel_calendario);
     }
     
     // Imposta note

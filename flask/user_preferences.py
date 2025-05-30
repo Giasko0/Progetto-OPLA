@@ -6,8 +6,8 @@ import psycopg2.extras
 
 preferences_bp = Blueprint('preferences', __name__)
 
-@preferences_bp.route('/api/salvaPreferienzaForm', methods=['POST'])
-def salva_preferienza_form():
+@preferences_bp.route('/api/salvaPreferenzaForm', methods=['POST'])
+def salva_preferenza_form():
     """Salva le preferenze del form per un utente"""
     conn = None
     cursor = None
