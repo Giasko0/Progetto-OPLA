@@ -208,7 +208,7 @@ export function handleDropdownButtonClick(e, type, calendar, dropdowns, populate
 }
 
 // Aggiunge listener per i click dentro i dropdown
-export function setupDropdownClickListeners(calendar, dropdowns, currentUsername, updateDateValideCallback, dateRange) {
+export function setupDropdownClickListeners(calendar, dropdowns, currentUsername, updateDateValideCallback) {
     // Dropdown insegnamenti
     if (dropdowns.insegnamenti) {
         dropdowns.insegnamenti.addEventListener("click", (e) => {
@@ -250,7 +250,25 @@ export function setupDropdownClickListeners(calendar, dropdowns, currentUsername
             if (item) {
                 const targetDate = item.dataset.data;
                 if (targetDate && calendar) {
-                    calendar.gotoDate(targetDate);
+                    // Trova l'elemento del mese target nel DOM e scrolla verso di esso
+                    const targetDateObj = new Date(targetDate);
+                    const targetMonth = targetDateObj.getMonth() + 1; // 1-based
+                    const targetYear = targetDateObj.getFullYear();
+                    
+                    // Cerca l'elemento del mese nel calendario
+                    setTimeout(() => {
+                        const monthElements = document.querySelectorAll('[data-date*="' + targetYear + '-' + String(targetMonth).padStart(2, '0') + '"], .fc-multimonth-month[data-date*="' + targetYear + '-' + String(targetMonth).padStart(2, '0') + '"]');
+                        if (monthElements.length > 0) {
+                            monthElements[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        } else {
+                            // Fallback: cerca qualsiasi elemento che contenga l'anno target
+                            const yearElements = document.querySelectorAll(`[data-date*="${targetYear}"]`);
+                            if (yearElements.length > 0) {
+                                yearElements[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }
+                    }, 100);
+                    
                     dropdowns.sessioni.classList.remove('show');
                     dropdowns.sessioni.style.display = 'none';
                 }

@@ -21,11 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth();
   const startYear = currentMonth < 8 ? currentYear : currentYear + 1;
-  const dateRange = {
-      start: `${startYear}-01-01`,
-      end: `${startYear + 1}-04-30`,
-      today: today.toISOString().split('T')[0]
-  };
+  const initialDate = `${startYear}-01-01`;
 
   var calendarEl = document.getElementById("calendar");
   let userData = null;
@@ -139,8 +135,8 @@ document.addEventListener("DOMContentLoaded", function () {
           locale: "it",
           initialView: 'multiMonthList',
           duration: { months: 14 },
-          initialDate: dateRange.start,
-          validRange: dateRange,
+          initialDate: initialDate,
+          validRange: false, // Disabilita completamente le limitazioni di range
           selectable: true,
 
           views: {
@@ -358,25 +354,10 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         });
 
-        setupDropdownClickListeners(calendar, dropdowns, currentUsername, updateDateValideState, dateRange);
+        setupDropdownClickListeners(calendar, dropdowns, currentUsername, updateDateValideState);
         setupGlobalClickListeners(dropdowns);
         calendar.render();
         window.calendar = calendar;
-
-        // Aggiungi listener per i pulsanti di cambio vista
-        setTimeout(() => {
-          const viewButtons = document.querySelectorAll('.fc-multiMonthList-button, .fc-multiMonthGrid-button, .fc-listaEventi-button');
-          viewButtons.forEach(button => {
-            button.addEventListener('click', () => {
-              setTimeout(() => {
-                // Forza il refresh degli eventi per aggiornare il rendering
-                eventsCache = [];
-                lastFetchTime = 0;
-                calendar.refetchEvents();
-              }, 100);
-            });
-          });
-        }, 500);
 
         if (window.InsegnamentiManager) {
           let debounceTimer;
