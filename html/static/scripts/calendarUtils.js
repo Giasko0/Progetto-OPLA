@@ -525,3 +525,11 @@ export function aggiornaAulaEventoProvvisorio(date, aula, calendar, provisionalE
   console.log(`Aula aggiornata per evento provvisorio del ${date}: ${aula || 'rimossa'}`);
   return true;
 }
+
+// Esporta le funzioni nel namespace globale per compatibilità
+if (typeof window !== 'undefined') {
+  window.formatDateForInput = formatDateForInput;
+  window.isDateValid = isDateValid;
+  window.creaEventoProvvisorio = creaEventoProvvisorio;
+  window.aggiornaAulaEventoProvvisorio = aggiornaAulaEventoProvvisorio;
+}

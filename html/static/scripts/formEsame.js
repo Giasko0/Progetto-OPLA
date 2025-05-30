@@ -46,6 +46,9 @@ const EsameForm = (function() {
   let dateAppelliCounter = 0;
   let selectedDates = [];
 
+  // Riusa dateValide dal context globale del calendario
+  const getDateValide = () => window.dateValide || [];
+
   // Carica il form HTML dinamicamente
   async function loadForm() {
     try {
@@ -1447,6 +1450,14 @@ const EsameForm = (function() {
         return;
       }
       
+      // Anche per il bypass, controlla se ci sono errori di validazione delle date
+      const errorFields = document.querySelectorAll('.form-input-error');
+      if (errorFields.length > 0) {
+        showValidationError("Correggi gli errori nelle date prima di inviare il form, anche con bypass");
+        errorFields[0].focus();
+        return;
+      }
+      
       // Combina i valori di ora e durata prima dell'invio
       combineTimeValues();
       
@@ -1460,6 +1471,15 @@ const EsameForm = (function() {
 
     // Combina ora e durata
     combineTimeValues();
+
+    // Controlla se ci sono campi data con errori di validazione
+    const errorFields = document.querySelectorAll('.form-input-error');
+    if (errorFields.length > 0) {
+      showValidationError("Correggi gli errori nelle date prima di inviare il form");
+      // Focalizza il primo campo con errore
+      errorFields[0].focus();
+      return;
+    }
 
     // Validazione usando le regole unificate
     const validationResults = {
@@ -1739,9 +1759,17 @@ const EsameForm = (function() {
     const oraM = document.getElementById(`ora_m_${counter}`);
     
     if (dateInput) {
-      dateInput.addEventListener('change', () => {
-        updateAuleForSection(counter);
-        handleDateInputChange(sectionId, counter);
+      // Rimuovi stili di errore durante la digitazione
+      dateInput.addEventListener('input', () => {
+        dateInput.classList.remove('form-input-error');
+      });
+      
+      // Esegui la validazione solo quando il campo perde focus
+      dateInput.addEventListener('blur', () => {
+        if (dateInput.value && isValidDateFormat(dateInput.value)) {
+          handleDateInputChange(sectionId, counter);
+          updateAuleForSection(counter);
+        }
       });
     }
     if (oraH) {
@@ -1750,6 +1778,62 @@ const EsameForm = (function() {
     if (oraM) {
       oraM.addEventListener('change', () => updateAuleForSection(counter));
     }
+  }
+
+  // Funzione helper per validare il formato della data
+  function isValidDateFormat(dateString) {
+    if (dateString.length !== 10) return false;
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateString)) return false;
+    
+    // Verifica che sia una data valida
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date) && dateString === formatDateForInput(date);
+  }
+
+  // Funzione per validare i vincoli di data riutilizzando la logica esistente
+  function validateDateConstraints(newDate, counter) {
+    if (!newDate) return true;
+    
+    const dateInput = document.getElementById(`dataora_${counter}`);
+    
+    // Rimuovi eventuali stili di errore precedenti
+    if (dateInput) {
+      dateInput.classList.remove('form-input-error');
+    }
+    
+    // Raccogli le date provvisorie da altre sezioni del form (esclusa quella corrente)
+    const otherSectionDates = [];
+    const dateSections = document.querySelectorAll('.date-appello-section');
+    dateSections.forEach(section => {
+      const sectionDateInput = section.querySelector('input[type="date"]');
+      if (sectionDateInput && sectionDateInput.value && sectionDateInput.id !== `dataora_${counter}`) {
+        otherSectionDates.push(sectionDateInput.value);
+      }
+    });
+    
+    // Usa la funzione esistente isDateValid con le date delle altre sezioni
+    const validationResult = window.isDateValid(new Date(newDate), getDateValide(), otherSectionDates);
+    
+    if (!validationResult.isValid) {
+      // Applica lo stile di errore al campo
+      if (dateInput) {
+        dateInput.classList.add('form-input-error');
+      }
+      
+      // Mostra il messaggio appropriato
+      if (window.showMessage) {
+        window.showMessage(
+          validationResult.message,
+          'Vincolo date', 
+          'warning'
+        );
+      }
+      
+      return false;
+    }
+    
+    return true;
   }
 
   function handleDateInputChange(sectionId, counter) {
@@ -1761,24 +1845,47 @@ const EsameForm = (function() {
     const newDate = dateInput.value;
     const oldDate = section.dataset.date;
     
+    // Se la data non è completa o non è valida, non fare nulla
+    if (!newDate || newDate.length < 10 || !isValidDateFormat(newDate)) {
+      return;
+    }
+    
     // Se la data è cambiata
     if (newDate !== oldDate) {
       // Rimuovi l'evento provvisorio precedente se esisteva
       if (oldDate && window.provisionalEvents && window.removeProvisionalEvents) {
-        const oldEvent = window.provisionalEvents.find(event => 
+        const matchingEvent = window.provisionalEvents.find(event => 
           event.extendedProps.formSectionDate === oldDate
         );
-        if (oldEvent) {
-          window.removeProvisionalEvents(oldEvent.id);
+        if (matchingEvent) {
+          window.removeProvisionalEvents([matchingEvent.id]);
         }
       }
       
-      // Aggiorna il dataset della sezione
-      section.dataset.date = newDate;
+      // Aggiorna il tracking delle date selezionate
+      if (oldDate && selectedDates.includes(oldDate)) {
+        const index = selectedDates.indexOf(oldDate);
+        selectedDates.splice(index, 1);
+      }
       
-      // Crea nuovo evento provvisorio se la data è valida
-      if (newDate && window.calendar) {
-        createProvisionalEventForDate(newDate);
+      // Verifica il vincolo dei 14 giorni
+      if (!validateDateConstraints(newDate, counter)) {
+        // Data non valida - non creare evento provvisorio
+        return;
+      }
+      
+      // Data valida - continua con la logica normale
+      section.dataset.date = newDate;
+      createProvisionalEventForDate(newDate);
+      
+      if (!selectedDates.includes(newDate)) {
+        selectedDates.push(newDate);
+      }
+      
+      // Reset delle aule quando cambia la data
+      const aulaSelect = document.getElementById(`aula_${counter}`);
+      if (aulaSelect) {
+        aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
       }
     }
   }

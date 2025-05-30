@@ -1678,3 +1678,9 @@ body {
     gap: 8px;
   }
 }
+
+/* Stili per campi con errore di validazione */
+.form-input-error {
+  border: 2px solid var(--color-error) !important;
+  box-shadow: 0 0 5px rgba(193, 34, 53, 0.3) !important;
+}
