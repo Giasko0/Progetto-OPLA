@@ -1,5 +1,5 @@
 /**
- * Script per la gestione dei corsi di studio
+ * Script per la gestione delle date dei corsi di studio
  * Versione semplificata che gestisce solo la modifica delle date
  */
 document.addEventListener('DOMContentLoaded', function() {
@@ -156,6 +156,11 @@ function loadCdsDetails(value) {
             document.getElementById('anno_accademico').value = data.anno_accademico;
             document.getElementById('nome_corso').value = data.nome_corso;
             
+            // Popola il campo target_esami
+            if (data.target_esami !== undefined) {
+                document.getElementById('target_esami').value = data.target_esami || '';
+            }
+            
             // Ricrea il contenuto del container delle informazioni
             const infoContainer = document.getElementById('cdsInfoContainer');
             infoContainer.innerHTML = `
@@ -184,11 +189,11 @@ function loadCdsDetails(value) {
                 if (data[`${tipo}_fine`]) {
                     document.getElementById(`${tipo}_fine`).value = formatDateForInput(data[`${tipo}_fine`]);
                 }
-                // Numero esami per semestre
+                // Numero esami per semestre (solo primo semestre per la sessione anticipata)
                 if (data[`${tipo}_esami_primo`] !== undefined) {
                     document.getElementById(`${tipo}_esami_primo`).value = data[`${tipo}_esami_primo`] || '';
                 }
-                if (data[`${tipo}_esami_secondo`] !== undefined) {
+                if (tipo !== 'anticipata' && data[`${tipo}_esami_secondo`] !== undefined) {
                     document.getElementById(`${tipo}_esami_secondo`).value = data[`${tipo}_esami_secondo`] || '';
                 }
             });
@@ -231,6 +236,12 @@ function saveCdsData() {
     
     cdsData.nome_corso = formData.get('nome_corso');
     
+    // Campo target_esami
+    const targetEsami = formData.get('target_esami');
+    if (targetEsami) {
+        cdsData.target_esami = parseInt(targetEsami) || null;
+    }
+    
     // Date delle sessioni esame e numero esami per semestre
     const sessionTypes = ['anticipata', 'estiva', 'autunnale', 'invernale'];
     sessionTypes.forEach(tipo => {
@@ -242,7 +253,10 @@ function saveCdsData() {
         if (inizio) cdsData[`${tipo}_inizio`] = inizio;
         if (fine) cdsData[`${tipo}_fine`] = fine;
         if (esamiPrimo) cdsData[`${tipo}_esami_primo`] = parseInt(esamiPrimo) || null;
-        if (esamiSecondo) cdsData[`${tipo}_esami_secondo`] = parseInt(esamiSecondo) || null;
+        // La sessione anticipata non ha esami del secondo semestre
+        if (tipo !== 'anticipata' && esamiSecondo) {
+            cdsData[`${tipo}_esami_secondo`] = parseInt(esamiSecondo) || null;
+        }
     });
     
     // Validazione coppie di date

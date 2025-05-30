@@ -4,22 +4,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Gestione dei Corsi di Studio nel sistema OH-ISSA dell'Università degli Studi di Perugia. Configura date dei semestri, pause didattiche e sessioni d'esame per ogni corso.">
+  <meta name="description" content="Gestione delle Date di Sessioni d'Esame nel sistema OH-ISSA dell'Università degli Studi di Perugia. Configura date dei semestri, pause didattiche e sessioni d'esame per ogni corso.">
   <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
-  <title>Gestione CdS - OH-ISSA</title>
+  <title>Gestione Date - OH-ISSA</title>
   <link rel="stylesheet" href="static/styles/admin.css">
   <script src="static/scripts/common.js"></script>
   <script src="static/scripts/authCheck.js"></script>
   <script src="static/scripts/navbarAdmin.js"></script>
   <script src="static/scripts/footerAdmin.js"></script>
-  <script src="static/scripts/gestioneCds.js"></script>
+  <script src="static/scripts/gestioneDate.js"></script>
 </head>
 
 <body>
   <div id="navbar"></div>
 
   <main>
-    <h1>Gestione Corsi di Studio</h1>
+    <h1>Gestione Date</h1>
 
     <!-- Sezione per selezionare anno e corso in due colonne -->
     <section class="selector-section">
@@ -55,6 +55,16 @@
         <input type="hidden" id="anno_accademico" name="anno_accademico">
         <input type="hidden" id="nome_corso" name="nome_corso">
 
+        <!-- Campo Target Esami -->
+        <fieldset>
+          <legend>Configurazione Corso</legend>
+          <div class="form-group">
+            <label for="target_esami">Numero Target Esami:</label>
+            <input type="number" id="target_esami" name="target_esami" min="0" placeholder="Numero totale esami per il corso">
+            <small class="form-text">Numero indicativo del totale di esami previsti per questo corso di studio</small>
+          </div>
+        </fieldset>
+
         <!-- Sessioni d'esame -->
         <fieldset>
           <legend>Sessioni d'Esame</legend>
@@ -73,10 +83,6 @@
               <div>
                 <label for="anticipata_esami_primo">Esami 1° sem:</label>
                 <input type="number" id="anticipata_esami_primo" name="anticipata_esami_primo" min="0">
-              </div>
-              <div>
-                <label for="anticipata_esami_secondo">Esami 2° sem:</label>
-                <input type="number" id="anticipata_esami_secondo" name="anticipata_esami_secondo" min="0">
               </div>
             </div>
             <small class="form-text">Corrisponde alla sessione invernale dell'anno accademico precedente</small>

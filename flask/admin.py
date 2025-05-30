@@ -759,6 +759,9 @@ def save_cds_dates():
     if not nome_corso:
       return jsonify({'status': 'error', 'message': 'Nome corso mancante'}), 400
     
+    # Target esami per il CdS
+    target_esami = data.get('target_esami') or None
+    
     # Date di sessioni d'esame
     anticipata_inizio = data.get('anticipata_inizio') or None
     anticipata_fine = data.get('anticipata_fine') or None
@@ -771,7 +774,6 @@ def save_cds_dates():
     
     # Limiti esami per ogni sessione
     anticipata_esami_primo = data.get('anticipata_esami_primo') or None
-    anticipata_esami_secondo = data.get('anticipata_esami_secondo') or None
     estiva_esami_primo = data.get('estiva_esami_primo') or None
     estiva_esami_secondo = data.get('estiva_esami_secondo') or None
     autunnale_esami_primo = data.get('autunnale_esami_primo') or None
@@ -810,22 +812,24 @@ def save_cds_dates():
     if exists:
       cursor.execute("""
         UPDATE cds SET 
-          nome_corso = %s
+          nome_corso = %s,
+          target_esami = %s
         WHERE codice = %s AND anno_accademico = %s AND curriculum = %s
       """, (
         nome_corso, 
+        target_esami,
         codice_cds, anno_accademico, curriculum
       ))
       message = f"Date del corso {codice_cds} per l'anno accademico {anno_accademico} aggiornate con successo"
     else:
       cursor.execute("""
         INSERT INTO cds (
-          codice, anno_accademico, nome_corso, curriculum
+          codice, anno_accademico, nome_corso, curriculum, target_esami
         ) VALUES (
-          %s, %s, %s, %s
+          %s, %s, %s, %s, %s
         )
       """, (
-        codice_cds, anno_accademico, nome_corso, curriculum
+        codice_cds, anno_accademico, nome_corso, curriculum, target_esami
       ))
       message = f"Nuovo corso {codice_cds} per l'anno accademico {anno_accademico} creato con successo"
     
@@ -840,7 +844,7 @@ def save_cds_dates():
     
     # Aggiungi le sessioni d'esame
     if anticipata_inizio and anticipata_fine:
-      sessioni.append(('anticipata', anticipata_inizio, anticipata_fine, anticipata_esami_primo, anticipata_esami_secondo))
+      sessioni.append(('anticipata', anticipata_inizio, anticipata_fine, anticipata_esami_primo, None))
       
       # Gestisci la sessione invernale dell'anno precedente
       try:
@@ -875,7 +879,7 @@ def save_cds_dates():
         cursor.execute("""
           INSERT INTO sessioni (cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre)
           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (codice_cds, anno_precedente, curriculum, 'invernale', anticipata_inizio, anticipata_fine, anticipata_esami_primo, anticipata_esami_secondo))
+        """, (codice_cds, anno_precedente, curriculum, 'invernale', anticipata_inizio, anticipata_fine, anticipata_esami_primo, None))
         
       except Exception as e:
         # Non interrompiamo il flusso principale se questa parte fallisce
@@ -1157,7 +1161,7 @@ def get_cds_details():
     # Query per ottenere le informazioni di base del CdS
     query_cds = """
       SELECT 
-        codice, anno_accademico, nome_corso
+        codice, anno_accademico, nome_corso, target_esami
       FROM cds 
       WHERE codice = %s
     """

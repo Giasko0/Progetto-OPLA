@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <ul class="navbar-nav">
         <li><a href="/oh-issa/">Dashboard</a></li>
         <li><a href="/oh-issa/import-export.html">Import/Export Dati</a></li>
-        <li><a href="/oh-issa/gestioneCds.html">Gestione CdS</a></li>
+        <li><a href="/oh-issa/gestioneDate.html">Gestione Date</a></li>
         <li><a href="/oh-issa/gestioneUtenti.html">Gestione Utenti</a></li>
         <li><a href="/oh-issa/calendarioEsami.html">Calendario Esami</a></li>
         <li id="loginLogoutItem" class="nav-right">
