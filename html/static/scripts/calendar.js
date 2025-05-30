@@ -87,7 +87,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function deleteEsame(examId) {
     if (!examId) return;
-    if (!confirm("Sei sicuro di voler eliminare questo esame?")) return;
+    if (!window.showMessage) {
+      if (!confirm("Sei sicuro di voler eliminare questo esame?")) return;
+    } else {
+      // Per ora usiamo confirm, ma si potrebbe implementare un dialog personalizzato
+      if (!confirm("Sei sicuro di voler eliminare questo esame?")) return;
+    }
 
     fetch('/api/deleteEsame', {
       method: 'POST',
@@ -201,7 +206,11 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             aggiungiEsame: {
               text: "Importa da file",
-              click: () => alert("Funzionalità di import non ancora implementata.")
+              click: () => {
+                if (window.showMessage) {
+                  window.showMessage("Funzionalità di import non ancora implementata.", "Info", "notification");
+                }
+              }
             }
           },
 
@@ -240,8 +249,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 return;
               } else if (!isAdmin) {
-                // Per altri errori di validazione, mostra alert standard
-                alert(validationResult.message);
+                // Per altri errori di validazione, mostra messaggio nella sidebar
+                if (window.showMessage) {
+                  window.showMessage(validationResult.message, 'Attenzione', 'notification');
+                }
                 return;
               }
             }

@@ -382,7 +382,7 @@ export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
   if (!isInSession) {
     return {
       isValid: false,
-      message: "Non è possibile inserire esami al di fuori delle sessioni valide o delle pause didattiche.",
+      message: "Non è possibile inserire esami al di fuori delle sessioni previste.",
     };
   }
 
