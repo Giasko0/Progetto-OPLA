@@ -36,6 +36,7 @@ CREATE TABLE cds (
     anno_accademico INT NOT NULL,        -- Anno accademico (2025 per 2025/2026)
     nome_corso TEXT NOT NULL,            -- Nome del corso di studio (INFORMATICA)
     curriculum TEXT NOT NULL,            -- Curriculum del corso di studio (CYBERSECURITY)
+    target_esami INTEGER,                -- Numero target di esami per il corso di studio
     PRIMARY KEY (codice, anno_accademico, curriculum),
     CONSTRAINT check_anno_accademico CHECK (anno_accademico >= 1900 AND anno_accademico <= 2100)
 );
