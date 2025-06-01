@@ -289,44 +289,32 @@ document.addEventListener("DOMContentLoaded", function () {
           },
 
           eventContent: function (arg) {
+            const titoloInsegnamento = arg.event.title || 'Insegnamento';
+            let htmlContent = '';
+
             if (arg.event.extendedProps.isProvisional) {
-              const aula = arg.event.extendedProps.aula || '';
+              // Per eventi provvisori: Prima riga data, seconda riga "Cognome docente - Nuovo esame"
+              const cognomeDocente = userData?.user_data?.cognome || 'Docente';
               const dataAppello = arg.event.start ? arg.event.start.toLocaleDateString('it-IT') : '';
               
-              // Prima riga: titolo in grassetto
-              // Seconda riga: data dell'appello
-              // Terza riga: aula
-              let htmlContent = `<div class="fc-event-time fc-sticky">Nuovo esame</div>`;
-              if (dataAppello) {
-                htmlContent += `<div class="fc-event-title">${dataAppello}</div>`;
+              htmlContent += `<div class="fc-event-time fc-sticky">${dataAppello}</div>`;
+              htmlContent += `<div class="fc-event-title">${cognomeDocente} - Nuovo esame</div>`;
+            } else {
+              // Per eventi normali: Prima riga ora, seconda riga "Cognome docente - titolo insegnamento"
+              const docenteCompleto = arg.event.extendedProps.docenteNome || '';
+              const cognomeDocente = docenteCompleto ? docenteCompleto.split(' ').pop() : 'Docente';
+              
+              if (arg.event.start) {
+                const timeString = arg.event.start.toLocaleTimeString('it-IT', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  hour12: false 
+                });
+                htmlContent += `<div class="fc-event-time fc-sticky">${timeString}</div>`;
               }
-              if (aula) {
-                htmlContent += `<div class="fc-event-description">${aula}</div>`;
-              } else {
-                htmlContent += `<div class="fc-event-description">Aula non specificata</div>`;
-              }
-              return { html: htmlContent };
+              
+              htmlContent += `<div class="fc-event-title">${cognomeDocente} - ${titoloInsegnamento}</div>`;
             }
-            
-            // Per eventi normali: Prima riga ora, seconda riga materia, terza riga docente
-            let htmlContent = '';
-            
-            // Prima riga: Ora dell'esame
-            if (arg.event.start) {
-              const timeString = arg.event.start.toLocaleTimeString('it-IT', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
-              });
-              htmlContent += `<div class="fc-event-time fc-sticky">${timeString}</div>`;
-            }
-            
-            // Seconda riga: Titolo dell'insegnamento
-            htmlContent += `<div class="fc-event-title">${arg.event.title}</div>`;
-            
-            // Terza riga: Docente (nome e cognome)
-            const docenteDisplay = arg.event.extendedProps.docenteNome || 'Docente non specificato';
-            htmlContent += `<div class="fc-event-description">${docenteDisplay}</div>`;
             
             return { html: htmlContent };
           },
