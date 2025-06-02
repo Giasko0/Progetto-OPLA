@@ -1072,8 +1072,6 @@ const EsameForm = (function() {
     })
     .then(response => response.json())
     .then(data => {
-      console.log('Risposta ricevuta:', data);
-      
       if (data.status === 'success' || data.status === 'direct_insert') {
         // Successo - mostra notifica verde
         if (window.showMessage) {
