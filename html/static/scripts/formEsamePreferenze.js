@@ -230,9 +230,9 @@ const EsamePreferenze = (function() {
         const firstOraH = document.querySelector('[id^="ora_h_"]');
         if (firstOraH) {
           const sectionCounter = firstOraH.id.split('_')[2];
-          // Chiama la funzione del form esame se disponibile
-          if (window.EsameForm && window.EsameForm.updateAuleForSection) {
-            window.EsameForm.updateAuleForSection(sectionCounter);
+          // Chiama la funzione del modulo EsameAppelli se disponibile
+          if (window.EsameAppelli && window.EsameAppelli.updateAuleForSection) {
+            window.EsameAppelli.updateAuleForSection(sectionCounter);
           }
         }
       }, 50);
