@@ -677,37 +677,25 @@ body {
 .form-separator {
   height: 1px;
   background: linear-gradient(to right, transparent, var(--color-border), transparent);
-  margin-bottom: var(--form-margin);
+  margin: 18px 0;
 }
 
 .date-appelli-container {
-  background-color: var(--color-bg);
-  border-radius: 8px;
-  padding: 8px;
-  margin: 8px 0;
-  border: 1px solid var(--color-border);
-}
-
-.section-title {
-  margin: 0 0 8px 0;
-  color: var(--color-text);
-  font-size: 1.1rem;
-  font-weight: 600;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--color-border);
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 
 .date-appello-section {
-  background-color: var(--color-bg-light);
-  border-radius: 6px;
-  padding: 8px;
-  margin-bottom: 6px;
-  border: 1px solid var(--color-border);
   position: relative;
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 
-.date-appello-section:last-child {
-  margin-bottom: 0;
+/* Separatore tra le sezioni appello */
+.date-appello-section + .form-separator {
+  margin: 18px 0;
 }
 
 .date-appello-header {
@@ -734,18 +722,6 @@ body {
   display: flex;
   align-items: center;
   gap: 2px;
-}
-
-.date-appello-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
-  gap: 6px;
-  align-items: end;
-}
-
-.date-appello-fields > div:nth-child(3) {
-  grid-column: 1 / -1;
 }
 
 /*---------------------------------------------PREFERENZE FORM--------------------------------------------*/

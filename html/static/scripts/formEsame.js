@@ -49,6 +49,28 @@ const EsameForm = (function() {
   // Riusa dateValide dal context globale del calendario
   const getDateValide = () => window.dateValide || [];
 
+  // Cache per il template HTML
+  let appellobTemplate = null;
+
+  // Carica il template HTML per la sezione appello
+  async function loadAppelloTemplate() {
+    if (appellobTemplate) {
+      return appellobTemplate;
+    }
+    
+    try {
+      const response = await fetch('/formEsameAppello.html');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      appellobTemplate = await response.text();
+      return appellobTemplate;
+    } catch (error) {
+      console.error('Errore nel caricamento del template appello:', error);
+      throw error;
+    }
+  }
+
   // Carica il form HTML dinamicamente
   async function loadForm() {
     try {
@@ -158,7 +180,10 @@ const EsameForm = (function() {
             .then(data => {
               if (data?.authenticated && data?.user_data) {
                 currentUsername = data.user_data.username;
-                loadUserPreferences();
+                if (window.EsamePreferenze) {
+                  window.EsamePreferenze.setCurrentUsername(currentUsername);
+                  window.EsamePreferenze.loadUserPreferences();
+                }
               }
             })
             .catch(error => console.error("Errore dati utente:", error));
@@ -261,16 +286,16 @@ const EsameForm = (function() {
   function setupEventListeners() {
     const eventListeners = [
       { id: "formEsame", event: "submit", handler: handleFormSubmit },
-      { id: "savePreferenceBtn", event: "click", handler: toggleSavePreferenceForm },
-      { id: "loadPreferenceBtn", event: "click", handler: togglePreferencesMenu },
-      { id: "confirmSavePreference", event: "click", handler: handleSavePreference },
-      { id: "cancelSavePreference", event: "click", handler: toggleSavePreferenceForm },
+      { id: "savePreferenceBtn", event: "click", handler: window.EsamePreferenze?.toggleSavePreferenceForm },
+      { id: "loadPreferenceBtn", event: "click", handler: window.EsamePreferenze?.togglePreferencesMenu },
+      { id: "confirmSavePreference", event: "click", handler: window.EsamePreferenze?.handleSavePreference },
+      { id: "cancelSavePreference", event: "click", handler: window.EsamePreferenze?.toggleSavePreferenceForm },
       { id: "closeOverlay", event: "click", handler: hideForm }
     ];
 
     eventListeners.forEach(({ id, event, handler }) => {
       const element = document.getElementById(id);
-      if (element) {
+      if (element && handler) {
         element.removeEventListener(event, handler); // Rimuovi listener esistenti
         element.addEventListener(event, handler);
       }
@@ -687,22 +712,22 @@ const EsameForm = (function() {
             // Rimuovi il dialogo
             removeDialog();
 
-      if (
-        response.status === "success" ||
-        response.status === "partial"
-      ) {
-        cleanupAndHideForm();
+            if (
+              response.status === "success" ||
+              response.status === "partial"
+            ) {
+              cleanupAndHideForm();
 
-        const messageType = response.status === "success" ? "notification" : "warning";
-        const messageTitle = response.status === "success" ? "Operazione completata" : "Inserimento parziale";
+              const messageType = response.status === "success" ? "notification" : "warning";
+              const messageTitle = response.status === "success" ? "Operazione completata" : "Inserimento parziale";
 
-        // Usa la funzione showMessage per mostrare notifiche nella sidebar
-        if (window.showMessage) {
-          window.showMessage(response.message, messageTitle, messageType, { timeout: 5000 });
-        }
+              // Usa la funzione showMessage per mostrare notifiche nella sidebar
+              if (window.showMessage) {
+                window.showMessage(response.message, messageTitle, messageType, { timeout: 5000 });
+              }
 
-        // Aggiorna calendario
-        hideForm(true);
+              // Aggiorna calendario
+              hideForm(true);
 
               // Se ci sono errori specifici in caso di inserimento parziale
               if (response.status === "partial" && response.errors) {
@@ -744,345 +769,6 @@ const EsameForm = (function() {
           });
       });
     }
-  }
-
-  // Funzioni per la gestione delle preferenze
-  
-  // Carica le preferenze dell'utente
-  function loadUserPreferences() {
-    if (!currentUsername) {
-      currentUsername = document.getElementById("docente")?.value;
-      if (!currentUsername) {
-        console.error("Username non trovato, impossibile caricare le preferenze");
-        return;
-      }
-    }
-    
-    loadFormPreferences(currentUsername, 'esame')
-      .then(data => {
-        if (data.status === 'success' && data.preferences) {
-          userPreferences = data.preferences;
-          // Aggiorna il menu delle preferenze
-          updatePreferencesMenu();
-        } else {
-          console.error("Errore nel caricamento delle preferenze:", data.message);
-        }
-      })
-      .catch(error => {
-        console.error('Errore nel caricamento delle preferenze:', error);
-      });
-  }
-  
-  // Salva le preferenze correnti
-  function saveCurrentPreference(preferenceName) {
-    if (!currentUsername) {
-      currentUsername = document.getElementById("docente")?.value;
-      if (!currentUsername) {
-        showValidationError("Errore: nessun utente identificato");
-        return;
-      }
-    }
-    
-    // Ottieni gli insegnamenti selezionati direttamente dall'elemento select nascosto
-    let selectedInsegnamenti = [];
-    try {
-      const insegnamentoSelect = document.getElementById("insegnamento");
-      if (insegnamentoSelect && insegnamentoSelect.options) {
-        for (let i = 0; i < insegnamentoSelect.options.length; i++) {
-          if (insegnamentoSelect.options[i].selected) {
-            selectedInsegnamenti.push({
-              codice: insegnamentoSelect.options[i].value,
-              titolo: insegnamentoSelect.options[i].textContent
-            });
-          }
-        }
-      }
-      
-      // Alternativa - recupera i tag dal box se il select è vuoto
-      if (selectedInsegnamenti.length === 0) {
-        const tags = document.querySelectorAll('#insegnamentoBox .multi-select-tag');
-        tags.forEach(tag => {
-          const cdsMatch = tag.textContent.match(/\s+\(([A-Z0-9]+)\)/);
-          if (cdsMatch && cdsMatch[1]) {
-            const codice = cdsMatch[1];
-            const titolo = tag.textContent.replace(/\s+\([A-Z0-9]+\)\s*×?$/, '').trim();
-            selectedInsegnamenti.push({ codice, titolo });
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Errore nel recupero degli insegnamenti selezionati:", error);
-    }
-        
-    // Raccogli i valori comuni del form escludendo i campi specifici dell'esame
-    const preferences = {
-      mostra_nel_calendario: document.getElementById("mostra_nel_calendario")?.checked || false,
-      descrizione: document.getElementById("descrizione")?.value,
-      insegnamenti: selectedInsegnamenti,
-      tipoEsame: document.getElementById("tipoEsame")?.value,
-      verbalizzazione: document.getElementById("verbalizzazione")?.value,
-      oraAppello: document.getElementById("ora")?.value,
-      durata: document.getElementById("durata")?.value,
-      tipo_appello: document.querySelector('input[name="tipo_appello_radio"]:checked')?.value,
-      note: document.getElementById("note")?.value
-    };
-    
-    saveFormPreference(currentUsername, 'esame', preferenceName, preferences)
-      .then(data => {
-        if (data.status === 'success') {
-          showOperationMessage(data.message, "Preferenze salvate", "notification");
-          loadUserPreferences();
-        } else {
-          showValidationError(data.message);
-        }
-      })
-      .catch(error => {
-        console.error('Errore nel salvataggio delle preferenze:', error);
-        showValidationError("Errore nel salvataggio delle preferenze");
-      });
-  }
-  
-  // Applica una preferenza
-  function applyPreference(preference) {
-    // Imposta descrizione
-    if (preference.descrizione) {
-      const descrizione = document.getElementById("descrizione");
-      if (descrizione) descrizione.value = preference.descrizione;
-    }
-    
-    // Imposta insegnamenti
-    if (preference.insegnamenti && preference.insegnamenti.length > 0 && window.InsegnamentiManager) {
-      // Pulisci selezioni precedenti
-      window.InsegnamentiManager.clearSelection();
-      
-      // Carica gli insegnamenti selezionati
-      const username = document.getElementById("docente")?.value;
-      if (username) {
-        const insegnamentoCodes = preference.insegnamenti.map(ins => ins.codice);
-        
-        // Ora usiamo solo il filtro per selezionare gli insegnamenti dalla lista completa
-        window.InsegnamentiManager.loadInsegnamenti(
-          username, 
-          { 
-            filter: insegnamentoCodes
-          },
-          data => {
-            if (data.length > 0) {
-              data.forEach(ins => {
-                window.InsegnamentiManager.selectInsegnamento(ins.codice, {
-                  semestre: ins.semestre || 1,
-                  anno_corso: ins.anno_corso || 1,
-                  cds: ins.cds_codice || ""
-                });
-              });
-              
-              const multiSelectBox = document.getElementById("insegnamentoBox");
-              if (multiSelectBox) {
-                window.InsegnamentiManager.syncUI(multiSelectBox, data);
-              }
-            }
-          }
-        );
-      }
-    }
-    
-    // Imposta tipo esame
-    if (preference.tipoEsame) {
-      const tipoEsame = document.getElementById("tipoEsame");
-      if (tipoEsame) tipoEsame.value = preference.tipoEsame;
-    }
-    
-    // Imposta verbalizzazione
-    if (preference.verbalizzazione) {
-      const verbalizzazione = document.getElementById("verbalizzazione");
-      if (verbalizzazione) verbalizzazione.value = preference.verbalizzazione;
-    }
-    
-    let oraImpostata = false;
-    // Imposta ora appello
-    if (preference.oraAppello) {
-      const ora_h = document.getElementById("ora_h");
-      const ora_m = document.getElementById("ora_m");
-      
-      if (ora_h && ora_m && preference.oraAppello) {
-        // Dividi l'ora in ore e minuti e assicurati che ci siano entrambi
-        const [hours, minutes] = preference.oraAppello.split(":").map(val => val.padStart(2, '0'));
-        if (hours) {
-          ora_h.value = hours;
-        }
-        if (minutes) {
-          ora_m.value = minutes;
-        }
-        
-        // Combina i valori per aggiornare il campo nascosto
-        combineTimeValues();
-        oraImpostata = true;
-      }
-    }
-    
-    // Imposta durata
-    if (preference.durata) {
-      setDurationFromMinutes(preference.durata);
-    }
-    
-    // Gestione tipo appello (radio button)
-    if (preference.hasOwnProperty('tipo_appello')) {
-      if (preference.tipo_appello === 'PP') {
-        document.getElementById('tipoAppelloPP').checked = true;
-      } else {
-        document.getElementById('tipoAppelloPF').checked = true;
-      }
-      aggiornaVerbalizzazione();
-    }
-
-    // Imposta mostra_nel_calendario
-    if (preference.hasOwnProperty('mostra_nel_calendario')) {
-      setCheckboxValue('mostra_nel_calendario', preference.mostra_nel_calendario);
-    }
-    
-    // Imposta note
-    if (preference.note) {
-      const note = document.getElementById("note");
-      if (note) note.value = preference.note;
-    }
-    
-    // Se è stata impostata l'ora, aggiorna le aule disponibili per la prima sezione
-    if (oraImpostata) {
-      // Attendiamo un piccolo delay per essere sicuri che tutti i valori siano stati aggiornati
-      setTimeout(() => {
-        // Trova la prima sezione disponibile e aggiorna le aule
-        const firstOraH = document.querySelector('[id^="ora_h_"]');
-        if (firstOraH) {
-          const sectionCounter = firstOraH.id.split('_')[2];
-          updateAuleForSection(sectionCounter);
-        }
-      }, 50);
-    }
-  }
-
-  // Funzione per impostare la durata negli elementi di interfaccia a partire dai minuti
-  // Rimossa funzione duplicata - usa setDurationFromMinutes
-
-  // Aggiorna il menu delle preferenze
-  function updatePreferencesMenu() {
-    const preferencesMenu = document.getElementById("preferencesMenu");
-    if (!preferencesMenu) return;
-    
-    // Svuota il menu
-    preferencesMenu.innerHTML = "";
-    
-    if (userPreferences.length === 0) {
-      preferencesMenu.innerHTML = "<div class='preference-item'>Nessuna preferenza salvata</div>";
-      return;
-    }
-    
-    // Crea un elemento per ogni preferenza
-    userPreferences.forEach(pref => {
-      const item = document.createElement("div");
-      item.className = "preference-item";
-      item.innerHTML = `
-        <span>${pref.name}</span>
-        <span class="delete-btn" data-id="${pref.id}" title="Elimina"><span class="material-symbols-outlined">delete</span></span>
-      `;
-      
-      // Event listener per caricare la preferenza
-      item.addEventListener("click", (e) => {
-        // Se il click è sulla X, non caricare la preferenza
-        if (e.target.classList.contains("delete-btn")) return;
-        
-        applyPreference(pref.preferences);
-        togglePreferencesMenu();
-      });
-      
-      preferencesMenu.appendChild(item);
-    });
-    
-    // Event listener per eliminare le preferenze
-    preferencesMenu.querySelectorAll(".delete-btn").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        deletePreference(btn.dataset.id);
-      });
-    });
-  }
-  
-  // Elimina una preferenza
-  function deletePreference(id) {
-    if (!confirm("Sei sicuro di voler eliminare questa preferenza?")) return;
-    
-    deleteFormPreference(currentUsername, id)
-      .then(data => {
-        if (data.status === 'success') {
-          showOperationMessage(data.message, "Preferenze", "notification");
-          loadUserPreferences();
-        } else {
-          showValidationError(data.message);
-        }
-      })
-      .catch(error => {
-        console.error('Errore nell\'eliminazione della preferenza:', error);
-        showValidationError("Errore nell'eliminazione della preferenza");
-      });
-  }
-  
-  // Mostra/nasconde il form per salvare le preferenze
-  function toggleSavePreferenceForm() {
-    const saveForm = document.getElementById("savePreferenceForm");
-    const menu = document.getElementById("preferencesMenu");
-    
-    if (!saveForm) return;
-     
-    const isVisible = saveForm.style.display === "flex";
-    saveForm.style.display = isVisible ? "none" : "flex";
-    
-    // Nascondi il menu se è visibile
-    if (menu && menu.style.display === "block") {
-      menu.style.display = "none";
-    }
-    
-    // Imposta il focus sul campo di input
-    if (!isVisible) {
-      document.getElementById("preferenceNameInput")?.focus();
-    }
-  }
-  
-  // Mostra/nasconde il menu delle preferenze
-  function togglePreferencesMenu() {
-    const menu = document.getElementById("preferencesMenu");
-    const saveForm = document.getElementById("savePreferenceForm");
-    
-    if (!menu) return;
-    
-    const isVisible = menu.style.display === "block";
-    menu.style.display = isVisible ? "none" : "block";
-    
-    // Nascondi il form di salvataggio se è visibile
-    if (saveForm && saveForm.style.display === "flex") {
-      saveForm.style.display = "none";
-    }
-  }
-  
-  // Gestisce il salvataggio di una preferenza
-  function handleSavePreference() {
-    const preferenceNameInput = document.getElementById("preferenceNameInput");
-    if (!preferenceNameInput) return;
-    
-    const preferenceName = preferenceNameInput.value.trim();
-    if (!preferenceName) {
-      window.showMessage("Inserisci un nome per la preferenza", "Attenzione", "warning");
-      return;
-    }
-    
-    // Verifica se esiste già una preferenza con questo nome
-    const exists = userPreferences.some(p => p.name === preferenceName);
-    if (exists) {
-      if (!confirm(`Esiste già una preferenza chiamata "${preferenceName}". Vuoi sovrascriverla?`)) {
-        return;
-      }
-    }
-    
-    saveCurrentPreference(preferenceName);
-    toggleSavePreferenceForm();
   }
 
   // Configura i gestori per combinare i valori di ora e durata
@@ -1623,78 +1309,54 @@ const EsameForm = (function() {
 
   // Gestione sezioni modulari per date e appelli
   
-  function addDateSection(date = '') {
+  async function addDateSection(date = '') {
     const container = document.getElementById('dateAppelliContainer');
     if (!container) {
       console.error("Container dateAppelliContainer non trovato");
       return;
     }
-    
+
     dateAppelliCounter++;
     const sectionId = `dateSection_${dateAppelliCounter}`;
-        
+
+    // Inserisci sempre un separatore prima di ogni sezione (anche la prima)
+    const separator = document.createElement('div');
+    separator.className = 'form-separator';
+    container.appendChild(separator);
+
     const section = document.createElement('div');
     section.className = 'date-appello-section';
     section.id = sectionId;
     section.dataset.date = date;
-        
-    section.innerHTML = `
-      <div class="date-appello-header">
-        <h4 class="date-appello-title">Appello ${dateAppelliCounter}</h4>
-        <button type="button" class="remove-date-btn" onclick="removeDateSection('${sectionId}')">
-          <span class="material-symbols-outlined">delete</span>
-          Rimuovi
-        </button>
-      </div>
-      <div class="date-appello-fields">
-        <div>
-          <label for="dataora_${dateAppelliCounter}">Data Appello*</label>
-          <input type="date" id="dataora_${dateAppelliCounter}" name="dataora[]" class="form-input" value="${date}" required>
-        </div>
-        <div>
-          <label for="ora_${dateAppelliCounter}">Ora Appello*</label>
-          <div class="time-select-container">
-            <select id="ora_h_${dateAppelliCounter}" name="ora_h[]" class="form-input" required>
-              <option value="" disabled selected hidden>Ora</option>
-              <option value="08">08</option>
-              <option value="09">09</option>
-              <option value="10">10</option>
-              <option value="11">11</option>
-              <option value="12">12</option>
-              <option value="13">13</option>
-              <option value="14">14</option>
-              <option value="15">15</option>
-              <option value="16">16</option>
-              <option value="17">17</option>
-              <option value="18">18</option>
-            </select>
-            <span class="time-separator">:</span>
-            <select id="ora_m_${dateAppelliCounter}" name="ora_m[]" class="form-input" required>
-              <option value="" disabled selected hidden>Min</option>
-              <option value="00">00</option>
-              <option value="15">15</option>
-              <option value="30">30</option>
-              <option value="45">45</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label for="aula_${dateAppelliCounter}">Aula*</label>
-          <select id="aula_${dateAppelliCounter}" name="aula[]" class="form-input" required>
-            <option value="" disabled selected hidden>Seleziona prima data e ora</option>
-          </select>
-        </div>
-        <div>
-          <label for="inizioIscrizione_${dateAppelliCounter}">Data inizio iscrizione</label>
-          <input type="date" id="inizioIscrizione_${dateAppelliCounter}" name="inizioIscrizione[]" class="form-input">
-        </div>
-        <div>
-          <label for="fineIscrizione_${dateAppelliCounter}">Data fine iscrizione</label>
-          <input type="date" id="fineIscrizione_${dateAppelliCounter}" name="fineIscrizione[]" class="form-input">
-        </div>
-      </div>
-    `;
+
+    try {
+      // Carica il template HTML
+      const template = await loadAppelloTemplate();
+      
+      // Sostituisci i placeholder nel template
+      const processedTemplate = template
+        .replace(/{{COUNTER}}/g, dateAppelliCounter)
+        .replace(/{{SECTION_ID}}/g, sectionId)
+        .replace(/{{DATE}}/g, date);
     
+      section.innerHTML = processedTemplate;
+    } catch (error) {
+      console.error('Errore nel caricamento del template:', error);
+      // Fallback - usa un template semplificato
+      section.innerHTML = `
+        <div class="date-appello-header">
+          <h4 class="date-appello-title">Appello ${dateAppelliCounter}</h4>
+          <button type="button" class="remove-date-btn" onclick="removeDateSection('${sectionId}')">
+            <span class="material-symbols-outlined">delete</span>
+            Rimuovi
+          </button>
+        </div>
+        <div class="date-appello-fields">
+          <p>Errore nel caricamento del template. Ricarica la pagina.</p>
+        </div>
+      `;
+    }
+
     // Inserisci la sezione prima del pulsante "Aggiungi data"
     const addButton = container.querySelector('.add-date-btn');
     if (addButton) {
@@ -1736,7 +1398,7 @@ const EsameForm = (function() {
     }
     
     // Rimuovi dal tracking delle date
-    if (date) {
+    if (date && selectedDates.includes(date)) {
       const index = selectedDates.indexOf(date);
       if (index > -1) {
         selectedDates.splice(index, 1);
@@ -1847,6 +1509,7 @@ const EsameForm = (function() {
     const dateInput = document.getElementById(`dataora_${counter}`);
     const section = document.getElementById(sectionId);
     
+       
     if (!dateInput || !section) return;
     
     const newDate = dateInput.value;
@@ -1995,8 +1658,6 @@ const EsameForm = (function() {
     loadForm,
     showForm,
     hideForm,
-    loadPreferences: loadUserPreferences,
-    applyPreference,
     combineTimeValues,
     combineDurataValues,
     setupTimeCombiningHandlers,
