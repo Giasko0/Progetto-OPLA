@@ -340,7 +340,264 @@ const FormUtils = (function() {
     return { dialog: dialogContainer, remove: removeDialog };
   }
 
-  // API pubblica
+  // Utilità per formati di data
+  function formatDateForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // Gestione dei dati utente
+  async function getUserData() {
+    try {
+      const response = await fetch('/api/get_user_data');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Errore nel recupero dei dati utente:', error);
+      throw error;
+    }
+  }
+
+  // Gestione template HTML
+  async function loadHTMLTemplate(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.text();
+    } catch (error) {
+      console.error(`Errore nel caricamento del template ${url}:`, error);
+      throw error;
+    }
+  }
+
+  // Gestione eventi provvisori del calendario
+  function createProvisionalEvent(date, calendar, provisionalEvents = []) {
+    if (!calendar || !date) return null;
+
+    // Verifica se esiste già un evento per questa data
+    const existingEvent = provisionalEvents.find(event => 
+      event.start === date || (event.extendedProps && event.extendedProps.formSectionDate === date)
+    );
+    
+    if (existingEvent) {
+      return existingEvent;
+    }
+
+    const provisionalEvent = {
+      id: `provisional-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: 'Nuovo esame (bozza)',
+      start: date,
+      allDay: true,
+      backgroundColor: '#007bff',
+      borderColor: '#0056b3',
+      textColor: '#ffffff',
+      className: 'provisional-event',
+      extendedProps: {
+        isProvisional: true,
+        formSectionDate: date
+      }
+    };
+
+    calendar.addEvent(provisionalEvent);
+    provisionalEvents.push(provisionalEvent);
+    
+    return provisionalEvent;
+  }
+
+  function removeProvisionalEvent(eventId, calendar, provisionalEvents = []) {
+    const event = calendar.getEventById(eventId);
+    if (event) {
+      event.remove();
+    }
+    
+    const index = provisionalEvents.findIndex(e => e.id === eventId);
+    if (index > -1) {
+      provisionalEvents.splice(index, 1);
+    }
+  }
+
+  function clearAllProvisionalEvents(calendar, provisionalEvents = []) {
+    provisionalEvents.forEach(event => {
+      const calendarEvent = calendar.getEventById(event.id);
+      if (calendarEvent) {
+        calendarEvent.remove();
+      }
+    });
+    provisionalEvents.length = 0;
+  }
+
+  // Utilità per la gestione delle sezioni modulari
+  function processHTMLTemplate(template, replacements) {
+    let processedTemplate = template;
+    Object.entries(replacements).forEach(([key, value]) => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      processedTemplate = processedTemplate.replace(regex, value);
+    });
+    return processedTemplate;
+  }
+
+  // Gestione validazione avanzata per esami
+  function validateExamDate(dateString, existingDates = [], excludeWeekends = true) {
+    if (!dateString) {
+      return { isValid: false, message: "La data è obbligatoria" };
+    }
+
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return { isValid: false, message: "Formato data non valido" };
+    }
+
+    if (excludeWeekends && !isWeekday(dateString)) {
+      return { isValid: false, message: "Non è possibile inserire esami di sabato o domenica" };
+    }
+
+    // Verifica duplicati
+    if (existingDates.includes(dateString)) {
+      return { isValid: false, message: "Data già selezionata" };
+    }
+
+    return { isValid: true };
+  }
+
+  function validateExamTime(timeString) {
+    if (!timeString) {
+      return { isValid: false, message: "L'ora è obbligatoria" };
+    }
+
+    const [hours, minutes] = timeString.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) {
+      return { isValid: false, message: "Formato ora non valido" };
+    }
+
+    if (hours < 8 || hours > 23) {
+      return { isValid: false, message: "L'ora deve essere compresa tra le 08:00 e le 23:00" };
+    }
+
+    return { isValid: true };
+  }
+
+  // Utilità specifiche per il form esame
+  
+  // Gestione sezioni modulari per date e appelli
+  function isValidDateFormat(dateString) {
+    if (dateString.length !== 10) return false;
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateString)) return false;
+    
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date) && dateString === formatDateForInput(date);
+  }
+
+  // Aggiorna le opzioni di verbalizzazione in base al tipo di appello
+  function aggiornaVerbalizzazione() {
+    const tipoAppelloPP = document.getElementById("tipoAppelloPP");
+    const verbalizzazioneSelect = document.getElementById("verbalizzazione");
+
+    if (!tipoAppelloPP || !verbalizzazioneSelect) return;
+
+    verbalizzazioneSelect.innerHTML = "";
+
+    const options = tipoAppelloPP.checked
+      ? [
+          { value: "PAR", text: "Prova parziale" },
+          { value: "PPP", text: "Prova parziale con pubblicazione" },
+        ]
+      : [
+          { value: "FSS", text: "Firma digitale singola" },
+          { value: "FWP", text: "Firma digitale con pubblicazione" },
+        ];
+
+    options.forEach((option) => {
+      const optionElement = document.createElement("option");
+      optionElement.value = option.value;
+      optionElement.textContent = option.text;
+      verbalizzazioneSelect.appendChild(optionElement);
+    });
+
+    verbalizzazioneSelect.value = tipoAppelloPP.checked ? "PAR" : "FSS";
+  }
+
+  // Funzioni helper per la validazione del form
+  function getFirstDateValue() {
+    const firstDateInput = document.querySelector('[id^="dataora_"]');
+    return firstDateInput ? firstDateInput.value : null;
+  }
+
+  function getFirstTimeValue() {
+    const firstOraH = document.querySelector('[id^="ora_h_"]');
+    const firstOraM = document.querySelector('[id^="ora_m_"]');
+    if (firstOraH && firstOraM && firstOraH.value && firstOraM.value) {
+      return `${firstOraH.value}:${firstOraM.value}`;
+    }
+    return null;
+  }
+
+  function getDurationValue() {
+    const durataField = document.getElementById("durata");
+    return durataField ? durataField.value : null;
+  }
+
+  // Gestione insegnamenti
+  function handleInsegnamentoSelection(data) {
+    if (window.InsegnamentiManager && data.insegnamento_codice) {
+      window.InsegnamentiManager.clearSelection();
+      window.InsegnamentiManager.selectInsegnamento(data.insegnamento_codice, {
+        semestre: data.semestre || 1,
+        anno_corso: data.anno_corso || 1,
+        cds: data.cds_codice || ""
+      });
+      
+      const multiSelectBox = document.getElementById("insegnamentoBox");
+      if (multiSelectBox) {
+        const username = document.getElementById("docente")?.value;
+        if (username) {
+          window.InsegnamentiManager.syncUI(multiSelectBox);
+        }
+      }
+    }
+  }
+
+  // Controlla insegnamenti preselezionati dall'URL
+  function checkPreselectedInsegnamenti() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const preselectedParam = urlParams.get("insegnamenti");
+    
+    if (!preselectedParam) return;
+    
+    const preselectedCodes = preselectedParam.split(",");
+    const username = document.getElementById("docente")?.value;
+    
+    if (!username || !window.InsegnamentiManager) return;
+    
+    window.InsegnamentiManager.loadInsegnamenti(
+      username, 
+      { filter: preselectedCodes },
+      data => {
+        if (data.length > 0) {
+          data.forEach(ins => {
+            window.InsegnamentiManager.selectInsegnamento(ins.codice, {
+              semestre: ins.semestre || 1,
+              anno_corso: ins.anno_corso || 1,
+              cds: ins.cds_codice || ""
+            });
+          });
+          
+          const multiSelectBox = document.getElementById("insegnamentoBox");
+          if (multiSelectBox) {
+            window.InsegnamentiManager.syncUI(multiSelectBox);
+          }
+        }
+      }
+    );
+  }
+
+  // API pubblica estesa
   return {
     setElementValue,
     setRadioValue,
@@ -364,7 +621,24 @@ const FormUtils = (function() {
     loadAuleForDateTime,
     populateAulaSelect,
     checkUserPermissions,
-    createConfirmationDialog
+    createConfirmationDialog,
+    formatDateForInput,
+    getUserData,
+    loadHTMLTemplate,
+    createProvisionalEvent,
+    removeProvisionalEvent,
+    clearAllProvisionalEvents,
+    processHTMLTemplate,
+    validateExamDate,
+    validateExamTime,
+    // Utilità specifiche per il form esame
+    isValidDateFormat,
+    aggiornaVerbalizzazione,
+    getFirstDateValue,
+    getFirstTimeValue,
+    getDurationValue,
+    handleInsegnamentoSelection,
+    checkPreselectedInsegnamenti
   };
 }());
 

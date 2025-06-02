@@ -1,8 +1,11 @@
 // Script per la gestione del form di inserimento esame
 const EsameForm = (function() {
-  // Verifica che FormUtils sia caricato
+  // Verifica che FormUtils e FormEsameAppelli siano caricati
   if (!window.FormUtils) {
     throw new Error('FormUtils non è caricato. Assicurati che formUtils.js sia incluso prima di formEsame.js');
+  }
+  if (!window.FormEsameAppelli) {
+    throw new Error('FormEsameAppelli non è caricato. Assicurati che formEsameAppelli.js sia incluso prima di formEsame.js');
   }
 
   // Importa tutte le utilità da FormUtils
@@ -29,8 +32,34 @@ const EsameForm = (function() {
     loadAuleForDateTime,
     populateAulaSelect,
     checkUserPermissions,
-    createConfirmationDialog
+    createConfirmationDialog,
+    formatDateForInput,
+    getUserData,
+    loadHTMLTemplate,
+    createProvisionalEvent,
+    removeProvisionalEvent,
+    clearAllProvisionalEvents,
+    processHTMLTemplate,
+    validateExamDate,
+    validateExamTime,
+    isValidDateFormat,
+    aggiornaVerbalizzazione,
+    getFirstDateValue,
+    getFirstTimeValue,
+    getDurationValue,
+    handleInsegnamentoSelection,
+    checkPreselectedInsegnamenti
   } = window.FormUtils;
+
+  // Importa le utilità per la gestione delle sezioni appelli
+  const {
+    initializeDateSections,
+    addDateSection,
+    removeDateSection,
+    collectSectionsData,
+    populateSectionsWithData,
+    reset: resetAppelliSections
+  } = window.FormEsameAppelli;
 
   // Configurazione validatori e regole
   const validaOraAppello = validators.oraAppello;
@@ -43,33 +72,9 @@ const EsameForm = (function() {
   let userPreferences = [];
   let isEditMode = false;
   let usePreferences = true;
-  let dateAppelliCounter = 0;
-  let selectedDates = [];
 
   // Riusa dateValide dal context globale del calendario
   const getDateValide = () => window.dateValide || [];
-
-  // Cache per il template HTML
-  let appellobTemplate = null;
-
-  // Carica il template HTML per la sezione appello
-  async function loadAppelloTemplate() {
-    if (appellobTemplate) {
-      return appellobTemplate;
-    }
-    
-    try {
-      const response = await fetch('/formEsameAppello.html');
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      appellobTemplate = await response.text();
-      return appellobTemplate;
-    } catch (error) {
-      console.error('Errore nel caricamento del template appello:', error);
-      throw error;
-    }
-  }
 
   // Carica il form HTML dinamicamente
   async function loadForm() {
@@ -326,7 +331,7 @@ const EsameForm = (function() {
   function initUI(options = {}) {
     // Aspetta un frame per assicurarsi che il DOM sia pronto
     setTimeout(() => {
-      // Inizializza le sezioni di date
+      // Inizializza le sezioni di date usando il nuovo modulo
       initializeDateSections();
       
       // Se c'è una data pre-selezionata, aggiungi la prima sezione con quella data
@@ -413,73 +418,6 @@ const EsameForm = (function() {
     setupTimeCombiningHandlers();
   }
 
-  // Aggiorna le opzioni di verbalizzazione in base al tipo di appello selezionato
-  function aggiornaVerbalizzazione() {
-    const tipoAppelloPP = document.getElementById("tipoAppelloPP");
-    const verbalizzazioneSelect = document.getElementById("verbalizzazione");
-
-    if (!tipoAppelloPP || !verbalizzazioneSelect) return;
-
-    verbalizzazioneSelect.innerHTML = ""; // Svuota le opzioni esistenti
-
-    const options = tipoAppelloPP.checked // Controlla se Prova Parziale è selezionata
-      ? [
-          { value: "PAR", text: "Prova parziale" },
-          { value: "PPP", text: "Prova parziale con pubblicazione" },
-        ]
-      : [
-          { value: "FSS", text: "Firma digitale singola" },
-          { value: "FWP", text: "Firma digitale con pubblicazione" },
-        ];
-
-    options.forEach((option) => {
-      const optionElement = document.createElement("option");
-      optionElement.value = option.value;
-      optionElement.textContent = option.text;
-      verbalizzazioneSelect.appendChild(optionElement);
-    });
-
-    // Imposta un valore di default
-    verbalizzazioneSelect.value = tipoAppelloPP.checked ? "PAR" : "FSS";
-  }
-
-  // Controlla e carica insegnamenti preselezionati dall'URL
-  function checkPreselectedInsegnamenti() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const preselectedParam = urlParams.get("insegnamenti");
-    
-    if (!preselectedParam) return;
-    
-    const preselectedCodes = preselectedParam.split(",");
-    const username = document.getElementById("docente")?.value;
-    
-    if (!username || !window.InsegnamentiManager) return;
-    
-    // Usa la nuova API loadInsegnamenti con filtro
-    window.InsegnamentiManager.loadInsegnamenti(
-      username, 
-      { filter: preselectedCodes },
-      data => {
-        if (data.length > 0) {
-          data.forEach(ins => {
-            const metadata = {
-              semestre: ins.semestre || 1,
-              anno_corso: ins.anno_corso || 1,
-              cds: ins.cds_codice || ""
-            };
-            
-            window.InsegnamentiManager.selectInsegnamento(ins.codice, metadata);
-          });
-          
-          const multiSelectBox = document.getElementById("insegnamentoBox");
-          if (multiSelectBox) {
-            // Usa syncUI invece di syncTags
-            window.InsegnamentiManager.syncUI(multiSelectBox, data);
-          }
-        }
-      }
-    );
-  }
 
   // Funzione unificata per impostare i valori dei campi del form
   function setFormFields(data) {
@@ -512,30 +450,6 @@ const EsameForm = (function() {
     }
   }
 
-  // Funzioni helper rimosse - ora usano FormUtils
-
-  function handleInsegnamentoSelection(data) {
-    if (window.InsegnamentiManager && data.insegnamento_codice) {
-      window.InsegnamentiManager.clearSelection();
-      window.InsegnamentiManager.selectInsegnamento(data.insegnamento_codice, {
-        semestre: data.semestre || 1,
-        anno_corso: data.anno_corso || 1,
-        cds: data.cds_codice || ""
-      });
-      
-      const multiSelectBox = document.getElementById("insegnamentoBox");
-      if (multiSelectBox) {
-        const username = document.getElementById("docente")?.value;
-        if (username) {
-          window.InsegnamentiManager.loadInsegnamenti(
-            username, 
-            { filter: [data.insegnamento_codice] }, 
-            (data) => window.InsegnamentiManager.syncUI(multiSelectBox, data)
-          );
-        }
-      }
-    }
-  }
 
   // Mostra il dialogo di conferma per la validazione degli esami
   function mostraPopupConferma(data) {
@@ -1072,8 +986,6 @@ const EsameForm = (function() {
     })
     .then(response => response.json())
     .then(data => {
-      console.log('Risposta ricevuta:', data);
-      
       if (data.status === 'success' || data.status === 'direct_insert') {
         // Successo - mostra notifica verde
         if (window.showMessage) {
@@ -1193,26 +1105,6 @@ const EsameForm = (function() {
     submitFormData();
   }
 
-  // Helper functions per la validazione
-  function getFirstDateValue() {
-    const firstDateInput = document.querySelector('[id^="dataora_"]');
-    return firstDateInput ? firstDateInput.value : null;
-  }
-
-  function getFirstTimeValue() {
-    const firstOraH = document.querySelector('[id^="ora_h_"]');
-    const firstOraM = document.querySelector('[id^="ora_m_"]');
-    if (firstOraH && firstOraM && firstOraH.value && firstOraM.value) {
-      return `${firstOraH.value}:${firstOraM.value}`;
-    }
-    return null;
-  }
-
-  function getDurationValue() {
-    const durataField = document.getElementById("durata");
-    return durataField ? durataField.value : null;
-  }
-
   // Aggiorna i campi dinamici del form
   function updateDynamicFields() {
     aggiornaVerbalizzazione();
@@ -1307,351 +1199,6 @@ const EsameForm = (function() {
     window.forceCalendarRefresh();
   }
 
-  // Gestione sezioni modulari per date e appelli
-  
-  async function addDateSection(date = '') {
-    const container = document.getElementById('dateAppelliContainer');
-    if (!container) {
-      console.error("Container dateAppelliContainer non trovato");
-      return;
-    }
-
-    dateAppelliCounter++;
-    const sectionId = `dateSection_${dateAppelliCounter}`;
-
-    // Inserisci sempre un separatore prima di ogni sezione (anche la prima)
-    const separator = document.createElement('div');
-    separator.className = 'form-separator';
-    container.appendChild(separator);
-
-    const section = document.createElement('div');
-    section.className = 'date-appello-section';
-    section.id = sectionId;
-    section.dataset.date = date;
-
-    try {
-      // Carica il template HTML
-      const template = await loadAppelloTemplate();
-      
-      // Sostituisci i placeholder nel template
-      const processedTemplate = template
-        .replace(/{{COUNTER}}/g, dateAppelliCounter)
-        .replace(/{{SECTION_ID}}/g, sectionId)
-        .replace(/{{DATE}}/g, date);
-    
-      section.innerHTML = processedTemplate;
-    } catch (error) {
-      console.error('Errore nel caricamento del template:', error);
-      // Fallback - usa un template semplificato
-      section.innerHTML = `
-        <div class="date-appello-header">
-          <h4 class="date-appello-title">Appello ${dateAppelliCounter}</h4>
-          <button type="button" class="remove-date-btn" onclick="removeDateSection('${sectionId}')">
-            <span class="material-symbols-outlined">delete</span>
-            Rimuovi
-          </button>
-        </div>
-        <div class="date-appello-fields">
-          <p>Errore nel caricamento del template. Ricarica la pagina.</p>
-        </div>
-      `;
-    }
-
-    // Inserisci la sezione prima del pulsante "Aggiungi data"
-    const addButton = container.querySelector('.add-date-btn');
-    if (addButton) {
-      container.insertBefore(section, addButton);
-    } else {
-      container.appendChild(section);
-    }
-    
-    // Aggiungi event listeners per questa sezione
-    setupDateSectionListeners(sectionId, dateAppelliCounter);
-    
-    // Se è stata fornita una data, crea subito l'evento provvisorio
-    if (date) {
-      createProvisionalEventForDate(date);
-    }
-    
-    // Aggiungi la data al tracking se non è vuota
-    if (date) {
-      selectedDates.push(date);
-    }
-    
-    return sectionId;
-  }
-  
-  function removeDateSection(sectionId) {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
-    
-    const date = section.dataset.date;
-    
-    // Rimuovi l'evento provvisorio associato dal calendario se esiste
-    if (date && window.provisionalEvents && window.removeProvisionalEvents) {
-      const matchingEvent = window.provisionalEvents.find(event => 
-        event.extendedProps.formSectionDate === date
-      );
-      if (matchingEvent) {
-        window.removeProvisionalEvents(matchingEvent.id);
-      }
-    }
-    
-    // Rimuovi dal tracking delle date
-    if (date && selectedDates.includes(date)) {
-      const index = selectedDates.indexOf(date);
-      if (index > -1) {
-        selectedDates.splice(index, 1);
-      }
-    }
-    
-    section.remove();
-    
-    // Rinumera le sezioni rimanenti
-    renumberDateSections();
-  }
-  
-  function renumberDateSections() {
-    const sections = document.querySelectorAll('.date-appello-section');
-    sections.forEach((section, index) => {
-      const newNumber = index + 1;
-      const title = section.querySelector('.date-appello-title');
-      if (title) {
-        title.textContent = `Appello ${newNumber}`;
-      }
-    });
-  }
-  
-  function setupDateSectionListeners(sectionId, counter) {
-    const dateInput = document.getElementById(`dataora_${counter}`);
-    const oraH = document.getElementById(`ora_h_${counter}`);
-    const oraM = document.getElementById(`ora_m_${counter}`);
-    
-    if (dateInput) {
-      // Rimuovi stili di errore durante la digitazione
-      dateInput.addEventListener('input', () => {
-        dateInput.classList.remove('form-input-error');
-      });
-      
-      // Esegui la validazione solo quando il campo perde focus
-      dateInput.addEventListener('blur', () => {
-        if (dateInput.value && isValidDateFormat(dateInput.value)) {
-          handleDateInputChange(sectionId, counter);
-          updateAuleForSection(counter);
-        }
-      });
-    }
-    if (oraH) {
-      oraH.addEventListener('change', () => updateAuleForSection(counter));
-    }
-    if (oraM) {
-      oraM.addEventListener('change', () => updateAuleForSection(counter));
-    }
-  }
-
-  // Funzione helper per validare il formato della data
-  function isValidDateFormat(dateString) {
-    if (dateString.length !== 10) return false;
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(dateString)) return false;
-    
-    // Verifica che sia una data valida
-    const date = new Date(dateString);
-    return date instanceof Date && !isNaN(date) && dateString === formatDateForInput(date);
-  }
-
-  // Funzione per validare i vincoli di data riutilizzando la logica esistente
-  function validateDateConstraints(newDate, counter) {
-    if (!newDate) return true;
-    
-    const dateInput = document.getElementById(`dataora_${counter}`);
-    
-    // Rimuovi eventuali stili di errore precedenti
-    if (dateInput) {
-      dateInput.classList.remove('form-input-error');
-    }
-    
-    // Raccogli le date provvisorie da altre sezioni del form (esclusa quella corrente)
-    const otherSectionDates = [];
-    const dateSections = document.querySelectorAll('.date-appello-section');
-    dateSections.forEach(section => {
-      const sectionDateInput = section.querySelector('input[type="date"]');
-      if (sectionDateInput && sectionDateInput.value && sectionDateInput.id !== `dataora_${counter}`) {
-        otherSectionDates.push(sectionDateInput.value);
-      }
-    });
-    
-    // Usa la funzione esistente isDateValid con le date delle altre sezioni
-    const validationResult = window.isDateValid(new Date(newDate), getDateValide(), otherSectionDates);
-    
-    if (!validationResult.isValid) {
-      // Applica lo stile di errore al campo
-      if (dateInput) {
-        dateInput.classList.add('form-input-error');
-      }
-      
-      // Mostra il messaggio appropriato
-      if (window.showMessage) {
-        window.showMessage(
-          validationResult.message,
-          'Vincolo date', 
-          'warning'
-        );
-      }
-      
-      return false;
-    }
-    
-    return true;
-  }
-
-  function handleDateInputChange(sectionId, counter) {
-    const dateInput = document.getElementById(`dataora_${counter}`);
-    const section = document.getElementById(sectionId);
-    
-       
-    if (!dateInput || !section) return;
-    
-    const newDate = dateInput.value;
-    const oldDate = section.dataset.date;
-    
-    // Se la data non è completa o non è valida, non fare nulla
-    if (!newDate || newDate.length < 10 || !isValidDateFormat(newDate)) {
-      return;
-    }
-    
-    // Se la data è cambiata
-    if (newDate !== oldDate) {
-      // Rimuovi l'evento provvisorio precedente se esisteva
-      if (oldDate && window.provisionalEvents && window.removeProvisionalEvents) {
-        const matchingEvent = window.provisionalEvents.find(event => 
-          event.extendedProps.formSectionDate === oldDate
-        );
-        if (matchingEvent) {
-          window.removeProvisionalEvents([matchingEvent.id]);
-        }
-      }
-      
-      // Aggiorna il tracking delle date selezionate
-      if (oldDate && selectedDates.includes(oldDate)) {
-        const index = selectedDates.indexOf(oldDate);
-        selectedDates.splice(index, 1);
-      }
-      
-      // Verifica il vincolo dei 14 giorni
-      if (!validateDateConstraints(newDate, counter)) {
-        // Data non valida - non creare evento provvisorio
-        return;
-      }
-      
-      // Data valida - continua con la logica normale
-      section.dataset.date = newDate;
-      createProvisionalEventForDate(newDate);
-      
-      if (!selectedDates.includes(newDate)) {
-        selectedDates.push(newDate);
-      }
-      
-      // Reset delle aule quando cambia la data
-      const aulaSelect = document.getElementById(`aula_${counter}`);
-      if (aulaSelect) {
-        aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
-      }
-    }
-  }
-
-  // Funzione per verificare se esiste già un evento provvisorio per una data specifica
-  function isProvisionalEventExistsForDate(date) {
-    if (window.provisionalEvents) {
-      return window.provisionalEvents.some(event => event.start === date || (event.extendedProps && event.extendedProps.formSectionDate === date));
-    }
-    return false;
-  }
-  
-  // Modificata per prevenire la creazione di eventi duplicati usando la funzione unificata
-  function createProvisionalEventForDate(date) {
-    if (!window.calendar || !date) {
-      return;
-    }
-
-    // Usa la funzione unificata importata da calendarUtils
-    const provisionalEvent = window.creaEventoProvvisorio(date, window.calendar, window.provisionalEvents || []);
-    
-    if (provisionalEvent && window.updateDateValideWithExclusions) {
-      window.updateDateValideWithExclusions();
-    }
-  }
-  
-  function updateAuleForSection(counter) {
-    const dateInput = document.getElementById(`dataora_${counter}`);
-    const oraH = document.getElementById(`ora_h_${counter}`);
-    const oraM = document.getElementById(`ora_m_${counter}`);
-    const aulaSelect = document.getElementById(`aula_${counter}`);
-    
-    if (!dateInput || !oraH || !oraM || !aulaSelect) return;
-    
-    const data = dateInput.value;
-    const ora_hValue = oraH.value;
-    const ora_mValue = oraM.value;
-    
-    if (!data) {
-      aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima una data</option>';
-      return;
-    }
-    
-    if (!ora_hValue || !ora_mValue) {
-      aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima un\'ora</option>';
-      return;
-    }
-    
-    aulaSelect.innerHTML = '<option value="" disabled selected hidden>Caricamento aule in corso...</option>';
-    
-    const periodo = parseInt(ora_hValue) >= 14 ? 1 : 0;
-    
-    loadAuleForDateTime(data, periodo)
-      .then(aule => {
-        populateAulaSelect(aulaSelect, aule, true);
-        
-        // Aggiungi listener per aggiornare l'evento provvisorio quando cambia l'aula
-        aulaSelect.addEventListener('change', function() {
-          if (window.aggiornaAulaEventoProvvisorio && window.calendar && window.provisionalEvents) {
-            window.aggiornaAulaEventoProvvisorio(data, this.value, window.calendar, window.provisionalEvents);
-          }
-        });
-      })
-      .catch(error => {
-        console.error("Errore nel recupero delle aule:", error);
-        aulaSelect.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
-        
-        const option = document.createElement("option");
-        option.value = "Studio docente DMI";
-        option.textContent = "Studio docente DMI";
-        aulaSelect.appendChild(option);
-      });
-  }
-  
-  function initializeDateSections() {
-    const container = document.getElementById('dateAppelliContainer');
-    if (!container) {
-      console.error("Container dateAppelliContainer non trovato durante l'inizializzazione");
-      return;
-    }
-        
-    // Rimuovi il pulsante se già esiste
-    const existingButton = container.querySelector('.add-date-btn');
-    if (existingButton) {
-      existingButton.remove();
-    }
-    
-    // Aggiungi il pulsante per aggiungere nuove date
-    const addButton = document.createElement('button');
-    addButton.type = 'button';
-    addButton.className = 'add-date-btn';
-    addButton.innerHTML = '<span class="material-symbols-outlined">add</span> Aggiungi data appello';
-    addButton.addEventListener('click', () => addDateSection());
-    
-    container.appendChild(addButton);
-  }
 
   // Interfaccia pubblica
   return {
@@ -1666,55 +1213,18 @@ const EsameForm = (function() {
     addDateSection,
     initializeDateSections,
     setupProvisionalDeleteButton,
-    handleDeleteProvisional,
-    createProvisionalEventForDate,
-    isProvisionalEventExistsForDate
+    handleDeleteProvisional
   };
 }());
 window.EsameForm = EsameForm;
 
-// Funzioni globali per la gestione delle sezioni date
+// Funzioni globali per la gestione delle sezioni date - delega al nuovo modulo
 window.removeDateSection = function(sectionId) {
-  const section = document.getElementById(sectionId);
-  if (!section) {
-    return;
-  }
-  
-  const date = section.dataset.date;
-  
-  // Rimuovi l'evento provvisorio associato dal calendario se esiste
-  if (date && window.provisionalEvents && window.removeProvisionalEvents) {
-    const matchingEvent = window.provisionalEvents.find(event => 
-      event.extendedProps.formSectionDate === date
-    );
-    if (matchingEvent) {
-      window.removeProvisionalEvents(matchingEvent.id);
-    } else {
-      console.warn("Nessun evento provvisorio trovato per la data:", date);
-    }
+  if (window.FormEsameAppelli) {
+    window.FormEsameAppelli.removeDateSection(sectionId);
   } else {
-    console.warn("Nessun evento provvisorio o funzione di rimozione trovata per la data:", date);
+    console.error('FormEsameAppelli non è caricato');
   }
-  
-  // Rimuovi dal tracking delle date se la variabile esiste
-  if (window.selectedDates && date) {
-    const index = window.selectedDates.indexOf(date);
-    if (index > -1) {
-      window.selectedDates.splice(index, 1);
-    }
-  }
-  
-  section.remove();
-  
-  // Rinumera le sezioni rimanenti
-  const sections = document.querySelectorAll('.date-appello-section');
-  sections.forEach((section, index) => {
-    const newNumber = index + 1;
-    const title = section.querySelector('.date-appello-title');
-    if (title) {
-      title.textContent = `Appello ${newNumber}`;
-    }
-  });
 };
 
 // Aggiungi un listener per l'evento DOMContentLoaded per assicurarti che 

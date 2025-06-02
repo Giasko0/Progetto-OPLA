@@ -453,7 +453,6 @@ export function creaEventoProvvisorio(date, calendar, provisionalEvents, options
   );
   
   if (existingEvent) {
-    console.log('Evento provvisorio già esistente per la data:', date);
     return existingEvent;
   }
 
@@ -484,10 +483,8 @@ export function creaEventoProvvisorio(date, calendar, provisionalEvents, options
     // Aggiungi alla lista degli eventi provvisori
     provisionalEvents.push(provisionalEvent);
     
-    console.log('Evento provvisorio creato per la data:', date);
     return provisionalEvent;
   } else {
-    console.error('Errore nella creazione dell\'evento provvisorio per la data:', date);
     return null;
   }
 }
@@ -495,7 +492,6 @@ export function creaEventoProvvisorio(date, calendar, provisionalEvents, options
 // Aggiorna l'aula di un evento provvisorio esistente
 export function aggiornaAulaEventoProvvisorio(date, aula, calendar, provisionalEvents) {
   if (!calendar || !date) {
-    console.warn('Calendario o data non validi per l\'aggiornamento dell\'aula');
     return false;
   }
 
@@ -505,14 +501,12 @@ export function aggiornaAulaEventoProvvisorio(date, aula, calendar, provisionalE
   );
 
   if (!provisionalEvent) {
-    console.warn('Nessun evento provvisorio trovato per la data:', date);
     return false;
   }
 
   // Ottieni l'evento dal calendario
   const calendarEvent = calendar.getEventById(provisionalEvent.id);
   if (!calendarEvent) {
-    console.warn('Evento del calendario non trovato per ID:', provisionalEvent.id);
     return false;
   }
 
@@ -522,14 +516,12 @@ export function aggiornaAulaEventoProvvisorio(date, aula, calendar, provisionalE
   // Aggiorna anche l'oggetto nell'array provisionalEvents
   provisionalEvent.extendedProps.aula = aula || '';
 
-  console.log(`Aula aggiornata per evento provvisorio del ${date}: ${aula || 'rimossa'}`);
   return true;
 }
 
 // Scrolla alla prima data valida disponibile
 export function scrollToPrimaDataValida(dateValide) {
   if (!Array.isArray(dateValide) || dateValide.length === 0) {
-    console.log('Nessuna data valida disponibile per lo scroll');
     return;
   }
 
@@ -558,11 +550,8 @@ export function scrollToPrimaDataValida(dateValide) {
   }
 
   if (!primaDataValida) {
-    console.log('Nessuna data valida futura trovata');
     return;
   }
-
-  console.log('Scrolling alla prima data valida:', primaDataValida);
 
   // Cerca di scrollare alla data nel calendario
   const targetYear = primaDataValida.getFullYear();
@@ -597,9 +586,6 @@ export function scrollToPrimaDataValida(dateValide) {
       block: 'start',
       inline: 'nearest'
     });
-    console.log('Scroll effettuato verso:', elementToScroll);
-  } else {
-    console.log('Elemento della data non trovato nel DOM per lo scroll');
   }
 }
 
