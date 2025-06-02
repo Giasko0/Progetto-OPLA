@@ -1,22 +1,23 @@
 // Script per la gestione delle sezioni appelli del form esame
 const FormEsameAppelli = (function() {
-  // Verifica che FormUtils sia caricato
-  if (!window.FormUtils) {
-    throw new Error('FormUtils non è caricato. Assicurati che formUtils.js sia incluso prima di formEsameAppelli.js');
+  // Verifica che FormEsameUtils sia caricato
+  if (!window.FormEsameUtils) {
+    throw new Error('FormEsameUtils non è caricato. Assicurati che formUtils.js sia incluso prima di formEsameAppelli.js');
   }
 
-  // Importa utilità da FormUtils
+  // Importa utilità da FormEsameUtils
   const {
     formatDateForInput,
     loadAuleForDateTime,
     populateAulaSelect,
-    loadHTMLTemplate,
-    processHTMLTemplate,
     validateExamDate,
     createProvisionalEvent,
-    removeProvisionalEvent,
-    combineTimeValues
-  } = window.FormUtils;
+    removeProvisionalEvent
+  } = window.FormEsameUtils;
+
+  // Funzioni per invio messaggi alla sidebar
+  const showError = (message) => window.showMessage(message, 'Errore', 'error');
+  const showWarning = (message) => window.showMessage(message, 'Attenzione', 'warning');
 
   let dateAppelliCounter = 0;
   let selectedDates = [];
@@ -48,18 +49,41 @@ const FormEsameAppelli = (function() {
     section.id = sectionId;
     section.dataset.date = date;
 
-    try {
-      const template = await loadHTMLTemplate('/formEsameAppello.html');
-      const processedTemplate = processHTMLTemplate(template, {
-        COUNTER: sectionNumber,
-        SECTION_ID: sectionId,
-        DATE: date
-      });
-      section.innerHTML = processedTemplate;
-    } catch (error) {
-      console.error('Errore nel caricamento del template:', error);
-      section.innerHTML = `<p>Errore nel caricamento della sezione appello</p>`;
-    }
+    // Template semplice e funzionale
+    section.innerHTML = `
+      <div class="form-group">
+        <label for="dataora_${sectionNumber}">Data appello:</label>
+        <input type="date" id="dataora_${sectionNumber}" name="dataora_${sectionNumber}" class="form-control" value="${date}">
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-3">
+          <label for="ora_h_${sectionNumber}">Ora:</label>
+          <select id="ora_h_${sectionNumber}" name="ora_h_${sectionNumber}" class="form-control">
+            ${Array.from({length: 16}, (_, i) => i + 8).map(h => 
+              `<option value="${h.toString().padStart(2, '0')}">${h.toString().padStart(2, '0')}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="ora_m_${sectionNumber}">Minuti:</label>
+          <select id="ora_m_${sectionNumber}" name="ora_m_${sectionNumber}" class="form-control">
+            <option value="00">00</option>
+            <option value="15">15</option>
+            <option value="30">30</option>
+            <option value="45">45</option>
+          </select>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="aula_${sectionNumber}">Aula:</label>
+          <select id="aula_${sectionNumber}" name="aula_${sectionNumber}" class="form-control">
+            <option value="">Seleziona un'aula...</option>
+          </select>
+        </div>
+      </div>
+      <button type="button" class="btn btn-danger btn-sm" onclick="FormEsameAppelli.removeDateSection('${sectionId}')">
+        Rimuovi questa data
+      </button>
+    `;
 
     // Inserisci la sezione prima del pulsante "Aggiungi data"
     const addButton = container.querySelector('.add-date-btn');
@@ -165,7 +189,6 @@ const FormEsameAppelli = (function() {
     }
   }
 
-  // Funzione per validare i vincoli di data riutilizzando la logica esistente
   function validateDateConstraints(newDate, counter) {
     if (!newDate) return false;
     
@@ -189,7 +212,7 @@ const FormEsameAppelli = (function() {
       }
     });
     
-    // Usa la funzione esistente isDateValid con le date delle altre sezioni
+    // Usa la funzione di validazione centralizzata
     const validationResult = window.isDateValid(new Date(newDate), getDateValide(), otherSectionDates);
     
     if (!validationResult.isValid) {
@@ -197,9 +220,7 @@ const FormEsameAppelli = (function() {
         dateInput.classList.add('form-input-error');
       }
       
-      if (window.showMessage) {
-        window.showMessage(validationResult.message, "Data non valida", "error");
-      }
+      showError(validationResult.message);
       return false;
     }
     
@@ -271,60 +292,52 @@ const FormEsameAppelli = (function() {
     }
   }
   
-  function updateAuleForSection(counter) {
-    const dateInput = document.getElementById(`dataora_${counter}`);
-    const oraH = document.getElementById(`ora_h_${counter}`);
-    const oraM = document.getElementById(`ora_m_${counter}`);
-    const aulaSelect = document.getElementById(`aula_${counter}`);
+  // Aggiorna le aule disponibili per una sezione specifica
+  function updateAuleForSection(sectionId) {
+    const dataInput = document.getElementById(`dataora_${sectionId}`);
+    const oraH = document.getElementById(`ora_h_${sectionId}`);
+    const oraM = document.getElementById(`ora_m_${sectionId}`);
+    const aulaSelect = document.getElementById(`aula_${sectionId}`);
     
-    if (!dateInput || !oraH || !oraM || !aulaSelect) return;
+    if (!dataInput || !oraH || !oraM || !aulaSelect) return;
     
-    const data = dateInput.value;
-    const ora = oraH.value;
-    const minuti = oraM.value;
+    const data = dataInput.value;
+    const ora = `${oraH.value}:${oraM.value}`;
     
-    if (!data || !ora || !minuti) {
-      aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
-      return;
+    if (data && oraH.value && oraM.value) {
+      const periodo = determinaPeriodo(ora);
+      
+      if (window.FormEsameUtils && window.FormEsameUtils.loadAuleForDateTime) {
+        window.FormEsameUtils.loadAuleForDateTime(data, periodo)
+          .then(aule => {
+            if (window.FormEsameUtils.populateAulaSelect) {
+              window.FormEsameUtils.populateAulaSelect(aulaSelect, aule);
+            }
+          })
+          .catch(() => {
+            showError('Errore nel caricamento aule');
+            aulaSelect.innerHTML = '<option value="">Errore nel caricamento aule</option>';
+          });
+      }
     }
-    
-    const oraCompleta = `${ora}:${minuti}`;
-    
-    loadAuleForDateTime(data, oraCompleta)
-      .then(aule => {
-        populateAulaSelect(aulaSelect, aule);
-      })
-      .catch(error => {
-        console.error('Errore nel caricamento delle aule:', error);
-        aulaSelect.innerHTML = '<option value="" disabled>Errore nel caricamento aule</option>';
-      });
   }
-  
+
+  // Determina il periodo della giornata
+  function determinaPeriodo(ora) {
+    const [hours] = ora.split(':').map(Number);
+    if (hours < 12) return 'mattina';
+    if (hours < 17) return 'pomeriggio';
+    return 'sera';
+  }
+
   function initializeDateSections() {
-    const container = document.getElementById('dateAppelliContainer');
-    if (!container) {
-      console.error("Container dateAppelliContainer non trovato durante l'inizializzazione");
-      return;
-    }
-    
-    // Reset del contatore basandosi sulle sezioni esistenti
-    const existingSections = container.querySelectorAll('.date-appello-section');
-    dateAppelliCounter = existingSections.length;
-    
-    // Rimuovi il pulsante se già esiste
-    const existingButton = container.querySelector('.add-date-btn');
-    if (existingButton) {
-      existingButton.remove();
-    }
-    
-    // Aggiungi il pulsante per aggiungere nuove date
-    const addButton = document.createElement('button');
-    addButton.type = 'button';
-    addButton.className = 'add-date-btn';
-    addButton.innerHTML = '<span class="material-symbols-outlined">add</span> Aggiungi data appello';
-    addButton.addEventListener('click', () => addDateSection());
-    
-    container.appendChild(addButton);
+    const existingSections = document.querySelectorAll('.date-appello-section');
+    existingSections.forEach(section => {
+      const counter = section.id.split('_')[1];
+      if (counter) {
+        setupDateSectionListeners(section.id, parseInt(counter));
+      }
+    });
   }
 
   // Raccoglie i dati da tutte le sezioni per l'invio del form
@@ -474,7 +487,7 @@ const FormEsameAppelli = (function() {
     }
   }
 
-  // Interfaccia pubblica
+  // Interfaccia pubblica estesa
   return {
     addDateSection,
     removeDateSection,
@@ -482,16 +495,15 @@ const FormEsameAppelli = (function() {
     setupDateSectionListeners,
     validateDateConstraints,
     handleDateInputChange,
-    isProvisionalEventExistsForDate,
-    createProvisionalEventForDate,
     updateAuleForSection,
+    determinaPeriodo,
     initializeDateSections,
     collectSectionsData,
     populateSectionsWithData,
     reset,
-    // Getter per variabili interne
-    get selectedDates() { return [...selectedDates]; },
-    get dateAppelliCounter() { return dateAppelliCounter; }
+    // Getters
+    getSelectedDates: () => selectedDates,
+    getDateAppelliCounter: () => dateAppelliCounter
   };
 }());
 

@@ -1,5 +1,5 @@
 // Utilità comuni per la gestione dei form
-const FormUtils = (function() {
+const FormEsameUtils = (function() {
   
   // Funzione unificata per impostare valori degli elementi
   function setElementValue(id, value) {
@@ -125,82 +125,58 @@ const FormUtils = (function() {
     }
   }
 
-  // Helper per combinare valori di ora e durata
-  function combineTimeValues() {
-    // Combina ora_h e ora_m in ora (formato HH:MM)
-    const ora_h = document.getElementById('ora_h')?.value;
-    const ora_m = document.getElementById('ora_m')?.value;
-    if (ora_h && ora_m) {
-      const oraField = document.getElementById('ora');
-      if (oraField) oraField.value = `${ora_h}:${ora_m}`;
-    }
-    
-    // Converte durata_h e durata_m in durata totale in minuti
-    const durata_h = parseInt(document.getElementById('durata_h')?.value) || 0;
-    const durata_m = parseInt(document.getElementById('durata_m')?.value) || 0;
-    const durata_totale = (durata_h * 60) + durata_m;
-    
-    const durataField = document.getElementById('durata');
-    if (durataField) durataField.value = durata_totale.toString();
-  }
-
-  // Gestione preferenze (generica per tutti i form)
+  // Gestione preferenze semplificata
   function saveFormPreference(username, formType, preferenceName, preferences) {
     return fetch('/api/salvaPreferenzaForm', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username: username,
-        form_type: formType,
-        name: preferenceName,
-        preferences: preferences
-      })
-    })
-    .then(response => response.json());
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, form_type: formType, name: preferenceName, preferences })
+    }).then(response => response.json());
   }
 
   function loadFormPreferences(username, formType) {
-    return fetch(`/api/getPreferenzeForm?username=${encodeURIComponent(username)}&form_type=${formType}`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Errore nella risposta del server: ${response.status}`);
-        }
-        return response.json();
-      });
+    return fetch(`/api/caricaPreferenzeForm?username=${username}&form_type=${formType}`)
+      .then(response => response.json())
+      .then(data => data.preferences || []);
   }
 
   function deleteFormPreference(username, id) {
     return fetch('/api/eliminaPreferenzaForm', {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username: username,
-        id: id
-      })
-    })
-    .then(response => response.json());
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, id })
+    }).then(response => response.json());
   }
 
   function resetForm(formId) {
     const form = document.getElementById(formId);
     if (form) {
       form.reset();
+      const multiSelectBoxes = form.querySelectorAll('.multi-select-box');
+      multiSelectBoxes.forEach(box => {
+        box.innerHTML = '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
+      });
     }
   }
 
   // Gestione date e ora comuni
   function parseTimeString(timeString) {
-    if (!timeString || !timeString.includes(':')) return null;
-    const [hours, minutes] = timeString.split(':').map(val => val.padStart(2, '0'));
-    return { hours, minutes };
+    if (!timeString) return null;
+    
+    const timeParts = timeString.split(':');
+    if (timeParts.length >= 2) {
+      return {
+        hours: timeParts[0],
+        minutes: timeParts[1]
+      };
+    }
+    return null;
   }
 
   function formatTimeFromHourMinute(hours, minutes) {
-    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+    const h = hours.toString().padStart(2, '0');
+    const m = minutes.toString().padStart(2, '0');
+    return `${h}:${m}`;
   }
 
   // Validazione date comuni
@@ -212,39 +188,26 @@ const FormUtils = (function() {
   function isWeekday(dateString) {
     const date = new Date(dateString);
     const day = date.getDay();
-    return day !== 0 && day !== 6; // 0 = domenica, 6 = sabato
+    return day !== 0 && day !== 6; // 0 = Sunday, 6 = Saturday
   }
 
-  // Gestione aule comuni
+  // Gestione aule semplificata
   function loadAuleForDateTime(data, periodo) {
-    return fetch(`/api/getAule?data=${data}&periodo=${periodo}`)
-      .then(response => response.ok ? response.json() : Promise.reject(`HTTP ${response.status}`));
+    return fetch(`/api/get-aule-disponibili?data=${data}&periodo=${periodo}`)
+      .then(response => response.json())
+      .then(data => data.aule || []);
   }
 
-  function populateAulaSelect(selectElement, aule, includeStudioDocente = true) {
+  function populateAulaSelect(selectElement, aule) {
     if (!selectElement) return;
-
-    selectElement.innerHTML = '<option value="" disabled selected hidden>Scegli l\'aula</option>';
     
-    const studioDocenteNome = "Studio docente DMI";
-    let studioDocentePresente = aule.some(aula => aula.nome === studioDocenteNome);
-    
-    if (includeStudioDocente && !studioDocentePresente) {
-      aule.push({ nome: studioDocenteNome });
-      aule.sort((a, b) => a.nome.localeCompare(b.nome));
-    }
+    selectElement.innerHTML = '<option value="">Seleziona un\'aula...</option>';
+    selectElement.innerHTML += '<option value="STUDIO_DOCENTE">Studio del docente</option>';
     
     aule.forEach(aula => {
-      const option = document.createElement("option");
-      option.value = aula.nome;
-      option.textContent = aula.nome === studioDocenteNome 
-        ? aula.nome 
-        : `${aula.nome} (${aula.posti} posti)`;
-      
-      if (aula.nome === studioDocenteNome && aule.length === 1) {
-        option.selected = true;
-      }
-      
+      const option = document.createElement('option');
+      option.value = aula.codice;
+      option.textContent = `${aula.codice} - ${aula.descrizione}`;
       selectElement.appendChild(option);
     });
   }
@@ -494,111 +457,9 @@ const FormUtils = (function() {
     return date instanceof Date && !isNaN(date) && dateString === formatDateForInput(date);
   }
 
-  // Aggiorna le opzioni di verbalizzazione in base al tipo di appello
-  function aggiornaVerbalizzazione() {
-    const tipoAppelloPP = document.getElementById("tipoAppelloPP");
-    const verbalizzazioneSelect = document.getElementById("verbalizzazione");
-
-    if (!tipoAppelloPP || !verbalizzazioneSelect) return;
-
-    verbalizzazioneSelect.innerHTML = "";
-
-    const options = tipoAppelloPP.checked
-      ? [
-          { value: "PAR", text: "Prova parziale" },
-          { value: "PPP", text: "Prova parziale con pubblicazione" },
-        ]
-      : [
-          { value: "FSS", text: "Firma digitale singola" },
-          { value: "FWP", text: "Firma digitale con pubblicazione" },
-        ];
-
-    options.forEach((option) => {
-      const optionElement = document.createElement("option");
-      optionElement.value = option.value;
-      optionElement.textContent = option.text;
-      verbalizzazioneSelect.appendChild(optionElement);
-    });
-
-    verbalizzazioneSelect.value = tipoAppelloPP.checked ? "PAR" : "FSS";
-  }
-
-  // Funzioni helper per la validazione del form
-  function getFirstDateValue() {
-    const firstDateInput = document.querySelector('[id^="dataora_"]');
-    return firstDateInput ? firstDateInput.value : null;
-  }
-
-  function getFirstTimeValue() {
-    const firstOraH = document.querySelector('[id^="ora_h_"]');
-    const firstOraM = document.querySelector('[id^="ora_m_"]');
-    if (firstOraH && firstOraM && firstOraH.value && firstOraM.value) {
-      return `${firstOraH.value}:${firstOraM.value}`;
-    }
-    return null;
-  }
-
-  function getDurationValue() {
-    const durataField = document.getElementById("durata");
-    return durataField ? durataField.value : null;
-  }
-
-  // Gestione insegnamenti
-  function handleInsegnamentoSelection(data) {
-    if (window.InsegnamentiManager && data.insegnamento_codice) {
-      window.InsegnamentiManager.clearSelection();
-      window.InsegnamentiManager.selectInsegnamento(data.insegnamento_codice, {
-        semestre: data.semestre || 1,
-        anno_corso: data.anno_corso || 1,
-        cds: data.cds_codice || ""
-      });
-      
-      const multiSelectBox = document.getElementById("insegnamentoBox");
-      if (multiSelectBox) {
-        const username = document.getElementById("docente")?.value;
-        if (username) {
-          window.InsegnamentiManager.syncUI(multiSelectBox);
-        }
-      }
-    }
-  }
-
-  // Controlla insegnamenti preselezionati dall'URL
-  function checkPreselectedInsegnamenti() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const preselectedParam = urlParams.get("insegnamenti");
-    
-    if (!preselectedParam) return;
-    
-    const preselectedCodes = preselectedParam.split(",");
-    const username = document.getElementById("docente")?.value;
-    
-    if (!username || !window.InsegnamentiManager) return;
-    
-    window.InsegnamentiManager.loadInsegnamenti(
-      username, 
-      { filter: preselectedCodes },
-      data => {
-        if (data.length > 0) {
-          data.forEach(ins => {
-            window.InsegnamentiManager.selectInsegnamento(ins.codice, {
-              semestre: ins.semestre || 1,
-              anno_corso: ins.anno_corso || 1,
-              cds: ins.cds_codice || ""
-            });
-          });
-          
-          const multiSelectBox = document.getElementById("insegnamentoBox");
-          if (multiSelectBox) {
-            window.InsegnamentiManager.syncUI(multiSelectBox);
-          }
-        }
-      }
-    );
-  }
-
-  // API pubblica estesa
+  // API pubblica - solo utilità generiche e funzioni core
   return {
+    // Utilità base per form
     setElementValue,
     setRadioValue,
     setCheckboxValue,
@@ -608,39 +469,45 @@ const FormUtils = (function() {
     validators,
     getCommonValidationRules,
     setupEventListeners,
+    
+    // Utilità per date e ora
     setDurationFromMinutes,
-    combineTimeValues,
-    saveFormPreference,
-    loadFormPreferences,
-    deleteFormPreference,
-    resetForm,
     parseTimeString,
     formatTimeFromHourMinute,
     isValidDate,
     isWeekday,
+    formatDateForInput,
+    isValidDateFormat,
+    
+    // Gestione template e DOM
+    loadHTMLTemplate,
+    processHTMLTemplate,
+    createConfirmationDialog,
+    
+    // Utilità per aule
     loadAuleForDateTime,
     populateAulaSelect,
+    
+    // Gestione utenti e permessi
     checkUserPermissions,
-    createConfirmationDialog,
-    formatDateForInput,
     getUserData,
-    loadHTMLTemplate,
+    
+    // Gestione preferenze (generica)
+    saveFormPreference,
+    loadFormPreferences,
+    deleteFormPreference,
+    resetForm,
+    
+    // Gestione eventi provvisori del calendario
     createProvisionalEvent,
     removeProvisionalEvent,
     clearAllProvisionalEvents,
-    processHTMLTemplate,
+    
+    // Validazione esami
     validateExamDate,
-    validateExamTime,
-    // Utilità specifiche per il form esame
-    isValidDateFormat,
-    aggiornaVerbalizzazione,
-    getFirstDateValue,
-    getFirstTimeValue,
-    getDurationValue,
-    handleInsegnamentoSelection,
-    checkPreselectedInsegnamenti
+    validateExamTime
   };
 }());
 
 // Esportazione globale
-window.FormUtils = FormUtils;
+window.FormEsameUtils = FormEsameUtils;

@@ -123,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     Promise.all([
       loadDateValide(currentUsername),
-      window.InsegnamentiManager?.loadInsegnamenti(currentUsername) || Promise.resolve([])
+      window.InsegnamentiManager.loadInsegnamenti(currentUsername)
     ])
       .then(([dateValideResponse]) => {
         dateValide = dateValideResponse;
@@ -155,10 +155,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
             let params = new URLSearchParams();
             params.append("docente", currentUsername);
-            if (window.InsegnamentiManager) {
-              const selected = window.InsegnamentiManager.getSelectedCodes();
-              if (selected.length > 0) params.append("insegnamenti", selected.join(","));
-            }
+            const selected = window.InsegnamentiManager.getSelectedCodes();
+            if (selected.length > 0) params.append("insegnamenti", selected.join(","));
 
             fetch(`/api/getEsami?${params.toString()}`)
               .then(response => response.ok ? response.json() : Promise.reject(`HTTP ${response.status}`))
@@ -207,11 +205,7 @@ document.addEventListener("DOMContentLoaded", function () {
             pulsanteInsegnamenti: {
               text: "Insegnamenti",
               click: (e) => handleDropdownButtonClick(e, "insegnamenti", calendar, dropdowns, () => {
-                if (window.InsegnamentiManager) {
-                  populateInsegnamentiDropdown(dropdowns.insegnamenti, currentUsername);
-                } else {
-                  dropdowns.insegnamenti.innerHTML = "<div class='dropdown-error'>Manager non disponibile</div>";
-                }
+                populateInsegnamentiDropdown(dropdowns.insegnamenti, currentUsername);
               })
             },
             aggiungiEsame: {
@@ -268,9 +262,8 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             // Mostra il form
-            const formOpened = EsameForm.showForm({ date: selDateFormatted });
-
-            if (formOpened) {
+            if (window.FormEsameUI) {
+              window.FormEsameUI.showForm({ date: selDateFormatted });
               // Crea l'evento provvisorio nel calendario usando la funzione unificata
               creaEventoProvvisorio(selDateFormatted, calendar, provisionalEvents);
             }
@@ -283,8 +276,8 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             // Altrimenti, procedi con la logica di modifica esistente
             const examId = info.event.id;
-            if (examId && window.EsameForm) {
-              window.EsameForm.showForm({ examId: examId }, true);
+            if (examId && window.FormEsameUI) {
+              window.FormEsameUI.showForm({ examId: examId }, true);
             }
           },
 

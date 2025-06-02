@@ -69,7 +69,11 @@ const InsegnamentiManager = (function () {
   // Controllo se l'utente è un amministratore
   async function isAdmin() {
     try {
-      const data = await getUserData();
+      const response = await fetch('/api/user-data');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
       return data.authenticated && data.user_data && data.user_data.permessi_admin;
     } catch (error) {
       console.error("Errore nel controllo dei permessi admin:", error);
@@ -84,6 +88,56 @@ const InsegnamentiManager = (function () {
            (Date.now() - lastCacheUpdate < cacheExpirationTime);
   }
 
+  // UTILITÀ PRIVATE PER FILTRAGGIO
+  function filterInsegnamenti(insegnamenti, options = {}) {
+    const { filter = null, cds = selectedCds } = options;
+    let risultati = [...insegnamenti];
+    
+    // Filtra per codice CdS se specificato
+    if (cds) {
+      risultati = risultati.filter(ins => ins.cds_codice === cds);
+    }
+    
+    // Filtra per codici specifici se richiesto
+    if (filter) {
+      const filteredCodes = Array.isArray(filter) ? filter : [filter];
+      risultati = risultati.filter(ins => filteredCodes.includes(ins.codice));
+    }
+
+    return risultati;
+  }
+
+  // GESTIONE DATI DA RESPONSE
+  function processInsegnamentiResponse(data) {
+    // Aggiorna timestamp cache
+    lastCacheUpdate = Date.now();
+    
+    // Gestisci il formato gerarchico
+    if (data.cds) {
+      // Formato gerarchico - Estrai i CdS per l'uso futuro
+      cdsCache = data.cds.map(c => ({
+        codice: c.codice,
+        nome_corso: c.nome
+      }));
+      
+      // Piattifica gli insegnamenti per compatibilità
+      insegnamentiCache = flattenInsegnamenti(data.cds);
+    } else if (data.insegnamenti && Array.isArray(data.insegnamenti)) {
+      // Formato legacy per docenti non admin
+      insegnamentiCache = data.insegnamenti.map(ins => ({
+        codice: ins.codice,
+        titolo: ins.titolo,
+        semestre: 1, // default
+        anno_corso: 1, // default
+        cds_codice: '',
+        cds_nome: ''
+      }));
+    } else if (Array.isArray(data)) {
+      // Formato piatto (legacy)
+      insegnamentiCache = data;
+    }
+  }
+
   // CARICAMENTO DATI
   function loadInsegnamenti(username, options = {}, callback = null) {
     // Gestione overload: se options è una funzione, è il callback
@@ -92,37 +146,26 @@ const InsegnamentiManager = (function () {
       options = {};
     }
 
-    const { filter = null, cds = selectedCds, forceReload = false } = options;
+    const { forceReload = false } = options;
     
     // Usa la cache se disponibile e valida, e non è richiesto un ricaricamento forzato
     if (!forceReload && isCacheValid()) {
-      // Filtra i dati dalla cache
-      let risultati = insegnamentiCache;
-      
-      // Filtra per codice CdS se specificato
-      if (cds) {
-        risultati = risultati.filter(ins => ins.cds_codice === cds);
-      }
-      
-      // Filtra per codici specifici se richiesto
-      if (filter) {
-        const filteredCodes = Array.isArray(filter) ? filter : [filter];
-        risultati = risultati.filter(ins => filteredCodes.includes(ins.codice));
-      }
-
+      const risultati = filterInsegnamenti(insegnamentiCache, options);
       if (typeof callback === "function") {
         callback(risultati);
       }
-      return;
+      return Promise.resolve(risultati);
     }
 
     // Se è già in corso una richiesta, attendila invece di farne una nuova
     if (requestInProgress) {
-      requestInProgress.then(() => {
-        // Usa la cache appena aggiornata
-        loadInsegnamenti(username, options, callback);
+      return requestInProgress.then(() => {
+        const risultati = filterInsegnamenti(insegnamentiCache, options);
+        if (typeof callback === "function") {
+          callback(risultati);
+        }
+        return risultati;
       });
-      return;
     }
 
     // Ottieni l'anno accademico corrente
@@ -143,45 +186,10 @@ const InsegnamentiManager = (function () {
         return response.json();
       })
       .then((data) => {
-        // Aggiorna timestamp cache
-        lastCacheUpdate = Date.now();
+        processInsegnamentiResponse(data);
         
-        // Gestisci il formato gerarchico
-        if (data.cds) {
-          // Formato gerarchico - Estrai i CdS per l'uso futuro
-          cdsCache = data.cds.map(c => ({
-            codice: c.codice,
-            nome_corso: c.nome
-          }));
-          
-          // Piattifica gli insegnamenti per compatibilità
-          insegnamentiCache = flattenInsegnamenti(data.cds);
-        } else if (data.insegnamenti && Array.isArray(data.insegnamenti)) {
-          // Formato legacy per docenti non admin
-          insegnamentiCache = data.insegnamenti.map(ins => ({
-            codice: ins.codice,
-            titolo: ins.titolo,
-            semestre: 1, // default
-            anno_corso: 1, // default
-            cds_codice: '',
-            cds_nome: ''
-          }));
-        } else if (Array.isArray(data)) {
-          // Formato piatto (legacy)
-          insegnamentiCache = data;
-        }
-
         // Filtra i risultati se necessario
-        let risultati = insegnamentiCache;
-        
-        if (cds) {
-          risultati = risultati.filter(ins => ins.cds_codice === cds);
-        }
-        
-        if (filter) {
-          const filteredCodes = Array.isArray(filter) ? filter : [filter];
-          risultati = risultati.filter(ins => filteredCodes.includes(ins.codice));
-        }
+        const risultati = filterInsegnamenti(insegnamentiCache, options);
 
         if (typeof callback === "function") {
           callback(risultati);
@@ -194,6 +202,7 @@ const InsegnamentiManager = (function () {
       })
       .catch((error) => {
         console.error("Errore nel caricamento degli insegnamenti:", error);
+        showError('Errore nel caricamento degli insegnamenti');
         requestInProgress = null;
         
         if (typeof callback === "function") {
@@ -229,19 +238,20 @@ const InsegnamentiManager = (function () {
   // Carica solo i CdS per il docente
   function loadCds(username, callback = null) {
     // Se la cache è già popolata e valida, utilizzala
-    if (cdsCache.length > 0 && (Date.now() - lastCacheUpdate < cacheExpirationTime)) {
+    if (cdsCache.length > 0 && isCacheValid()) {
       if (typeof callback === "function") {
         callback(cdsCache);
       }
-      return;
+      return Promise.resolve(cdsCache);
     }
     
     // Usa loadInsegnamenti per caricare tutti i dati e popolare entrambe le cache
-    loadInsegnamenti(username, (insegnamenti) => {
+    return loadInsegnamenti(username).then(() => {
       // I CdS sono già stati caricati in cdsCache da loadInsegnamenti
       if (typeof callback === "function") {
         callback(cdsCache);
       }
+      return cdsCache;
     });
   }
 
@@ -251,91 +261,52 @@ const InsegnamentiManager = (function () {
   }
 
   // GESTIONE UI
-  function syncUI(container, insegnamenti = null) {
-    if (!container) return;
+  function createInsegnamentoTag(ins, container) {
+    const tag = document.createElement("div");
+    tag.className = "multi-select-tag";
+    tag.dataset.value = ins.codice;
+    
+    // Includi il codice CdS tra parentesi se disponibile
+    const cdsText = ins.cds_codice ? ` (${ins.cds_codice})` : '';
+    tag.innerHTML = `${ins.titolo}${cdsText} <span class="multi-select-tag-remove">&times;</span>`;
 
-    // Se non sono forniti insegnamenti, carica quelli selezionati
-    if (!insegnamenti) {
-      const username = document.getElementById("docente")?.value;
-      if (!username || getSelectedCodes().length === 0) {
-        // Nessun insegnamento selezionato, mostra placeholder
-        container.innerHTML =
-          '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
-        return;
+    // Gestione rimozione
+    tag.querySelector(".multi-select-tag-remove").addEventListener("click", (e) => {
+      e.stopPropagation();
+      handleTagRemoval(ins.codice, container);
+    });
+
+    return tag;
+  }
+
+  function handleTagRemoval(codice, container) {
+    // Rimuovi il tag
+    const tag = container.querySelector(`[data-value="${codice}"]`);
+    if (tag) tag.remove();
+    
+    // Deseleziona l'insegnamento
+    deselectInsegnamento(codice);
+
+    // Rimuovi evidenziazione dall'opzione corrispondente nel dropdown
+    const dropdown = container.parentNode?.querySelector('.multi-select-dropdown');
+    if (dropdown) {
+      const option = dropdown.querySelector(`[data-value="${codice}"]`);
+      if (option) {
+        option.classList.remove("selected");
       }
-
-      // Carica solo gli insegnamenti selezionati
-      loadInsegnamenti(username, { 
-        filter: getSelectedCodes()
-      }, (data) => {
-        syncUI(container, data);
-      });
-      return;
     }
 
-    // Svuota il container
-    container.innerHTML = "";
-
-    // Se ci sono insegnamenti da mostrare
-    if (insegnamenti && insegnamenti.length > 0) {
-      // Filtra insegnamenti per mostrare solo quelli selezionati
-      const insegnamentiSelezionati = insegnamenti.filter(ins => isSelected(ins.codice));
-      
-      // Se non ci sono insegnamenti selezionati, mostra placeholder
-      if (insegnamentiSelezionati.length === 0) {
-        container.innerHTML =
-          '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
-        return;
-      }
-      
-      // Crea tag solo per gli insegnamenti selezionati
-      insegnamentiSelezionati.forEach((ins) => {
-        const tag = document.createElement("div");
-        tag.className = "multi-select-tag";
-        tag.dataset.value = ins.codice;
-        
-        // Includi il codice CdS tra parentesi se disponibile
-        const cdsText = ins.cds_codice ? ` (${ins.cds_codice})` : '';
-        tag.innerHTML =
-          `${ins.titolo}${cdsText} <span class="multi-select-tag-remove">&times;</span>`;
-
-        // Gestione rimozione
-        tag
-          .querySelector(".multi-select-tag-remove")
-          .addEventListener("click", (e) => {
-            e.stopPropagation();
-            tag.remove();
-            deselectInsegnamento(ins.codice);
-
-            // Rimuovi evidenziazione dall'opzione corrispondente nel dropdown
-            const dropdown = container.parentNode?.querySelector('.multi-select-dropdown');
-            if (dropdown) {
-              const option = dropdown.querySelector(`[data-value="${ins.codice}"]`);
-              if (option) {
-                option.classList.remove("selected");
-              }
-            }
-
-            // Mostra placeholder se necessario
-            if (container.querySelectorAll(".multi-select-tag").length === 0) {
-              container.innerHTML =
-                '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
-            }
-
-            // Aggiorna select nascosta
-            updateHiddenSelect(container);
-          });
-
-        container.appendChild(tag);
-      });
-    } else {
-      // Nessun insegnamento, mostra placeholder
-      container.innerHTML =
-        '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
+    // Mostra placeholder se necessario
+    if (container.querySelectorAll(".multi-select-tag").length === 0) {
+      showPlaceholder(container);
     }
 
-    // Aggiorna la select nascosta
+    // Aggiorna select nascosta
     updateHiddenSelect(container);
+  }
+
+  function showPlaceholder(container) {
+    container.innerHTML = '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
   }
 
   function updateHiddenSelect(container, hiddenSelectId = "insegnamento") {
@@ -355,14 +326,141 @@ const InsegnamentiManager = (function () {
       hiddenSelect.appendChild(option);
     });
   }
+
+  function syncUI(container, insegnamenti = null) {
+    if (!container) return;
+
+    // Se non sono forniti insegnamenti, carica quelli selezionati
+    if (!insegnamenti) {
+      const username = document.getElementById("docente")?.value;
+      if (!username || getSelectedCodes().length === 0) {
+        showPlaceholder(container);
+        return;
+      }
+
+      // Carica solo gli insegnamenti selezionati
+      loadInsegnamenti(username, { 
+        filter: getSelectedCodes()
+      }, (data) => {
+        syncUI(container, data);
+      });
+      return;
+    }
+
+    // Svuota il container
+    container.innerHTML = "";
+
+    // Filtra insegnamenti per mostrare solo quelli selezionati
+    const insegnamentiSelezionati = insegnamenti.filter(ins => isSelected(ins.codice));
+    
+    // Se non ci sono insegnamenti selezionati, mostra placeholder
+    if (insegnamentiSelezionati.length === 0) {
+      showPlaceholder(container);
+      return;
+    }
+    
+    // Crea tag per gli insegnamenti selezionati
+    insegnamentiSelezionati.forEach((ins) => {
+      const tag = createInsegnamentoTag(ins, container);
+      container.appendChild(tag);
+    });
+
+    // Aggiorna la select nascosta
+    updateHiddenSelect(container);
+  }
+
+  // Gestione eventi per dropdown
+  function setupDropdownEvents(container, dropdown) {
+    // Click sul container mostra/nasconde dropdown
+    const clickHandler = (e) => {
+      e.stopPropagation();
+      container.classList.toggle("active");
+      const isVisible = dropdown.style.display === "block";
+      dropdown.style.display = isVisible ? "none" : "block";
+
+      if (!isVisible) {
+        dropdown.style.left = "0";
+        dropdown.style.top = "100%";
+        dropdown.style.width = "100%";
+      }
+    };
+    
+    container.addEventListener("click", clickHandler);
+    
+    // Rimuovi vecchio handler document click
+    if (window._insegnamentiManagerDocClickHandler) {
+      document.removeEventListener("click", window._insegnamentiManagerDocClickHandler);
+    }
+
+    // Nuovo handler per chiudere dropdown su click esterno
+    window._insegnamentiManagerDocClickHandler = (e) => {
+      if (!container.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.style.display = "none";
+        container.classList.remove("active");
+      }
+    };
+    document.addEventListener("click", window._insegnamentiManagerDocClickHandler);
+    
+    return clickHandler;
+  }
+
+  // Crea opzioni del dropdown
+  function createDropdownOptions(insegnamenti, optionsContainer, container) {
+    optionsContainer.innerHTML = "";
+    
+    if (!insegnamenti || insegnamenti.length === 0) {
+      optionsContainer.innerHTML = '<div class="multi-select-no-data">Nessun insegnamento disponibile</div>';
+      return;
+    }
+    
+    // Ordina gli insegnamenti per titolo
+    insegnamenti.sort((a, b) => a.titolo.localeCompare(b.titolo));
+    
+    insegnamenti.forEach((ins) => {
+      const option = document.createElement("div");
+      option.className = "multi-select-option";
+      option.dataset.value = ins.codice;
+      option.dataset.cds = ins.cds_codice || "";
+      option.dataset.semestre = ins.semestre || "1";
+      option.dataset.annoCorso = ins.anno_corso || "1";
+      
+      // Includi il codice CdS tra parentesi se disponibile
+      const cdsText = ins.cds_codice ? ` (${ins.cds_codice})` : '';
+      option.textContent = `${ins.titolo}${cdsText}`;
+      
+      if (isSelected(ins.codice)) {
+        option.classList.add("selected");
+      }
+      
+      option.addEventListener("click", (e) => {
+        e.stopPropagation();
+        
+        const isCurrentlySelected = option.classList.contains("selected");
+        
+        if (isCurrentlySelected) {
+          // Deseleziona
+          option.classList.remove("selected");
+          deselectInsegnamento(ins.codice);
+        } else {
+          // Seleziona
+          option.classList.add("selected");
+          selectInsegnamento(ins.codice, {
+            semestre: parseInt(option.dataset.semestre) || 1,
+            anno_corso: parseInt(option.dataset.annoCorso) || 1,
+            cds: option.dataset.cds || "",
+          });
+        }
+        
+        // Aggiorna UI direttamente senza ricaricare dati dal server
+        syncUI(container);
+      });
+      
+      optionsContainer.appendChild(option);
+    });
+  }
   
   // Inizializza UI con multi-select e dropdown
-  function initUI(
-    containerSelector,
-    dropdownSelector,
-    optionsSelector,
-    username
-  ) {
+  function initUI(containerSelector, dropdownSelector, optionsSelector, username) {
     const container = document.getElementById(containerSelector);
     const dropdown = document.getElementById(dropdownSelector);
     const optionsContainer = document.getElementById(optionsSelector);
@@ -379,97 +477,12 @@ const InsegnamentiManager = (function () {
     const newContainer = container.cloneNode(true);
     container.parentNode?.replaceChild(newContainer, container);
 
-    // Click sul container mostra/nasconde dropdown
-    newContainer.addEventListener("click", (e) => {
-      e.stopPropagation();
-
-      newContainer.classList.toggle("active");
-      const isVisible = dropdown.style.display === "block";
-      dropdown.style.display = isVisible ? "none" : "block";
-
-      if (!isVisible) {
-        dropdown.style.left = "0";
-        dropdown.style.top = "100%";
-        dropdown.style.width = "100%";
-      }
-    });
-
-    // Rimuovi vecchio handler document click
-    if (window._insegnamentiManagerDocClickHandler) {
-      document.removeEventListener(
-        "click",
-        window._insegnamentiManagerDocClickHandler
-      );
-    }
-
-    // Nuovo handler per chiudere dropdown su click esterno
-    window._insegnamentiManagerDocClickHandler = (e) => {
-      if (!newContainer.contains(e.target) && !dropdown.contains(e.target)) {
-        dropdown.style.display = "none";
-        newContainer.classList.remove("active");
-      }
-    };
-    document.addEventListener(
-      "click",
-      window._insegnamentiManagerDocClickHandler
-    );
+    // Setup eventi dropdown
+    setupDropdownEvents(newContainer, dropdown);
 
     // Carica insegnamenti e popola opzioni
     loadInsegnamenti(username, (insegnamenti) => {
-      // Popola opzioni
-      optionsContainer.innerHTML = "";
-      
-      if (!insegnamenti || insegnamenti.length === 0) {
-        optionsContainer.innerHTML =
-          '<div class="multi-select-no-data">Nessun insegnamento disponibile</div>';
-        return;
-      }
-      
-      // Ordina gli insegnamenti per titolo
-      insegnamenti.sort((a, b) => a.titolo.localeCompare(b.titolo));
-      
-      // Aggiungi insegnamenti direttamente senza raggruppamento per CdS
-      insegnamenti.forEach((ins) => {
-        const option = document.createElement("div");
-        option.className = "multi-select-option";
-        option.dataset.value = ins.codice;
-        option.dataset.cds = ins.cds_codice || "";
-        option.dataset.semestre = ins.semestre || "1";
-        option.dataset.annoCorso = ins.anno_corso || "1";
-        
-        // Includi il codice CdS tra parentesi se disponibile
-        const cdsText = ins.cds_codice ? ` (${ins.cds_codice})` : '';
-        option.textContent = `${ins.titolo}${cdsText}`;
-        
-        if (isSelected(ins.codice)) {
-          option.classList.add("selected");
-        }
-        
-        option.addEventListener("click", (e) => {
-          e.stopPropagation();
-          
-          const isCurrentlySelected = option.classList.contains("selected");
-          
-          if (isCurrentlySelected) {
-            // Deseleziona
-            option.classList.remove("selected");
-            deselectInsegnamento(ins.codice);
-          } else {
-            // Seleziona
-            option.classList.add("selected");
-            selectInsegnamento(ins.codice, {
-              semestre: parseInt(option.dataset.semestre) || 1,
-              anno_corso: parseInt(option.dataset.annoCorso) || 1,
-              cds: option.dataset.cds || "",
-            });
-          }
-          
-          // Aggiorna UI direttamente senza ricaricare dati dal server
-          syncUI(newContainer);
-        });
-        
-        optionsContainer.appendChild(option);
-      });
+      createDropdownOptions(insegnamenti, optionsContainer, newContainer);
       
       // Sincronizza i tag iniziali se ci sono già insegnamenti selezionati
       if (getSelectedCodes().length > 0) {
@@ -525,6 +538,10 @@ const InsegnamentiManager = (function () {
     });
   }
 
+  // Funzioni per invio messaggi alla sidebar
+  const showError = (message) => window.showMessage(message, 'Errore', 'error');
+  const showSuccess = (message) => window.showMessage(message, 'Successo', 'success');
+
   // API pubblica
   return {
     // Core API
@@ -556,6 +573,10 @@ const InsegnamentiManager = (function () {
     cleanup,
     isAdmin,
     flattenInsegnamenti,
+
+    // Messaggi
+    showError,
+    showSuccess,
   };
 })();
 

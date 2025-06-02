@@ -62,68 +62,61 @@ export function populateInsegnamentiDropdown(
     dropdownElement.innerHTML = dropdownHTML;
   }
 
-  // Utilizziamo InsegnamentiManager se disponibile
-  if (window.InsegnamentiManager) {
-    const options = {};
-    if (cdsFiltro) options.cds = cdsFiltro;
+  // Utilizziamo InsegnamentiManager
+  const options = {};
+  if (cdsFiltro) options.cds = cdsFiltro;
 
-    const loadAndRender = (managerOptions) => {
-      window.InsegnamentiManager.loadInsegnamenti(docente, managerOptions, (insegnamenti) => {
-        // Organizza gli insegnamenti per CdS
-        const insegnamentiPerCds = {};
-        (insegnamenti || []).forEach((ins) => {
-          const cdsKey = ins.cds_codice || 'altro';
-          const cdsNome = ins.cds_nome || 'Altro';
-          if (!insegnamentiPerCds[cdsKey]) {
-            insegnamentiPerCds[cdsKey] = { nome: cdsNome, insegnamenti: [] };
-          }
-          // Aggiungi solo se non già presente
-          if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.codice === ins.codice)) {
-             insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
-          }
-        });
-        renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
+  const loadAndRender = (managerOptions) => {
+    window.InsegnamentiManager.loadInsegnamenti(docente, managerOptions, (insegnamenti) => {
+      // Organizza gli insegnamenti per CdS
+      const insegnamentiPerCds = {};
+      (insegnamenti || []).forEach((ins) => {
+        const cdsKey = ins.cds_codice || 'altro';
+        const cdsNome = ins.cds_nome || 'Altro';
+        if (!insegnamentiPerCds[cdsKey]) {
+          insegnamentiPerCds[cdsKey] = { nome: cdsNome, insegnamenti: [] };
+        }
+        // Aggiungi solo se non già presente
+        if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.codice === ins.codice)) {
+           insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
+        }
       });
-    };
-
-    // Se abbiamo già dati precaricati, li utilizziamo
-    if (preloadedInsegnamenti) {
-      let insegnamentiPerCds = {};
-      if (preloadedInsegnamenti.cds && Array.isArray(preloadedInsegnamenti.cds)) {
-         preloadedInsegnamenti.cds.forEach(cds => {
-           if (cds && cds.codice && cds.insegnamenti) {
-             insegnamentiPerCds[cds.codice] = {
-               nome: cds.nome || cds.nome_corso || "Sconosciuto",
-               insegnamenti: Array.isArray(cds.insegnamenti) ? cds.insegnamenti.map(ins => ({
-                 ...ins,
-                 cds_codice: cds.codice,
-                 cds_nome: cds.nome || cds.nome_corso || "Sconosciuto"
-               })) : []
-             };
-           }
-         });
-      } else if (Array.isArray(preloadedInsegnamenti)) {
-         preloadedInsegnamenti.forEach((ins) => {
-           const cdsKey = ins.cds_codice || 'altro';
-           const cdsNome = ins.cds_nome || 'Altro';
-           if (!insegnamentiPerCds[cdsKey]) {
-             insegnamentiPerCds[cdsKey] = { nome: cdsNome, insegnamenti: [] };
-           }
-           if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.codice === ins.codice)) {
-              insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
-           }
-         });
-      }
       renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
-    } else {
-       loadAndRender(options);
-    }
-    return;
-  }
+    });
+  };
 
-  // Fallback se InsegnamentiManager non è disponibile
-  console.warn("InsegnamentiManager non disponibile, caricamento insegnamenti fallback.");
-  dropdownInsegnamenti.innerHTML = "<div class='dropdown-error'>Errore: InsegnamentiManager non trovato</div>";
+  // Se abbiamo già dati precaricati, li utilizziamo
+  if (preloadedInsegnamenti) {
+    let insegnamentiPerCds = {};
+    if (preloadedInsegnamenti.cds && Array.isArray(preloadedInsegnamenti.cds)) {
+       preloadedInsegnamenti.cds.forEach(cds => {
+         if (cds && cds.codice && cds.insegnamenti) {
+           insegnamentiPerCds[cds.codice] = {
+             nome: cds.nome || cds.nome_corso || "Sconosciuto",
+             insegnamenti: Array.isArray(cds.insegnamenti) ? cds.insegnamenti.map(ins => ({
+               ...ins,
+               cds_codice: cds.codice,
+               cds_nome: cds.nome || cds.nome_corso || "Sconosciuto"
+             })) : []
+           };
+         }
+       });
+    } else if (Array.isArray(preloadedInsegnamenti)) {
+       preloadedInsegnamenti.forEach((ins) => {
+         const cdsKey = ins.cds_codice || 'altro';
+         const cdsNome = ins.cds_nome || 'Altro';
+         if (!insegnamentiPerCds[cdsKey]) {
+           insegnamentiPerCds[cdsKey] = { nome: cdsNome, insegnamenti: [] };
+         }
+         if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.codice === ins.codice)) {
+            insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
+         }
+       });
+    }
+    renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
+  } else {
+     loadAndRender(options);
+  }
 }
 
 // Carica le date valide direttamente dal backend
@@ -132,7 +125,7 @@ export async function loadDateValide(docente, insegnamenti = null) {
   if (docente) params.append("docente", docente);
 
   // Passa gli insegnamenti selezionati se presenti
-  const selectedInsegnamenti = Array.isArray(insegnamenti) ? insegnamenti : (window.InsegnamentiManager?.getSelectedCodes() || []);
+  const selectedInsegnamenti = Array.isArray(insegnamenti) ? insegnamenti : (window.InsegnamentiManager.getSelectedCodes() || []);
   if (selectedInsegnamenti.length > 0) {
     params.append("insegnamenti", selectedInsegnamenti.join(","));
   }
