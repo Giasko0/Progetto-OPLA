@@ -235,9 +235,29 @@ document.addEventListener("DOMContentLoaded", function () {
             const selDate = info.date;
             const selDateFormatted = formatDateForInput(selDate);
 
-            // Controlla se la data è valida (inclusi controlli per eventi provvisori)
-            const provisionalDates = window.provisionalEvents ? window.provisionalEvents.map(e => e.start) : [];
-            const validationResult = isDateValid(selDate, dateValide, provisionalDates);
+            // Filtra gli eventi provvisori per includere solo quelli con "Apertura appelli" attivo
+            const visibleProvisionalDates = [];
+            
+            if (window.provisionalEvents) {
+              window.provisionalEvents.forEach(event => {
+                // Controlla se l'evento corrisponde a una sezione con "Apertura appelli" attivo
+                const sectionNumber = event.extendedProps?.sectionNumber;
+                
+                if (sectionNumber) {
+                  const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${sectionNumber}`);
+                  
+                  if (showInCalendarCheckbox && showInCalendarCheckbox.checked) {
+                    visibleProvisionalDates.push(event.start);
+                  }
+                } else {
+                  // Per eventi provvisori creati dal calendario (senza sezione associata)
+                  // li includiamo sempre perché rappresentano un "nuovo esame" generico
+                  visibleProvisionalDates.push(event.start);
+                }
+              });
+            }
+
+            const validationResult = isDateValid(selDate, dateValide, visibleProvisionalDates);
 
             if (!validationResult.isValid) {
               if (validationResult.isSameDayConflict) {
@@ -254,7 +274,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Mostra notifica nella sidebar per conflitto 14 giorni
                 if (window.showMessage) {
                   window.showMessage(
-                    'Non è possibile inserire esami a meno di 14 giorni di distanza.',
+                    'Non è possibile inserire esami a meno di 14 giorni di distanza da altri eventi con proprietà "Apertura appelli".',
                     'Attenzione',
                     'notification'
                   );
@@ -269,8 +289,15 @@ document.addEventListener("DOMContentLoaded", function () {
               }
             }
 
-            // Crea l'evento provvisorio nel calendario
-            creaEventoProvvisorio(selDateFormatted, calendar, provisionalEvents);
+            // Crea l'evento provvisorio nel calendario con sectionNumber dinamico
+            // Determina il prossimo sectionNumber disponibile
+            let nextSectionNumber = 1;
+            while (document.getElementById(`dataora_${nextSectionNumber}`) && 
+                   document.getElementById(`dataora_${nextSectionNumber}`).value) {
+                nextSectionNumber++;
+            }
+            
+            creaEventoProvvisorio(selDateFormatted, calendar, provisionalEvents, nextSectionNumber);
             
             // Verifica se il form è già aperto prima di mostrarlo
             const formIsAlreadyOpen = document.getElementById('form-container') && 

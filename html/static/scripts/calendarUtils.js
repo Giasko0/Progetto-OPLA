@@ -434,7 +434,7 @@ export async function populateAnnoAccademicoDropdown(dropdown) {
 }
 
 // Crea un evento provvisorio nel calendario
-export function creaEventoProvvisorio(date, calendar, provisionalEvents, options = {}) {
+export function creaEventoProvvisorio(date, calendar, provisionalEvents, sectionNumber = null) {
   if (!calendar || !date) {
     return null;
   }
@@ -456,15 +456,15 @@ export function creaEventoProvvisorio(date, calendar, provisionalEvents, options
     id: provisionalEventId,
     start: date,
     allDay: true,
-    backgroundColor: options.backgroundColor || '#77DD77',
-    borderColor: options.borderColor || '#77DD77',
-    textColor: options.textColor || '#000',
-    title: options.title || 'Nuovo esame',
+    backgroundColor: '#77DD77',
+    borderColor: '#77DD77',
+    textColor: '#000',
+    title: 'Nuovo esame',
     extendedProps: {
       isProvisional: true,
       formSectionDate: date,
-      aula: options.aula || '',
-      ...options.extendedProps
+      sectionNumber: sectionNumber,
+      aula: ''
     }
   };
 

@@ -28,6 +28,16 @@ const EsameAppelli = (function() {
     return `${year}-${month}-${day}`;
   }
 
+  // Funzione helper per mostrare errori
+  function showError(message) {
+    if (window.showMessage) {
+      window.showMessage(message, 'Errore di validazione', 'error');
+    } else {
+      console.error(message);
+      alert(message); // Fallback per compatibilità
+    }
+  }
+
   // Carica il template HTML per la sezione appello
   async function loadAppelloTemplate() {
     if (appellobTemplate) {
@@ -137,9 +147,15 @@ const EsameAppelli = (function() {
       window.FormEsameAutosave.precompileNewSection(section);
     }
     
+    // Assicurati che il checkbox "Apertura appelli" sia sempre selezionato per default
+    const showInCalendarCheckbox = section.querySelector(`#mostra_nel_calendario_${dateAppelliCounter}`);
+    if (showInCalendarCheckbox) {
+      showInCalendarCheckbox.checked = true;
+    }
+    
     // Se è stata fornita una data, crea subito l'evento provvisorio
     if (date) {
-      createProvisionalEventForDate(date);
+      createProvisionalEventForDate(date, dateAppelliCounter);
       // Aggiungi la data al tracking solo se non è vuota
       if (!selectedDates.includes(date)) {
         selectedDates.push(date);
@@ -300,6 +316,38 @@ const EsameAppelli = (function() {
         });
       }
     }
+
+    // Gestione del checkbox "Apertura appelli" 
+    const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${counter}`);
+    if (showInCalendarCheckbox) {
+        // Assicurati che sia selezionato per default
+        if (!showInCalendarCheckbox.hasAttribute('data-user-modified')) {
+            showInCalendarCheckbox.checked = true;
+        }
+        
+        showInCalendarCheckbox.addEventListener('change', function() {
+            this.setAttribute('data-user-modified', 'true');
+            validateAllDates();
+        });
+    }
+  }
+
+  // Nuova funzione per rivalidare tutte le date
+  function validateAllDates() {
+    for (let i = 1; i <= 4; i++) {
+        const dateInput = document.getElementById(`dataora_${i}`);
+        const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${i}`);
+        
+        // Valida solo le sezioni che hanno il checkbox "Apertura appelli" attivo
+        if (dateInput && dateInput.value && showInCalendarCheckbox && showInCalendarCheckbox.checked) {
+            // Rimuovi eventuali stili di errore precedenti prima della validazione
+            dateInput.classList.remove('form-input-error');
+            validateDateConstraints(dateInput.value, i);
+        } else if (dateInput && !showInCalendarCheckbox?.checked) {
+            // Se il checkbox è disattivato, rimuovi eventuali stili di errore
+            dateInput.classList.remove('form-input-error');
+        }
+    }
   }
 
   // Funzione per combinare durata per sezione specifica
@@ -358,45 +406,91 @@ const EsameAppelli = (function() {
   function validateDateConstraints(newDate, counter) {
     if (!newDate) return true;
     
-    const dateInput = document.getElementById(`dataora_${counter}`);
-    
-    // Rimuovi eventuali stili di errore precedenti
-    if (dateInput) {
-      dateInput.classList.remove('form-input-error');
+    try {
+        // Raccoglie solo le date delle sezioni con "Apertura appelli" attivo
+        const visibleSectionDates = [];
+        
+        for (let i = 1; i <= 4; i++) {
+            if (i === counter) continue; // Salta la sezione corrente
+            
+            const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${i}`);
+            const dateInput = document.getElementById(`dataora_${i}`);
+            
+            // Include la data solo se il checkbox è selezionato e la data è valida
+            if (showInCalendarCheckbox && showInCalendarCheckbox.checked && 
+                dateInput && dateInput.value) {
+                visibleSectionDates.push(dateInput.value);
+            }
+        }
+        
+        // Converte la nuova data in oggetto Date se è una stringa
+        const dateToValidate = typeof newDate === 'string' ? new Date(newDate) : newDate;
+        
+        // Validazione custom solo per i vincoli tra appelli (non controlla le sessioni)
+        const validationResult = validateDateConstraintsForSections(dateToValidate, visibleSectionDates);
+            
+        const dateInput = document.getElementById(`dataora_${counter}`);
+        
+        if (!validationResult.isValid) {
+            // Applica lo stile di errore al campo
+            if (dateInput) {
+                dateInput.classList.add('form-input-error');
+            }
+            
+            showError(`Sezione ${counter}: ${validationResult.message}`);
+            return false;
+        } else {
+            // Rimuovi lo stile di errore se la validazione passa
+            if (dateInput) {
+                dateInput.classList.remove('form-input-error');
+            }
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Errore nella validazione delle date:', error);
+        return true;
     }
-    
-    // Raccogli le date provvisorie da altre sezioni del form (esclusa quella corrente)
-    const otherSectionDates = [];
-    const dateSections = document.querySelectorAll('.date-appello-section');
-    dateSections.forEach(section => {
-      const sectionDateInput = section.querySelector('input[type="date"]');
-      if (sectionDateInput && sectionDateInput.value && sectionDateInput.id !== `dataora_${counter}`) {
-        otherSectionDates.push(sectionDateInput.value);
+  }
+
+  // Funzione di validazione specifica per le sezioni (senza controllo sessioni)
+  function validateDateConstraintsForSections(selectedDate, provisionalDates = []) {
+    const selDate = new Date(selectedDate);
+    selDate.setHours(0, 0, 0, 0);
+
+    // Controlla se c'è già un evento provvisorio nello stesso giorno
+    if (provisionalDates && provisionalDates.length > 0) {
+      const sameDayEvent = provisionalDates.some(provDateStr => {
+        const provDate = new Date(provDateStr);
+        provDate.setHours(0, 0, 0, 0);
+        return selDate.getTime() === provDate.getTime();
+      });
+
+      if (sameDayEvent) {
+        return {
+          isValid: false,
+          message: "Non è possibile inserire due esami nello stesso giorno.",
+          isSameDayConflict: true
+        };
       }
-    });
-    
-    // Usa la funzione esistente isDateValid con le date delle altre sezioni
-    const validationResult = window.isDateValid(new Date(newDate), window.dateValide || [], otherSectionDates);
-    
-    if (!validationResult.isValid) {
-      // Applica lo stile di errore al campo
-      if (dateInput) {
-        dateInput.classList.add('form-input-error');
+
+      // Controlla vincolo dei 14 giorni con altri eventi provvisori
+      const days = 13;
+      for (const provDateStr of provisionalDates) {
+        const provDate = new Date(provDateStr);
+        provDate.setHours(0, 0, 0, 0);
+        const diffDays = Math.abs(selDate - provDate) / (1000 * 60 * 60 * 24);
+        if (diffDays <= days && selDate.getTime() !== provDate.getTime()) {
+          return {
+            isValid: false,
+            message: "Non è possibile inserire esami a meno di 14 giorni di distanza.",
+            isProvisionalConflict: true
+          };
+        }
       }
-      
-      // Mostra il messaggio appropriato
-      if (window.showMessage) {
-        window.showMessage(
-          validationResult.message,
-          'Vincolo date', 
-          'warning'
-        );
-      }
-      
-      return false;
     }
-    
-    return true;
+
+    return { isValid: true };
   }
 
   function handleDateInputChange(sectionId, counter) {
@@ -431,15 +525,18 @@ const EsameAppelli = (function() {
         selectedDates.splice(index, 1);
       }
       
-      // Verifica il vincolo dei 14 giorni
-      if (!validateDateConstraints(newDate, counter)) {
-        // Data non valida - non creare evento provvisorio
-        return;
+      // Verifica il vincolo dei 14 giorni solo se il checkbox "Apertura appelli" è attivo
+      const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${counter}`);
+      if (showInCalendarCheckbox && showInCalendarCheckbox.checked) {
+        if (!validateDateConstraints(newDate, counter)) {
+          // Data non valida - non creare evento provvisorio
+          return;
+        }
       }
       
-      // Data valida - continua con la logica normale
+      // Data valida o checkbox disattivato - continua con la logica normale
       section.dataset.date = newDate;
-      createProvisionalEventForDate(newDate);
+      createProvisionalEventForDate(newDate, counter);
       
       if (!selectedDates.includes(newDate)) {
         selectedDates.push(newDate);
@@ -480,13 +577,13 @@ const EsameAppelli = (function() {
   }
   
   // Modificata per prevenire la creazione di eventi duplicati usando la funzione unificata
-  function createProvisionalEventForDate(date) {
+  function createProvisionalEventForDate(date, sectionNumber = null) {
     if (!window.calendar || !date) {
       return;
     }
 
     // Usa la funzione unificata importata da calendarUtils
-    const provisionalEvent = window.creaEventoProvvisorio(date, window.calendar, window.provisionalEvents || []);
+    const provisionalEvent = window.creaEventoProvvisorio(date, window.calendar, window.provisionalEvents || [], sectionNumber);
     
     if (provisionalEvent && window.updateDateValideWithExclusions) {
       window.updateDateValideWithExclusions();
@@ -541,6 +638,16 @@ const EsameAppelli = (function() {
       });
   }
   
+  // Reset function
+  function resetSections() {
+    dateAppelliCounter = 0;
+    selectedDates = [];
+    const container = document.getElementById('dateAppelliContainer');
+    if (container) {
+      container.innerHTML = '';
+    }
+  }
+
   function initializeDateSections() {
     const container = document.getElementById('dateAppelliContainer');
     if (!container) {
@@ -554,6 +661,24 @@ const EsameAppelli = (function() {
       existingButton.remove();
     }
     
+    // Aggiungi event listener per i checkbox "Apertura appelli" esistenti
+    for (let i = 1; i <= 4; i++) {
+        const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${i}`);
+        
+        if (showInCalendarCheckbox) {
+            // Assicurati che sia selezionato per default se non ha un valore salvato
+            if (!showInCalendarCheckbox.hasAttribute('data-user-modified')) {
+                showInCalendarCheckbox.checked = true;
+            }
+            
+            // Marca come modificato dall'utente quando viene cambiato
+            showInCalendarCheckbox.addEventListener('change', function() {
+                this.setAttribute('data-user-modified', 'true');
+                validateAllDates();
+            });
+        }
+    }
+    
     // Aggiungi il pulsante per aggiungere nuove date
     const addButton = document.createElement('button');
     addButton.type = 'button';
@@ -562,16 +687,6 @@ const EsameAppelli = (function() {
     addButton.addEventListener('click', () => addDateSection());
     
     container.appendChild(addButton);
-  }
-
-  // Reset function
-  function resetSections() {
-    dateAppelliCounter = 0;
-    selectedDates = [];
-    const container = document.getElementById('dateAppelliContainer');
-    if (container) {
-      container.innerHTML = '';
-    }
   }
 
   // Interfaccia pubblica
@@ -590,7 +705,8 @@ const EsameAppelli = (function() {
     getSelectedDates: () => [...selectedDates],
     getDateAppelliCounter: () => dateAppelliCounter,
     combineDurataForSection,
-    aggiornaVerbalizzazioneForSection
+    aggiornaVerbalizzazioneForSection,
+    validateAllDates
   };
 }());
 
