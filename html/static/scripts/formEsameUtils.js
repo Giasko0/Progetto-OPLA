@@ -64,7 +64,7 @@ const FormUtils = (function() {
     durataEsame: function(durataMinuti) {
       if (!durataMinuti) return false;
       const durata = parseInt(durataMinuti, 10);
-      return durata >= 30 && durata <= 480; // min 30 minuti, max 8 ore (480 minuti)
+      return durata >= 30 && durata <= 720; // min 30 minuti, max 12 ore (720 minuti)
     },
     
     giornoSettimana: function(data) {
@@ -86,7 +86,7 @@ const FormUtils = (function() {
         required: true,
         validator: validators.durataEsame,
         requiredMessage: "La durata dell'esame è obbligatoria",
-        invalidMessage: "La durata dell'esame deve essere di almeno 30 minuti e non superiore a 480 minuti (8 ore)"
+        invalidMessage: "La durata dell'esame deve essere di almeno 30 minuti e non superiore a 720 minuti (12 ore)"
       },
       giorno_settimana: {
         required: true,

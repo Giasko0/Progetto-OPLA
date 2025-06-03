@@ -121,8 +121,8 @@ const FormEsameControlli = (function() {
       const durataM = parseInt(durata_m) || 0;
       const durataTotale = (durataH * 60) + durataM;
       
-      if (durataTotale < 30 || durataTotale > 480) {
-        showValidationError(`Appello ${sectionNumber}: La durata deve essere tra 30 minuti e 8 ore`);
+      if (durataTotale < 30 || durataTotale > 720) {
+        showValidationError(`Appello ${sectionNumber}: La durata deve essere tra 30 minuti e 12 ore`);
         return false;
       }
 

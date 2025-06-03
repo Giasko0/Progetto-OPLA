@@ -71,8 +71,8 @@ def generaDatiEsame():
       # Durata appello
       try:
         durata_appello = int(sezione['durata'])
-        if durata_appello < 30 or durata_appello > 480:
-          return {'status': 'error', 'message': f'La durata deve essere compresa tra 30 e 480 minuti per l\'appello {section_index}'}
+        if durata_appello < 30 or durata_appello > 720:
+          return {'status': 'error', 'message': f'La durata deve essere compresa tra 30 e 720 minuti per l\'appello {section_index}'}
         sezione['durata_appello'] = durata_appello
       except (ValueError, TypeError):
         sezione['durata_appello'] = 120
