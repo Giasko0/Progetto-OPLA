@@ -1,8 +1,6 @@
 -- Droppa tutte le tabelle
 DROP TABLE IF EXISTS aule CASCADE;
 DROP TABLE IF EXISTS cds CASCADE;
--- Da rimuovere riga 5
-DROP TABLE IF EXISTS periodi_esame CASCADE;
 DROP TABLE IF EXISTS sessioni CASCADE;
 DROP TABLE IF EXISTS insegnamenti CASCADE;
 DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
@@ -14,7 +12,8 @@ DROP TABLE IF EXISTS esami CASCADE;
 -- Creazione della tabella 'aule'
 CREATE TABLE aule (
     nome TEXT PRIMARY KEY,        -- Nome dell'aula (chiave primaria)
-    codice TEXT NOT NULL,         -- Codice dell'aula da easyAcademy
+    codice_esse3 TEXT,            -- Codice dell'aula da ESSE3
+    codice_easyacademy TEXT,      -- Codice dell'aula da EasyAcademy
     sede TEXT,                    -- Sede dell'aula
     edificio TEXT,                -- Edificio dell'aula
     posti INT                     -- Numero di posti disponibili
@@ -143,40 +142,89 @@ CREATE TABLE esami (
     CONSTRAINT check_posti CHECK (posti > 0)
 );
 
--- Creazione degli indici per velocizzare le query (forse sono troppi, levarne qualcuno se necessario)
-CREATE INDEX idx_cds_nome_corso ON cds(nome_corso);
-
-CREATE INDEX idx_insegnamenti_codice ON insegnamenti(codice);
-CREATE INDEX idx_insegnamenti_id ON insegnamenti(id);
-
-CREATE INDEX idx_insegnamenti_cds_anno ON insegnamenti_cds(anno_accademico);
-CREATE INDEX idx_insegnamenti_cds_cds ON insegnamenti_cds(cds);
-
-CREATE INDEX idx_utenti_matricola ON utenti(matricola);
-CREATE INDEX idx_utenti_cognome ON utenti(cognome);
-
-CREATE INDEX idx_insegna_annoaccademico ON insegnamento_docente(annoaccademico);
-CREATE INDEX idx_insegna_docente ON insegnamento_docente(docente);
-CREATE INDEX idx_insegna_insegnamento ON insegnamento_docente(insegnamento);
-
+-- Indici per velocizzare le query (forse sono troppi, levarne qualcuno se necessario)
+-- Indici per la tabella 'esami'
 CREATE INDEX idx_esami_data_appello ON esami(data_appello);
-CREATE INDEX idx_esami_insegnamento ON esami(insegnamento);
 CREATE INDEX idx_esami_docente ON esami(docente);
-CREATE INDEX idx_esami_aula ON esami(aula);
+CREATE INDEX idx_esami_insegnamento ON esami(insegnamento);
+CREATE INDEX idx_esami_cds_anno_curriculum ON esami(cds, anno_accademico, curriculum);
+CREATE INDEX idx_esami_aula_data_periodo ON esami(aula, data_appello, periodo);
+CREATE INDEX idx_esami_periodo ON esami(periodo);
+CREATE INDEX idx_esami_data_iscrizione ON esami(data_inizio_iscrizione, data_fine_iscrizione);
+CREATE INDEX idx_esami_calendario ON esami(mostra_nel_calendario);
+CREATE INDEX idx_esami_data_range ON esami(data_appello, mostra_nel_calendario);
+CREATE INDEX idx_esami_docente_anno ON esami(docente, anno_accademico);
+CREATE INDEX idx_esami_insegnamento_data ON esami(insegnamento, data_appello);
 
-CREATE INDEX idx_aule_nome ON aule(nome);
+-- Indici per la tabella 'insegnamenti_cds'
+CREATE INDEX idx_insegnamenti_cds_anno_semestre ON insegnamenti_cds(anno_corso, semestre);
+CREATE INDEX idx_insegnamenti_cds_anno_accademico ON insegnamenti_cds(anno_accademico);
+CREATE INDEX idx_insegnamenti_cds_cds ON insegnamenti_cds(cds);
+CREATE INDEX idx_insegnamenti_cds_curriculum ON insegnamenti_cds(curriculum);
 
+-- Indici per la tabella 'insegnamento_docente'
+CREATE INDEX idx_insegnamento_docente_anno ON insegnamento_docente(annoaccademico);
+CREATE INDEX idx_insegnamento_docente_docente_anno ON insegnamento_docente(docente, annoaccademico);
+
+-- Indici per la tabella 'sessioni'
+CREATE INDEX idx_sessioni_date_range ON sessioni(inizio, fine);
+CREATE INDEX idx_sessioni_tipo ON sessioni(tipo_sessione);
+CREATE INDEX idx_sessioni_cds_anno ON sessioni(cds, anno_accademico);
+CREATE INDEX idx_sessioni_anno_type ON sessioni(anno_accademico, tipo_sessione);
+
+-- Indici per la tabella 'utenti'
+CREATE INDEX idx_utenti_permessi ON utenti(permessi_admin);
+
+-- Indici per la tabella 'preferenze_utenti'
+CREATE INDEX idx_preferenze_form_type ON preferenze_utenti(form_type);
+CREATE INDEX idx_preferenze_created_at ON preferenze_utenti(created_at);
+CREATE INDEX idx_preferenze_username_type ON preferenze_utenti(username, form_type);
+
+-- Indici per la tabella 'insegnamenti'
+CREATE INDEX idx_insegnamenti_codice ON insegnamenti(codice);
+CREATE INDEX idx_insegnamenti_titolo_gin ON insegnamenti USING gin(to_tsvector('italian', titolo));
+
+-- Indici per la tabella 'aule'
+CREATE INDEX idx_aule_codice_esse3 ON aule(codice_esse3);
+CREATE INDEX idx_aule_codice_easyacademy ON aule(codice_easyacademy);
+CREATE INDEX idx_aule_sede ON aule(sede);
+CREATE INDEX idx_aule_edificio ON aule(edificio);
+
+-- Indici per la tabella 'cds'
+CREATE INDEX idx_cds_anno ON cds(anno_accademico);
+CREATE INDEX idx_cds_nome ON cds(nome_corso);
 
 -- Inserimento dell'utente 'admin' con permessi di amministratore
 INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', 'password', true);
 
+-- Inserimento dei corsi di studio default
 INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum) VALUES
 ('L062', 2023, 'INFORMATICA', 'CORSO GENERICO'),
 ('L062', 2024, 'INFORMATICA', 'CORSO GENERICO');
 
+-- Inserimento delle sessioni di prova
 INSERT INTO sessioni (cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre) VALUES
 ('L062', 2023, 'CORSO GENERICO', 'invernale', '2025-01-07', '2025-02-22', 2, 3),
 ('L062', 2024, 'CORSO GENERICO', 'anticipata', '2025-01-07', '2025-02-22', 2, 0),
 ('L062', 2024, 'CORSO GENERICO', 'estiva', '2025-06-10', '2025-07-25', 2, 3),
 ('L062', 2024, 'CORSO GENERICO', 'autunnale', '2025-09-01', '2025-9-30', 2, 2),
 ('L062', 2024, 'CORSO GENERICO', 'invernale', '2026-01-10', '2026-02-25', 2, 3);
+
+-- Inserimento delle aule
+INSERT INTO aule (nome, codice_esse3, codice_easyacademy) VALUES
+('Aula A-0', 'AULA A0', '002_FIA'),
+('Aula A-2', 'AULA A2', '028_A2'),
+('Aula A-3', 'AULA A3', '014_A0'),
+('Aula B-1', 'AULA B1', '010_B1'),
+('Aula B-3', 'AULA B3', '004_B3'),
+('Aula C-2', 'AULA C2', '002_C2'),
+('Aula C-3', 'AULA C3', '003_C3'),
+('Aula Gialla', 'AULA GIALLA', '012_GIA'),
+('Aula I-1', 'AULA I1', 'x1'),
+('Aula I-2', 'AULA I2', 'x2'),
+('Aula Verde', 'AULA VERDE', '013_VER'),
+('Sala Riunioni', 'SALA RIUNIONI', 'x3'),
+('Studio docente DMI', 'STUDIO DOCENTE DMI', '');
+-- Aule inutilizzate
+-- ('Aula Informatica', 'AULA INFORMATICA', '')
+-- ('Aula Virtuale', 'AULA VIRTUALE TEAMS', '')

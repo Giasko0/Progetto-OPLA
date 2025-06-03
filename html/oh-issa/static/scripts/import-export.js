@@ -61,26 +61,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
   });
-
-  // Gestione caricamento aule da EasyAcademy
-  document.getElementById('loadRoomsBtn').addEventListener('click', function () {
-    showMessage('info', 'Caricamento aule da EasyAcademy in corso...');
-
-    fetch('/api/oh-issa/loadAuleEasyAcademy', {
-      method: 'POST'
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === 'success') {
-          showMessage('success', data.message, data.details);
-        } else {
-          showMessage('error', data.message);
-        }
-      })
-      .catch(error => {
-        showMessage('error', `Errore durante il caricamento delle aule: ${error.message}`);
-      });
-  });
 });
 
 function initializeAnnoSelector() {

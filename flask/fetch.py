@@ -137,6 +137,39 @@ def ottieniAule():
     if 'conn' in locals() and conn:
       release_connection(conn)
 
+# API per ottenere informazioni complete delle aule inclusi codici
+@fetch_bp.route('/api/getAuleComplete', methods=['GET'])
+def getAuleComplete():
+  try:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+      SELECT nome, codice_esse3, codice_easyacademy, sede, edificio, posti 
+      FROM aule 
+      ORDER BY nome
+    """)
+    
+    aule = []
+    for row in cursor.fetchall():
+      aule.append({
+        "nome": row[0],
+        "codice_esse3": row[1],
+        "codice_easyacademy": row[2], 
+        "sede": row[3],
+        "edificio": row[4],
+        "posti": row[5]
+      })
+    
+    return jsonify(aule)
+  except Exception as e:
+    return jsonify({'status': 'error', 'message': str(e)}), 500
+  finally:
+    if 'cursor' in locals() and cursor:
+      cursor.close()
+    if 'conn' in locals() and conn:
+      release_connection(conn)
+
 # API per ottenere tutti gli esami. Usato per gli eventi del calendario
 @fetch_bp.route('/api/getEsami', methods=['GET'])
 def getEsami():
