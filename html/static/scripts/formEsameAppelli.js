@@ -51,7 +51,7 @@ const EsameAppelli = (function() {
     const container = document.getElementById('dateAppelliContainer');
     if (!container) {
       console.error("Container dateAppelliContainer non trovato");
-      return;
+      return null;
     }
 
     // Verifica se esiste già una sezione con questa data
@@ -62,6 +62,20 @@ const EsameAppelli = (function() {
       );
       
       if (dateExists) {
+        console.log(`Sezione per la data ${date} già esistente, non verrà aggiunta di nuovo`);
+        
+        // Evidenzia la sezione esistente
+        const existingSection = Array.from(existingSections).find(section => 
+          section.dataset.date === date
+        );
+        if (existingSection) {
+          existingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          existingSection.style.backgroundColor = '#fffacd';
+          setTimeout(() => {
+            existingSection.style.backgroundColor = '';
+          }, 2000);
+          return existingSection.id;
+        }
         return null;
       }
     }

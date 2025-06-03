@@ -176,6 +176,88 @@ const FormEsameData = (function() {
     }
   }
 
+  // Gestisce la selezione di una data dal calendario
+  function handleDateSelection(date) {
+    // Verifica se esiste già una sezione con questa data
+    const existingSections = document.querySelectorAll('.date-appello-section');
+    const dateAlreadyExists = Array.from(existingSections).some(section => 
+      section.dataset.date === date
+    );
+    
+    if (!dateAlreadyExists) {
+      // Controlla se esiste una sezione vuota (senza data)
+      const emptySections = Array.from(existingSections).filter(section => 
+        !section.dataset.date || section.dataset.date === ''
+      );
+
+      if (emptySections.length > 0) {
+        // Usa la prima sezione vuota
+        const emptySection = emptySections[0];
+        const dateInput = emptySection.querySelector('input[type="date"]');
+        if (dateInput) {
+          dateInput.value = date;
+          emptySection.dataset.date = date;
+        }
+      } else {
+        // Aggiungi una nuova sezione solo se non esiste già una sezione per questa data
+        if (window.EsameAppelli) {
+          window.EsameAppelli.addDateSection(date);
+        }
+      }
+    } else {
+      // Se la data esiste già, evidenzia la sezione esistente
+      const existingSection = Array.from(existingSections).find(section => 
+        section.dataset.date === date
+      );
+      if (existingSection) {
+        existingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        existingSection.style.backgroundColor = '#fffacd';
+        setTimeout(() => {
+          existingSection.style.backgroundColor = '';
+        }, 2000);
+      }
+    }
+    
+    // Trova la sezione che contiene questa data e imposta le date di iscrizione
+    setTimeout(() => {
+      const dateSections = document.querySelectorAll('.date-appello-section');
+      let targetSection = null;
+      
+      for (const section of dateSections) {
+        const dataInput = section.querySelector('[id^="dataora_"]');
+        if (dataInput && dataInput.value === date) {
+          targetSection = section;
+          break;
+        }
+      }
+      
+      // Se abbiamo trovato la sezione, calcoliamo le date di inizio e fine iscrizione
+      if (targetSection) {
+        const inizioIscrizioneInput = targetSection.querySelector('[id^="inizioIscrizione_"]');
+        const fineIscrizioneInput = targetSection.querySelector('[id^="fineIscrizione_"]');
+        
+        if (inizioIscrizioneInput && fineIscrizioneInput) {
+          const appelloDate = new Date(date);
+          
+          // Inizio iscrizione: 30 giorni prima
+          const inizio = new Date(appelloDate);
+          inizio.setDate(appelloDate.getDate() - 30);
+          
+          // Fine iscrizione: 1 giorno prima
+          const fine = new Date(appelloDate);
+          fine.setDate(appelloDate.getDate() - 1);
+          
+          // Formatta le date in YYYY-MM-DD
+          const pad = n => n.toString().padStart(2, '0');
+          const format = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+          
+          inizioIscrizioneInput.value = format(inizio);
+          fineIscrizioneInput.value = format(fine);
+        }
+      }
+    }, 100);
+  }
+
   // Funzione unificata per inviare i dati del form
   function submitFormData(options = {}) {
     const form = document.getElementById("formEsame");
@@ -335,7 +417,8 @@ const FormEsameData = (function() {
     fillFormWithPartialData,
     setFormFields,
     handleInsegnamentoSelection,
-    submitFormData
+    submitFormData,
+    handleDateSelection
   };
 }());
 

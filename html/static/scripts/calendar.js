@@ -269,46 +269,22 @@ document.addEventListener("DOMContentLoaded", function () {
               }
             }
 
-            // Mostra il form
-            const formOpened = EsameForm.showForm({ date: selDateFormatted });
-
-            if (formOpened) {
-              // Crea l'evento provvisorio nel calendario usando la funzione unificata
-              creaEventoProvvisorio(selDateFormatted, calendar, provisionalEvents);
-
-              // Calcola e imposta automaticamente le date di inizio e fine iscrizione
-              setTimeout(() => {
-                // Trova la sezione che contiene questa data
-                const dateSections = document.querySelectorAll('.date-appello-section');
-                let targetSection = null;
-                
-                for (const section of dateSections) {
-                  const dataInput = section.querySelector('[id^="dataora_"]');
-                  if (dataInput && dataInput.value === selDateFormatted) {
-                    targetSection = section;
-                    break;
-                  }
+            // Crea l'evento provvisorio nel calendario
+            creaEventoProvvisorio(selDateFormatted, calendar, provisionalEvents);
+            
+            // Verifica se il form è già aperto prima di mostrarlo
+            const formIsAlreadyOpen = document.getElementById('form-container') && 
+                                      document.getElementById('form-container').style.display === 'block';
+            
+            // Mostra il form e delega la gestione della data selezionata
+            EsameForm.showForm({ date: selDateFormatted }).then(formOpened => {
+              if (formOpened) {
+                // Delega la gestione della data selezionata a FormEsameData
+                if (window.FormEsameData && window.FormEsameData.handleDateSelection) {
+                  window.FormEsameData.handleDateSelection(selDateFormatted);
                 }
-                
-                // Se abbiamo trovato la sezione corretta, procediamo
-                if (targetSection) {
-                  const inizioIscrizioneInput = targetSection.querySelector('[id^="inizioIscrizione_"]');
-                  const fineIscrizioneInput = targetSection.querySelector('[id^="fineIscrizione_"]');
-                  
-                  if (inizioIscrizioneInput && fineIscrizioneInput) {
-                    const appelloDate = new Date(selDateFormatted);
-                    const inizio = new Date(appelloDate);
-                    inizio.setDate(appelloDate.getDate() - 30);
-                    const fine = new Date(appelloDate);
-                    fine.setDate(appelloDate.getDate() - 1);
-                    const pad = n => n.toString().padStart(2, '0');
-                    const format = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-                    inizioIscrizioneInput.value = format(inizio);
-                    fineIscrizioneInput.value = format(fine);
-                  }
-                }
-              }, 100);
-            }
+              }
+            });
           },
 
           eventClick: function (info) {

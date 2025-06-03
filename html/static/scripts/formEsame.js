@@ -94,6 +94,9 @@ const EsameForm = (function() {
         return false;
       }
       
+      // Controlla se il form è già aperto
+      const isAlreadyOpen = formContainer.style.display === 'block';
+      
       // Mostra il form container e il calendario
       formContainer.style.display = 'block';
       formContainer.classList.add('active');
@@ -105,8 +108,8 @@ const EsameForm = (function() {
       // Reset dello stato e impostazione modalità
       isEditMode = isEdit;
       
-      // Reset del counter delle sezioni solo alla prima apertura del form (non ad ogni click su data)
-      if (!isEdit && !formContainer.classList.contains('active') && window.EsameAppelli && window.EsameAppelli.resetSections) {
+      // Reset del counter delle sezioni SOLO se il form non era già aperto E non siamo in modalità edit
+      if (!isEdit && !isAlreadyOpen && window.EsameAppelli && window.EsameAppelli.resetSections) {
         window.EsameAppelli.resetSections();
       }
             
@@ -132,7 +135,7 @@ const EsameForm = (function() {
       });
       
       // Reset solo se siamo in modalità edit o non ci sono dati esistenti
-      if (isEdit || !hasExistingData) {
+      if (isEdit || (!hasExistingData && !isAlreadyOpen)) {
         if (esameForm) esameForm.reset();
       }
       
@@ -147,15 +150,18 @@ const EsameForm = (function() {
       const elements = formContainer.querySelectorAll("#formEsame input, #formEsame select");
       
       // Inizializza componenti UI PRIMA di compilare il form
-      initUI(data);
-      setupEventListeners();
+      // Solo se il form non era già aperto o se siamo in modalità edit
+      if (!isAlreadyOpen || isEdit) {
+        initUI(data);
+        setupEventListeners();
+      }
       
       if (isEdit) {
         window.FormEsameData.fillFormWithExamData(elements, data);
-      } else {
-        // Applica dati preselezionati (es. data selezionata)
+      } else if (!isAlreadyOpen) {
+        // Applica dati preselezionati (es. data selezionata) SOLO se il form non era già aperto
         if (Object.keys(data).length > 0) {
-          window.FormEsameData.fillFormWithPartialData(elements, data);
+          // Non chiamare direttamente fillFormWithPartialData qui, sarà gestito da handleDateSelection
         }
         
         // Carica dati salvati automaticamente se è la prima apertura del form
@@ -167,7 +173,7 @@ const EsameForm = (function() {
       }
         
       // Carica preferenze solo in modalità creazione e se non ci sono sezioni con dati
-      if (usePreferences && !hasExistingData) {
+      if (usePreferences && !hasExistingData && !isAlreadyOpen) {
         getUserData()
           .then(data => {
             if (data?.authenticated && data?.user_data) {
