@@ -674,12 +674,6 @@ body {
 }
 
 /* Sezione Date e Appelli */
-.form-separator {
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--color-border), transparent);
-  margin: 18px 0;
-}
-
 .date-appelli-container {
   margin: 0;
   padding: 0;
@@ -688,14 +682,12 @@ body {
 
 .date-appello-section {
   position: relative;
-  margin: 0;
-  padding: 0;
-  border: none;
-}
-
-/* Separatore tra le sezioni appello */
-.date-appello-section + .form-separator {
-  margin: 18px 0;
+  margin: 20px 0;
+  padding: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  background-color: var(--color-bg-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .date-appello-header {

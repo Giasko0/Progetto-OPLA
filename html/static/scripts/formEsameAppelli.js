@@ -93,11 +93,6 @@ const EsameAppelli = (function() {
     dateAppelliCounter++;
     const sectionId = `dateSection_${dateAppelliCounter}`;
 
-    // Inserisci sempre un separatore prima di ogni sezione (anche la prima)
-    const separator = document.createElement('div');
-    separator.className = 'form-separator';
-    container.appendChild(separator);
-
     const section = document.createElement('div');
     section.className = 'date-appello-section';
     section.id = sectionId;
