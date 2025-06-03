@@ -1,5 +1,5 @@
-document.addEventListener("DOMContentLoaded", function () {
-  // Controlla gli esami minimi all'avvio della pagina
+// Funzione per controllare gli esami minimi e mostrare avvisi nella sidebar
+function checkEsamiMinimi() {
   fetch("/api/check-esami-minimi")
     .then((response) => {
       if (!response.ok) {
@@ -8,6 +8,11 @@ document.addEventListener("DOMContentLoaded", function () {
       return response.json();
     })
     .then((data) => {
+      // Prima elimina tutte le notifiche di avviso esistenti per gli esami minimi
+      if (window.clearAlerts) {
+        window.clearAlerts();
+      }
+
       if (
         data.status === "warning" &&
         data.nessun_problema === false &&
@@ -41,4 +46,14 @@ document.addEventListener("DOMContentLoaded", function () {
         );
       }
     });
+}
+
+// Espone la funzione globalmente per poterla chiamare dopo inserimenti riusciti
+// NOTA: Questa funzione viene automaticamente chiamata da window.forceCalendarRefresh()
+// che deve essere invocata dopo ogni inserimento, modifica o eliminazione di esami
+window.checkEsamiMinimi = checkEsamiMinimi;
+
+document.addEventListener("DOMContentLoaded", function () {
+  // Controlla gli esami minimi all'avvio della pagina
+  checkEsamiMinimi();
 });

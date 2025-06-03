@@ -76,6 +76,10 @@ document.addEventListener("DOMContentLoaded", function () {
     eventsCache = [];
     lastFetchTime = 0;
     if (calendar) calendar.refetchEvents();
+    // Aggiorna anche il controllo degli esami minimi
+    if (window.checkEsamiMinimi) {
+      window.checkEsamiMinimi();
+    }
   };
 
   const updateDateValideState = (newDates) => {
