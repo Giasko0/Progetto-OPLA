@@ -11,9 +11,17 @@ const EsameAppelli = (function() {
     isWeekday,
     loadAuleForDateTime,
     populateAulaSelect,
-    parseTimeString,
-    formatDateForInput
+    parseTimeString
   } = window.FormUtils;
+
+  // Funzione helper per formattare la data per input
+  function formatDateForInput(date) {
+    if (!(date instanceof Date) || isNaN(date)) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 
   // Carica il template HTML per la sezione appello
   async function loadAppelloTemplate() {
@@ -41,6 +49,18 @@ const EsameAppelli = (function() {
       return;
     }
 
+    // Verifica se esiste già una sezione con questa data
+    if (date) {
+      const existingSections = document.querySelectorAll('.date-appello-section');
+      const dateExists = Array.from(existingSections).some(section => 
+        section.dataset.date === date
+      );
+      
+      if (dateExists) {
+        return null;
+      }
+    }
+
     dateAppelliCounter++;
     const sectionId = `dateSection_${dateAppelliCounter}`;
 
@@ -52,7 +72,7 @@ const EsameAppelli = (function() {
     const section = document.createElement('div');
     section.className = 'date-appello-section';
     section.id = sectionId;
-    section.dataset.date = date;
+    section.dataset.date = date || ''; // Imposta stringa vuota se non c'è data
 
     try {
       // Carica il template HTML
@@ -96,11 +116,10 @@ const EsameAppelli = (function() {
     // Se è stata fornita una data, crea subito l'evento provvisorio
     if (date) {
       createProvisionalEventForDate(date);
-    }
-    
-    // Aggiungi la data al tracking se non è vuota
-    if (date) {
-      selectedDates.push(date);
+      // Aggiungi la data al tracking solo se non è vuota
+      if (!selectedDates.includes(date)) {
+        selectedDates.push(date);
+      }
     }
     
     return sectionId;
@@ -196,7 +215,7 @@ const EsameAppelli = (function() {
     });
   }
 
-  // Nuova funzione per combinare durata per sezione specifica
+  // Funzione per combinare durata per sezione specifica
   function combineDurataForSection(counter) {
     const durata_h = parseInt(document.getElementById(`durata_h_${counter}`)?.value) || 0;
     const durata_m = parseInt(document.getElementById(`durata_m_${counter}`)?.value) || 0;
@@ -208,7 +227,7 @@ const EsameAppelli = (function() {
     }
   }
 
-  // Nuova funzione per aggiornare verbalizzazione per sezione specifica
+  // Funzione per aggiornare verbalizzazione per sezione specifica
   function aggiornaVerbalizzazioneForSection(counter) {
     const tipoAppelloPP = document.getElementById(`tipoAppelloPP_${counter}`);
     const verbalizzazioneSelect = document.getElementById(`verbalizzazione_${counter}`);
@@ -444,6 +463,10 @@ const EsameAppelli = (function() {
   function resetSections() {
     dateAppelliCounter = 0;
     selectedDates = [];
+    const container = document.getElementById('dateAppelliContainer');
+    if (container) {
+      container.innerHTML = '';
+    }
   }
 
   // Interfaccia pubblica

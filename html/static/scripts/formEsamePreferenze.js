@@ -12,11 +12,49 @@ const EsamePreferenze = (function() {
     showValidationError,
     showOperationMessage,
     setDurationFromMinutes,
-    combineTimeValuesUtil,
-    saveFormPreference,
-    loadFormPreferences,
-    deleteFormPreference
+    combineTimeValues
   } = window.FormUtils;
+
+  // Funzioni per la gestione delle preferenze API
+  function saveFormPreference(username, formType, preferenceName, preferences) {
+    return fetch('/api/salvaPreferenzaForm', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username: username,
+        form_type: formType,
+        name: preferenceName,
+        preferences: preferences
+      })
+    })
+    .then(response => response.json());
+  }
+
+  function loadFormPreferences(username, formType) {
+    return fetch(`/api/getPreferenzeForm?username=${encodeURIComponent(username)}&form_type=${formType}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Errore nella risposta del server: ${response.status}`);
+        }
+        return response.json();
+      });
+  }
+
+  function deleteFormPreference(username, id) {
+    return fetch('/api/eliminaPreferenzaForm', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username: username,
+        id: id
+      })
+    })
+    .then(response => response.json());
+  }
 
   let currentUsername = null;
   let userPreferences = [];
@@ -188,7 +226,7 @@ const EsamePreferenze = (function() {
         }
         
         // Combina i valori per aggiornare il campo nascosto
-        combineTimeValuesUtil();
+        combineTimeValues();
         oraImpostata = true;
       }
     }

@@ -5,37 +5,14 @@ const EsameForm = (function() {
     throw new Error('FormUtils non è caricato. Assicurati che formUtils.js sia incluso prima di formEsame.js');
   }
 
-  // Importa tutte le utilità da FormUtils
+  // Importa le utilità necessarie da FormUtils
   const {
     setElementValue,
     setRadioValue,
     setCheckboxValue,
-    showValidationError,
-    showOperationMessage,
-    validateFormField,
-    validators,
-    getCommonValidationRules,
-    setupEventListeners: setupCommonEventListeners,
     setDurationFromMinutes,
-    combineTimeValues: combineTimeValuesUtil,
-    saveFormPreference,
-    loadFormPreferences,
-    deleteFormPreference,
-    resetForm,
-    parseTimeString,
-    formatTimeFromHourMinute,
-    isValidDate,
-    isWeekday,
-    loadAuleForDateTime,
-    populateAulaSelect,
-    checkUserPermissions
+    parseTimeString
   } = window.FormUtils;
-
-  // Configurazione validatori e regole
-  const validaOraAppello = validators.oraAppello;
-  const validaDurataEsame = validators.durataEsame;
-  const validaGiornoSettimana = validators.giornoSettimana;
-  const formValidationRules = getCommonValidationRules();
 
   let formContainer = null;
   let currentUsername = null;
@@ -122,6 +99,11 @@ const EsameForm = (function() {
       
       // Reset dello stato e impostazione modalità
       isEditMode = isEdit;
+      
+      // Reset del counter delle sezioni solo alla prima apertura del form (non ad ogni click su data)
+      if (!isEdit && !formContainer.classList.contains('active') && window.EsameAppelli && window.EsameAppelli.resetSections) {
+        window.EsameAppelli.resetSections();
+      }
             
       // Componenti principali del form
       const formTitle = formContainer.querySelector(".form-header h2");
@@ -274,10 +256,46 @@ const EsameForm = (function() {
   // Compilazione form con dati parziali (es. data dal calendario)
   function fillFormWithPartialData(elements, partialData) {
     if (partialData.date) {
-      const dateField = document.getElementById("dataora");
-      if (dateField) dateField.value = partialData.date;
+      // Verifica se esiste già una sezione con questa data
+      const existingSections = document.querySelectorAll('.date-appello-section');
+      const dateAlreadyExists = Array.from(existingSections).some(section => 
+        section.dataset.date === partialData.date
+      );
+      
+      if (!dateAlreadyExists) {
+        // Controlla se esiste una sezione vuota (senza data)
+        const emptySections = Array.from(existingSections).filter(section => 
+          !section.dataset.date || section.dataset.date === ''
+        );
+
+        if (emptySections.length > 0) {
+          // Se c'è una sezione vuota, riempila con la nuova data
+          const emptySection = emptySections[0];
+          const dateInput = emptySection.querySelector('[id^="dataora_"]');
+          if (dateInput) {
+            dateInput.value = partialData.date;
+            emptySection.dataset.date = partialData.date;
+            // Trigger l'evento change per aggiornare l'aula
+            dateInput.dispatchEvent(new Event('change'));
+          }
+        } else {
+          // Se non ci sono sezioni vuote, aggiungi una nuova sezione
+          window.EsameAppelli.addDateSection(partialData.date);
+        }
+      } else {
+        // Se la data esiste già, evidenzia la sezione esistente
+        const existingSection = Array.from(existingSections).find(section => 
+          section.dataset.date === partialData.date
+        );
+        if (existingSection) {
+          existingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          existingSection.style.border = '2px solid #007bff';
+          setTimeout(() => {
+            existingSection.style.border = '';
+          }, 2000);
+        }
+      }
     }
-    // Altri dati preselezionati possono essere gestiti qui
   }
   
   // Funzione unificata per la gestione degli event listener
@@ -330,15 +348,9 @@ const EsameForm = (function() {
       // Verifica se esistono già sezioni
       const existingSections = document.querySelectorAll('.date-appello-section');
       
-      // Se c'è una data pre-selezionata e non ci sono già sezioni, aggiungi la prima sezione
-      if (options.date && existingSections.length === 0) {
-        window.EsameAppelli.addDateSection(options.date);
-      } else if (existingSections.length === 0) {
-        // Aggiungi almeno una sezione vuota solo se non ce ne sono già
+      // Aggiungi almeno una sezione vuota solo se non ce ne sono già E non c'è una data preselezionata
+      if (existingSections.length === 0 && !options.date) {
         window.EsameAppelli.addDateSection();
-      } else if (options.date) {
-        // Se ci sono già sezioni e abbiamo una nuova data, aggiungi solo una sezione per quella data
-        window.EsameAppelli.addDateSection(options.date);
       }
       
       // Continua con il resto dell'inizializzazione
@@ -516,8 +528,6 @@ const EsameForm = (function() {
     }
   }
 
-  // Funzioni helper rimosse - ora usano FormUtils
-
   function handleInsegnamentoSelection(data) {
     if (window.InsegnamentiManager && data.insegnamento_codice) {
       window.InsegnamentiManager.clearSelection();
@@ -529,14 +539,7 @@ const EsameForm = (function() {
       
       const multiSelectBox = document.getElementById("insegnamentoBox");
       if (multiSelectBox) {
-        const username = document.getElementById("docente")?.value;
-        if (username) {
-          window.InsegnamentiManager.loadInsegnamenti(
-            username, 
-            { filter: [data.insegnamento_codice] }, 
-            (data) => window.InsegnamentiManager.syncUI(multiSelectBox, data)
-          );
-        }
+        window.InsegnamentiManager.syncUI(multiSelectBox);
       }
     }
   }
