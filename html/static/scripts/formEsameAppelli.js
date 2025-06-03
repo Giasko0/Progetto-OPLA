@@ -1,5 +1,10 @@
 // Gestione delle sezioni modulari per date e appelli
 const EsameAppelli = (function() {
+  // Verifica che FormEsameAutosave sia caricato
+  if (!window.FormEsameAutosave) {
+    console.warn('FormEsameAutosave non è caricato. Funzionalità di salvataggio automatico non disponibile.');
+  }
+
   // Variabili per il tracking delle sezioni
   let dateAppelliCounter = 0;
   let selectedDates = [];
@@ -113,6 +118,11 @@ const EsameAppelli = (function() {
     // Aggiungi event listeners per questa sezione
     setupDateSectionListeners(sectionId, dateAppelliCounter);
     
+    // Precompila la nuova sezione con i dati della prima sezione (solo se non è la prima)
+    if (dateAppelliCounter > 1 && window.FormEsameAutosave) {
+      window.FormEsameAutosave.precompileNewSection(section);
+    }
+    
     // Se è stata fornita una data, crea subito l'evento provvisorio
     if (date) {
       createProvisionalEventForDate(date);
@@ -189,10 +199,22 @@ const EsameAppelli = (function() {
       });
     }
     if (oraH) {
-      oraH.addEventListener('change', () => updateAuleForSection(counter));
+      oraH.addEventListener('change', () => {
+        updateAuleForSection(counter);
+        // Salva automaticamente se è la prima sezione
+        if (counter === 1 && window.FormEsameAutosave) {
+          window.FormEsameAutosave.autoSaveFirstSection();
+        }
+      });
     }
     if (oraM) {
-      oraM.addEventListener('change', () => updateAuleForSection(counter));
+      oraM.addEventListener('change', () => {
+        updateAuleForSection(counter);
+        // Salva automaticamente se è la prima sezione
+        if (counter === 1 && window.FormEsameAutosave) {
+          window.FormEsameAutosave.autoSaveFirstSection();
+        }
+      });
     }
     
     // Gestione durata per sezione
@@ -202,8 +224,20 @@ const EsameAppelli = (function() {
       durataM.removeEventListener('change', () => combineDurataForSection(counter));
       
       // Aggiungi nuovi listener
-      durataH.addEventListener('change', () => combineDurataForSection(counter));
-      durataM.addEventListener('change', () => combineDurataForSection(counter));
+      durataH.addEventListener('change', () => {
+        combineDurataForSection(counter);
+        // Salva automaticamente se è la prima sezione
+        if (counter === 1 && window.FormEsameAutosave) {
+          window.FormEsameAutosave.autoSaveFirstSection();
+        }
+      });
+      durataM.addEventListener('change', () => {
+        combineDurataForSection(counter);
+        // Salva automaticamente se è la prima sezione
+        if (counter === 1 && window.FormEsameAutosave) {
+          window.FormEsameAutosave.autoSaveFirstSection();
+        }
+      });
       
       // Inizializza il valore di durata al caricamento
       setTimeout(() => combineDurataForSection(counter), 100);
@@ -211,8 +245,47 @@ const EsameAppelli = (function() {
     
     // Gestione tipo appello per sezione
     tipoAppelloRadios.forEach(radio => {
-      radio.addEventListener('change', () => aggiornaVerbalizzazioneForSection(counter));
+      radio.addEventListener('change', () => {
+        aggiornaVerbalizzazioneForSection(counter);
+        // Salva automaticamente se è la prima sezione
+        if (counter === 1 && window.FormEsameAutosave) {
+          window.FormEsameAutosave.autoSaveFirstSection();
+        }
+      });
     });
+
+    // Aggiungi listener per il salvataggio automatico sui campi di testo se è la prima sezione
+    if (counter === 1 && window.FormEsameAutosave) {
+      const section = document.getElementById(sectionId);
+      if (section) {
+        // Campi di testo e textarea
+        const textInputs = section.querySelectorAll('input[type="text"], textarea, input[type="date"]');
+        textInputs.forEach(input => {
+          input.addEventListener('input', () => {
+            clearTimeout(input._autoSaveTimeout);
+            input._autoSaveTimeout = setTimeout(() => {
+              window.FormEsameAutosave.autoSaveFirstSection();
+            }, 500);
+          });
+        });
+
+        // Select e checkbox
+        const selectsAndCheckboxes = section.querySelectorAll('select, input[type="checkbox"]');
+        selectsAndCheckboxes.forEach(element => {
+          element.addEventListener('change', () => {
+            window.FormEsameAutosave.autoSaveFirstSection();
+          });
+        });
+        
+        // Radio buttons per tipo appello
+        const radioButtons = section.querySelectorAll('input[type="radio"]');
+        radioButtons.forEach(radio => {
+          radio.addEventListener('change', () => {
+            window.FormEsameAutosave.autoSaveFirstSection();
+          });
+        });
+      }
+    }
   }
 
   // Funzione per combinare durata per sezione specifica

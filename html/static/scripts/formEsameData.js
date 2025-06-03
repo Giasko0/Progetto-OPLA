@@ -296,6 +296,11 @@ const FormEsameData = (function() {
     .then(response => response.json())
     .then(data => {
       if (data.status === 'success') {
+        // Pulisci i dati di salvataggio automatico quando l'esame viene salvato con successo
+        if (window.FormEsameAutosave) {
+          window.FormEsameAutosave.clearSavedData();
+        }
+        
         if (window.showMessage) {
           window.showMessage(data.message, "Successo", "notification");
         }
@@ -307,7 +312,7 @@ const FormEsameData = (function() {
         
         // Chiudi il form
         if (window.EsameForm && window.EsameForm.hideForm) {
-          window.EsameForm.hideForm(true);
+          window.EsameForm.hideForm(true, true); // cleanup provisional events e autosave
         }
       } else {
         if (window.showMessage) {

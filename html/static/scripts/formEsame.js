@@ -158,19 +158,11 @@ const EsameForm = (function() {
           window.FormEsameData.fillFormWithPartialData(elements, data);
         }
         
-        // Carica preferenze solo in modalità creazione e se non ci sono sezioni con dati
-        if (usePreferences && !hasExistingData) {
-          getUserData()
-            .then(data => {
-              if (data?.authenticated && data?.user_data) {
-                currentUsername = data.user_data.username;
-                if (window.EsamePreferenze) {
-                  window.EsamePreferenze.setCurrentUsername(currentUsername);
-                  window.EsamePreferenze.loadUserPreferences();
-                }
-              }
-            })
-            .catch(error => console.error("Errore dati utente:", error));
+        // Carica dati salvati automaticamente se è la prima apertura del form
+        if (!hasExistingData && window.FormEsameAutosave) {
+          setTimeout(() => {
+            window.FormEsameAutosave.loadSavedData();
+          }, 100);
         }
       }
         
@@ -682,8 +674,13 @@ const EsameForm = (function() {
   }
 
   // Nasconde il form e pulisce gli handler degli eventi
-  function hideForm(cleanupProvisional = false) {
+  function hideForm(cleanupProvisional = false, clearAutosave = false) {
     if (formContainer) {
+      // Pulisci i dati di salvataggio automatico se richiesto
+      if (clearAutosave && window.FormEsameAutosave) {
+        window.FormEsameAutosave.clearSavedData();
+      }
+      
       // Rimuovi la classe active per animare la chiusura
       formContainer.classList.remove('active');
       formContainer.classList.remove('form-content-area');
