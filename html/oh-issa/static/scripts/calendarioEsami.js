@@ -145,12 +145,9 @@ function visualizzaCalendario(data) {
         insegnamentiPerAnno[anno].push(insegnamento);
     });
     
-    // Crea una lista ordinata di periodi
-    const periodi = data.periodi || [];
-    
-    // Se non ci sono periodi, mostra un messaggio
-    if (periodi.length === 0) {
-        calendarioContainer.innerHTML = '<p class="alert alert-warning text-center">Nessun periodo di esame definito per questo corso di studi</p>';
+    // Se non ci sono sessioni, mostra un messaggio
+    if (!data.sessioni || Object.keys(data.sessioni).length === 0) {
+        calendarioContainer.innerHTML = '<p class="alert alert-warning text-center">Nessuna sessione di esame definita per questo corso di studi</p>';
         return;
     }
     
@@ -183,11 +180,14 @@ function visualizzaCalendario(data) {
         thInsegnamento.textContent = 'Insegnamento';
         headerRow.appendChild(thInsegnamento);
         
-        // Aggiungi i mesi come header
-        periodi.forEach(periodo => {
-            const th = document.createElement('th');
-            th.textContent = periodo.nome;
-            headerRow.appendChild(th);
+        // Aggiungi le sessioni come header
+        const ordineSessioni = ['anticipata', 'estiva', 'autunnale', 'invernale'];
+        ordineSessioni.forEach(tipoSessione => {
+            if (data.sessioni[tipoSessione] && data.sessioni[tipoSessione].inizio) {
+                const th = document.createElement('th');
+                th.textContent = data.sessioni[tipoSessione].nome;
+                headerRow.appendChild(th);
+            }
         });
         
         thead.appendChild(headerRow);
@@ -205,27 +205,43 @@ function visualizzaCalendario(data) {
             tdNome.textContent = insegnamento.titolo;
             row.appendChild(tdNome);
             
-            // Per ogni periodo, verifica se ci sono esami
-            periodi.forEach(periodo => {
-                const tdEsami = document.createElement('td');
-                
-                // Filtra gli esami di questo insegnamento per questo periodo
-                const esamiPeriodo = (insegnamento.esami || []).filter(esame => {
-                    return esame.mese === periodo.mese && esame.anno === periodo.anno;
-                });
-                
-                // Se ci sono esami, mostra i giorni
-                if (esamiPeriodo.length > 0) {
-                    // Estrai i giorni e ordinali
-                    const giorni = esamiPeriodo.map(esame => {
-                        return `${esame.giorno}`;
-                    }).sort((a, b) => parseInt(a) - parseInt(b));
+            // Per ogni sessione, verifica se ci sono esami
+            ordineSessioni.forEach(tipoSessione => {
+                if (data.sessioni[tipoSessione] && data.sessioni[tipoSessione].inizio) {
+                    const tdEsami = document.createElement('td');
                     
-                    // Crea la stringa con i giorni separati da trattino
-                    tdEsami.textContent = giorni.join(' - ');
+                    // Filtra gli esami di questo insegnamento per questa sessione
+                    const esamiSessione = (insegnamento.esami || []).filter(esame => {
+                        const dataEsame = new Date(esame.data_appello);
+                        const inizioSessione = new Date(data.sessioni[tipoSessione].inizio);
+                        const fineSessione = new Date(data.sessioni[tipoSessione].fine);
+                        return dataEsame >= inizioSessione && dataEsame <= fineSessione;
+                    });
+                    
+                    // Se ci sono esami, mostra le date complete
+                    if (esamiSessione.length > 0) {
+                        const dateEsami = esamiSessione.map(esame => {
+                            const data = new Date(esame.data_appello);
+                            const giorno = data.getDate().toString().padStart(2, '0');
+                            const mese = (data.getMonth() + 1).toString().padStart(2, '0');
+                            
+                            // Per la sessione invernale, mostra anche l'anno se diverso dall'anno di inizio
+                            if (tipoSessione === 'invernale') {
+                                const annoEsame = data.getFullYear();
+                                const annoInizioSessione = new Date(data.sessioni[tipoSessione].inizio).getFullYear();
+                                if (annoEsame !== annoInizioSessione) {
+                                    return `${giorno}/${mese}/${annoEsame}`;
+                                }
+                            }
+                            
+                            return `${giorno}/${mese}`;
+                        }).sort();
+                        
+                        tdEsami.textContent = dateEsami.join(' - ');
+                    }
+                    
+                    row.appendChild(tdEsami);
                 }
-                
-                row.appendChild(tdEsami);
             });
             
             tbody.appendChild(row);

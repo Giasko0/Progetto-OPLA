@@ -1051,10 +1051,7 @@ def get_calendario_esami():
     # Filtra solo gli esami con mostra_nel_calendario = TRUE
     cursor.execute("""
       SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre,
-           COALESCE(e.data_appello, NULL) as data_appello,
-           EXTRACT(MONTH FROM e.data_appello) as mese,
-           EXTRACT(YEAR FROM e.data_appello) as anno,
-           EXTRACT(DAY FROM e.data_appello) as giorno
+           COALESCE(e.data_appello, NULL) as data_appello
       FROM insegnamenti i
       JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
       LEFT JOIN esami e ON i.id = e.insegnamento
@@ -1086,10 +1083,7 @@ def get_calendario_esami():
       # Aggiungi l'esame se c'è una data
       if row['data_appello']:
         esami_per_insegnamento[id_insegnamento].append({
-          'data': row['data_appello'].strftime('%Y-%m-%d'),
-          'mese': int(row['mese']),
-          'anno': int(row['anno']),
-          'giorno': int(row['giorno'])
+          'data_appello': row['data_appello']
         })
     
     # Ottieni le sessioni di esame per questo CdS
@@ -1102,24 +1096,38 @@ def get_calendario_esami():
     
     sessioni = cursor.fetchall()
     
-    # Calcola i mesi con esami per il calendario
-    mesi_sessioni = {}
-    nomi_mesi = {
-      "01": "GEN", "02": "FEB", "03": "MAR", 
-      "04": "APR", "05": "MAG", "06": "GIU",
-      "07": "LUG", "08": "AGO", "09": "SETT",
-      "10": "OTT", "11": "NOV", "12": "DIC"
+    # Prepara le sessioni per il calendario
+    sessioni_calendario = {
+      'anticipata': {'nome': 'Sessione Anticipata', 'inizio': None, 'fine': None},
+      'estiva': {'nome': 'Sessione Estiva', 'inizio': None, 'fine': None},
+      'autunnale': {'nome': 'Sessione Autunnale', 'inizio': None, 'fine': None},
+      'invernale': {'nome': 'Sessione Invernale', 'inizio': None, 'fine': None}
     }
     
-    # Processa ogni sessione per aggiungere i mesi
+    # Popola le date delle sessioni
     for sessione in sessioni:
       tipo_sessione, inizio, fine = sessione
-      mesi_sessioni = add_months_to_periods(mesi_sessioni, inizio, fine, nomi_mesi)
+      if tipo_sessione in sessioni_calendario:
+        sessioni_calendario[tipo_sessione]['inizio'] = inizio
+        sessioni_calendario[tipo_sessione]['fine'] = fine
+    
+    # Se non c'è sessione anticipata, cerca quella invernale dell'anno precedente
+    if not sessioni_calendario['anticipata']['inizio']:
+      cursor.execute("""
+        SELECT inizio, fine
+        FROM sessioni
+        WHERE cds = %s AND anno_accademico = %s AND tipo_sessione = 'invernale'
+      """, (cds_code, int(anno_accademico) - 1))
+      
+      sessione_precedente = cursor.fetchone()
+      if sessione_precedente:
+        sessioni_calendario['anticipata']['inizio'] = sessione_precedente[0]
+        sessioni_calendario['anticipata']['fine'] = sessione_precedente[1]
     
     return jsonify({
       'nome_corso': cds_info['nome_corso'],
       'insegnamenti': insegnamenti,
-      'periodi': list(mesi_sessioni.values())
+      'sessioni': sessioni_calendario
     })
   except Exception as e:
     return jsonify({"error": str(e)}), 500
@@ -1129,33 +1137,6 @@ def get_calendario_esami():
     if 'conn' in locals() and conn:
       release_connection(conn)
 
-# Funzione helper che usa un dizionario per tracciare periodi unici in modo efficiente
-def add_months_to_periods(periodi_map, start_date, end_date, mesi_nomi):
-  current = datetime(start_date.year, start_date.month, 1)
-  end = datetime(end_date.year, end_date.month, 1)
-  
-  while current <= end:
-    # Crea una chiave standardizzata (MM-YYYY)
-    key = f"{current.month:02d}-{current.year}"
-    
-    # Se questo periodo non è già nella mappa, aggiungilo
-    if key not in periodi_map:
-      nome_mese = mesi_nomi.get(f"{current.month:02d}", f"M{current.month}")
-      periodi_map[key] = {
-        "nome": f"{nome_mese} {current.year}",
-        "mese": current.month,
-        "anno": current.year
-      }
-      
-    # Passa al mese successivo
-    month = current.month + 1
-    year = current.year
-    if month > 12:
-      month = 1
-      year += 1
-    current = datetime(year, month, 1)
-  
-  return periodi_map
 
 # API per ottenere i dettagli di un corso di studio
 @admin_bp.route('/getCdsDetails')
