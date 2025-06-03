@@ -151,6 +151,9 @@ const EsameAppelli = (function() {
     const dateInput = document.getElementById(`dataora_${counter}`);
     const oraH = document.getElementById(`ora_h_${counter}`);
     const oraM = document.getElementById(`ora_m_${counter}`);
+    const durataH = document.getElementById(`durata_h_${counter}`);
+    const durataM = document.getElementById(`durata_m_${counter}`);
+    const tipoAppelloRadios = document.querySelectorAll(`input[name="tipo_appello_radio_${counter}"]`);
     
     if (dateInput) {
       // Rimuovi stili di errore durante la digitazione
@@ -172,6 +175,66 @@ const EsameAppelli = (function() {
     if (oraM) {
       oraM.addEventListener('change', () => updateAuleForSection(counter));
     }
+    
+    // Gestione durata per sezione
+    if (durataH && durataM) {
+      // Rimuovi listener esistenti per evitare duplicati
+      durataH.removeEventListener('change', () => combineDurataForSection(counter));
+      durataM.removeEventListener('change', () => combineDurataForSection(counter));
+      
+      // Aggiungi nuovi listener
+      durataH.addEventListener('change', () => combineDurataForSection(counter));
+      durataM.addEventListener('change', () => combineDurataForSection(counter));
+      
+      // Inizializza il valore di durata al caricamento
+      setTimeout(() => combineDurataForSection(counter), 100);
+    }
+    
+    // Gestione tipo appello per sezione
+    tipoAppelloRadios.forEach(radio => {
+      radio.addEventListener('change', () => aggiornaVerbalizzazioneForSection(counter));
+    });
+  }
+
+  // Nuova funzione per combinare durata per sezione specifica
+  function combineDurataForSection(counter) {
+    const durata_h = parseInt(document.getElementById(`durata_h_${counter}`)?.value) || 0;
+    const durata_m = parseInt(document.getElementById(`durata_m_${counter}`)?.value) || 0;
+    const durata_totale = (durata_h * 60) + durata_m;
+    
+    const durataField = document.getElementById(`durata_${counter}`);
+    if (durataField) {
+      durataField.value = durata_totale.toString();
+    }
+  }
+
+  // Nuova funzione per aggiornare verbalizzazione per sezione specifica
+  function aggiornaVerbalizzazioneForSection(counter) {
+    const tipoAppelloPP = document.getElementById(`tipoAppelloPP_${counter}`);
+    const verbalizzazioneSelect = document.getElementById(`verbalizzazione_${counter}`);
+
+    if (!tipoAppelloPP || !verbalizzazioneSelect) return;
+
+    verbalizzazioneSelect.innerHTML = "";
+
+    const options = tipoAppelloPP.checked
+      ? [
+          { value: "PAR", text: "Prova parziale" },
+          { value: "PPP", text: "Prova parziale con pubblicazione" },
+        ]
+      : [
+          { value: "FSS", text: "Firma digitale singola" },
+          { value: "FWP", text: "Firma digitale con pubblicazione" },
+        ];
+
+    options.forEach((option) => {
+      const optionElement = document.createElement("option");
+      optionElement.value = option.value;
+      optionElement.textContent = option.text;
+      verbalizzazioneSelect.appendChild(optionElement);
+    });
+
+    verbalizzazioneSelect.value = tipoAppelloPP.checked ? "PAR" : "FSS";
   }
 
   // Funzione helper per validare il formato della data
@@ -397,7 +460,9 @@ const EsameAppelli = (function() {
     updateAuleForSection,
     resetSections,
     getSelectedDates: () => [...selectedDates],
-    getDateAppelliCounter: () => dateAppelliCounter
+    getDateAppelliCounter: () => dateAppelliCounter,
+    combineDurataForSection,
+    aggiornaVerbalizzazioneForSection
   };
 }());
 

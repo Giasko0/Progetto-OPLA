@@ -18,7 +18,7 @@ const FormEsameControlli = (function() {
   // Configurazione validatori e regole
   const formValidationRules = getCommonValidationRules();
 
-  // Helper functions per la validazione
+  // Helper functions per la validazione - aggiornate per sezioni modulari
   function getFirstDateValue() {
     const firstDateInput = document.querySelector('[id^="dataora_"]');
     return firstDateInput ? firstDateInput.value : null;
@@ -34,8 +34,8 @@ const FormEsameControlli = (function() {
   }
 
   function getDurationValue() {
-    const durataField = document.getElementById("durata");
-    return durataField ? durataField.value : null;
+    const firstDurataField = document.querySelector('[id^="durata_"]');
+    return firstDurataField ? firstDurataField.value : null;
   }
 
   // Controlla se l'utente è un amministratore
@@ -49,43 +49,112 @@ const FormEsameControlli = (function() {
     }
   }
 
-  // Validazione standard del form
+  // Validazione standard del form - aggiornata per sezioni modulari
   function validateForm() {
     // Controlla se ci sono campi data con errori di validazione
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
       showValidationError("Correggi gli errori nelle date prima di inviare il form");
-      // Focalizza il primo campo con errore
       errorFields[0].focus();
       return false;
     }
 
-    // Validazione usando le regole unificate
-    const validationResults = {
-      giorno_settimana: validateFormField('giorno_settimana', getFirstDateValue(), formValidationRules),
-      ora_appello: validateFormField('ora_appello', getFirstTimeValue(), formValidationRules),
-      durata_esame: validateFormField('durata_esame', getDurationValue(), formValidationRules)
-    };
-
-    // Controlla se ci sono errori di validazione
-    for (const [field, result] of Object.entries(validationResults)) {
-      if (!result.isValid) {
-        showValidationError(result.message);
-        return false;
-      }
+    // Verifica che ci sia almeno una sezione di appello valida
+    const dateSections = document.querySelectorAll('.date-appello-section');
+    if (dateSections.length === 0) {
+      showValidationError("Aggiungi almeno una sezione di appello");
+      return false;
     }
 
-    // Validazione aula
-    const firstAulaSelect = document.querySelector('[id^="aula_"]');
-    if (firstAulaSelect && !firstAulaSelect.value) {
-      showValidationError("Seleziona un'aula disponibile");
+    // Validazione per ogni sezione
+    let hasValidSection = false;
+    for (let i = 0; i < dateSections.length; i++) {
+      const section = dateSections[i];
+      const sectionNumber = i + 1;
+
+      // Campi obbligatori per ogni sezione
+      const descrizione = section.querySelector(`[id^="descrizione_"]`)?.value;
+      const dataora = section.querySelector(`[id^="dataora_"]`)?.value;
+      const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
+      const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
+      const aula = section.querySelector(`[id^="aula_"]`)?.value;
+      const durata_h = section.querySelector(`[id^="durata_h_"]`)?.value;
+      const durata_m = section.querySelector(`[id^="durata_m_"]`)?.value;
+
+      // Verifica campi obbligatori
+      if (!descrizione || !descrizione.trim()) {
+        showValidationError(`Inserisci una descrizione per l'appello ${sectionNumber}`);
+        return false;
+      }
+
+      if (!dataora) {
+        showValidationError(`Seleziona una data per l'appello ${sectionNumber}`);
+        return false;
+      }
+
+      if (!ora_h || !ora_m) {
+        showValidationError(`Seleziona un orario per l'appello ${sectionNumber}`);
+        return false;
+      }
+
+      if (!aula) {
+        showValidationError(`Seleziona un'aula per l'appello ${sectionNumber}`);
+        return false;
+      }
+
+      // Validazione giorno settimana per questa sezione
+      const validationResults = {
+        giorno_settimana: validateFormField('giorno_settimana', dataora, formValidationRules),
+        ora_appello: validateFormField('ora_appello', `${ora_h}:${ora_m}`, formValidationRules)
+      };
+
+      // Controlla se ci sono errori di validazione per questa sezione
+      for (const [field, result] of Object.entries(validationResults)) {
+        if (!result.isValid) {
+          showValidationError(`Appello ${sectionNumber}: ${result.message}`);
+          return false;
+        }
+      }
+
+      // Validazione durata (se non è già calcolata automaticamente)
+      const durataH = parseInt(durata_h) || 0;
+      const durataM = parseInt(durata_m) || 0;
+      const durataTotale = (durataH * 60) + durataM;
+      
+      if (durataTotale < 30 || durataTotale > 480) {
+        showValidationError(`Appello ${sectionNumber}: La durata deve essere tra 30 minuti e 8 ore`);
+        return false;
+      }
+
+      hasValidSection = true;
+    }
+
+    if (!hasValidSection) {
+      showValidationError("Nessuna sezione di appello valida trovata");
+      return false;
+    }
+
+    // Verifica insegnamenti selezionati usando InsegnamentiManager
+    let insegnamentiSelected = [];
+    if (window.InsegnamentiManager && typeof window.InsegnamentiManager.getSelectedInsegnamenti === 'function') {
+      insegnamentiSelected = window.InsegnamentiManager.getSelectedInsegnamenti();
+    } else {
+      // Fallback: controlla il select nascosto
+      const insegnamentoSelect = document.getElementById('insegnamento');
+      if (insegnamentoSelect && insegnamentoSelect.selectedOptions) {
+        insegnamentiSelected = Array.from(insegnamentoSelect.selectedOptions).map(option => option.value);
+      }
+    }
+    
+    if (!insegnamentiSelected || insegnamentiSelected.length === 0) {
+      showValidationError("Seleziona almeno un insegnamento");
       return false;
     }
 
     return true;
   }
 
-  // Validazione con bypass per amministratori
+  // Validazione con bypass per amministratori - aggiornata per sezioni modulari
   function validateFormWithBypass() {
     // Anche per il bypass, controlla se ci sono errori di validazione delle date
     const errorFields = document.querySelectorAll('.form-input-error');
@@ -95,246 +164,46 @@ const FormEsameControlli = (function() {
       return false;
     }
 
+    // Verifica che ci sia almeno una sezione
+    const dateSections = document.querySelectorAll('.date-appello-section');
+    if (dateSections.length === 0) {
+      showValidationError("Aggiungi almeno una sezione di appello");
+      return false;
+    }
+
+    // Controllo minimo: almeno i campi obbligatori devono essere presenti
+    let hasMinimalData = false;
+    for (let i = 0; i < dateSections.length; i++) {
+      const section = dateSections[i];
+      
+      const dataora = section.querySelector(`[id^="dataora_"]`)?.value;
+      const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
+      const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
+      const aula = section.querySelector(`[id^="aula_"]`)?.value;
+
+      if (dataora && ora_h && ora_m && aula) {
+        hasMinimalData = true;
+        break;
+      }
+    }
+
+    if (!hasMinimalData) {
+      showValidationError("Compila almeno i campi obbligatori per una sezione di appello");
+      return false;
+    }
+
+    // Verifica insegnamenti anche per il bypass
+    let insegnamentiSelected = [];
+    if (window.InsegnamentiManager && typeof window.InsegnamentiManager.getSelectedInsegnamenti === 'function') {
+      insegnamentiSelected = window.InsegnamentiManager.getSelectedInsegnamenti();
+    }
+    
+    if (!insegnamentiSelected || insegnamentiSelected.length === 0) {
+      showValidationError("Seleziona almeno un insegnamento (richiesto anche con bypass)");
+      return false;
+    }
+
     return true;
-  }
-
-  // Mostra il dialogo di conferma per la validazione degli esami
-  function mostraPopupConferma(data) {
-    // Crea il contenitore del dialogo
-    const dialogContainer = document.createElement("div");
-    dialogContainer.id = "exam-confirmation-dialog";
-    dialogContainer.className = "specific-confirmation-overlay";
-    dialogContainer.style.display = "flex";
-
-    // Crea il contenuto del dialogo
-    const dialogContent = document.createElement("div");
-    dialogContent.className = "specific-confirmation-panel";
-    dialogContent.style.width = "clamp(500px, 50vw, 800px)";
-
-    // Header del dialogo
-    const header = document.createElement("div");
-    header.className = "specific-confirmation-header";
-    header.innerHTML = `
-      <h2>Conferma inserimento esami</h2>
-      <span id="closeExamConfirmationDialog" class="form-close">&times;</span>
-    `;
-
-    // Contenuto del dialogo
-    const content = document.createElement("div");
-    content.className = "specific-confirmation-body";
-
-    // Costruisci l'HTML per gli esami validi e invalidi
-    let htmlContent = "";
-
-    // Se ci sono esami invalidi, mostra un avviso
-    if (data.esami_invalidi?.length > 0) {
-      htmlContent += `
-        <div class="alert alert-warning">
-          <p><strong>Attenzione!</strong> Alcuni esami non possono essere inseriti:</p>
-          <ul style="margin-left: 20px;">
-      `;
-
-      data.esami_invalidi.forEach((esame) => {
-        htmlContent += `<li>${esame.titolo || esame.codice}: ${
-          esame.errore
-        }</li>`;
-      });
-
-      htmlContent += `
-          </ul>
-        </div>
-      `;
-    }
-
-    // Tabella degli esami validi
-    if (data.esami_validi?.length > 0) {
-      htmlContent += `
-        <p>I seguenti esami possono essere inseriti:</p>
-        <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-              <tr>
-                <th>
-                  <input type="checkbox" id="selectAllExams" checked> Seleziona tutti
-                </th>
-                <th>Insegnamento</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
-
-      data.esami_validi.forEach((esame) => {
-        htmlContent += `
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">
-              <input type="checkbox" class="esame-checkbox" data-codice="${esame.codice}" 
-                     data-data="${esame.data_appello}" data-aula="${esame.aula}" 
-                     data-ora="${esame.ora_appello}" data-durata="${esame.durata_appello}"
-                     data-periodo="${esame.periodo}" data-inizio="${esame.data_inizio_iscrizione}" 
-                     data-fine="${esame.data_fine_iscrizione}" checked>
-            </td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">${esame.titolo} - ${esame.data_appello}</td>
-          </tr>
-        `;
-      });
-
-      htmlContent += `
-            </tbody>
-          </table>
-        </div>
-        <div style="text-align: center;">
-          <button id="btnConfermaEsami" class="invia" style="margin-right: 10px;">Conferma</button>
-          <button id="btnAnnullaEsami" class="invia" style="background-color: #6c757d;">Annulla</button>
-        </div>
-      `;
-    } else {
-      htmlContent += `
-        <p>Non ci sono esami validi da inserire.</p>
-        <div style="text-align: center;">
-          <button id="btnAnnullaEsami" class="invia">Chiudi</button>
-        </div>
-      `;
-    }
-
-    content.innerHTML = htmlContent;
-
-    // Assembla il dialogo
-    dialogContent.appendChild(header);
-    dialogContent.appendChild(content);
-    dialogContainer.appendChild(dialogContent);
-
-    // Aggiungi il dialogo al DOM
-    document.body.appendChild(dialogContainer);
-
-    // Funzione per rimuovere il dialogo
-    const removeDialog = () => document.body.removeChild(dialogContainer);
-
-    // Aggiungi event listeners
-    document.getElementById("closeExamConfirmationDialog")?.addEventListener("click", removeDialog);
-    document.getElementById("btnAnnullaEsami")?.addEventListener("click", removeDialog);
-
-    // Event listener per "Seleziona tutti"
-    const selectAllCheckbox = document.getElementById("selectAllExams");
-    if (selectAllCheckbox) {
-      selectAllCheckbox.addEventListener("change", () => {
-        const checkboxes = document.querySelectorAll(".esame-checkbox");
-        checkboxes.forEach((checkbox) => {
-          checkbox.checked = selectAllCheckbox.checked;
-        });
-      });
-    }
-
-    // Event listener per il pulsante di conferma
-    const btnConferma = document.getElementById("btnConfermaEsami");
-    if (btnConferma) {
-      btnConferma.addEventListener("click", () => {
-        // Raccogli gli esami selezionati
-        const checkboxes = document.querySelectorAll(".esame-checkbox:checked");
-
-        const esamiSelezionati = Array.from(checkboxes).map((checkbox) => ({
-          codice: checkbox.dataset.codice,
-          data_appello: checkbox.dataset.data,
-          aula: checkbox.dataset.aula,
-          ora_appello: checkbox.dataset.ora,
-          durata_appello: parseInt(checkbox.dataset.durata),
-          periodo: parseInt(checkbox.dataset.periodo),
-          data_inizio_iscrizione: checkbox.dataset.inizio,
-          data_fine_iscrizione: checkbox.dataset.fine,
-        }));
-
-        // Se non ci sono esami selezionati, mostra un messaggio e non fare nulla
-        if (esamiSelezionati.length === 0) {
-          window.showMessage(
-            "Seleziona almeno un esame da inserire",
-            "Attenzione",
-            "warning"
-          );
-          return;
-        }
-
-        // Invia la richiesta al server per inserire gli esami selezionati
-        fetch("/api/confermaEsami", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            dati_comuni: data.dati_comuni,
-            esami_da_inserire: esamiSelezionati,
-          }),
-        })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`Errore HTTP: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then((response) => {
-            // Rimuovi il dialogo
-            removeDialog();
-
-            if (
-              response.status === "success" ||
-              response.status === "partial"
-            ) {
-              // Chiama la funzione di cleanup del form principale
-              if (window.EsameForm && window.EsameForm.cleanupAndHideForm) {
-                window.EsameForm.cleanupAndHideForm();
-              }
-
-              const messageType = response.status === "success" ? "notification" : "warning";
-              const messageTitle = response.status === "success" ? "Operazione completata" : "Inserimento parziale";
-
-              // Usa la funzione showMessage per mostrare notifiche nella sidebar
-              if (window.showMessage) {
-                window.showMessage(response.message, messageTitle, messageType, { timeout: 5000 });
-              }
-
-              // Aggiorna calendario
-              if (window.EsameForm && window.EsameForm.hideForm) {
-                window.EsameForm.hideForm(true);
-              }
-
-              // Se ci sono errori specifici in caso di inserimento parziale
-              if (response.status === "partial" && response.errors) {
-                response.errors.forEach((error) => {
-                  if (window.showMessage) {
-                    window.showMessage(
-                      `Errore per ${error.codice}: ${error.errore}`,
-                      "Dettagli errore",
-                      "warning"
-                    );
-                  }
-                });
-              }
-            } else {
-              // Errore
-              if (window.showMessage) {
-                window.showMessage(
-                  response.message || "Errore durante l'inserimento degli esami",
-                  "Errore",
-                  "error"
-                );
-              }
-            }
-          })
-          .catch((error) => {
-            console.error("Error:", error);
-            // Rimuovi il dialogo anche in caso di errore
-            if (document.body.contains(dialogContainer)) {
-              removeDialog();
-            }
-            
-            if (window.showMessage) {
-              window.showMessage(
-                "Si è verificato un errore durante l'inserimento degli esami",
-                "Errore di rete",
-                "error"
-              );
-            }
-          });
-      });
-    }
   }
 
   // Interfaccia pubblica
@@ -344,8 +213,7 @@ const FormEsameControlli = (function() {
     getDurationValue,
     isUserAdmin,
     validateForm,
-    validateFormWithBypass,
-    mostraPopupConferma
+    validateFormWithBypass
   };
 }());
 

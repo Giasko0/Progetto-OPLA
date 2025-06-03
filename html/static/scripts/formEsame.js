@@ -523,42 +523,56 @@ const EsameForm = (function() {
     }
   }
 
-  // Configura i gestori per combinare i valori di ora e durata
+  // Configura i gestori per combinare i valori di ora e durata - aggiornato per sezioni modulari
   function setupTimeCombiningHandlers() {
     const form = document.getElementById("formEsame");
     if (!form) return;
     
     // Combina l'ora al submit del form
-    form.addEventListener("submit", combineTimeValues);
+    form.addEventListener("submit", combineTimeValuesForAllSections);
     
     // Aggiungi anche al pulsante di bypass
     const bypassBtn = document.getElementById("bypassChecksBtn");
     if (bypassBtn) {
-      bypassBtn.addEventListener("click", combineTimeValues);
-    }
-    
-    // Aggiungi gestori per aggiornare i campi quando i valori cambiano
-    const ora_h = document.getElementById("ora_h");
-    const ora_m = document.getElementById("ora_m");
-    const durata_h = document.getElementById("durata_h");
-    const durata_m = document.getElementById("durata_m");
-    
-    if (ora_h && ora_m) {
-      ora_h.addEventListener("change", combineTimeValues);
-      ora_m.addEventListener("change", combineTimeValues);
-    }
-    
-    if (durata_h && durata_m) {
-      durata_h.addEventListener("change", combineDurataValues);
-      durata_m.addEventListener("change", combineDurataValues);
+      bypassBtn.addEventListener("click", combineTimeValuesForAllSections);
     }
   }
+
+  // Combina i valori di ora e durata per tutte le sezioni
+  function combineTimeValuesForAllSections() {
+    const dateSections = document.querySelectorAll('.date-appello-section');
+    
+    dateSections.forEach((section, index) => {
+      const sectionIndex = index + 1;
+      
+      // Combina ora per questa sezione
+      const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
+      const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
+      
+      if (ora_h && ora_m) {
+        const oraField = section.querySelector(`[id^="ora_"]`);
+        if (oraField && oraField.type === 'hidden') {
+          oraField.value = `${ora_h}:${ora_m}`;
+        }
+      }
+      
+      // Combina durata per questa sezione
+      const durata_h = parseInt(section.querySelector(`[id^="durata_h_"]`)?.value) || 0;
+      const durata_m = parseInt(section.querySelector(`[id^="durata_m_"]`)?.value) || 0;
+      const durata_totale = (durata_h * 60) + durata_m;
+      
+      const durataField = section.querySelector(`[id^="durata_"][type="hidden"]`);
+      if (durataField) {
+        durataField.value = durata_totale.toString();
+      }
+    });
+  }
   
-  // Combina i valori di ora e durata
+  // Combina i valori di ora e durata - ora delegata alla funzione per tutte le sezioni
   function combineTimeValues() {
-    combineTimeValuesUtil();
+    combineTimeValuesForAllSections();
   }
-  
+
   // Controlla se l'utente è un amministratore
   async function isUserAdmin() {
     return await window.FormEsameControlli.isUserAdmin();
@@ -729,86 +743,105 @@ const EsameForm = (function() {
       return;
     }
 
-    // Per l'inserimento, prepara il FormData con gli insegnamenti e sezioni multiple
+    // Per l'inserimento, prepara il FormData con le sezioni multiple
     const formData = new FormData();
     
-    // Aggiungi i campi base del form
-    const inputs = form.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-      if (input.type === 'checkbox') {
-        if (input.checked) {
-          formData.append(input.name, 'on');
-        }
-      } else if (input.type === 'radio') {
-        if (input.checked) {
-          formData.append(input.name, input.value);
-        }
-      } else if (input.name && input.value) {
-        // Salta campi che gestiremo separatamente
-        if (!input.name.includes('dataora_') && 
-            !input.name.includes('ora_h_') && 
-            !input.name.includes('ora_m_') && 
-            !input.name.includes('aula_') &&
-            !input.name.includes('durata_') &&
-            input.name !== 'insegnamento') {
-          formData.append(input.name, input.value);
-        }
-      }
-    });
-    
-    // Gestisci gli insegnamenti multipli
-    const insegnamentoSelect = document.getElementById('insegnamento');
-    if (insegnamentoSelect && insegnamentoSelect.selectedOptions.length > 0) {
-      Array.from(insegnamentoSelect.selectedOptions).forEach(option => {
-        formData.append('insegnamento', option.value);
-      });
+    // Aggiungi solo i campi globali (docente e insegnamenti)
+    const docenteField = document.getElementById('docente');
+    if (docenteField && docenteField.value) {
+      formData.append('docente', docenteField.value);
     }
     
-    // Gestisci le sezioni di date multiple
-    const dateSections = document.querySelectorAll('.date-appello-section');
-    let sectionIndex = 1;
+    // Gestisci gli insegnamenti usando InsegnamentiManager
+    let insegnamentiSelected = [];
+    if (window.InsegnamentiManager && typeof window.InsegnamentiManager.getSelectedInsegnamenti === 'function') {
+      insegnamentiSelected = window.InsegnamentiManager.getSelectedInsegnamenti();
+    } else {
+      // Fallback: usa il select nascosto
+      const insegnamentoSelect = document.getElementById('insegnamento');
+      if (insegnamentoSelect && insegnamentoSelect.selectedOptions.length > 0) {
+        insegnamentiSelected = Array.from(insegnamentoSelect.selectedOptions).map(option => option.value);
+      }
+    }
     
-    dateSections.forEach(section => {
-      const dataInput = section.querySelector(`[id^="dataora_"]`);
-      const oraHInput = section.querySelector(`[id^="ora_h_"]`);
-      const oraMInput = section.querySelector(`[id^="ora_m_"]`);
-      const aulaSelect = section.querySelector(`[id^="aula_"]`);
+    // Aggiungi gli insegnamenti al FormData
+    if (insegnamentiSelected && insegnamentiSelected.length > 0) {
+      insegnamentiSelected.forEach(codice => {
+        formData.append('insegnamento', codice);
+      });
+    } else {
+      if (window.showMessage) {
+        window.showMessage('Nessun insegnamento selezionato', 'Errore', 'error');
+      }
+      return;
+    }
+    
+    // Raccogli tutti i dati dalle sezioni di appelli
+    const dateSections = document.querySelectorAll('.date-appello-section');
+    let hasValidSections = false;
+    
+    dateSections.forEach((section, index) => {
+      const sectionIndex = index + 1;
       
-      if (dataInput && dataInput.value && 
-          oraHInput && oraHInput.value && 
-          oraMInput && oraMInput.value && 
-          aulaSelect && aulaSelect.value) {
+      // Raccogli tutti i campi della sezione
+      const fields = {
+        descrizione: section.querySelector(`[id^="descrizione_"]`)?.value,
+        dataora: section.querySelector(`[id^="dataora_"]`)?.value,
+        ora_h: section.querySelector(`[id^="ora_h_"]`)?.value,
+        ora_m: section.querySelector(`[id^="ora_m_"]`)?.value,
+        durata_h: section.querySelector(`[id^="durata_h_"]`)?.value,
+        durata_m: section.querySelector(`[id^="durata_m_"]`)?.value,
+        aula: section.querySelector(`[id^="aula_"]`)?.value,
+        inizioIscrizione: section.querySelector(`[id^="inizioIscrizione_"]`)?.value,
+        fineIscrizione: section.querySelector(`[id^="fineIscrizione_"]`)?.value,
+        verbalizzazione: section.querySelector(`[id^="verbalizzazione_"]`)?.value,
+        tipoEsame: section.querySelector(`[id^="tipoEsame_"]`)?.value,
+        note: section.querySelector(`[id^="note_"]`)?.value,
+        mostra_nel_calendario: section.querySelector(`[id^="mostra_nel_calendario_"]`)?.checked,
+        tipo_appello_radio: section.querySelector(`input[name^="tipo_appello_radio_"]:checked`)?.value
+      };
+      
+      // Verifica che i campi obbligatori siano presenti
+      if (fields.descrizione && fields.dataora && fields.ora_h && fields.ora_m && fields.aula) {
+        // Calcola durata totale
+        const durataH = parseInt(fields.durata_h) || 0;
+        const durataM = parseInt(fields.durata_m) || 0;
+        const durataTotale = (durataH * 60) + durataM;
         
-        formData.append(`dataora_${sectionIndex}`, dataInput.value);
-        formData.append(`ora_h_${sectionIndex}`, oraHInput.value);
-        formData.append(`ora_m_${sectionIndex}`, oraMInput.value);
-        formData.append(`aula_${sectionIndex}`, aulaSelect.value);
+        // Aggiungi tutti i campi della sezione con indice
+        formData.append(`descrizione_${sectionIndex}`, fields.descrizione);
+        formData.append(`dataora_${sectionIndex}`, fields.dataora);
+        formData.append(`ora_h_${sectionIndex}`, fields.ora_h);
+        formData.append(`ora_m_${sectionIndex}`, fields.ora_m);
+        formData.append(`durata_${sectionIndex}`, durataTotale.toString());
+        formData.append(`aula_${sectionIndex}`, fields.aula);
+        formData.append(`verbalizzazione_${sectionIndex}`, fields.verbalizzazione || 'FSS');
+        formData.append(`tipo_appello_${sectionIndex}`, fields.tipo_appello_radio || 'PF');
         
-        // Gestisci la durata dalla sezione globale
-        const durataField = document.getElementById('durata');
-        if (durataField && durataField.value) {
-          formData.append(`durata_${sectionIndex}`, durataField.value);
+        if (fields.inizioIscrizione) {
+          formData.append(`inizioIscrizione_${sectionIndex}`, fields.inizioIscrizione);
+        }
+        if (fields.fineIscrizione) {
+          formData.append(`fineIscrizione_${sectionIndex}`, fields.fineIscrizione);
+        }
+        if (fields.tipoEsame) {
+          formData.append(`tipoEsame_${sectionIndex}`, fields.tipoEsame);
+        }
+        if (fields.note) {
+          formData.append(`note_${sectionIndex}`, fields.note);
         }
         
-        sectionIndex++;
+        formData.append(`mostra_nel_calendario_${sectionIndex}`, fields.mostra_nel_calendario ? 'true' : 'false');
+        
+        hasValidSections = true;
       }
     });
     
-    // Se non ci sono sezioni di date, fallback ai campi legacy
-    if (sectionIndex === 1) {
-      const legacyData = document.getElementById('dataora');
-      const legacyOra = document.getElementById('ora');
-      const legacyAula = document.getElementById('aula');
-      
-      if (legacyData && legacyData.value) {
-        formData.append('dataora', legacyData.value);
+    if (!hasValidSections) {
+      if (window.showMessage) {
+        window.showMessage('Nessuna sezione appello valida trovata', 'Errore', 'error');
       }
-      if (legacyOra && legacyOra.value) {
-        formData.append('ora', legacyOra.value);
-      }
-      if (legacyAula && legacyAula.value) {
-        formData.append('aula', legacyAula.value);
-      }
+      return;
     }
 
     // Aggiungi flag per bypass se richiesto
@@ -823,7 +856,7 @@ const EsameForm = (function() {
     })
     .then(response => response.json())
     .then(data => {
-      if (data.status === 'success' || data.status === 'direct_insert') {
+      if (data.status === 'success') {
         // Successo - mostra notifica verde
         if (window.showMessage) {
           window.showMessage(
@@ -835,27 +868,6 @@ const EsameForm = (function() {
         }
         
         // Reset del form e pulisci eventi provvisori
-        document.getElementById('formEsame').reset();
-        cleanupAndHideForm();
-        
-        window.forceCalendarRefresh();
-        hideForm(true);
-        
-      } else if (data.status === 'validation') {
-        // Mostra popup di conferma usando il modulo di controllo
-        window.FormEsameControlli.mostraPopupConferma(data);
-        
-      } else if (data.status === 'partial') {
-        // Inserimento parziale - mostra warning
-        if (window.showMessage) {
-          window.showMessage(
-            data.message || 'Alcuni esami sono stati inseriti con avvisi',
-            'Inserimento parziale',
-            'warning',
-            { timeout: 5000 }
-          );
-        }
-        
         document.getElementById('formEsame').reset();
         cleanupAndHideForm();
         
@@ -899,7 +911,7 @@ const EsameForm = (function() {
       }
       
       // Combina i valori di ora e durata prima dell'invio
-      combineTimeValues();
+      combineTimeValuesForAllSections();
       
       submitFormData({ bypassChecks: true });
     });
@@ -909,8 +921,8 @@ const EsameForm = (function() {
   function handleFormSubmit(e) {
     e.preventDefault();
 
-    // Combina ora e durata
-    combineTimeValues();
+    // Combina ora e durata per tutte le sezioni
+    combineTimeValuesForAllSections();
 
     // Usa la validazione del modulo di controllo
     if (!window.FormEsameControlli.validateForm()) {
@@ -920,7 +932,7 @@ const EsameForm = (function() {
     submitFormData();
   }
 
-  // Helper functions per la validazione - delegate to FormEsameControlli
+  // Helper functions per la validazione - delegate to FormEsameControlli (aggiornate)
   function getFirstDateValue() {
     return window.FormEsameControlli.getFirstDateValue();
   }
@@ -1032,17 +1044,19 @@ const EsameForm = (function() {
     window.forceCalendarRefresh();
   }
 
-  // Interfaccia pubblica
+  // Interfaccia pubblica - aggiunta nuova funzione
   return {
     loadForm,
     showForm,
     hideForm,
     combineTimeValues,
+    combineTimeValuesForAllSections,
     combineDurataValues,
     setupTimeCombiningHandlers,
     usePreferences: true,
     setupProvisionalDeleteButton,
-    handleDeleteProvisional
+    handleDeleteProvisional,
+    cleanupAndHideForm
   };
 }());
 window.EsameForm = EsameForm;

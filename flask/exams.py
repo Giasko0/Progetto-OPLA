@@ -60,73 +60,35 @@ def inserisciEsame():
     if "status" in dati_esame and dati_esame["status"] == "error":
       return jsonify(dati_esame), 400
     
-    # 2. Se admin ha richiesto bypass, salta i controlli
+    # 2. Se admin ha richiesto bypass, salta i controlli e inserisci direttamente
     if is_admin and bypass_checks:
-      # Preparo la lista di dizionari che inserisciEsami si aspetta
-      insegnamenti_dict = []
-      conn = get_db_connection()
-      cursor = conn.cursor()
-      
-      # Per ogni combinazione data-insegnamento
-      for data_info in dati_esame['date_appelli']:
-        for codice in dati_esame['insegnamenti']:
-          # Cerca il titolo dell'insegnamento
-          cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (codice,))
-          result = cursor.fetchone()
-          titolo = result[0] if result else codice
-          
-          # Aggiungi alla lista
-          insegnamenti_dict.append({
-            'codice': codice,
-            'titolo': titolo,
-            'data_appello': data_info['data_appello'],
-            'aula': data_info['aula'],
-            'ora_appello': data_info['ora_appello'],
-            'durata_appello': data_info['durata_appello'],
-            'periodo': data_info['periodo'],
-            'data_inizio_iscrizione': dati_esame['inizio_iscrizione'],
-            'data_fine_iscrizione': dati_esame['fine_iscrizione']
-          })
-      
-      # Inserisci direttamente senza controlli
-      esami_inseriti, errori = inserisciEsami(dati_esame, insegnamenti_dict)
-      
-      if errori:
-        return jsonify(costruisciRispostaParziale(esami_inseriti, errori)), 207
-      
-      return jsonify({
-        'status': 'success',
-        'message': 'Esami inseriti con successo (controlli bypassati)',
-        'inserted': esami_inseriti
-      }), 200
+      try:
+        esami_inseriti = inserisciEsami(dati_esame)
+        return jsonify({
+          'status': 'success',
+          'message': 'Esami inseriti con successo (controlli bypassati)',
+          'inserted': esami_inseriti
+        }), 200
+      except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400
     
     # 3. Esegui controlli dei vincoli
-    dati_esame, validi, invalidi, errore_bloccante = controllaVincoli(dati_esame)
+    vincoli_ok, errore_vincoli = controllaVincoli(dati_esame)
     
-    # Se c'è un errore bloccante, interrompi subito
-    if errore_bloccante:
-      return jsonify({'status': 'error', 'message': errore_bloccante}), 400
+    # Se i vincoli non sono rispettati, restituisci errore
+    if not vincoli_ok:
+      return jsonify({'status': 'error', 'message': errore_vincoli}), 400
     
-    # 4. Decide se inserire direttamente o mostrare popup di conferma
-    if not invalidi and validi:
-      # Inserimento diretto di tutti gli esami validi
-      esami_inseriti, errori = inserisciEsami(dati_esame, validi)
-      if errori:
-        return jsonify(costruisciRispostaParziale(esami_inseriti, errori)), 207
+    # 4. Se tutti i vincoli sono rispettati, inserisci tutti gli esami
+    try:
+      esami_inseriti = inserisciEsami(dati_esame)
       return jsonify({
-        'status': 'direct_insert',
+        'status': 'success',
         'message': 'Tutti gli esami sono stati inseriti con successo',
         'inserted': esami_inseriti
       }), 200
-    
-    # 5. Costruisci risposta per conferma utente
-    return jsonify({
-      'status': 'validation',
-      'message': 'Verifica completata',
-      'dati_comuni': dati_esame,
-      'esami_validi': validi,
-      'esami_invalidi': invalidi
-    }), 200
+    except Exception as e:
+      return jsonify({'status': 'error', 'message': str(e)}), 400
 
   except Exception as e:
     return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -135,71 +97,6 @@ def inserisciEsame():
       cursor.close()
     if conn:
       release_connection(conn)
-
-# Metodo API per la conferma degli esami
-@exam_bp.route('/api/confermaEsami', methods=['POST'])
-@login_required
-def confermaEsami():
-  # API per inserire gli esami selezionati dall'utente
-  try:
-    # Parse JSON della richiesta
-    data = request.json
-    if not data:
-      return jsonify({'status': 'error', 'message': 'Dati mancanti'}), 400
-    
-    dati_comuni = data.get('dati_comuni', {})
-    esami_da_inserire = data.get('esami_da_inserire', [])
-    
-    if not esami_da_inserire:
-      return jsonify({'status': 'error', 'message': 'Nessun esame selezionato per l\'inserimento'}), 400
-    
-    # Convertiamo i dati nella struttura che inserisciEsami si aspetta
-    esami_formattati = []
-    for esame in esami_da_inserire:
-      esame_formattato = {
-        'codice': esame['codice'],
-        'data_appello': esame['data_appello'],
-        'aula': esame['aula'],
-        'ora_appello': esame['ora_appello'],
-        'durata_appello': esame['durata_appello'],
-        'periodo': esame['periodo'],
-        'data_inizio_iscrizione': esame['data_inizio_iscrizione'],
-        'data_fine_iscrizione': esame['data_fine_iscrizione']
-      }
-      
-      # Aggiungi il titolo se disponibile nei dati comuni
-      conn = get_db_connection()
-      cursor = conn.cursor()
-      cursor.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (esame['codice'],))
-      result = cursor.fetchone()
-      if result:
-        esame_formattato['titolo'] = result[0]
-      cursor.close()
-      release_connection(conn)
-      
-      esami_formattati.append(esame_formattato)
-    
-    # Inserisci gli esami selezionati usando la funzione aggiornata
-    esami_inseriti, errori = inserisciEsami(dati_comuni, esami_formattati)
-    
-    # Se ci sono stati errori ma almeno un esame è stato inserito, restituisci avviso
-    if errori and esami_inseriti:
-      return jsonify(costruisciRispostaParziale(esami_inseriti, errori)), 207
-    elif errori and not esami_inseriti:
-      return jsonify({
-        'status': 'error',
-        'message': 'Nessun esame è stato inserito a causa di errori',
-        'errors': errori
-      }), 400
-    
-    return jsonify({
-      'status': 'success', 
-      'message': 'Tutti gli esami sono stati inseriti con successo',
-      'inserted': esami_inseriti
-    }), 200
-
-  except Exception as e:
-    return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @exam_bp.route('/api/getEsameById', methods=['GET'])
 def get_esame_by_id():
