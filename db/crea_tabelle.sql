@@ -211,20 +211,20 @@ INSERT INTO sessioni (cds, anno_accademico, curriculum, tipo_sessione, inizio, f
 ('L062', 2024, 'CORSO GENERICO', 'invernale', '2026-01-10', '2026-02-25', 2, 3);
 
 -- Inserimento delle aule
-INSERT INTO aule (nome, codice_esse3, codice_easyacademy) VALUES
-('Aula A-0', 'AULA A0', '002_FIA'),
-('Aula A-2', 'AULA A2', '028_A2'),
-('Aula A-3', 'AULA A3', '014_A0'),
-('Aula B-1', 'AULA B1', '010_B1'),
-('Aula B-3', 'AULA B3', '004_B3'),
-('Aula C-2', 'AULA C2', '002_C2'),
-('Aula C-3', 'AULA C3', '003_C3'),
-('Aula Gialla', 'AULA GIALLA', '012_GIA'),
-('Aula I-1', 'AULA I1', 'x1'),
-('Aula I-2', 'AULA I2', 'x2'),
-('Aula Verde', 'AULA VERDE', '013_VER'),
-('Sala Riunioni', 'SALA RIUNIONI', 'x3'),
-('Studio docente DMI', 'STUDIO DOCENTE DMI', '');
+INSERT INTO aule (nome, codice_esse3, codice_easyacademy, sede, edificio, posti) VALUES
+('Aula A-0', 'AULA A0', '002_FIA', '1288', 'INFORMATICA', 180),
+('Aula A-2', 'AULA A2', '028_A2', '1288', 'INFORMATICA', 180),
+('Aula A-3', 'AULA A3', '014_A0', '1288', 'INFORMATICA', 70),
+('Aula B-1', 'AULA B1', '010_B1', '1288', 'INFORMATICA', 30),
+('Aula B-3', 'AULA B3', '004_B3', '1288', 'INFORMATICA', 35),
+('Aula C-2', 'AULA C2', '002_C2', '1288', 'INFORMATICA', 20),
+('Aula C-3', 'AULA C3', '003_C3', '1288', 'INFORMATICA', 25),
+('Aula Gialla', 'AULA GIALLA', '012_GIA', '1288', 'INFORMATICA', 23),
+('Aula I-1', 'AULA I1', 'x1', '1288', 'INFORMATICA', 215),
+('Aula I-2', 'AULA I2', 'x2', '1288', 'INFORMATICA', 90),
+('Aula Verde', 'AULA VERDE', '013_VER', '1288', 'INFORMATICA', 25),
+('Sala Riunioni', 'SALA RIUNIONI', 'x3', '1288', 'INFORMATICA', 25),
+('Studio docente DMI', 'STUDIO DOCENTE DMI', '', '1288', 'INFORMATICA', 9999);
 -- Aule inutilizzate
 -- ('Aula Informatica', 'AULA INFORMATICA', '')
 -- ('Aula Virtuale', 'AULA VIRTUALE TEAMS', '')
