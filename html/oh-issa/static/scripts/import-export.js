@@ -140,9 +140,9 @@ function checkProgrammazioneDidattica(anno) {
       } else {
         hasProgData = data.has_programmazione;
         if (hasProgData) {
-          updateStatus('loaded', `Programmazione caricata (${data.count} insegnamenti)`);
+          updateStatus('loaded', `Programmazione didattica caricata (${data.count} insegnamenti)`);
         } else {
-          updateStatus('not-loaded', 'Programmazione non caricata');
+          updateStatus('not-loaded', 'Programmazione didattica non caricata');
         }
         updateButtonStates(hasProgData);
       }

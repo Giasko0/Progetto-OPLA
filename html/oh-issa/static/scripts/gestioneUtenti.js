@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inizializza gli eventi per il modal di conferma eliminazione
     initDeleteModal();
     initAdminModal();
+    initAddUserModal();
 });
 
 /**
@@ -226,6 +227,87 @@ function initAdminModal() {
         if (event.target === modal) {
             modal.style.display = 'none';
         }
+    });
+}
+
+/**
+ * Inizializza il modal per l'aggiunta di un nuovo utente
+ */
+function initAddUserModal() {
+    const modal = document.getElementById('addUserModal');
+    const addUserBtn = document.getElementById('addUserBtn');
+    const cancelButton = document.getElementById('cancelAddUser');
+    const form = document.getElementById('addUserForm');
+    
+    // Apri modal quando si clicca il pulsante
+    addUserBtn.addEventListener('click', () => {
+        // Reset del form
+        form.reset();
+        modal.style.display = 'flex';
+    });
+    
+    // Chiudi modal quando si clicca annulla
+    cancelButton.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+    
+    // Chiudi modal cliccando fuori
+    window.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+    
+    // Gestisci invio del form
+    form.addEventListener('submit', handleAddUser);
+}
+
+/**
+ * Gestisce l'invio del form per aggiungere un nuovo utente
+ */
+function handleAddUser(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    const userData = {
+        username: formData.get('username').trim(),
+        matricola: formData.get('matricola').trim(),
+        nome: formData.get('nome').trim(),
+        cognome: formData.get('cognome').trim(),
+        permessi_admin: formData.get('permessi_admin') === 'on'
+    };
+    
+    // Validazione
+    if (!userData.username || !userData.matricola) {
+        showMessage('error', 'Username e matricola sono obbligatori.');
+        return;
+    }
+    
+    // Invia richiesta al server
+    fetch('/api/oh-issa/addUser', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('addUserModal').style.display = 'none';
+        
+        if (data.status === 'success') {
+            showMessage('success', `Utente ${userData.username} aggiunto con successo.`);
+            loadUsers(); // Ricarica la lista degli utenti
+        } else {
+            showMessage('error', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Errore:', error);
+        document.getElementById('addUserModal').style.display = 'none';
+        showMessage('error', 'Si è verificato un errore durante l\'aggiunta dell\'utente.');
     });
 }
 

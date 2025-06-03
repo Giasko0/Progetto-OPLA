@@ -175,6 +175,7 @@ input, select, textarea {
 
 input[type="checkbox"] {
     margin-bottom: 0;
+    width: auto;
 }
 
 .session-group {
@@ -605,6 +606,15 @@ input[type="checkbox"] {
     background-color: #f8f9fa;
     border-radius: 5px;
     border: 1px solid #e9ecef;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.actions-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .search-box {

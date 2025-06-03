@@ -1611,6 +1611,63 @@ def delete_user():
     if 'conn' in locals() and conn:
       release_connection(conn)
 
+# API per aggiungere un nuovo utente
+@admin_bp.route('/addUser', methods=['POST'])
+def add_user():
+    if not session.get('permessi_admin'):
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+        
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        matricola = data.get('matricola')
+        nome = data.get('nome', '')
+        cognome = data.get('cognome', '')
+        permessi_admin = data.get('permessi_admin', False)
+        
+        if not username or not matricola:
+            return jsonify({
+                'status': 'error', 
+                'message': 'Username e matricola sono obbligatori'
+            }), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verifica se l'utente esiste già
+        cursor.execute("SELECT 1 FROM utenti WHERE username = %s OR matricola = %s", (username, matricola))
+        if cursor.fetchone():
+            return jsonify({
+                'status': 'error', 
+                'message': 'Utente con questo username o matricola già esistente'
+            }), 400
+            
+        # Inserisci il nuovo utente
+        cursor.execute("""
+            INSERT INTO utenti (username, matricola, nome, cognome, permessi_admin, password)
+            VALUES (%s, %s, %s, %s, %s, 'password')
+        """, (username, matricola, nome, cognome, permessi_admin))
+        
+        conn.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Utente {username} aggiunto con successo'
+        })
+        
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.rollback()
+        return jsonify({
+            'status': 'error', 
+            'message': 'Si è verificato un errore durante l\'aggiunta dell\'utente'
+        }), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
 @admin_bp.route('/checkProgrammazioneDidattica')
 def check_programmazione_didattica():
   if not session.get('permessi_admin'):
