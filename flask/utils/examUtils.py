@@ -14,9 +14,12 @@ def generaDatiEsame():
     docente = data.get('docente')
     
     # Gestione insegnamenti multipli (rimane globale)
-    insegnamenti = request.form.getlist('insegnamento')
-    if not insegnamenti and 'insegnamento' in request.form:
-      insegnamenti = [request.form['insegnamento']]
+    insegnamenti = request.form.getlist('insegnamenti[]')
+    if not insegnamenti:
+      # Fallback per compatibilità con formato vecchio
+      insegnamenti = request.form.getlist('insegnamento')
+      if not insegnamenti and 'insegnamento' in request.form:
+        insegnamenti = [request.form['insegnamento']]
       
     if not insegnamenti:
       return {'status': 'error', 'message': 'Nessun insegnamento selezionato'}
@@ -24,71 +27,135 @@ def generaDatiEsame():
     # Raccolta delle sezioni di appelli dal form modulare
     sezioni_appelli = []
     
-    # Cerca tutte le sezioni numerando da 1
-    section_index = 1
-    while True:
-      # Controlla se esiste una sezione con questo indice
-      descrizione_key = f'descrizione_{section_index}'
-      if descrizione_key not in data:
-        break
-      
-      # Raccogli tutti i dati per questa sezione
-      sezione = {
-        'descrizione': data.get(f'descrizione_{section_index}', ''),
-        'data_appello': data.get(f'dataora_{section_index}'),
-        'ora_h': data.get(f'ora_h_{section_index}'),
-        'ora_m': data.get(f'ora_m_{section_index}'),
-        'durata': data.get(f'durata_{section_index}', '120'),
-        'aula': data.get(f'aula_{section_index}'),
-        'inizio_iscrizione': data.get(f'inizioIscrizione_{section_index}'),
-        'fine_iscrizione': data.get(f'fineIscrizione_{section_index}'),
-        'verbalizzazione': data.get(f'verbalizzazione_{section_index}', 'FSS'),
-        'tipo_esame': data.get(f'tipoEsame_{section_index}'),
-        'note_appello': data.get(f'note_{section_index}', ''),
-        'tipo_appello': data.get(f'tipo_appello_{section_index}', 'PF'),
-        'mostra_nel_calendario': data.get(f'mostra_nel_calendario_{section_index}', 'false').lower() == 'true'
-      }
-      
-      # Validazione campi obbligatori per questa sezione
-      if not all([sezione['data_appello'], sezione['ora_h'], sezione['ora_m'], sezione['aula']]):
+    # Il frontend invia i dati come array, quindi raccogliamo tutti gli array
+    descrizioni = request.form.getlist('descrizione[]')
+    date_appello = request.form.getlist('dataora[]')
+    ore_h = request.form.getlist('ora_h[]')
+    ore_m = request.form.getlist('ora_m[]')
+    durate = request.form.getlist('durata[]')
+    aule = request.form.getlist('aula[]')
+    inizi_iscrizione = request.form.getlist('inizioIscrizione[]')
+    fini_iscrizione = request.form.getlist('fineIscrizione[]')
+    verbalizzazioni = request.form.getlist('verbalizzazione[]')
+    tipi_esame = request.form.getlist('tipoEsame[]')
+    note_appelli = request.form.getlist('note[]')
+    tipi_appello = request.form.getlist('tipo_appello_radio[]')
+    mostra_calendario = request.form.getlist('mostra_nel_calendario[]')
+    
+    # Se non abbiamo dati negli array, proviamo il formato per indice numerico (fallback)
+    if not descrizioni:
+      section_index = 1
+      while True:
+        descrizione_key = f'descrizione_{section_index}'
+        if descrizione_key not in data:
+          break
+        
+        # Raccogli tutti i dati per questa sezione
+        sezione = {
+          'descrizione': data.get(f'descrizione_{section_index}', ''),
+          'data_appello': data.get(f'dataora_{section_index}'),
+          'ora_h': data.get(f'ora_h_{section_index}'),
+          'ora_m': data.get(f'ora_m_{section_index}'),
+          'durata': data.get(f'durata_{section_index}', '120'),
+          'aula': data.get(f'aula_{section_index}'),
+          'inizio_iscrizione': data.get(f'inizioIscrizione_{section_index}'),
+          'fine_iscrizione': data.get(f'fineIscrizione_{section_index}'),
+          'verbalizzazione': data.get(f'verbalizzazione_{section_index}', 'FSS'),
+          'tipo_esame': data.get(f'tipoEsame_{section_index}'),
+          'note_appello': data.get(f'note_{section_index}', ''),
+          'tipo_appello': data.get(f'tipo_appello_{section_index}', 'PF'),
+          'mostra_nel_calendario': data.get(f'mostra_nel_calendario_{section_index}', 'false').lower() == 'true'
+        }
+        
+        if sezione['data_appello'] and sezione['ora_h'] and sezione['ora_m'] and sezione['aula']:
+          # Processa la sezione
+          sezione['ora_appello'] = f"{sezione['ora_h']}:{sezione['ora_m']}"
+          
+          try:
+            ora_int = int(sezione['ora_h'])
+            if ora_int < 8 or ora_int > 18:
+              return {'status': 'error', 'message': f'Ora non valida per l\'appello {section_index}: {sezione["ora_appello"]}. Deve essere tra le 08:00 e le 18:00'}
+          except (ValueError, TypeError):
+            return {'status': 'error', 'message': f'Formato ora non valido per l\'appello {section_index}: {sezione["ora_appello"]}'}
+          
+          sezione['periodo'] = 1 if ora_int >= 14 else 0
+          
+          try:
+            durata_appello = int(sezione['durata'])
+            if durata_appello < 30 or durata_appello > 720:
+              return {'status': 'error', 'message': f'La durata deve essere compresa tra 30 e 720 minuti per l\'appello {section_index}'}
+            sezione['durata_appello'] = durata_appello
+          except (ValueError, TypeError):
+            sezione['durata_appello'] = 120
+          
+          tipo_iscrizione = 'SOC' if sezione['tipo_esame'] == 'SO' else sezione['tipo_esame']
+          sezione['tipo_iscrizione'] = tipo_iscrizione
+          sezione['definizione_appello'] = 'STD'
+          sezione['gestione_prenotazione'] = 'STD'
+          sezione['riservato'] = False
+          sezione['posti'] = None
+          
+          sezioni_appelli.append(sezione)
+        
         section_index += 1
-        continue
-      
-      # Costruisci l'ora completa
-      sezione['ora_appello'] = f"{sezione['ora_h']}:{sezione['ora_m']}"
-      
-      # Validazione ora appello
-      try:
-        ora_int = int(sezione['ora_h'])
-        if ora_int < 8 or ora_int > 18:
-          return {'status': 'error', 'message': f'Ora non valida per l\'appello {section_index}: {sezione["ora_appello"]}. Deve essere tra le 08:00 e le 18:00'}
-      except (ValueError, TypeError):
-        return {'status': 'error', 'message': f'Formato ora non valido per l\'appello {section_index}: {sezione["ora_appello"]}'}
-      
-      # Periodo (mattina/pomeriggio)
-      sezione['periodo'] = 1 if ora_int >= 14 else 0
-      
-      # Durata appello
-      try:
-        durata_appello = int(sezione['durata'])
-        if durata_appello < 30 or durata_appello > 720:
-          return {'status': 'error', 'message': f'La durata deve essere compresa tra 30 e 720 minuti per l\'appello {section_index}'}
-        sezione['durata_appello'] = durata_appello
-      except (ValueError, TypeError):
-        sezione['durata_appello'] = 120
-      
-      # Gestione tipo iscrizione
-      tipo_iscrizione = 'SOC' if sezione['tipo_esame'] == 'SO' else sezione['tipo_esame']
-      sezione['tipo_iscrizione'] = tipo_iscrizione
-      
-      # Campi con valori di default
-      sezione['definizione_appello'] = 'STD'
-      sezione['gestione_prenotazione'] = 'STD'
-      sezione['riservato'] = False
-      sezione['posti'] = None
-      
-      sezioni_appelli.append(sezione)
-      section_index += 1
+    else:
+      # Formato array - processa tutti gli elementi
+      max_sections = len(descrizioni)
+      for i in range(max_sections):
+        sezione = {
+          'descrizione': descrizioni[i] if i < len(descrizioni) else '',
+          'data_appello': date_appello[i] if i < len(date_appello) else None,
+          'ora_h': ore_h[i] if i < len(ore_h) else None,
+          'ora_m': ore_m[i] if i < len(ore_m) else None,
+          'durata': durate[i] if i < len(durate) else '120',
+          'aula': aule[i] if i < len(aule) else None,
+          'inizio_iscrizione': inizi_iscrizione[i] if i < len(inizi_iscrizione) else None,
+          'fine_iscrizione': fini_iscrizione[i] if i < len(fini_iscrizione) else None,
+          'verbalizzazione': verbalizzazioni[i] if i < len(verbalizzazioni) else 'FSS',
+          'tipo_esame': tipi_esame[i] if i < len(tipi_esame) else None,
+          'note_appello': note_appelli[i] if i < len(note_appelli) else '',
+          'tipo_appello': tipi_appello[i] if i < len(tipi_appello) else 'PF',
+          'mostra_nel_calendario': (mostra_calendario[i] if i < len(mostra_calendario) else 'false').lower() == 'true'
+        }
+        
+        # Validazione campi obbligatori per questa sezione
+        if not all([sezione['data_appello'], sezione['ora_h'], sezione['ora_m'], sezione['aula']]):
+          continue
+        
+        # Costruisci l'ora completa
+        sezione['ora_appello'] = f"{sezione['ora_h']}:{sezione['ora_m']}"
+        
+        # Validazione ora appello
+        try:
+          ora_int = int(sezione['ora_h'])
+          if ora_int < 8 or ora_int > 18:
+            return {'status': 'error', 'message': f'Ora non valida per l\'appello {i+1}: {sezione["ora_appello"]}. Deve essere tra le 08:00 e le 18:00'}
+        except (ValueError, TypeError):
+          return {'status': 'error', 'message': f'Formato ora non valido per l\'appello {i+1}: {sezione["ora_appello"]}'}
+        
+        # Periodo (mattina/pomeriggio)
+        sezione['periodo'] = 1 if ora_int >= 14 else 0
+        
+        # Durata appello
+        try:
+          durata_appello = int(sezione['durata'])
+          if durata_appello < 30 or durata_appello > 720:
+            return {'status': 'error', 'message': f'La durata deve essere compresa tra 30 e 720 minuti per l\'appello {i+1}'}
+          sezione['durata_appello'] = durata_appello
+        except (ValueError, TypeError):
+          sezione['durata_appello'] = 120
+        
+        # Gestione tipo iscrizione
+        tipo_iscrizione = 'SOC' if sezione['tipo_esame'] == 'SO' else sezione['tipo_esame']
+        sezione['tipo_iscrizione'] = tipo_iscrizione
+        
+        # Campi con valori di default
+        sezione['definizione_appello'] = 'STD'
+        sezione['gestione_prenotazione'] = 'STD'
+        sezione['riservato'] = False
+        sezione['posti'] = None
+        
+        sezioni_appelli.append(sezione)
     
     if not sezioni_appelli:
       return {'status': 'error', 'message': 'Nessuna sezione appello valida inserita'}
