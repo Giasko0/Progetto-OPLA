@@ -342,7 +342,12 @@ def download_esse3():
   if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
+  anno = request.args.get('anno')
+  if not anno:
+    return jsonify({'error': 'Anno accademico non specificato'}), 400
+    
   try:
+    anno = int(anno)
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -377,8 +382,9 @@ def download_esse3():
       JOIN insegnamenti i ON e.insegnamento = i.id
       LEFT JOIN aule a ON e.aula = a.nome
       LEFT JOIN utenti u ON e.docente = u.username
+      WHERE e.anno_accademico = %s
       ORDER BY e.data_appello, e.insegnamento
-    """)
+    """, (anno,))
     esami = cursor.fetchall()
 
     # Crea il file Excel in memoria
@@ -553,7 +559,12 @@ def download_ea():
   if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
+  anno = request.args.get('anno')
+  if not anno:
+    return jsonify({'error': 'Anno accademico non specificato'}), 400
+    
   try:
+    anno = int(anno)
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -577,8 +588,9 @@ def download_ea():
       JOIN insegnamenti i ON e.insegnamento = i.id
       LEFT JOIN aule a ON e.aula = a.nome
       LEFT JOIN utenti u ON e.docente = u.username
+      WHERE e.anno_accademico = %s
       ORDER BY e.data_appello, e.insegnamento
-    """)
+    """, (anno,))
     
     esami = cursor.fetchall()
 
@@ -1593,6 +1605,44 @@ def delete_user():
     if 'conn' in locals() and conn:
       conn.rollback()
     return jsonify({'status': 'error', 'message': str(e)}), 500
+  finally:
+    if 'cursor' in locals() and cursor:
+      cursor.close()
+    if 'conn' in locals() and conn:
+      release_connection(conn)
+
+@admin_bp.route('/checkProgrammazioneDidattica')
+def check_programmazione_didattica():
+  if not session.get('permessi_admin'):
+    return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+    
+  anno = request.args.get('anno')
+  
+  if not anno:
+    return jsonify({"error": "Anno accademico non specificato"}), 400
+    
+  try:
+    anno = int(anno)
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Verifica se esistono insegnamenti_cds per l'anno specificato
+    cursor.execute("""
+      SELECT COUNT(*) 
+      FROM insegnamenti_cds 
+      WHERE anno_accademico = %s
+    """, (anno,))
+    
+    count = cursor.fetchone()[0]
+    has_programmazione = count > 0
+    
+    return jsonify({
+      'has_programmazione': has_programmazione,
+      'count': count
+    })
+    
+  except Exception as e:
+    return jsonify({"error": str(e)}), 500
   finally:
     if 'cursor' in locals() and cursor:
       cursor.close()

@@ -12,103 +12,32 @@
   <script src="static/scripts/authCheck.js"></script>
   <script src="static/scripts/navbarAdmin.js"></script>
   <script src="static/scripts/footerAdmin.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const downloadButton = document.getElementById('downloadButton');
-      downloadButton.addEventListener('click', function() {
-        window.location.href = '/api/oh-issa/downloadFileESSE3';
-      });
-
-      const downloadEasyAcademyButton = document.getElementById('downloadEasyAcademyButton');
-      downloadEasyAcademyButton.addEventListener('click', function() {
-        window.location.href = '/api/oh-issa/downloadFileEA';
-      });
-
-      // Gestione caricamento file UGOV direttamente con il pulsante
-      document.getElementById('uploadFileButton').addEventListener('click', function() {
-        document.getElementById('fileInput').click();
-      });
-
-      // Gestione selezione file e invio automatico
-      document.getElementById('fileInput').addEventListener('change', function(e) {
-        const fileInput = this;
-        const fileName = fileInput.files[0] ? fileInput.files[0].name : 'Nessun file selezionato';
-        document.getElementById('selectedFileName').textContent = fileName;
-        
-        if (fileInput.files.length) {
-          // Mostra messaggio di caricamento
-          showMessage('info', 'Caricamento in corso...');
-          
-          // Crea un FormData e carica il file
-          const formData = new FormData();
-          formData.append('file', fileInput.files[0]);
-          
-          // Invia richiesta al server
-          fetch('/api/oh-issa/uploadFileUGOV', {
-            method: 'POST',
-            body: formData
-          })
-            .then(response => response.json())
-            .then(data => {
-              if (data.status === 'success') {
-                showMessage('success', data.message, data.details);
-              } else {
-                showMessage('error', data.message);
-              }
-            })
-            .catch(error => {
-              showMessage('error', `Errore durante l'import: ${error.message}`);
-            });
-        }
-      });
-
-      // Gestione caricamento aule da EasyAcademy (semplificato)
-      document.getElementById('loadRoomsBtn').addEventListener('click', function () {
-        showMessage('info', 'Caricamento aule da EasyAcademy in corso...');
-
-        fetch('/api/oh-issa/loadAuleEasyAcademy', {
-          method: 'POST'
-        })
-          .then(response => response.json())
-          .then(data => {
-            if (data.status === 'success') {
-              showMessage('success', data.message, data.details);
-            } else {
-              showMessage('error', data.message);
-            }
-          })
-          .catch(error => {
-            showMessage('error', `Errore durante il caricamento delle aule: ${error.message}`);
-          });
-      });
-    });
-
-    function showMessage(type, text, details) {
-      const messagesDiv = document.getElementById('responseMessages');
-      messagesDiv.innerHTML = '';
-
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `alert alert-${type === 'success' ? 'success' : type === 'info' ? 'info' : 'danger'}`;
-      messageDiv.textContent = text;
-
-      if (details) {
-        const detailsPre = document.createElement('pre');
-        detailsPre.className = 'alert-details';
-        detailsPre.textContent = details;
-        messageDiv.appendChild(detailsPre);
-      }
-
-      messagesDiv.appendChild(messageDiv);
-      messagesDiv.scrollIntoView({ behavior: 'smooth' });
-    }
-  </script>
+  <script src="static/scripts/import-export.js"></script>
 </head>
 
 <body>
   <div id="navbar"></div>
 
   <main>
-    <h1>Import Dati</h1>
+    <h1>Import/Export Dati</h1>
+
+    <!-- Selettore Anno Accademico -->
+    <section class="anno-selector">
+      <h3>Selezione Anno Accademico</h3>
+      <div class="anno-controls">
+        <div>
+          <select id="annoSelect">
+            <option value="">Caricamento...</option>
+          </select>
+        </div>
+        <div id="statusIndicator" class="status-indicator loading">
+          <span class="icon">⏳</span>
+          <span id="statusText">Verifico stato programmazione...</span>
+        </div>
+      </div>
+    </section>
+
+    <h2>Import Dati</h2>
 
     <section class="upload-section">
       <fieldset>
