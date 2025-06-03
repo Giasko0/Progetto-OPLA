@@ -436,6 +436,24 @@ const EsameAppelli = (function() {
       if (aulaSelect) {
         aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
       }
+
+      // Calcola e imposta automaticamente le date di inizio e fine iscrizione
+      const inizioIscrizioneInput = document.getElementById(`inizioIscrizione_${counter}`);
+      const fineIscrizioneInput = document.getElementById(`fineIscrizione_${counter}`);
+      if (inizioIscrizioneInput && fineIscrizioneInput) {
+        const appelloDate = new Date(newDate);
+        // Inizio iscrizione: 30 giorni prima
+        const inizio = new Date(appelloDate);
+        inizio.setDate(appelloDate.getDate() - 30);
+        // Fine iscrizione: 1 giorno prima
+        const fine = new Date(appelloDate);
+        fine.setDate(appelloDate.getDate() - 1);
+        // Formatta le date in YYYY-MM-DD
+        const pad = n => n.toString().padStart(2, '0');
+        const format = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        inizioIscrizioneInput.value = format(inizio);
+        fineIscrizioneInput.value = format(fine);
+      }
     }
   }
 
