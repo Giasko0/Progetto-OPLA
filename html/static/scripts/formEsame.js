@@ -133,8 +133,21 @@ const EsameForm = (function() {
       const idField = formContainer.querySelector("#examIdField");
       if (idField) idField.value = isEdit && data.id ? data.id : "";
       
-      // Reset form per partire puliti
-      if (esameForm) esameForm.reset();
+      // Reset form solo se non ci sono già sezioni con dati
+      const existingSections = formContainer.querySelectorAll('.date-appello-section');
+      const hasExistingData = Array.from(existingSections).some(section => {
+        const inputs = section.querySelectorAll('input, select, textarea');
+        return Array.from(inputs).some(input => {
+          if (input.type === 'checkbox') return input.checked;
+          if (input.type === 'radio') return input.checked;
+          return input.value && input.value.trim() !== '';
+        });
+      });
+      
+      // Reset solo se siamo in modalità edit o non ci sono dati esistenti
+      if (isEdit || !hasExistingData) {
+        if (esameForm) esameForm.reset();
+      }
       
       // Aggiorna pulsante submit
       const submitButton = formContainer.querySelector('#formEsame button[type="submit"]');
@@ -159,8 +172,8 @@ const EsameForm = (function() {
           fillFormWithPartialData(elements, data);
         }
         
-        // Carica preferenze solo in modalità creazione
-        if (usePreferences) {
+        // Carica preferenze solo in modalità creazione e se non ci sono sezioni con dati
+        if (usePreferences && !hasExistingData) {
           getUserData()
             .then(data => {
               if (data?.authenticated && data?.user_data) {
@@ -314,12 +327,18 @@ const EsameForm = (function() {
       // Inizializza le sezioni di date
       window.EsameAppelli.initializeDateSections();
       
-      // Se c'è una data pre-selezionata, aggiungi la prima sezione con quella data
-      if (options.date) {
+      // Verifica se esistono già sezioni
+      const existingSections = document.querySelectorAll('.date-appello-section');
+      
+      // Se c'è una data pre-selezionata e non ci sono già sezioni, aggiungi la prima sezione
+      if (options.date && existingSections.length === 0) {
         window.EsameAppelli.addDateSection(options.date);
-      } else {
-        // Aggiungi almeno una sezione vuota
+      } else if (existingSections.length === 0) {
+        // Aggiungi almeno una sezione vuota solo se non ce ne sono già
         window.EsameAppelli.addDateSection();
+      } else if (options.date) {
+        // Se ci sono già sezioni e abbiamo una nuova data, aggiungi solo una sezione per quella data
+        window.EsameAppelli.addDateSection(options.date);
       }
       
       // Continua con il resto dell'inizializzazione
