@@ -583,10 +583,9 @@ function deleteEsame(examId) {
       if (data.success) {
         showMessage("Esame eliminato con successo", "Successo", "success");
         
-        // Chiudi il form
-        const popupOverlay = document.getElementById("popupOverlay");
-        if (popupOverlay) {
-          popupOverlay.style.display = "none";
+        // Chiudi il form usando EsameForm se disponibile
+        if (window.EsameForm && window.EsameForm.hideForm) {
+          window.EsameForm.hideForm();
         }
         
         // Ricarica la pagina per aggiornare la tabella

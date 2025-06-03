@@ -28,8 +28,7 @@ const EsameForm = (function() {
     isWeekday,
     loadAuleForDateTime,
     populateAulaSelect,
-    checkUserPermissions,
-    createConfirmationDialog
+    checkUserPermissions
   } = window.FormUtils;
 
   // Configurazione validatori e regole

@@ -264,81 +264,6 @@ const FormUtils = (function() {
     }
   }
 
-  // Helper per la gestione di popup/modal
-  function createConfirmationDialog(config) {
-    const {
-      id = 'confirmation-dialog',
-      title = 'Conferma',
-      content = '',
-      confirmText = 'Conferma',
-      cancelText = 'Annulla',
-      onConfirm = () => {},
-      onCancel = () => {}
-    } = config;
-
-    // Rimuovi dialog esistente se presente
-    const existingDialog = document.getElementById(id);
-    if (existingDialog) {
-      existingDialog.remove();
-    }
-
-    const dialogContainer = document.createElement("div");
-    dialogContainer.id = id;
-    dialogContainer.className = "specific-confirmation-overlay";
-    dialogContainer.style.display = "flex";
-
-    const dialogContent = document.createElement("div");
-    dialogContent.className = "specific-confirmation-panel";
-
-    const header = document.createElement("div");
-    header.className = "specific-confirmation-header";
-    header.innerHTML = `
-      <h2>${title}</h2>
-      <span class="form-close">&times;</span>
-    `;
-
-    const body = document.createElement("div");
-    body.className = "specific-confirmation-body";
-    body.innerHTML = content;
-
-    const footer = document.createElement("div");
-    footer.className = "specific-confirmation-footer";
-    footer.innerHTML = `
-      <button class="invia confirm-btn">${confirmText}</button>
-      <button class="invia cancel-btn" style="background-color: #6c757d;">${cancelText}</button>
-    `;
-
-    dialogContent.appendChild(header);
-    dialogContent.appendChild(body);
-    dialogContent.appendChild(footer);
-    dialogContainer.appendChild(dialogContent);
-
-    document.body.appendChild(dialogContainer);
-
-    // Event listeners
-    const removeDialog = () => {
-      if (document.body.contains(dialogContainer)) {
-        document.body.removeChild(dialogContainer);
-      }
-    };
-
-    header.querySelector('.form-close').addEventListener('click', () => {
-      removeDialog();
-      onCancel();
-    });
-
-    footer.querySelector('.confirm-btn').addEventListener('click', () => {
-      removeDialog();
-      onConfirm();
-    });
-
-    footer.querySelector('.cancel-btn').addEventListener('click', () => {
-      removeDialog();
-      onCancel();
-    });
-
-    return { dialog: dialogContainer, remove: removeDialog };
-  }
 
   // API pubblica
   return {
@@ -364,7 +289,6 @@ const FormUtils = (function() {
     loadAuleForDateTime,
     populateAulaSelect,
     checkUserPermissions,
-    createConfirmationDialog
   };
 }());
 

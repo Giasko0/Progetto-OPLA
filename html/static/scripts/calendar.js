@@ -100,8 +100,10 @@ document.addEventListener("DOMContentLoaded", function () {
       .then(data => {
         if (data.success) {
           window.showMessage("Esame eliminato con successo", "Successo", "success");
-          const popupOverlay = document.getElementById("popupOverlay");
-          if (popupOverlay) popupOverlay.style.display = "none";
+          // Chiudi il form usando EsameForm se disponibile
+          if (window.EsameForm && window.EsameForm.hideForm) {
+            window.EsameForm.hideForm();
+          }
           window.forceCalendarRefresh();
         } else {
           window.showMessage(data.message || "Errore nell'eliminazione dell'esame", "Errore", "error");

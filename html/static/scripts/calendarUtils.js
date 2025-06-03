@@ -313,18 +313,14 @@ export function setupGlobalClickListeners(dropdowns) {
 // Gestione chiusura form esami
 export function setupCloseHandlers(calendar) {
   const closeButton = document.getElementById("closeOverlay");
-  const popupOverlay = document.getElementById("popupOverlay");
-
+  
   if (closeButton) {
     closeButton.addEventListener("click", function () {
-      if (popupOverlay) popupOverlay.style.display = "none";
-    });
-  }
-
-  if (popupOverlay) {
-    popupOverlay.addEventListener("click", function (event) {
-      if (event.target === popupOverlay) {
-        popupOverlay.style.display = "none";
+      // Gestisci la chiusura del form
+      const formContainer = document.getElementById("form-container");
+      if (formContainer) {
+        formContainer.innerHTML = "";
+        formContainer.style.display = "none";
       }
     });
   }
