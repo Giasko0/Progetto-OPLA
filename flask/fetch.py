@@ -669,12 +669,15 @@ def check_esami_minimi():
                 SELECT 
                     i.id, 
                     i.titolo,
-                    COUNT(e.id) AS conteggio_esami
+                    COUNT(e.id) AS conteggio_esami,
+                    STRING_AGG(DISTINCT ic.cds, ', ' ORDER BY ic.cds) AS codici_cds
                 FROM insegnamenti i
                 LEFT JOIN esami e ON i.id = e.insegnamento 
                     AND e.docente = %s 
                     AND e.tipo_appello != %s
                     AND e.mostra_nel_calendario = true
+                JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
+                    AND ic.anno_accademico = %s
                 WHERE i.id IN %s
                 GROUP BY i.id, i.titolo
                 HAVING COUNT(e.id) < %s
@@ -682,7 +685,7 @@ def check_esami_minimi():
             """
             
             # Filtriamo per esami con meno di 8 esami previsti (minimo richiesto)
-            params = [docente, "PP", tuple(insegnamenti.keys()), 8]
+            params = [docente, "PP", planning_year, tuple(insegnamenti.keys()), 8]
                 
             cursor.execute(query, params)
             
@@ -691,7 +694,8 @@ def check_esami_minimi():
                 insegnamenti_pochi_esami.append({
                     'id': row[0],
                     'titolo': row[1],
-                    'esami_inseriti': row[2]
+                    'esami_inseriti': row[2],
+                    'codici_cds': row[3]
                 })
                 
             if not insegnamenti_pochi_esami:

@@ -26,7 +26,7 @@ function checkEsamiMinimi() {
           let content = `<p>Insegnamenti con meno di 8 esami inseriti:</p>`;
           content += `<ul style="margin-top:8px;margin-bottom:8px;padding-left:20px;">`;
           data.insegnamenti_sotto_minimo.forEach((ins) => {
-            content += `<li style="font-size:0.9em;margin-bottom:4px;">${ins.titolo}: ${ins.esami_inseriti}/8</li>`;
+            content += `<li style="font-size:0.9em;margin-bottom:4px;">${ins.titolo} (${ins.codici_cds}): ${ins.esami_inseriti}/8</li>`;
           });
           content += `</ul>`;
 
