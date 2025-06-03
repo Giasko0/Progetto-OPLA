@@ -157,22 +157,9 @@ function checkProgrammazioneDidattica(anno) {
 function updateStatus(type, text) {
   const indicator = document.getElementById('statusIndicator');
   const statusText = document.getElementById('statusText');
-  const icon = indicator.querySelector('.icon');
   
   indicator.className = `status-indicator ${type}`;
   statusText.textContent = text;
-  
-  switch(type) {
-    case 'loaded':
-      icon.textContent = '✅';
-      break;
-    case 'not-loaded':
-      icon.textContent = '❌';
-      break;
-    case 'loading':
-      icon.textContent = '⏳';
-      break;
-  }
 }
 
 function updateButtonStates(hasData) {
