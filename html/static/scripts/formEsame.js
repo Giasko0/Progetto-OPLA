@@ -466,7 +466,7 @@ const EsameForm = (function() {
       // Edit mode buttons
       const modifyBtn = document.createElement("button");
       modifyBtn.type = "submit";
-      modifyBtn.className = "invia";
+      modifyBtn.className = "form-button";
       modifyBtn.textContent = "Modifica";
       formActions.appendChild(modifyBtn);
 
@@ -475,7 +475,7 @@ const EsameForm = (function() {
         const bypassBtn = document.createElement("button");
         bypassBtn.type = "button";
         bypassBtn.id = "bypassChecksBtn";
-        bypassBtn.className = "invia bypass";
+        bypassBtn.className = "form-button bypass";
         bypassBtn.textContent = "Modifica senza controlli";
         bypassBtn.addEventListener("click", handleBypassChecksSubmit);
         formActions.appendChild(bypassBtn);
@@ -485,7 +485,7 @@ const EsameForm = (function() {
       const deleteBtn = document.createElement("button");
       deleteBtn.id = "deleteExamBtn";
       deleteBtn.type = "button";
-      deleteBtn.className = "invia danger";
+      deleteBtn.className = "form-button danger";
       deleteBtn.textContent = "Elimina Esame";
       deleteBtn.onclick = () => {
         if (confirm("Sei sicuro di voler eliminare questo esame?")) {

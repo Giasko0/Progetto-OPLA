@@ -495,7 +495,7 @@ body {
 .form-header {
   position: sticky;
   top: 0;
-  border-radius: inherit;
+  border-radius: var(--radius) var(--radius) 0 0;
   background: var(--color-bg);
   padding: 10px;
   display: flex;
