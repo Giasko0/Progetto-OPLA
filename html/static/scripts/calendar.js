@@ -140,8 +140,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         calendar = new FullCalendar.Calendar(calendarEl, {
           locale: "it",
-          initialView: 'multiMonthList',
-          duration: { months: 14 },
+          initialView: 'multiMonthGrid',
+          duration: { months: 15 },
           initialDate: initialDate,
           validRange: false, // Disabilita completamente le limitazioni di range
           selectable: true,

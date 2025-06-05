@@ -90,7 +90,9 @@ const EsameAppelli = (function() {
       }
     }
 
-    dateAppelliCounter++;
+    // Calcola il prossimo numero di sezione basandosi sulle sezioni esistenti
+    const existingSections = document.querySelectorAll('.date-appello-section');
+    dateAppelliCounter = existingSections.length + 1;
     const sectionId = `dateSection_${dateAppelliCounter}`;
 
     const section = document.createElement('div');
@@ -185,6 +187,10 @@ const EsameAppelli = (function() {
     }
     
     section.remove();
+    
+    // Aggiorna il counter basandosi sul numero di sezioni rimanenti
+    const remainingSections = document.querySelectorAll('.date-appello-section');
+    dateAppelliCounter = remainingSections.length;
     
     // Rinumera le sezioni rimanenti
     renumberDateSections();
