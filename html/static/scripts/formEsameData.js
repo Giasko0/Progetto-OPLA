@@ -286,6 +286,38 @@ const FormEsameData = (function() {
       formData.append('docente', docenteField.value);
     }
     
+    // Ottieni l'anno accademico selezionato dal cookie
+    let annoAccademico;
+    try {
+      // Usa il metodo getSelectedAcademicYear da calendarUtils se disponibile
+      if (window.getSelectedAcademicYear) {
+        annoAccademico = window.getSelectedAcademicYear();
+      } else {
+        // Fallback: recupera direttamente il cookie
+        const cookieName = "selectedAcademicYear";
+        const ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+          let c = ca[i];
+          while (c.charAt(0) === ' ') c = c.substring(1);
+          if (c.indexOf(cookieName + '=') === 0) {
+            annoAccademico = c.substring(cookieName.length + 1);
+            break;
+          }
+        }
+      }
+      
+      // Se non trovato, usa l'anno corrente come fallback
+      if (!annoAccademico) {
+        annoAccademico = new Date().getFullYear().toString();
+      }
+    } catch (error) {
+      // In caso di errore, usa l'anno corrente come fallback
+      annoAccademico = new Date().getFullYear().toString();
+      console.warn("Errore nel recupero dell'anno accademico, usato anno corrente:", error);
+    }
+    
+    formData.append('anno_accademico', annoAccademico);
+    
     // Gestisci gli insegnamenti usando InsegnamentiManager
     let insegnamentiSelected = [];
     if (window.InsegnamentiManager && typeof window.InsegnamentiManager.getSelectedInsegnamenti === 'function') {

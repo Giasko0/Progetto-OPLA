@@ -93,6 +93,67 @@ body {
   text-align: center;
 }
 
+/*---------------------------------------------HEADER CONTROLS---------------------------------------------*/
+.header-controls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  margin: 20px 0;
+  position: relative;
+}
+
+.header-controls .titolo {
+  margin: 0;
+  text-align: left;
+  width: 50%;
+}
+
+.header-controls .anno-accademico-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.anno-accademico-container label {
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.anno-accademico-select {
+  padding: 10px 15px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+  font-size: 1.1rem;
+  min-width: 180px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.anno-accademico-select:hover {
+  border-color: var(--color-blue);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.anno-accademico-select:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 3px rgba(39, 52, 139, 0.2);
+}
+
+.anno-accademico-select option {
+  padding: 10px 15px;
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+}
+
 /*------------------------------------CONTENT DIV------------------------------------*/
 .content {
   flex: 1;
@@ -1452,6 +1513,30 @@ body {
   #calendar, #form-container {
     width: 100%;
     min-width: 100%;
+  }
+
+  .header-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .header-controls .titolo {
+    width: 100%;
+    text-align: left;
+  }
+
+  .header-controls .anno-accademico-container {
+    position: static;
+    transform: none;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .anno-accademico-select {
+    min-width: 120px;
+    flex: 1;
+    max-width: 200px;
   }
 
   .message-sidebar {

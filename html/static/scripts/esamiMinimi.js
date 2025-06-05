@@ -1,6 +1,23 @@
 // Funzione per controllare gli esami minimi e mostrare avvisi nella sidebar
 function checkEsamiMinimi() {
-  fetch("/api/check-esami-minimi")
+  // Costruisci i parametri per includere l'anno selezionato
+  let params = new URLSearchParams();
+  
+  // Aggiungi l'anno selezionato se disponibile
+  const selectedYear = window.getSelectedAcademicYear ? window.getSelectedAcademicYear() : null;
+  if (selectedYear) {
+    params.append('anno', selectedYear);
+  }
+  
+  // Ottieni il docente se disponibile (per admin)
+  if (window.currentUsername) {
+    params.append('docente', window.currentUsername);
+  }
+  
+  const queryString = params.toString();
+  const url = queryString ? `/api/check-esami-minimi?${queryString}` : "/api/check-esami-minimi";
+
+  fetch(url)
     .then((response) => {
       if (!response.ok) {
         throw new Error("Errore nella richiesta API");

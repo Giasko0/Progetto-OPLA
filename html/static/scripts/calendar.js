@@ -9,7 +9,9 @@ import {
   setupDropdownClickListeners,
   setupGlobalClickListeners,
   setupCloseHandlers,
-  populateAnnoAccademicoDropdown,
+  setupAnnoAccademicoSelect,
+  getSelectedAcademicYear,
+  initSelectedAcademicYear,
   creaEventoProvvisorio,
   aggiornaAulaEventoProvvisorio,
   scrollToPrimaDataValida
@@ -18,13 +20,10 @@ import {
 document.addEventListener("DOMContentLoaded", function () {
   window.preloadUserData();
 
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth();
-  const startYear = currentMonth < 8 ? currentYear : currentYear + 1;
-  const initialDate = `${startYear}-01-01`;
+  // Inizializza l'anno selezionato dai cookie all'avvio
+  initSelectedAcademicYear();
 
-  var calendarEl = document.getElementById("calendar");
+  const calendarEl = document.getElementById("calendar");
   let userData = null;
   let currentUsername = null;
   let isAdmin = false;
@@ -126,6 +125,9 @@ document.addEventListener("DOMContentLoaded", function () {
     userData = data;
     currentUsername = data?.user_data?.username;
     isAdmin = data?.authenticated && data?.user_data?.permessi_admin;
+    
+    // Espone currentUsername globalmente per calendarUtils
+    window.currentUsername = currentUsername;
 
     Promise.all([
       loadDateValide(currentUsername),
@@ -135,14 +137,16 @@ document.addEventListener("DOMContentLoaded", function () {
         dateValide = dateValideResponse;
         dropdowns.sessioni = createDropdown("sessioni");
         dropdowns.insegnamenti = createDropdown("insegnamenti");
-        dropdowns.annoAccademico = createDropdown("annoAccademico");
         updateSessioniDropdown(dropdowns.sessioni, dateValide);
+
+        // Configura il select dell'anno accademico
+        setupAnnoAccademicoSelect();
 
         calendar = new FullCalendar.Calendar(calendarEl, {
           locale: "it",
           initialView: 'multiMonthGrid',
           duration: { months: 15 },
-          initialDate: initialDate,
+          initialDate: window.selectedAcademicYear ? `${window.selectedAcademicYear}-12-01` : new Date().toISOString().split('T')[0],
           validRange: false, // Disabilita completamente le limitazioni di range
           selectable: true,
 
@@ -164,6 +168,10 @@ document.addEventListener("DOMContentLoaded", function () {
             if (window.InsegnamentiManager) {
               const selected = window.InsegnamentiManager.getSelectedCodes();
               if (selected.length > 0) params.append("insegnamenti", selected.join(","));
+            }
+            // Aggiungi l'anno accademico selezionato
+            if (window.selectedAcademicYear) {
+              params.append("anno", window.selectedAcademicYear);
             }
 
             fetch(`/api/getEsami?${params.toString()}`)
@@ -194,18 +202,12 @@ document.addEventListener("DOMContentLoaded", function () {
           },
 
           headerToolbar: {
-            left: "pulsanteAnnoAccademico pulsanteSessioni pulsanteInsegnamenti",
+            left: "pulsanteSessioni pulsanteInsegnamenti",
             center: "multiMonthList,multiMonthGrid,listaEventi",
             right: "aggiungiEsame"
           },
 
           customButtons: {
-            pulsanteAnnoAccademico: {
-              text: "Anno Accademico",
-              click: (e) => handleDropdownButtonClick(e, "annoAccademico", calendar, dropdowns, () => {
-                populateAnnoAccademicoDropdown(dropdowns.annoAccademico);
-              })
-            },
             pulsanteSessioni: {
               text: "Sessioni",
               click: (e) => handleDropdownButtonClick(e, "sessioni", calendar, dropdowns)

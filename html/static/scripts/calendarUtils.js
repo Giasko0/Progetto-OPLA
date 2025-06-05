@@ -4,7 +4,6 @@ export function createDropdown(type) {
   dropdown.className = "calendar-dropdown";
   if (type === "sessioni") dropdown.id = "sessioniDropdown";
   if (type === "insegnamenti") dropdown.id = "insegnamentiDropdown";
-  if (type === "annoAccademico") dropdown.id = "annoAccademicoDropdown";
   document.body.appendChild(dropdown);
 
   // Aggiungi classe per stile responsive
@@ -134,6 +133,11 @@ export async function loadDateValide(docente, insegnamenti = null) {
   const selectedInsegnamenti = Array.isArray(insegnamenti) ? insegnamenti : (window.InsegnamentiManager?.getSelectedCodes() || []);
   if (selectedInsegnamenti.length > 0) {
     params.append("insegnamenti", selectedInsegnamenti.join(","));
+  }
+
+  // Aggiungi l'anno accademico selezionato
+  if (window.selectedAcademicYear) {
+    params.append("anno", window.selectedAcademicYear);
   }
 
   try {
@@ -282,8 +286,7 @@ export function setupGlobalClickListeners(dropdowns) {
     if (e.target.closest('.fc-button')) {
         const buttonClasses = e.target.closest('.fc-button').classList;
         if (buttonClasses.contains('fc-pulsanteInsegnamenti-button') ||
-            buttonClasses.contains('fc-pulsanteSessioni-button') ||
-            buttonClasses.contains('fc-pulsanteAnnoAccademico-button')) {
+            buttonClasses.contains('fc-pulsanteSessioni-button')) {
             return;
         }
     }
@@ -431,6 +434,174 @@ export async function populateAnnoAccademicoDropdown(dropdown) {
   } catch (error) {
     dropdown.innerHTML = "<div class='dropdown-error'>Errore durante il caricamento</div>";
   }
+}
+
+// Configura il select dell'anno accademico
+export async function setupAnnoAccademicoSelect() {
+  const select = document.getElementById('annoAccademicoSelect');
+  if (!select) return;
+
+  try {
+    const response = await fetch('/api/get-anni-accademici');
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    const anniAccademici = await response.json();
+
+    if (!Array.isArray(anniAccademici) || anniAccademici.length === 0) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'Nessun anno disponibile';
+      option.disabled = true;
+      select.appendChild(option);
+      return;
+    }
+
+    // Pulisci le opzioni esistenti mantenendo solo quella di default
+    select.innerHTML = '<option value="">Seleziona anno...</option>';
+
+    // Determina l'anno corrente accademico (settembre-agosto)
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const isAfterSeptember = currentDate.getMonth() >= 8; // Settembre = 8
+    const currentAcademicYear = isAfterSeptember ? currentYear : currentYear - 1;
+    
+    // Verifica se c'è un anno salvato nei cookie
+    let defaultYear = getCookie('selectedAcademicYear');
+    
+    // Se non c'è nei cookie, usa l'anno corrente se disponibile
+    if (!defaultYear) {
+      // Controlla se l'anno corrente è disponibile nell'elenco
+      if (anniAccademici.includes(currentAcademicYear.toString())) {
+        defaultYear = currentAcademicYear.toString();
+      } else {
+        // Altrimenti usa l'ultimo anno disponibile nell'elenco
+        defaultYear = anniAccademici[anniAccademici.length - 1];
+      }
+    }
+    // Verifica che l'anno trovato nei cookie sia effettivamente nell'elenco disponibile
+    else if (!anniAccademici.includes(defaultYear)) {
+      console.log(`Anno ${defaultYear} trovato nei cookie ma non disponibile nell'elenco`);
+      // Usa l'anno corrente o l'ultimo disponibile come fallback
+      if (anniAccademici.includes(currentAcademicYear.toString())) {
+        defaultYear = currentAcademicYear.toString();
+      } else {
+        defaultYear = anniAccademici[anniAccademici.length - 1];
+      }
+    }
+
+    // Aggiungi gli anni accademici
+    anniAccademici.forEach(anno => {
+      const option = document.createElement('option');
+      option.value = anno;
+      // Converti anno singolo in formato accademico (es. "2023" -> "2023/2024")
+      option.textContent = `${anno}/${parseInt(anno) + 1}`;
+      select.appendChild(option);
+    });
+
+    // Imposta l'anno di default
+    if (defaultYear && anniAccademici.includes(defaultYear)) {
+      select.value = defaultYear;
+      // Memorizza l'anno selezionato globalmente
+      window.selectedAcademicYear = defaultYear;
+      
+      // Salva nei cookie per 1 anno
+      setCookie('selectedAcademicYear', defaultYear, 365);
+      
+      // Triggera l'evento change per inizializzare tutto con l'anno di default
+      setTimeout(() => {
+        select.dispatchEvent(new Event('change'));
+      }, 100);
+    }
+
+    // Aggiungi event listener per gestire la selezione
+    select.addEventListener('change', function(e) {
+      const selectedYear = e.target.value;
+      if (selectedYear) {
+        // Memorizza l'anno selezionato globalmente
+        window.selectedAcademicYear = selectedYear;
+        
+        // Salva nei cookie per 1 anno
+        setCookie('selectedAcademicYear', selectedYear, 365);
+        
+        console.log('Anno accademico selezionato:', selectedYear);
+        
+        // Aggiorna la data iniziale del calendario a dicembre dell'anno selezionato
+        const newInitialDate = `${selectedYear}-12-01`;
+        if (window.calendar) {
+          window.calendar.gotoDate(newInitialDate);
+          // Forza il refresh del calendario con il nuovo anno
+          window.forceCalendarRefresh();
+        }
+        
+        // Aggiorna gli insegnamenti e le date valide con il nuovo anno
+        if (window.InsegnamentiManager && window.currentUsername) {
+          window.InsegnamentiManager.loadInsegnamenti(window.currentUsername, { anno: selectedYear });
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Errore nel caricamento degli anni accademici:', error);
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Errore nel caricamento';
+    option.disabled = true;
+    select.appendChild(option);
+  }
+}
+
+// Funzioni per gestire i cookie
+function setCookie(name, value, days) {
+  const expires = new Date();
+  expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+}
+
+function getCookie(name) {
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+  }
+  return null;
+}
+
+// Funzione per ottenere l'anno selezionato (prima dai cookie, poi dalla variabile globale)
+export function getSelectedAcademicYear() {
+  return window.selectedAcademicYear || getCookie('selectedAcademicYear') || null;
+}
+
+// Funzione globale per impostare l'anno selezionato e salvarlo nei cookie
+export function setSelectedAcademicYear(year) {
+  window.selectedAcademicYear = year;
+  setCookie('selectedAcademicYear', year, 365);
+}
+
+// Funzione per inizializzare l'anno selezionato dai cookie all'avvio
+export function initSelectedAcademicYear() {
+  const savedYear = getCookie('selectedAcademicYear');
+  if (savedYear) {
+    window.selectedAcademicYear = savedYear;
+    
+    // Imposta anche il valore nella select se l'elemento esiste
+    const select = document.getElementById('annoAccademicoSelect');
+    if (select) {
+      // Aspetta un momento per assicurarsi che le opzioni della select siano caricate
+      setTimeout(() => {
+        // Troviamo l'opzione corrispondente e la selezioniamo
+        for (let i = 0; i < select.options.length; i++) {
+          if (select.options[i].value === savedYear) {
+            select.selectedIndex = i;
+            break;
+          }
+        }
+      }, 50);
+    }
+  }
+  return savedYear;
 }
 
 // Crea un evento provvisorio nel calendario
@@ -588,4 +759,7 @@ if (typeof window !== 'undefined') {
   window.creaEventoProvvisorio = creaEventoProvvisorio;
   window.aggiornaAulaEventoProvvisorio = aggiornaAulaEventoProvvisorio;
   window.scrollToPrimaDataValida = scrollToPrimaDataValida;
+  window.getSelectedAcademicYear = getSelectedAcademicYear;
+  window.setSelectedAcademicYear = setSelectedAcademicYear;
+  window.initSelectedAcademicYear = initSelectedAcademicYear;
 }

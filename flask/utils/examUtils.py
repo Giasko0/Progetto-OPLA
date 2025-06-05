@@ -164,9 +164,15 @@ def generaDatiEsame():
     if not all([docente, insegnamenti]):
       return {'status': 'error', 'message': 'Dati incompleti: mancano docente o insegnamenti'}
     
-    # Anno accademico
-    current_date = datetime.now()
-    anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
+    # Anno accademico - deve essere passato dal frontend
+    anno_accademico = data.get('anno_accademico')
+    if not anno_accademico:
+      return {'status': 'error', 'message': 'Anno accademico mancante'}
+    
+    try:
+      anno_accademico = int(anno_accademico)
+    except (ValueError, TypeError):
+      return {'status': 'error', 'message': 'Anno accademico non valido'}
     
     # Restituisci dizionario con tutti i dati raccolti e validati
     return {

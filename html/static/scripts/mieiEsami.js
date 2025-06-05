@@ -5,12 +5,72 @@ document.addEventListener("DOMContentLoaded", function () {
   // Assicuriamoci che i dati utente siano precaricati
   window.preloadUserData();
   
+  // Inizializza l'anno accademico selezionato dai cookie
+  window.initSelectedAcademicYear();
+  
   // Aggiorna il titolo della pagina
   window.updatePageTitle();
+
+  // Configura il dropdown dell'anno accademico
+  setupAnnoAccademicoDropdown();
 
   // Ottieni i dati degli esami dell'utente
   fetchAndDisplayEsami();
 });
+
+// Configura il dropdown dell'anno accademico
+async function setupAnnoAccademicoDropdown() {
+  const select = document.getElementById('annoAccademicoSelect');
+  if (!select) return;
+
+  try {
+    // Carica gli anni disponibili dall'API
+    const response = await fetch('/api/get-anni-accademici');
+    if (!response.ok) {
+      throw new Error('Errore nel caricamento degli anni accademici');
+    }
+    
+    const anni = await response.json();
+    
+    // Pulisce le opzioni esistenti (eccetto la prima)
+    select.innerHTML = '<option value="">Seleziona anno</option>';
+    
+    // Aggiunge le opzioni degli anni
+    anni.forEach(anno => {
+      const option = document.createElement('option');
+      option.value = anno;
+      option.textContent = `${anno}/${anno + 1}`;
+      select.appendChild(option);
+    });
+    
+    // Imposta l'anno selezionato dal cookie se disponibile
+    const selectedYear = window.getSelectedAcademicYear ? window.getSelectedAcademicYear() : null;
+    if (selectedYear && anni.includes(parseInt(selectedYear))) {
+      select.value = selectedYear;
+    }
+    
+    // Aggiunge il listener per il cambio di selezione
+    select.addEventListener('change', function() {
+      const selectedValue = this.value;
+      if (selectedValue) {
+        // Salva la selezione nel cookie usando la funzione da calendarUtils
+        if (window.setSelectedAcademicYear) {
+          window.setSelectedAcademicYear(selectedValue);
+        }
+        // Ricarica i dati degli esami
+        fetchAndDisplayEsami();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Errore nel setup del dropdown anno accademico:', error);
+    // In caso di errore, nascondi il dropdown
+    const container = select.closest('.anno-accademico-container');
+    if (container) {
+      container.style.display = 'none';
+    }
+  }
+}
 
 // Carica gli esami dell'utente e li visualizza
 function fetchAndDisplayEsami() {
@@ -20,8 +80,20 @@ function fetchAndDisplayEsami() {
       if (data && data.authenticated && data.user_data) {
         const userData = data.user_data;
 
+        // Costruisci i parametri per includere l'anno selezionato
+        let params = new URLSearchParams();
+        
+        // Aggiungi l'anno selezionato se disponibile
+        const selectedYear = window.getSelectedAcademicYear ? window.getSelectedAcademicYear() : null;
+        if (selectedYear) {
+          params.append('anno', selectedYear);
+        }
+        
+        const queryString = params.toString();
+        const url = queryString ? `/api/getMieiEsamiInsegnamenti?${queryString}` : '/api/getMieiEsamiInsegnamenti';
+
         // Carica gli esami dell'utente usando l'API
-        fetch(`/api/getMieiEsamiInsegnamenti`)
+        fetch(url)
           .then((response) => {
             if (!response.ok) {
               throw new Error("Errore nel caricamento degli esami");
@@ -223,11 +295,21 @@ function displaySessioniEsami(data, insegnamento, container) {
   title.textContent = insegnamento;
   section.appendChild(title);
 
-  const today = new Date();
-  const currentMonth = today.getMonth() + 1;
-  const currentYear = today.getFullYear();
-  const planningYear = currentMonth >= 9 ? currentYear + 1 : currentYear;
-  const nextYear = planningYear + 1;
+  // Ottieni l'anno selezionato o usa l'ultimo disponibile
+  const selectedYear = window.getSelectedAcademicYear ? window.getSelectedAcademicYear() : null;
+  let planningYear, nextYear;
+  
+  if (selectedYear) {
+    planningYear = parseInt(selectedYear);
+    nextYear = planningYear + 1;
+  } else {
+    // Fallback al calcolo tradizionale se non c'è anno selezionato
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+    planningYear = currentMonth >= 9 ? currentYear + 1 : currentYear;
+    nextYear = planningYear + 1;
+  }
 
   const sessioni = data.insegnamenti[insegnamento];
 

@@ -14,6 +14,12 @@
   <script src="static/scripts/footer.js"></script>
   <script src="static/scripts/auth.js"></script>
   <script src="static/scripts/sidebar.js"></script>
+  <script type="module">
+    import { getSelectedAcademicYear, setSelectedAcademicYear, initSelectedAcademicYear } from './static/scripts/calendarUtils.js';
+    window.getSelectedAcademicYear = getSelectedAcademicYear;
+    window.setSelectedAcademicYear = setSelectedAcademicYear;
+    window.initSelectedAcademicYear = initSelectedAcademicYear;
+  </script>
   <script src="static/scripts/insegnamentiManager.js"></script>
   <script src="static/scripts/mieiEsami.js"></script>
   <script src="static/scripts/formEsameUtils.js"></script>
@@ -30,7 +36,15 @@
 
   <div class="content">
     <div class="content-inner">
-      <h1 class="titolo">I miei esami</h1>
+      <div class="header-controls">
+        <h1 class="titolo">I miei esami</h1>
+        <div class="anno-accademico-container">
+          <label for="annoAccademicoSelect">Anno Accademico:</label>
+          <select id="annoAccademicoSelect" class="anno-accademico-select">
+            <option value="">Seleziona anno</option>
+          </select>
+        </div>
+      </div>
 
       <div class="tabs-container">
         <div class="tabs-header" id="tabsHeader">

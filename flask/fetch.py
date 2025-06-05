@@ -10,8 +10,7 @@ def ottieni_insegnamenti_docente(docente, anno_accademico=None):
     # Ottiene gli insegnamenti di un docente.
     # Restituisce un dizionario con chiave l'ID dell'insegnamento e valore un dizionario con codice e titolo.
     if anno_accademico is None:
-        current_date = datetime.now()
-        anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
+        return {}
     
     conn = None
     cursor = None
@@ -179,6 +178,7 @@ def getEsami():
         
         docente = request.args.get('docente', None)
         insegnamenti = request.args.get('insegnamenti', None)
+        anno = request.args.get('anno', None)
         
         if not docente:
             return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
@@ -188,8 +188,12 @@ def getEsami():
             return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
         
         is_admin_user = user_data['user_data']['permessi_admin']
-        current_date = datetime.now()
-        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+        
+        # Usa l'anno passato dal frontend
+        if anno and anno.isdigit():
+            planning_year = int(anno)
+        else:
+            return jsonify({'status': 'error', 'message': 'Anno accademico mancante'}), 400
         
         # Query base per tutti gli esami del docente
         base_query = """
@@ -301,13 +305,17 @@ def miei_esami():
     
     is_admin_user = user_data['user_data']['permessi_admin']
     docente = request.args.get('docente') if is_admin_user else user_data['user_data']['username']
+    anno = request.args.get('anno')
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        current_date = datetime.now()
-        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+        # Usa l'anno passato dal frontend
+        if anno and anno.isdigit():
+            planning_year = int(anno)
+        else:
+            return jsonify({'status': 'error', 'message': 'Anno accademico mancante'}), 400
 
         insegnamenti_docente = ottieni_insegnamenti_docente(docente, planning_year)
         
@@ -432,20 +440,24 @@ def miei_esami():
         if 'conn' in locals() and conn:
             release_connection(conn)
 
-# API per ottenere le date delle sessioni d'esame
 @fetch_bp.route('/api/get-date-valide', methods=['GET'])
 def get_date_valide():
   try:
     docente = request.args.get('docente')
     insegnamenti = request.args.get('insegnamenti')
+    anno = request.args.get('anno')
     
     user_data = get_user_data().get_json()
     if not user_data['authenticated']:
         return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
     
     is_admin_user = user_data['user_data']['permessi_admin']
-    current_date = datetime.now()
-    planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+    
+    # Usa l'anno passato dal frontend
+    if anno and anno.isdigit():
+        planning_year = int(anno)
+    else:
+        return jsonify({'status': 'error', 'message': 'Anno accademico mancante'}), 400
     
     from utils.sessions import (
       ottieni_sessioni_da_cds, 
@@ -516,11 +528,11 @@ def get_insegnamenti_docente():
     if not docente:
         return jsonify({'status': 'error', 'message': 'Parametro docente mancante'}), 400
     
-    if not anno or not anno.isdigit():
-        current_date = datetime.now()
-        anno_accademico = current_date.year if current_date.month >= 9 else current_date.year - 1
-    else:
+    # Usa l'anno passato dal frontend
+    if anno and anno.isdigit():
         anno_accademico = int(anno)
+    else:
+        return jsonify({'status': 'error', 'message': 'Anno accademico mancante'}), 400
     
     user_data = get_user_data().get_json()
     if not user_data['authenticated']:
@@ -638,6 +650,7 @@ def check_esami_minimi():
         return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
     
     is_admin_user = user_data['user_data']['permessi_admin']
+    anno = request.args.get('anno')
     
     if is_admin_user:
         docente = request.args.get('docente')
@@ -648,7 +661,11 @@ def check_esami_minimi():
     
     try:
         current_date = datetime.now()
-        planning_year = current_date.year if current_date.month >= 9 else current_date.year - 1
+        # Usa l'anno passato dal frontend
+        if anno and anno.isdigit():
+            planning_year = int(anno)
+        else:
+            return jsonify({'status': 'error', 'message': 'Anno accademico mancante'}), 400
         
         # Otteniamo tutti gli insegnamenti validi del docente
         insegnamenti = ottieni_insegnamenti_docente(docente, planning_year)
