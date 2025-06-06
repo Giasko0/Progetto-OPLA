@@ -1,28 +1,15 @@
 from flask import Blueprint, request, jsonify, session
 from datetime import datetime, timedelta, date, time
 import psycopg2
-import json
-import os
 from db import get_db_connection, release_connection
-from utils.examUtils import generaDatiEsame, controllaVincoli, inserisciEsami, costruisciRispostaParziale
-from functools import wraps
+from auth import require_auth
 
 exam_bp = Blueprint('exam_bp', __name__)
 
-# Decorator per verificare il login
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'username' not in session:
-            return jsonify({'status': 'error', 'message': 'Login richiesto'}), 401
-        return f(*args, **kwargs)
-    return decorated_function
+# ================== Funzioni utility ==================
 
-# Funzione helper per la serializzazione JSON di tipi Python
 def serialize_for_json(obj):
-    """
-    Converte tipi Python non serializzabili in JSON (date, time, datetime) in stringhe.
-    """
+    """Converte tipi Python non serializzabili in JSON in stringhe."""
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
     elif isinstance(obj, time):
@@ -31,79 +18,358 @@ def serialize_for_json(obj):
         return str(obj)
     return obj
 
-@exam_bp.route('/api/inserisciEsame', methods=['POST'])
-def inserisciEsame():
-  # API per inserire un esame nel database
-  conn = None
-  cursor = None
-  
-  try:
-    # Verifica se l'utente è un admin e se ha richiesto il bypass dei controlli
-    is_admin = False
-    bypass_checks = request.form.get('bypass_checks', 'false').lower() == 'true'
-    
-    username = session.get('username')
-    if username:
-      conn = get_db_connection()
-      cursor = conn.cursor()
-      cursor.execute("SELECT permessi_admin FROM utenti WHERE username = %s", (username,))
-      result = cursor.fetchone()
-      if result and result[0]:
-        is_admin = True
-      
-      if cursor:
-        cursor.close()
-        cursor = None
-    
-    # 1. Raccolta dati dal form
-    dati_esame = generaDatiEsame()
+def check_user_permissions(exam_docente, username, is_admin):
+    """Controlla se l'utente può modificare l'esame."""
+    if is_admin:
+        return True
+    return username.lower() == exam_docente.strip().lower()
+
+def check_exam_modifiable(exam_date):
+    """Controlla se l'esame può essere modificato (almeno 7 giorni nel futuro)."""
+    today = datetime.now().date()
+    return (exam_date - today).days >= 7
+
+def get_user_admin_status(username):
+    """Ottiene lo status admin dell'utente dal database."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT permessi_admin FROM utenti WHERE username = %s", (username,))
+        result = cursor.fetchone()
+        return bool(result and result[0]) if result else False
+    except Exception:
+        return False
+    finally:
+        if conn:
+            cursor.close()
+            release_connection(conn)
+
+# ================== Funzioni per la gestione dei dati degli esami ==================
+
+def generaDatiEsame():
+    """Raccoglie i dati dal form modulare e li valida."""
+    try:
+        data = request.form
+        docente = data.get('docente')
+        
+        # Gestione insegnamenti
+        insegnamenti = request.form.getlist('insegnamenti[]')
+        if not insegnamenti:
+            return {'status': 'error', 'message': 'Nessun insegnamento selezionato'}
+        
+        # Anno accademico obbligatorio
+        anno_accademico = data.get('anno_accademico')
+        if not anno_accademico:
+            return {'status': 'error', 'message': 'Anno accademico mancante'}
+        
+        try:
+            anno_accademico = int(anno_accademico)
+        except (ValueError, TypeError):
+            return {'status': 'error', 'message': 'Anno accademico non valido'}
+        
+        # Raccolta sezioni appelli dal form
+        sezioni_appelli = []
+        descrizioni = request.form.getlist('descrizione[]')
+        date_appello = request.form.getlist('dataora[]')
+        ore_h = request.form.getlist('ora_h[]')
+        ore_m = request.form.getlist('ora_m[]')
+        durate = request.form.getlist('durata[]')
+        aule = request.form.getlist('aula[]')
+        inizi_iscrizione = request.form.getlist('inizioIscrizione[]')
+        fini_iscrizione = request.form.getlist('fineIscrizione[]')
+        verbalizzazioni = request.form.getlist('verbalizzazione[]')
+        tipi_esame = request.form.getlist('tipoEsame[]')
+        note_appelli = request.form.getlist('note[]')
+        tipi_appello = request.form.getlist('tipo_appello_radio[]')
+        mostra_calendario = request.form.getlist('mostra_nel_calendario[]')
+        
+        if not descrizioni:
+            return {'status': 'error', 'message': 'Nessuna sezione appello inserita'}
+        
+        # Processa tutte le sezioni
+        for i in range(len(descrizioni)):
+            sezione = {
+                'descrizione': descrizioni[i] if i < len(descrizioni) else '',
+                'data_appello': date_appello[i] if i < len(date_appello) else None,
+                'ora_h': ore_h[i] if i < len(ore_h) else None,
+                'ora_m': ore_m[i] if i < len(ore_m) else None,
+                'durata': durate[i] if i < len(durate) else '120',
+                'aula': aule[i] if i < len(aule) else None,
+                'inizio_iscrizione': inizi_iscrizione[i] if i < len(inizi_iscrizione) else None,
+                'fine_iscrizione': fini_iscrizione[i] if i < len(fini_iscrizione) else None,
+                'verbalizzazione': verbalizzazioni[i] if i < len(verbalizzazioni) else 'FSS',
+                'tipo_esame': tipi_esame[i] if i < len(tipi_esame) else None,
+                'note_appello': note_appelli[i] if i < len(note_appelli) else '',
+                'tipo_appello': tipi_appello[i] if i < len(tipi_appello) else 'PF',
+                'mostra_nel_calendario': (mostra_calendario[i] if i < len(mostra_calendario) else 'false').lower() == 'true'
+            }
+            
+            # Validazione campi obbligatori
+            if not all([sezione['data_appello'], sezione['ora_h'], sezione['ora_m'], sezione['aula']]):
+                continue
+            
+            # Costruisci ora e valida
+            sezione['ora_appello'] = f"{sezione['ora_h']}:{sezione['ora_m']}"
+            try:
+                ora_int = int(sezione['ora_h'])
+                if not (8 <= ora_int <= 18):
+                    return {'status': 'error', 'message': f'Ora non valida per appello {i+1}: deve essere tra 08:00 e 18:00'}
+            except (ValueError, TypeError):
+                return {'status': 'error', 'message': f'Formato ora non valido per appello {i+1}'}
+            
+            sezione['periodo'] = 1 if ora_int >= 14 else 0
+            
+            # Valida durata
+            try:
+                durata_appello = int(sezione['durata'])
+                if not (30 <= durata_appello <= 720):
+                    return {'status': 'error', 'message': f'Durata deve essere tra 30 e 720 minuti per appello {i+1}'}
+                sezione['durata_appello'] = durata_appello
+            except (ValueError, TypeError):
+                sezione['durata_appello'] = 120
+            
+            # Campi con valori fissi
+            sezione['tipo_iscrizione'] = 'SOC' if sezione['tipo_esame'] == 'SO' else sezione['tipo_esame']
+            sezione['definizione_appello'] = 'STD'
+            sezione['gestione_prenotazione'] = 'STD'
+            sezione['riservato'] = False
+            sezione['posti'] = None
+            
+            sezioni_appelli.append(sezione)
+        
+        if not sezioni_appelli:
+            return {'status': 'error', 'message': 'Nessuna sezione appello valida'}
+        
+        # Validazione finale
+        if not all([docente, insegnamenti]):
+            return {'status': 'error', 'message': 'Dati incompleti: mancano docente o insegnamenti'}
+        
+        return {
+            'insegnamenti': insegnamenti,
+            'docente': docente,
+            'sezioni_appelli': sezioni_appelli,
+            'anno_accademico': anno_accademico
+        }
+        
+    except Exception as e:
+        return {'status': 'error', 'message': f'Errore nella raccolta dati: {str(e)}'}
+
+def controllaVincoli(dati_esame):
+    """Controlla i vincoli per tutti gli esami."""
     if "status" in dati_esame and dati_esame["status"] == "error":
-      return jsonify(dati_esame), 400
+        return False, dati_esame["message"]
     
-    # 2. Se admin ha richiesto bypass, salta i controlli e inserisci direttamente
-    if is_admin and bypass_checks:
-      try:
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        insegnamenti = dati_esame['insegnamenti']
+        sezioni_appelli = dati_esame['sezioni_appelli']
+        anno_accademico = dati_esame['anno_accademico']
+        exam_id_to_exclude = dati_esame.get('exam_id')
+        
+        for sezione in sezioni_appelli:
+            data_appello = sezione['data_appello']
+            aula = sezione['aula']
+            periodo = sezione['periodo']
+            mostra_nel_calendario = sezione['mostra_nel_calendario']
+            data_esame = datetime.fromisoformat(data_appello)
+            
+            # Controllo weekend
+            if data_esame.weekday() >= 5:
+                return False, f'Non è possibile inserire esami di sabato o domenica ({data_appello})'
+            
+            # Controllo conflitti aula
+            if aula != "Studio docente DMI":
+                if exam_id_to_exclude:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM esami 
+                        WHERE aula = %s AND data_appello = %s AND periodo = %s AND id != %s
+                    """, (aula, data_appello, periodo, exam_id_to_exclude))
+                else:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM esami 
+                        WHERE aula = %s AND data_appello = %s AND periodo = %s
+                    """, (aula, data_appello, periodo))
+                
+                if cursor.fetchone()[0] > 0:
+                    return False, f'Aula {aula} già occupata in questo periodo per la data {data_appello}'
+            
+            # Controllo vincolo 14 giorni per ogni insegnamento
+            if mostra_nel_calendario:
+                for insegnamento in insegnamenti:
+                    cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+                    result = cursor.fetchone()
+                    if not result:
+                        return False, f"Insegnamento {insegnamento} non trovato"
+                    
+                    insegnamento_id, titolo_insegnamento = result
+                    
+                    # Verifica esistenza insegnamento per l'anno
+                    cursor.execute("""
+                        SELECT ic.cds FROM insegnamenti_cds ic
+                        WHERE ic.insegnamento = %s AND ic.anno_accademico = %s
+                    """, (insegnamento_id, anno_accademico))
+                    
+                    if not cursor.fetchone():
+                        return False, f"Insegnamento {titolo_insegnamento} non trovato per l'anno accademico {anno_accademico}"
+                    
+                    # Controllo 14 giorni
+                    data_min = data_esame - timedelta(days=13)
+                    data_max = data_esame + timedelta(days=13)
+                    
+                    if exam_id_to_exclude:
+                        cursor.execute("""
+                            SELECT data_appello FROM esami e
+                            WHERE e.insegnamento = %s 
+                            AND e.data_appello BETWEEN %s AND %s
+                            AND e.id != %s 
+                            AND e.mostra_nel_calendario = TRUE
+                        """, (insegnamento_id, data_min, data_max, exam_id_to_exclude))
+                    else:
+                        cursor.execute("""
+                            SELECT data_appello FROM esami e
+                            WHERE e.insegnamento = %s 
+                            AND e.data_appello BETWEEN %s AND %s
+                            AND e.mostra_nel_calendario = TRUE
+                        """, (insegnamento_id, data_min, data_max))
+                    
+                    esami_vicini = cursor.fetchall()
+                    if esami_vicini:
+                        date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
+                        return False, f"Vincolo 14 giorni violato per {titolo_insegnamento} il {data_appello}. Esami esistenti: {', '.join(date_esami)}"
+        
+        return True, None
+        
+    except Exception as e:
+        return False, f"Errore nella verifica vincoli: {str(e)}"
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            release_connection(conn)
+
+def inserisciEsami(dati_esame):
+    """Inserisce tutti gli esami nel database."""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        esami_inseriti = []
+        insegnamenti = dati_esame['insegnamenti']
+        docente = dati_esame['docente']
+        sezioni_appelli = dati_esame['sezioni_appelli']
+        anno_accademico = dati_esame['anno_accademico']
+        
+        for sezione in sezioni_appelli:
+            for insegnamento_codice in insegnamenti:
+                # Ottieni ID insegnamento
+                cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento_codice,))
+                result = cursor.fetchone()
+                if not result:
+                    raise Exception(f"Insegnamento {insegnamento_codice} non trovato")
+                
+                insegnamento_id, titolo_insegnamento = result
+                
+                # Ottieni info CDS
+                cursor.execute("""
+                    SELECT cds, curriculum FROM insegnamenti_cds 
+                    WHERE insegnamento = %s AND anno_accademico = %s LIMIT 1
+                """, (insegnamento_id, anno_accademico))
+                
+                cds_info = cursor.fetchone()
+                if not cds_info:
+                    raise Exception(f"Info CDS non trovate per {insegnamento_codice}")
+                
+                cds, curriculum = cds_info
+                
+                # Inserimento
+                cursor.execute("""
+                    INSERT INTO esami 
+                    (docente, insegnamento, aula, data_appello, ora_appello, 
+                     data_inizio_iscrizione, data_fine_iscrizione, tipo_esame, 
+                     verbalizzazione, descrizione, note_appello, tipo_appello, 
+                     definizione_appello, gestione_prenotazione, riservato, 
+                     tipo_iscrizione, periodo, durata_appello, cds, anno_accademico, 
+                     curriculum, mostra_nel_calendario)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    docente, insegnamento_id, sezione['aula'], sezione['data_appello'],
+                    sezione['ora_appello'], sezione['inizio_iscrizione'], sezione['fine_iscrizione'],
+                    sezione['tipo_esame'], sezione['verbalizzazione'], sezione['descrizione'],
+                    sezione['note_appello'], sezione['tipo_appello'], sezione['definizione_appello'],
+                    sezione['gestione_prenotazione'], sezione['riservato'], sezione['tipo_iscrizione'],
+                    sezione['periodo'], sezione['durata_appello'], cds, anno_accademico,
+                    curriculum, sezione['mostra_nel_calendario']
+                ))
+                
+                esami_inseriti.append(f"{titolo_insegnamento} - {sezione['data_appello']}")
+        
+        conn.commit()
+        return esami_inseriti
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise e
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            release_connection(conn)
+
+# ================== Endpoints API ==================
+
+@exam_bp.route('/api/inserisciEsame', methods=['POST'])
+@require_auth
+def inserisciEsame():
+    """API per inserire esami nel database."""
+    try:
+        username = session.get('username')
+        
+        # Verifica permessi admin per bypass
+        is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
+        bypass_checks = request.form.get('bypass_checks', 'false').lower() == 'true'
+        
+        # Raccolta e validazione dati
+        dati_esame = generaDatiEsame()
+        if "status" in dati_esame and dati_esame["status"] == "error":
+            return jsonify(dati_esame), 400
+        
+        # Bypass controlli se admin
+        if is_admin and bypass_checks:
+            esami_inseriti = inserisciEsami(dati_esame)
+            return jsonify({
+                'status': 'success',
+                'message': 'Esami inseriti con successo (controlli bypassati)',
+                'inserted': esami_inseriti
+            }), 200
+        
+        # Controlli vincoli
+        vincoli_ok, errore_vincoli = controllaVincoli(dati_esame)
+        if not vincoli_ok:
+            return jsonify({'status': 'error', 'message': errore_vincoli}), 400
+        
+        # Inserimento
         esami_inseriti = inserisciEsami(dati_esame)
         return jsonify({
-          'status': 'success',
-          'message': 'Esami inseriti con successo (controlli bypassati)',
-          'inserted': esami_inseriti
+            'status': 'success',
+            'message': 'Tutti gli esami sono stati inseriti con successo',
+            'inserted': esami_inseriti
         }), 200
-      except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 400
-    
-    # 3. Esegui controlli dei vincoli
-    vincoli_ok, errore_vincoli = controllaVincoli(dati_esame)
-    
-    # Se i vincoli non sono rispettati, restituisci errore
-    if not vincoli_ok:
-      return jsonify({'status': 'error', 'message': errore_vincoli}), 400
-    
-    # 4. Se tutti i vincoli sono rispettati, inserisci tutti gli esami
-    try:
-      esami_inseriti = inserisciEsami(dati_esame)
-      return jsonify({
-        'status': 'success',
-        'message': 'Tutti gli esami sono stati inseriti con successo',
-        'inserted': esami_inseriti
-      }), 200
-    except Exception as e:
-      return jsonify({'status': 'error', 'message': str(e)}), 400
 
-  except Exception as e:
-    return jsonify({'status': 'error', 'message': str(e)}), 500
-  finally:
-    if cursor:
-      cursor.close()
-    if conn:
-      release_connection(conn)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @exam_bp.route('/api/getEsameById', methods=['GET'])
+@require_auth
 def get_esame_by_id():
-    """
-    Recupera i dettagli di un esame specifico per ID.
-    Verifica se l'utente è autorizzato a modificare l'esame.
-    """
+    """Recupera i dettagli di un esame specifico per ID."""
     conn = None
     try:
         exam_id = request.args.get('id')
@@ -113,294 +379,186 @@ def get_esame_by_id():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Ottieni username e permessi admin dalla sessione
-        is_admin = session.get('admin', False)
         username = session.get('username', '')
+        is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
         
-        # Query aggiornata per recuperare tutti i campi
-        query = """
-        SELECT e.id, e.mostra_nel_calendario, e.docente, e.insegnamento, i.titolo AS insegnamento_titolo, 
-               i.codice AS insegnamento_codice, e.aula, e.data_appello, e.ora_appello,
-               e.durata_appello, e.periodo, e.tipo_appello, e.descrizione,
-               e.data_inizio_iscrizione, e.data_fine_iscrizione, e.tipo_esame,
-               e.verbalizzazione, e.note_appello, e.posti, e.definizione_appello,
-               e.gestione_prenotazione, e.riservato, e.tipo_iscrizione,
-               c.codice AS cds_codice, c.nome_corso AS cds_nome,
-               c.curriculum, e.anno_accademico
+        cursor.execute("""
+        SELECT e.*, i.titolo AS insegnamento_titolo, i.codice AS insegnamento_codice,
+               c.nome_corso AS cds_nome
         FROM esami e
         JOIN insegnamenti i ON e.insegnamento = i.id
-        JOIN cds c ON e.cds = c.codice 
-            AND e.anno_accademico = c.anno_accademico 
-            AND e.curriculum = c.curriculum
+        JOIN cds c ON e.cds = c.codice AND e.anno_accademico = c.anno_accademico 
+                   AND e.curriculum = c.curriculum
         WHERE e.id = %s
-        """
-        cursor.execute(query, (exam_id,))
+        """, (exam_id,))
+        
         esame = cursor.fetchone()
-
         if not esame:
             return jsonify({'success': False, 'message': 'Esame non trovato'}), 404
 
-        # Converti la riga in un dizionario
+        # Converti in dizionario
         columns = [desc[0] for desc in cursor.description]
         esame_dict = dict(zip(columns, esame))
 
-        # Assicuriamoci che il campo docente sia pulito
-        docente_esame = esame_dict['docente'].strip() if esame_dict['docente'] else ''
-        
-        # Verifica i permessi: solo il docente che ha creato l'esame o gli admin possono modificarlo
-        # Utilizziamo un confronto case-insensitive per essere più tolleranti
-        if not is_admin and (username.lower() != docente_esame.lower()):
-            error_msg = f"Non hai i permessi per modificare questo esame. Utente: '{username}', Docente: '{docente_esame}'"
-            print(f"ERRORE PERMESSI: {error_msg}")
-            return jsonify({'success': False, 'message': error_msg}), 403
+        # Controllo permessi
+        if not check_user_permissions(esame_dict['docente'], username, is_admin):
+            return jsonify({'success': False, 'message': 'Non hai i permessi per modificare questo esame'}), 403
 
-        # Verifica se l'esame può essere modificato (almeno 7 giorni nel futuro)
-        today = datetime.now().date()
-        exam_date = esame_dict['data_appello']
-        
-        can_modify = (exam_date - today).days >= 7
-
-        # Aggiunge l'informazione se l'esame può essere modificato
+        # Controllo modificabilità
+        can_modify = check_exam_modifiable(esame_dict['data_appello'])
         esame_dict['can_modify'] = can_modify
-        esame_dict['message'] = "" if can_modify else "L'esame non può essere modificato perché è a meno di 7 giorni dalla data attuale"
-
-        # Aggiunge flag esplicito per modalità modifica
+        esame_dict['message'] = "" if can_modify else "L'esame non può essere modificato (meno di 7 giorni)"
         esame_dict['is_edit_mode'] = True
         esame_dict['edit_id'] = exam_id
 
-        cursor.close()
-        
-        # Serializza tutti i tipi di dati non serializzabili direttamente in JSON
+        # Serializza per JSON
         for key, value in esame_dict.items():
             esame_dict[key] = serialize_for_json(value)
 
         return jsonify({'success': True, 'esame': esame_dict})
 
     except Exception as e:
-        print(f"Errore in get_esame_by_id: {str(e)}")
-        return jsonify({'success': False, 'message': f'Errore durante il recupero dell\'esame: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Errore: {str(e)}'}), 500
     finally:
         if conn:
+            cursor.close()
             release_connection(conn)
 
 @exam_bp.route('/api/updateEsame', methods=['POST'])
+@require_auth
 def update_esame():
-    """
-    Aggiorna un esame esistente.
-    Verifica che l'utente sia autorizzato a modificarlo e che la nuova data non sia anticipata.
-    """
+    """Aggiorna un esame esistente."""
     conn = None
     try:
         data = request.get_json()
         exam_id = data.get('id')
-
         if not exam_id:
             return jsonify({'success': False, 'message': 'ID esame non fornito'}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Ottieni username e permessi admin dalla sessione
-        is_admin = session.get('admin', False)
         username = session.get('username', '')
+        is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
 
-        # Ottieni i dettagli dell'esame esistente
+        # Ottieni esame esistente
         cursor.execute("SELECT * FROM esami WHERE id = %s", (exam_id,))
-        esame_esistente = cursor.fetchone()
-
-        if not esame_esistente:
+        esame = cursor.fetchone()
+        if not esame:
             return jsonify({'success': False, 'message': 'Esame non trovato'}), 404
 
-        # Converti la riga in un dizionario
         columns = [desc[0] for desc in cursor.description]
-        esame_dict = dict(zip(columns, esame_esistente))
+        esame_dict = dict(zip(columns, esame))
 
-        # Assicuriamoci che il campo docente sia pulito
-        docente_esame = esame_dict['docente'].strip() if esame_dict['docente'] else ''
-        
-        # Verifica i permessi: solo il docente che ha creato l'esame o gli admin possono modificarlo
-        # Utilizziamo un confronto case-insensitive per essere più tolleranti
-        if not is_admin and (username.lower() != docente_esame.lower()):
-            error_msg = f"Non hai i permessi per modificare questo esame. Utente: '{username}', Docente: '{docente_esame}'"
-            print(f"ERRORE PERMESSI UPDATE: {error_msg}")
-            return jsonify({'success': False, 'message': error_msg}), 403
+        # Controlli permessi e modificabilità
+        if not check_user_permissions(esame_dict['docente'], username, is_admin):
+            return jsonify({'success': False, 'message': 'Non hai i permessi per modificare questo esame'}), 403
 
-        # Verifica se l'esame può essere modificato (almeno 7 giorni nel futuro)
-        today = datetime.now().date()
-        exam_date = esame_dict['data_appello']
-        
-        if (exam_date - today).days < 7:
-            return jsonify({'success': False, 'message': 'L\'esame non può essere modificato perché è a meno di 7 giorni dalla data attuale'}), 400
+        if not check_exam_modifiable(esame_dict['data_appello']):
+            return jsonify({'success': False, 'message': 'Esame non modificabile (meno di 7 giorni)'}), 400
 
-        # Verifica che la nuova data non sia anticipata rispetto alla data originale
-        nuova_data_appello = datetime.strptime(data.get('data_appello'), '%Y-%m-%d').date()
-        if nuova_data_appello < exam_date:
-            return jsonify({'success': False, 'message': 'La nuova data non può essere anticipata rispetto alla data originale'}), 400
+        # Controllo data non anticipata
+        nuova_data = datetime.strptime(data.get('data_appello'), '%Y-%m-%d').date()
+        if nuova_data < esame_dict['data_appello']:
+            return jsonify({'success': False, 'message': 'La nuova data non può essere anticipata'}), 400
 
-        # Aggiungi l'ID dell'esame ai dati per il controllo vincoli
-        dati_esame = {
+        # Ottieni codice insegnamento per controllo vincoli
+        cursor.execute("SELECT codice FROM insegnamenti WHERE id = %s", (esame_dict['insegnamento'],))
+        insegnamento_result = cursor.fetchone()
+        if not insegnamento_result:
+            return jsonify({'success': False, 'message': 'Insegnamento non trovato'}), 400
+
+        # Prepara dati per controllo vincoli
+        dati_controllo = {
             'exam_id': exam_id,
-            'docente': data.get('docente', username),
-            'insegnamenti': [data.get('insegnamento')],
-            'aula': data.get('aula'),
-            'data_appello': data.get('data_appello'),
-            'ora_appello': data.get('ora_appello'),
-            'durata_appello': data.get('durata_appello'),
-            'periodo': data.get('periodo'),
-            'tipo_appello': data.get('tipo_appello'),
-            'inizio_iscrizione': data.get('data_inizio_iscrizione'),
-            'fine_iscrizione': data.get('data_fine_iscrizione'),
-            'tipo_esame': data.get('tipo_esame'),
-            'verbalizzazione': data.get('verbalizzazione'),
-            'descrizione': data.get('descrizione'),
-            'note_appello': data.get('note_appello'),
-            'anno_accademico': esame_dict.get('anno_accademico')
+            'insegnamenti': [insegnamento_result[0]],
+            'sezioni_appelli': [{
+                'data_appello': data.get('data_appello'),
+                'aula': data.get('aula'),
+                'periodo': data.get('periodo'),
+                'mostra_nel_calendario': data.get('mostra_nel_calendario', True)
+            }],
+            'anno_accademico': esame_dict['anno_accademico']
         }
 
-        # Esegui i controlli
-        dati_comuni, esami_validi, esami_invalidi, errore = controllaVincoli(dati_esame)
-
-        if errore:
+        # Controllo vincoli
+        vincoli_ok, errore = controllaVincoli(dati_controllo)
+        if not vincoli_ok:
             return jsonify({'success': False, 'message': errore}), 400
 
-        if not esami_validi:
-            return jsonify({'success': False, 'message': esami_invalidi[0]['errore']}), 400
-
-        # Prepara l'aggiornamento
-        update_query = """
+        # Aggiornamento
+        cursor.execute("""
         UPDATE esami SET
-            descrizione = %s,
-            tipo_appello = %s,
-            aula = %s,
-            data_appello = %s,
-            data_inizio_iscrizione = %s,
-            data_fine_iscrizione = %s,
-            ora_appello = %s,
-            durata_appello = %s,
-            periodo = %s,
-            verbalizzazione = %s,
-            definizione_appello = %s,
-            gestione_prenotazione = %s,
-            riservato = %s,
-            tipo_iscrizione = %s,
-            tipo_esame = %s,
-            condizione_sql = %s,
-            partizionamento = %s,
-            partizione = %s,
-            note_appello = %s,
-            codice_turno = %s,
-            mostra_nel_calendario = %s
+            descrizione = %s, tipo_appello = %s, aula = %s, data_appello = %s,
+            data_inizio_iscrizione = %s, data_fine_iscrizione = %s, ora_appello = %s,
+            durata_appello = %s, periodo = %s, verbalizzazione = %s,
+            tipo_esame = %s, note_appello = %s, mostra_nel_calendario = %s
         WHERE id = %s
-        RETURNING id
-        """
-
-        params = (
-            data.get('descrizione'),
-            data.get('tipo_appello'),
-            data.get('aula'),
-            data.get('data_appello'),
-            data.get('data_inizio_iscrizione'),
-            data.get('data_fine_iscrizione'),
-            data.get('ora_appello'),
-            data.get('durata_appello'),
-            data.get('periodo'),
-            data.get('verbalizzazione'),
-            data.get('definizione_appello'),
-            data.get('gestione_prenotazione'),
-            data.get('riservato', False),
-            data.get('tipo_iscrizione'),
-            data.get('tipo_esame'),
-            data.get('condizione_sql'),
-            data.get('partizionamento'),
-            data.get('partizione'),
-            data.get('note_appello'),
-            data.get('codice_turno'),
-            data.get('mostra_nel_calendario', True),
-            exam_id
-        )
-
-        cursor.execute(update_query, params)
-        updated_id = cursor.fetchone()[0]
+        """, (
+            data.get('descrizione'), data.get('tipo_appello'), data.get('aula'),
+            data.get('data_appello'), data.get('data_inizio_iscrizione'),
+            data.get('data_fine_iscrizione'), data.get('ora_appello'),
+            data.get('durata_appello'), data.get('periodo'), data.get('verbalizzazione'),
+            data.get('tipo_esame'), data.get('note_appello'),
+            data.get('mostra_nel_calendario', True), exam_id
+        ))
         
         conn.commit()
-        cursor.close()
-
-        return jsonify({
-            'success': True,
-            'message': 'Esame aggiornato con successo',
-            'id': updated_id
-        })
+        return jsonify({'success': True, 'message': 'Esame aggiornato con successo'})
 
     except Exception as e:
-        print(f"Errore in update_esame: {str(e)}")
-        return jsonify({'success': False, 'message': f'Errore durante l\'aggiornamento dell\'esame: {str(e)}'}), 500
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': f'Errore: {str(e)}'}), 500
     finally:
         if conn:
+            cursor.close()
             release_connection(conn)
 
 @exam_bp.route('/api/deleteEsame', methods=['POST'])
+@require_auth
 def delete_esame():
-    """
-    Elimina un esame esistente.
-    Verifica che l'utente sia autorizzato a eliminarlo.
-    """
+    """Elimina un esame esistente."""
     conn = None
     try:
         data = request.get_json()
         exam_id = data.get('id')
-
         if not exam_id:
             return jsonify({'success': False, 'message': 'ID esame non fornito'}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Ottieni username e permessi admin dalla sessione
-        is_admin = session.get('admin', False)
         username = session.get('username', '')
+        is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
 
-        # Ottieni i dettagli dell'esame esistente
+        # Ottieni esame
         cursor.execute("SELECT * FROM esami WHERE id = %s", (exam_id,))
-        esame_esistente = cursor.fetchone()
-
-        if not esame_esistente:
+        esame = cursor.fetchone()
+        if not esame:
             return jsonify({'success': False, 'message': 'Esame non trovato'}), 404
 
-        # Converti la riga in un dizionario
         columns = [desc[0] for desc in cursor.description]
-        esame_dict = dict(zip(columns, esame_esistente))
+        esame_dict = dict(zip(columns, esame))
 
-        # Assicuriamoci che il campo docente sia pulito
-        docente_esame = esame_dict['docente'].strip() if esame_dict['docente'] else ''
+        # Controlli
+        if not check_user_permissions(esame_dict['docente'], username, is_admin):
+            return jsonify({'success': False, 'message': 'Non hai i permessi per eliminare questo esame'}), 403
 
-        # Verifica i permessi: solo il docente che ha creato l'esame o gli admin possono eliminarlo
-        # Utilizziamo un confronto case-insensitive per essere più tolleranti
-        if not is_admin and (username.lower() != docente_esame.lower()):
-            error_msg = f"Non hai i permessi per eliminare questo esame. Utente: '{username}', Docente: '{docente_esame}'"
-            print(f"ERRORE PERMESSI DELETE: {error_msg}")
-            return jsonify({'success': False, 'message': error_msg}), 403
+        if not check_exam_modifiable(esame_dict['data_appello']):
+            return jsonify({'success': False, 'message': 'Esame non eliminabile (meno di 7 giorni)'}), 400
 
-        # Verifica se l'esame può essere eliminato (almeno 7 giorni nel futuro)
-        today = datetime.now().date()
-        exam_date = esame_dict['data_appello']
-        
-        if (exam_date - today).days < 7:
-            return jsonify({'success': False, 'message': 'L\'esame non può essere eliminato perché è a meno di 7 giorni dalla data attuale'}), 400
-
-        # Elimina l'esame
+        # Eliminazione
         cursor.execute("DELETE FROM esami WHERE id = %s", (exam_id,))
-        
         conn.commit()
-        cursor.close()
-
-        return jsonify({
-            'success': True,
-            'message': 'Esame eliminato con successo'
-        })
+        
+        return jsonify({'success': True, 'message': 'Esame eliminato con successo'})
 
     except Exception as e:
-        print(f"Errore in delete_esame: {str(e)}")
-        return jsonify({'success': False, 'message': f'Errore durante l\'eliminazione dell\'esame: {str(e)}'}), 500
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': f'Errore: {str(e)}'}), 500
     finally:
         if conn:
+            cursor.close()
             release_connection(conn)
