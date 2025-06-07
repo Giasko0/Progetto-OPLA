@@ -7,10 +7,16 @@ from db import init_db
 
 # Import dei blueprint
 from auth import auth_bp, require_auth
-from admin import admin_bp
 from fetch import fetch_bp
 from exams import exam_bp
 from user_preferences import preferences_bp
+
+# Import dei blueprint oh-issa
+from oh_issa.import_export import import_export_bp
+from oh_issa.gestione_utenti import gestione_utenti_bp
+from oh_issa.gestione_date import gestione_date_bp
+from oh_issa.common import common_bp
+from oh_issa.calendario_esami import calendario_esami_bp
 
 app = Flask(__name__)
 
@@ -25,10 +31,16 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 ore in secondi
 
 # Registrazione dei blueprint
 app.register_blueprint(auth_bp)
-app.register_blueprint(admin_bp)
 app.register_blueprint(fetch_bp)
 app.register_blueprint(preferences_bp)
 app.register_blueprint(exam_bp)
+
+# Registrazione dei blueprint oh-issa
+app.register_blueprint(import_export_bp)
+app.register_blueprint(gestione_utenti_bp)
+app.register_blueprint(gestione_date_bp)
+app.register_blueprint(common_bp)
+app.register_blueprint(calendario_esami_bp)
 
 # ===== Main =====
 if __name__ == '__main__':
