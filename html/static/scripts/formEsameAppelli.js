@@ -104,11 +104,11 @@ const EsameAppelli = (function() {
       // Carica il template HTML
       const template = await loadAppelloTemplate();
       
-      // Sostituisci i placeholder nel template
+      // Sostituisci i placeholder nel template usando JavaScript standard
       const processedTemplate = template
-        .replace(/{{COUNTER}}/g, dateAppelliCounter)
-        .replace(/{{SECTION_ID}}/g, sectionId)
-        .replace(/{{DATE}}/g, date);
+        .replace(/COUNTER_PLACEHOLDER/g, dateAppelliCounter)
+        .replace(/SECTION_ID_PLACEHOLDER/g, sectionId)
+        .replace(/DATE_PLACEHOLDER/g, date);
     
       section.innerHTML = processedTemplate;
     } catch (error) {
@@ -418,7 +418,7 @@ const EsameAppelli = (function() {
             const dateInput = document.getElementById(`dataora_${i}`);
             
             // Include la data solo se il checkbox è selezionato e la data è valida
-            if (showInCalendarCheckbox && showInCalendarCheckbox.checked && 
+            if (showInCalendarCheckbox && showInCalendar.checked && 
                 dateInput && dateInput.value) {
                 visibleSectionDates.push(dateInput.value);
             }
