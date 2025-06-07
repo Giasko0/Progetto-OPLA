@@ -346,12 +346,12 @@ export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
   today.setHours(0, 0, 0, 0);
 
   // Controlla se la data è passata
-  if (selDate < today) {
-    return {
-      isValid: false,
-      message: "Non è possibile inserire esami in date passate.",
-    };
-  }
+  // if (selDate < today) {
+  //   return {
+  //     isValid: false,
+  //     message: "Non è possibile inserire esami in date passate.",
+  //   };
+  // }
 
   // Controlla se c'è già un evento provvisorio nello stesso giorno
   if (provisionalDates && provisionalDates.length > 0) {

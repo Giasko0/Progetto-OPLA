@@ -329,13 +329,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             } else { 
                 // Logica per admin (solo date passate disabilitate)
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const comparableCellDate = new Date(cellDate.getTime());
-                comparableCellDate.setHours(0,0,0,0);
-                if (comparableCellDate < today) {
-                    return ['fc-day-disabled'];
-                }
+                // const today = new Date();
+                // today.setHours(0, 0, 0, 0);
+                // const comparableCellDate = new Date(cellDate.getTime());
+                // comparableCellDate.setHours(0,0,0,0);
+                // if (comparableCellDate < today) {
+                //     return ['fc-day-disabled'];
+                // }
             }
             return [];
           }
@@ -347,9 +347,9 @@ document.addEventListener("DOMContentLoaded", function () {
         window.calendar = calendar;
 
         // Scrolla alla prima data valida dopo il rendering del calendario
-        setTimeout(() => {
-          scrollToPrimaDataValida(dateValide);
-        }, 500);
+        // setTimeout(() => {
+        //   scrollToPrimaDataValida(dateValide);
+        // }, 500);
 
         if (window.InsegnamentiManager) {
           let debounceTimer;
