@@ -2,84 +2,31 @@
 
 // Quando il documento è pronto
 document.addEventListener("DOMContentLoaded", function () {
-  // Assicuriamoci che i dati utente siano precaricati
   window.preloadUserData();
   
-  // Inizializza l'anno accademico selezionato dai cookie
-  window.initSelectedAcademicYear();
+  // Inizializza il dropdown dell'anno accademico
+  window.AnnoAccademicoManager.initSelectedAcademicYear();
   
-  // Aggiorna il titolo della pagina
+  window.AnnoAccademicoManager.createDropdownHTML('annoAccademicoContainer', 'annoAccademicoSelect')
+    .then(() => {
+      window.AnnoAccademicoManager.onYearChange(fetchAndDisplayEsami);
+      fetchAndDisplayEsami();
+    })
+    .catch(error => {
+      console.error('Errore nella creazione del dropdown anno:', error);
+      fetchAndDisplayEsami();
+    });
+  
   window.updatePageTitle();
-
-  // Configura il dropdown dell'anno accademico
-  setupAnnoAccademicoDropdown();
-
-  // Ottieni i dati degli esami dell'utente
-  fetchAndDisplayEsami();
 });
 
-// Configura il dropdown dell'anno accademico
-async function setupAnnoAccademicoDropdown() {
-  const select = document.getElementById('annoAccademicoSelect');
-  if (!select) return;
-
-  try {
-    // Carica gli anni disponibili dall'API
-    const response = await fetch('/api/get-anni-accademici');
-    if (!response.ok) {
-      throw new Error('Errore nel caricamento degli anni accademici');
-    }
-    
-    const anni = await response.json();
-    
-    // Pulisce le opzioni esistenti (eccetto la prima)
-    select.innerHTML = '<option value="">Seleziona anno</option>';
-    
-    // Aggiunge le opzioni degli anni
-    anni.forEach(anno => {
-      const option = document.createElement('option');
-      option.value = anno;
-      option.textContent = `${anno}/${anno + 1}`;
-      select.appendChild(option);
-    });
-    
-    // Imposta l'anno selezionato dal cookie se disponibile
-    const selectedYear = window.getSelectedAcademicYear ? window.getSelectedAcademicYear() : null;
-    if (selectedYear && anni.includes(parseInt(selectedYear))) {
-      select.value = selectedYear;
-    }
-    
-    // Aggiunge il listener per il cambio di selezione
-    select.addEventListener('change', function() {
-      const selectedValue = this.value;
-      if (selectedValue) {
-        // Salva la selezione nel cookie usando la funzione da calendarUtils
-        if (window.setSelectedAcademicYear) {
-          window.setSelectedAcademicYear(selectedValue);
-        }
-        // Ricarica i dati degli esami
-        fetchAndDisplayEsami();
-      }
-    });
-    
-  } catch (error) {
-    console.error('Errore nel setup del dropdown anno accademico:', error);
-    // In caso di errore, nascondi il dropdown
-    const container = select.closest('.anno-accademico-container');
-    if (container) {
-      container.style.display = 'none';
-    }
-  }
-}
-
 // Carica gli esami dell'utente e li visualizza
 function fetchAndDisplayEsami() {
-  // Ottiene i dati dell'utente tramite la funzione centralizzata
   getUserData()
     .then((data) => {
-      if (data && data.authenticated && data.user_data) {
+      if (data?.authenticated && data?.user_data) {
         const userData = data.user_data;
-        const selectedYear = window.getSelectedAcademicYear ? window.getSelectedAcademicYear() : null;
+        const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
         
         if (!selectedYear) {
           document.getElementById("contenitoreEsami").innerHTML = 
@@ -87,13 +34,11 @@ function fetchAndDisplayEsami() {
           return;
         }
 
-        // Costruisci i parametri per gli endpoint
         const params = new URLSearchParams({
           docente: userData.username,
           anno: selectedYear
         });
 
-        // Carica prima gli insegnamenti del docente, poi gli esami
         Promise.all([
           fetch(`/api/get-insegnamenti-docente?${params}`).then(r => r.json()),
           fetch(`/api/getEsami?${params}`).then(r => r.json())
@@ -103,10 +48,7 @@ function fetchAndDisplayEsami() {
             throw new Error('Errore nel caricamento degli insegnamenti');
           }
 
-          // Trasforma i dati per mantenere compatibilità con il resto del codice
           const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.username);
-          
-          // Visualizza i dati usando la stessa logica esistente
           displayEsamiData(processedData);
         })
         .catch((error) => {
@@ -202,291 +144,7 @@ function determinaSessioneEsame(dataEsame) {
   // Logica per determinare la sessione in base al mese e all'anno accademico
   if (mese >= 1 && mese <= 2) {
     // Gennaio-Febbraio: può essere Anticipata o Invernale a seconda dell'anno accademico
-    const selectedYear = window.getSelectedAcademicYear ? parseInt(window.getSelectedAcademicYear()) : null;
-    if (selectedYear) {
-      // Se l'anno corrente è l'anno accademico di riferimento + 1, è Invernale
-      // Altrimenti è Anticipata
-      return anno === selectedYear + 1 ? 'Invernale' : 'Anticipata';
-    }
-    // Fallback: considera come Anticipata
-    return 'Anticipata';
-  } else if (mese >= 6 && mese <= 7) {
-    return 'Estiva'; // Giugno-Luglio
-  } else if (mese === 9) {
-    return 'Autunnale'; // Settembre
-  }
-  
-  return null; // Per date che non rientrano nei periodi standard
-}
-
-// Funzioni di utilità per formattazione date
-function formatDateOnly(date) {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-}
-
-function formatTimeOnly(date) {
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-}
-
-// Visualizza i dati usando la logica esistente
-function displayEsamiData(data) {
-  const tabsHeader = document.getElementById("tabsHeader");
-  const container = document.getElementById("contenitoreEsami");
-  const allExamsButton = document.getElementById("allExamsButton");
-  
-  container.innerHTML = "";
-  tabsHeader.innerHTML = "";
-  tabsHeader.appendChild(allExamsButton);
-
-  const insegnamenti = Object.keys(data.insegnamenti);
-  window.esamiData = data;
-
-  // Crea i pulsanti dei tabs
-  insegnamenti.forEach((insegnamento, index) => {
-    const tabButton = document.createElement("button");
-    tabButton.className = "tab-button";
-    tabButton.textContent = insegnamento;
-    tabButton.onclick = function () {
-      window.location.href = `?insegnamento=${encodeURIComponent(insegnamento)}`;
-    };
-    tabsHeader.appendChild(tabButton);
-
-    // Crea il contenuto del tab
-    const tabContent = document.createElement("div");
-    tabContent.className = "tab-content";
-    tabContent.style.display = "none";
-    tabContent.id = `tab-${insegnamento.replace(/\s+/g, "-")}`;
-
-    displaySessioniEsami(data, insegnamento, tabContent);
-    displayTabelleEsami(data, insegnamento, tabContent);
-
-    container.appendChild(tabContent);
-  });
-
-  // Crea il tab per "Tutti gli appelli"
-  const allExamsTab = document.createElement("div");
-  allExamsTab.className = "tab-content";
-  allExamsTab.id = "tab-all-exams";
-  allExamsTab.style.display = "none";
-  displayAllExams(data, allExamsTab);
-  container.appendChild(allExamsTab);
-
-  // Gestione parametri URL per mostrare il tab corretto
-  const urlParams = new URLSearchParams(window.location.search);
-  const insegnamentoParam = urlParams.get("insegnamento");
-
-  if (insegnamentoParam) {
-    const tabId = `tab-${insegnamentoParam.replace(/\s+/g, "-")}`;
-    const tab = document.getElementById(tabId);
-
-    if (tab) {
-      tab.style.display = "block";
-      const buttons = document.querySelectorAll(".tab-button");
-      buttons.forEach((button) => {
-        if (button.textContent === insegnamentoParam) {
-          button.classList.add("active");
-        }
-      });
-    } else {
-      allExamsTab.style.display = "block";
-      allExamsButton.classList.add("active");
-    }
-  } else {
-    allExamsTab.style.display = "block";
-    allExamsButton.classList.add("active");
-  }
-}
-
-// Configura il dropdown dell'anno accademico
-async function setupAnnoAccademicoDropdown() {
-  const select = document.getElementById('annoAccademicoSelect');
-  if (!select) return;
-
-  try {
-    // Carica gli anni disponibili dall'API
-    const response = await fetch('/api/get-anni-accademici');
-    if (!response.ok) {
-      throw new Error('Errore nel caricamento degli anni accademici');
-    }
-    
-    const anni = await response.json();
-    
-    // Pulisce le opzioni esistenti (eccetto la prima)
-    select.innerHTML = '<option value="">Seleziona anno</option>';
-    
-    // Aggiunge le opzioni degli anni
-    anni.forEach(anno => {
-      const option = document.createElement('option');
-      option.value = anno;
-      option.textContent = `${anno}/${anno + 1}`;
-      select.appendChild(option);
-    });
-    
-    // Imposta l'anno selezionato dal cookie se disponibile
-    const selectedYear = window.getSelectedAcademicYear ? window.getSelectedAcademicYear() : null;
-    if (selectedYear && anni.includes(parseInt(selectedYear))) {
-      select.value = selectedYear;
-    }
-    
-    // Aggiunge il listener per il cambio di selezione
-    select.addEventListener('change', function() {
-      const selectedValue = this.value;
-      if (selectedValue) {
-        // Salva la selezione nel cookie usando la funzione da calendarUtils
-        if (window.setSelectedAcademicYear) {
-          window.setSelectedAcademicYear(selectedValue);
-        }
-        // Ricarica i dati degli esami
-        fetchAndDisplayEsami();
-      }
-    });
-    
-  } catch (error) {
-    console.error('Errore nel setup del dropdown anno accademico:', error);
-    // In caso di errore, nascondi il dropdown
-    const container = select.closest('.anno-accademico-container');
-    if (container) {
-      container.style.display = 'none';
-    }
-  }
-}
-
-// Carica gli esami dell'utente e li visualizza
-function fetchAndDisplayEsami() {
-  // Ottiene i dati dell'utente tramite la funzione centralizzata
-  getUserData()
-    .then((data) => {
-      if (data && data.authenticated && data.user_data) {
-        const userData = data.user_data;
-        const selectedYear = window.getSelectedAcademicYear ? window.getSelectedAcademicYear() : null;
-        
-        if (!selectedYear) {
-          document.getElementById("contenitoreEsami").innerHTML = 
-            '<div class="error-message">Seleziona un anno accademico per visualizzare gli esami</div>';
-          return;
-        }
-
-        // Costruisci i parametri per gli endpoint
-        const params = new URLSearchParams({
-          docente: userData.username,
-          anno: selectedYear
-        });
-
-        // Carica prima gli insegnamenti del docente, poi gli esami
-        Promise.all([
-          fetch(`/api/get-insegnamenti-docente?${params}`).then(r => r.json()),
-          fetch(`/api/getEsami?${params}`).then(r => r.json())
-        ])
-        .then(([insegnamentiResponse, esamiData]) => {
-          if (insegnamentiResponse.status !== 'success') {
-            throw new Error('Errore nel caricamento degli insegnamenti');
-          }
-
-          // Trasforma i dati per mantenere compatibilità con il resto del codice
-          const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.username);
-          
-          // Visualizza i dati usando la stessa logica esistente
-          displayEsamiData(processedData);
-        })
-        .catch((error) => {
-          console.error("Errore:", error);
-          document.getElementById("contenitoreEsami").innerHTML = 
-            `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
-        });
-      }
-    })
-    .catch((error) => {
-      console.error("Errore nell'ottenimento dati utente:", error);
-      document.getElementById("contenitoreEsami").innerHTML = 
-        `<div class="error-message">Si è verificato un errore nell'ottenimento dei dati: ${error.message}</div>`;
-    });
-}
-
-// Processa i dati per mantenerli compatibili con il formato esistente
-function processDataForDisplay(cdsData, esamiData, username) {
-  const insegnamenti = {};
-  const esamiProcessed = [];
-  
-  // Estrai tutti gli insegnamenti del docente con informazioni CdS
-  const insegnamentiDocente = new Map();
-  cdsData.forEach(cds => {
-    cds.insegnamenti.forEach(ins => {
-      insegnamentiDocente.set(ins.titolo, {
-        codice: ins.codice,
-        cds_codice: ins.cds_codice || cds.codice,
-        cds_nome: ins.cds_nome || cds.nome
-      });
-      
-      // Inizializza il conteggio esami per ogni insegnamento
-      if (!insegnamenti[ins.titolo]) {
-        insegnamenti[ins.titolo] = {
-          'Anticipata': 0,
-          'Estiva': 0, 
-          'Autunnale': 0,
-          'Invernale': 0
-        };
-      }
-    });
-  });
-
-  // Processa gli esami del docente
-  esamiData.forEach(esame => {
-    // Considera solo gli esami del docente corrente che sono suoi insegnamenti
-    if (esame.extendedProps.insegnamentoDocente && esame.extendedProps.docente === username) {
-      
-      // Determina la sessione dalla data dell'esame
-      const dataEsame = new Date(esame.start);
-      const sessione = determinaSessioneEsame(dataEsame);
-      
-      // Ottieni informazioni CdS dall'insegnamento o dai dati extended
-      const insegnamentoInfo = insegnamentiDocente.get(esame.title) || {};
-      
-      // Formato compatibile con il codice esistente
-      const esameFormatted = {
-        id: esame.id,
-        docente: esame.extendedProps.docente,
-        docenteNome: esame.extendedProps.docenteNome,
-        insegnamento: esame.title,
-        aula: esame.aula || 'N/A',
-        data: formatDateOnly(dataEsame),
-        ora: formatTimeOnly(dataEsame),
-        dataora: esame.start,
-        cds: esame.extendedProps.nome_cds || insegnamentoInfo.cds_nome || 'N/A',
-        codice_cds: esame.extendedProps.codice_cds || insegnamentoInfo.cds_codice || 'N/A',
-        durata_appello: esame.extendedProps.durata_appello || 120,
-        tipo_appello: esame.extendedProps.tipo_appello || 'F',
-        categoria: esame.extendedProps.categoria || 'standard'
-      };
-      
-      esamiProcessed.push(esameFormatted);
-      
-      // Conta gli esami per sessione (escludi prove parziali)
-      if (esame.extendedProps.tipo_appello !== 'PP' && sessione && insegnamenti[esame.title]) {
-        insegnamenti[esame.title][sessione]++;
-      }
-    }
-  });
-
-  return {
-    esami: esamiProcessed,
-    insegnamenti: insegnamenti
-  };
-}
-
-// Determina la sessione in base alla data dell'esame usando le stesse regole del backend
-function determinaSessioneEsame(dataEsame) {
-  const mese = dataEsame.getMonth() + 1; // getMonth() è 0-based
-  const anno = dataEsame.getFullYear();
-  
-  // Logica per determinare la sessione in base al mese e all'anno accademico
-  if (mese >= 1 && mese <= 2) {
-    // Gennaio-Febbraio: può essere Anticipata o Invernale a seconda dell'anno accademico
-    const selectedYear = window.getSelectedAcademicYear ? parseInt(window.getSelectedAcademicYear()) : null;
+    const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
     if (selectedYear) {
       // Se l'anno corrente è l'anno accademico di riferimento + 1, è Invernale
       // Altrimenti è Anticipata
@@ -681,7 +339,8 @@ function displaySessioniEsami(data, insegnamento, container) {
   title.textContent = insegnamento;
   section.appendChild(title);
 
-  const selectedYear = window.getSelectedAcademicYear ? window.getSelectedAcademicYear() : null;
+  const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
+    
   let planningYear, nextYear;
   
   if (selectedYear) {

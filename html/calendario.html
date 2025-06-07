@@ -14,16 +14,17 @@
   <script src="static/scripts/auth.js"></script>
   <script src="static/scripts/navbar.js"></script>
   <script src="static/scripts/footer.js"></script>
+  <script src="static/scripts/sidebar.js"></script>
+  <script src="static/scripts/annoAccademico.js" type="module"></script>
   <script src="static/scripts/esamiMinimi.js"></script>
-  <script src="static/scripts/insegnamentiManager.js"></script>
   <script src="static/scripts/formEsameUtils.js"></script>
+  <script src="static/scripts/insegnamentiManager.js"></script>
   <script src="static/scripts/formEsameAutosave.js"></script>
   <script src="static/scripts/formEsamePreferenze.js"></script>
   <script src="static/scripts/formEsameAppelli.js"></script>
   <script src="static/scripts/formEsameControlli.js"></script>
   <script src="static/scripts/formEsameData.js"></script>
   <script src="static/scripts/formEsame.js"></script>
-  <script src="static/scripts/sidebar.js"></script>
   <script src="static/scripts/calendar.js" type="module"></script>
 </head>
 
@@ -34,11 +35,8 @@
     <div class="content-inner">
       <div class="header-controls">
         <h1 class="titolo">Benvenuto, utente! - Fai il login per iniziare.</h1>
-        <div class="anno-accademico-container">
-          <label for="annoAccademicoSelect">Anno Accademico:</label>
-          <select id="annoAccademicoSelect" class="anno-accademico-select">
-            <option value="">Seleziona anno</option>
-          </select>
+        <div id="annoAccademicoContainer">
+          <!-- Il dropdown dell'anno accademico verrà generato qui -->
         </div>
       </div>
 

@@ -577,20 +577,6 @@ const EsameAppelli = (function() {
     return false;
   }
   
-  // Modificata per prevenire la creazione di eventi duplicati usando la funzione unificata
-  function createProvisionalEventForDate(date, sectionNumber = null) {
-    if (!window.calendar || !date) {
-      return;
-    }
-
-    // Usa la funzione unificata importata da calendarUtils
-    const provisionalEvent = window.creaEventoProvvisorio(date, window.calendar, window.provisionalEvents || [], sectionNumber);
-    
-    if (provisionalEvent && window.updateDateValideWithExclusions) {
-      window.updateDateValideWithExclusions();
-    }
-  }
-  
   function updateAuleForSection(counter) {
     const dateInput = document.getElementById(`dataora_${counter}`);
     const oraH = document.getElementById(`ora_h_${counter}`);
@@ -617,28 +603,51 @@ const EsameAppelli = (function() {
     
     const periodo = parseInt(ora_hValue) >= 14 ? 1 : 0;
     
-    loadAuleForDateTime(data, periodo)
-      .then(aule => {
-        populateAulaSelect(aulaSelect, aule, true);
-        
-        // Aggiungi listener per aggiornare l'evento provvisorio quando cambia l'aula
-        aulaSelect.addEventListener('change', function() {
-          if (window.aggiornaAulaEventoProvvisorio && window.calendar && window.provisionalEvents) {
-            window.aggiornaAulaEventoProvvisorio(data, this.value, window.calendar, window.provisionalEvents);
+    if (window.FormUtils && window.FormUtils.loadAuleForDateTime) {
+      window.FormUtils.loadAuleForDateTime(data, periodo)
+        .then(aule => {
+          if (window.FormUtils.populateAulaSelect) {
+            window.FormUtils.populateAulaSelect(aulaSelect, aule, true);
           }
+          
+          // Aggiungi listener per aggiornare l'evento provvisorio quando cambia l'aula
+          aulaSelect.addEventListener('change', function() {
+            if (window.EsameAppelli && window.EsameAppelli.updateEventAula) {
+              window.EsameAppelli.updateEventAula(data, this.value);
+            }
+          });
+        })
+        .catch(error => {
+          console.error("Errore nel recupero delle aule:", error);
+          aulaSelect.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
+          
+          const option = document.createElement("option");
+          option.value = "Studio docente DMI";
+          option.textContent = "Studio docente DMI";
+          aulaSelect.appendChild(option);
         });
-      })
-      .catch(error => {
-        console.error("Errore nel recupero delle aule:", error);
-        aulaSelect.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
-        
-        const option = document.createElement("option");
-        option.value = "Studio docente DMI";
-        option.textContent = "Studio docente DMI";
-        aulaSelect.appendChild(option);
-      });
+    }
   }
-  
+
+  // Funzione per aggiornare l'aula di un evento provvisorio
+  function updateEventAula(date, aula) {
+    if (!window.calendar || !window.provisionalEvents) return false;
+
+    const provisionalEvent = window.provisionalEvents.find(event => 
+      event.start === date || (event.extendedProps && event.extendedProps.formSectionDate === date)
+    );
+
+    if (!provisionalEvent) return false;
+
+    const calendarEvent = window.calendar.getEventById(provisionalEvent.id);
+    if (!calendarEvent) return false;
+
+    calendarEvent.setExtendedProp('aula', aula || '');
+    provisionalEvent.extendedProps.aula = aula || '';
+
+    return true;
+  }
+
   // Reset function
   function resetSections() {
     dateAppelliCounter = 0;
@@ -690,6 +699,93 @@ const EsameAppelli = (function() {
     container.appendChild(addButton);
   }
 
+  // Utilizza la funzione unificata da calendarUtils
+  function createProvisionalEventForDate(date, sectionNumber = null) {
+    if (!window.calendar || !date) {
+      return;
+    }
+
+    // Controlla se esiste già un evento provvisorio per questa data
+    const existingEvent = window.provisionalEvents?.find(event => 
+      event.start === date || (event.extendedProps && event.extendedProps.formSectionDate === date)
+    );
+    
+    if (existingEvent) {
+      return existingEvent;
+    }
+
+    // Inizializza l'array se non esiste
+    if (!window.provisionalEvents) {
+      window.provisionalEvents = [];
+    }
+
+    // Genera un ID unico per l'evento
+    const provisionalEventId = `provisional_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Crea l'oggetto evento con valori di default
+    const provisionalEvent = {
+      id: provisionalEventId,
+      start: date,
+      allDay: true,
+      backgroundColor: '#77DD77',
+      borderColor: '#77DD77',
+      textColor: '#000',
+      title: 'Nuovo esame',
+      extendedProps: {
+        isProvisional: true,
+        formSectionDate: date,
+        sectionNumber: sectionNumber,
+        aula: ''
+      }
+    };
+
+    // Aggiungi l'evento al calendario
+    const calendarEvent = window.calendar.addEvent(provisionalEvent);
+    
+    if (calendarEvent) {
+      // Aggiungi alla lista degli eventi provvisori
+      window.provisionalEvents.push(provisionalEvent);
+      
+      if (window.updateDateValideWithExclusions) {
+        window.updateDateValideWithExclusions();
+      }
+      
+      return provisionalEvent;
+    }
+    
+    return null;
+  }
+
+  // Centralizza la gestione degli eventi provvisori
+  function clearProvisionalEvents() {
+    if (window.calendar && window.provisionalEvents) {
+      window.provisionalEvents.forEach(event => {
+        const calendarEvent = window.calendar.getEventById(event.id);
+        if (calendarEvent) {
+          calendarEvent.remove();
+        }
+      });
+      window.provisionalEvents.length = 0;
+    }
+  }
+
+  function removeProvisionalEventsByIds(eventIds) {
+    if (!window.calendar || !window.provisionalEvents) return;
+    
+    const ids = Array.isArray(eventIds) ? eventIds : [eventIds];
+    ids.forEach(eventId => {
+      const calendarEvent = window.calendar.getEventById(eventId);
+      if (calendarEvent) {
+        calendarEvent.remove();
+      }
+      
+      const index = window.provisionalEvents.findIndex(ev => ev.id === eventId);
+      if (index > -1) {
+        window.provisionalEvents.splice(index, 1);
+      }
+    });
+  }
+
   // Interfaccia pubblica
   return {
     addDateSection,
@@ -702,12 +798,15 @@ const EsameAppelli = (function() {
     validateDateConstraints,
     handleDateInputChange,
     updateAuleForSection,
+    updateEventAula,
     resetSections,
     getSelectedDates: () => [...selectedDates],
     getDateAppelliCounter: () => dateAppelliCounter,
     combineDurataForSection,
     aggiornaVerbalizzazioneForSection,
-    validateAllDates
+    validateAllDates,
+    clearProvisionalEvents,
+    removeProvisionalEventsByIds
   };
 }());
 

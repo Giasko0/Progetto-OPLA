@@ -109,13 +109,16 @@ body {
   width: 50%;
 }
 
-.header-controls .anno-accademico-container {
+.header-controls #annoAccademicoContainer {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
+}
+
+.header-controls .anno-accademico-container {
+  gap: 10px;
 }
 
 .anno-accademico-container label {
@@ -1274,30 +1277,6 @@ body {
 
 .filter-controls {
   margin-bottom: 20px;
-}
-
-.selezione-anno {
-  position: relative;
-  display: inline-block;
-}
-
-.selezione-anno-menu {
-  display: none;
-  position: absolute;
-  background-color: var(--color-bg-light);
-  min-width: 160px;
-  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
-  z-index: 1;
-  border-radius: 4px;
-}
-
-.selezione-anno-item {
-  padding: 12px 16px;
-  cursor: pointer;
-}
-
-.selezione-anno-item:hover {
-  background-color: var(--color-bg);
 }
 
 .exam-container {

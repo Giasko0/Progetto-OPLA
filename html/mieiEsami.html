@@ -10,39 +10,31 @@
   <script src="static/scripts/darkMode.js"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <title>I Miei Esami</title>
+  <script src="static/scripts/auth.js"></script>
   <script src="static/scripts/navbar.js"></script>
   <script src="static/scripts/footer.js"></script>
-  <script src="static/scripts/auth.js"></script>
   <script src="static/scripts/sidebar.js"></script>
-  <script type="module">
-    import { getSelectedAcademicYear, setSelectedAcademicYear, initSelectedAcademicYear } from './static/scripts/calendarUtils.js';
-    window.getSelectedAcademicYear = getSelectedAcademicYear;
-    window.setSelectedAcademicYear = setSelectedAcademicYear;
-    window.initSelectedAcademicYear = initSelectedAcademicYear;
-  </script>
-  <script src="static/scripts/insegnamentiManager.js"></script>
-  <script src="static/scripts/mieiEsami.js"></script>
+  <script src="static/scripts/annoAccademico.js" type="module"></script>
   <script src="static/scripts/formEsameUtils.js"></script>
+  <script src="static/scripts/insegnamentiManager.js"></script>
   <script src="static/scripts/formEsameAutosave.js"></script>
   <script src="static/scripts/formEsamePreferenze.js"></script>
   <script src="static/scripts/formEsameAppelli.js"></script>
   <script src="static/scripts/formEsameControlli.js"></script>
   <script src="static/scripts/formEsameData.js"></script>
   <script src="static/scripts/formEsame.js"></script>
+  <script src="static/scripts/mieiEsami.js"></script>
 </head>
 
 <body>
-  <div id="navbar"></div> <!-- Contenitore per la navbar generata da JavaScript -->
+  <div id="navbar"></div>
 
   <div class="content">
     <div class="content-inner">
       <div class="header-controls">
         <h1 class="titolo">I miei esami</h1>
-        <div class="anno-accademico-container">
-          <label for="annoAccademicoSelect">Anno Accademico:</label>
-          <select id="annoAccademicoSelect" class="anno-accademico-select">
-            <option value="">Seleziona anno</option>
-          </select>
+        <div id="annoAccademicoContainer">
+          <!-- Il dropdown dell'anno accademico verrà generato qui da annoAccademico.js -->
         </div>
       </div>
 

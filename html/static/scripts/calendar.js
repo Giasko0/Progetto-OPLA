@@ -9,19 +9,13 @@ import {
   setupDropdownClickListeners,
   setupGlobalClickListeners,
   setupCloseHandlers,
-  setupAnnoAccademicoSelect,
-  getSelectedAcademicYear,
-  initSelectedAcademicYear,
-  creaEventoProvvisorio,
-  aggiornaAulaEventoProvvisorio,
   scrollToPrimaDataValida
 } from "./calendarUtils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   window.preloadUserData();
-
-  // Inizializza l'anno selezionato dai cookie all'avvio
-  initSelectedAcademicYear();
+  
+  window.AnnoAccademicoManager.initSelectedAcademicYear();
 
   const calendarEl = document.getElementById("calendar");
   let userData = null;
@@ -30,46 +24,15 @@ document.addEventListener("DOMContentLoaded", function () {
   let dateValide = [];
   let eventsCache = [];
   let lastFetchTime = 0;
-  let dropdowns = { insegnamenti: null, sessioni: null, annoAccademico: null };
+  let dropdowns = { insegnamenti: null, sessioni: null };
   let calendar = null;
 
-  // Array per tenere traccia degli eventi provvisori aggiunti
-  let provisionalEvents = [];
-
-  // Funzione per rimuovere un evento provvisorio
-  function removeProvisionalEvent(eventId) {
-    const event = calendar.getEventById(eventId);
-    if (event) {
-      event.remove();
+  // Delega la gestione degli eventi provvisori a EsameAppelli
+  window.clearCalendarProvisionalEvents = function() {
+    if (window.EsameAppelli && window.EsameAppelli.clearProvisionalEvents) {
+      window.EsameAppelli.clearProvisionalEvents();
     }
-    provisionalEvents = provisionalEvents.filter(ev => ev.id !== eventId);
-  }
-
-  // Funzione per rimuovere eventi provvisori specifici (esposta globalmente)
-  function removeProvisionalEvents(eventIds) {
-    const ids = Array.isArray(eventIds) ? eventIds : [eventIds];
-    ids.forEach(eventId => {
-      removeProvisionalEvent(eventId);
-    });
-  }
-
-  // Funzione per pulire tutti gli eventi provvisori
-  function clearProvisionalEvents() {
-    provisionalEvents.forEach(event => {
-      const calendarEvent = calendar.getEventById(event.id);
-      if (calendarEvent) {
-        calendarEvent.remove();
-      }
-    });
-    provisionalEvents = [];
-  }
-
-  // Espone le funzioni e variabili per la gestione degli eventi provvisori
-  window.clearCalendarProvisionalEvents = clearProvisionalEvents;
-  window.removeProvisionalEvents = removeProvisionalEvents;
-  window.provisionalEvents = provisionalEvents;
-  window.creaEventoProvvisorio = creaEventoProvvisorio;
-  window.aggiornaAulaEventoProvvisorio = aggiornaAulaEventoProvvisorio;
+  };
 
   window.forceCalendarRefresh = function () {
     eventsCache = [];
@@ -126,7 +89,6 @@ document.addEventListener("DOMContentLoaded", function () {
     currentUsername = data?.user_data?.username;
     isAdmin = data?.authenticated && data?.user_data?.permessi_admin;
     
-    // Espone currentUsername globalmente per calendarUtils
     window.currentUsername = currentUsername;
 
     Promise.all([
@@ -139,14 +101,23 @@ document.addEventListener("DOMContentLoaded", function () {
         dropdowns.insegnamenti = createDropdown("insegnamenti");
         updateSessioniDropdown(dropdowns.sessioni, dateValide);
 
-        // Configura il select dell'anno accademico
-        setupAnnoAccademicoSelect();
+        window.AnnoAccademicoManager.createDropdownHTML('annoAccademicoContainer', 'annoAccademicoSelect')
+          .then(() => {
+            window.AnnoAccademicoManager.onYearChange((newYear) => {
+              if (calendar) {
+                calendar.gotoDate(`${newYear}-12-01`);
+                window.forceCalendarRefresh?.();
+              }
+            });
+          });
 
         calendar = new FullCalendar.Calendar(calendarEl, {
           locale: "it",
           initialView: 'multiMonthGrid',
           duration: { months: 15 },
-          initialDate: window.selectedAcademicYear ? `${window.selectedAcademicYear}-12-01` : new Date().toISOString().split('T')[0],
+          initialDate: window.AnnoAccademicoManager?.getSelectedAcademicYear() ? 
+            `${window.AnnoAccademicoManager.getSelectedAcademicYear()}-12-01` : 
+            new Date().toISOString().split('T')[0],
           validRange: false, // Disabilita completamente le limitazioni di range
           selectable: true,
 
@@ -241,33 +212,18 @@ document.addEventListener("DOMContentLoaded", function () {
             const selDate = info.date;
             const selDateFormatted = formatDateForInput(selDate);
 
-            // Filtra gli eventi provvisori per includere solo quelli con "Apertura appelli" attivo
+            // Utilizza EsameAppelli per ottenere le date provvisorie visibili
             const visibleProvisionalDates = [];
             
-            if (window.provisionalEvents) {
-              window.provisionalEvents.forEach(event => {
-                // Controlla se l'evento corrisponde a una sezione con "Apertura appelli" attivo
-                const sectionNumber = event.extendedProps?.sectionNumber;
-                
-                if (sectionNumber) {
-                  const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${sectionNumber}`);
-                  
-                  if (showInCalendarCheckbox && showInCalendarCheckbox.checked) {
-                    visibleProvisionalDates.push(event.start);
-                  }
-                } else {
-                  // Per eventi provvisori creati dal calendario (senza sezione associata)
-                  // li includiamo sempre perché rappresentano un "nuovo esame" generico
-                  visibleProvisionalDates.push(event.start);
-                }
-              });
+            if (window.EsameAppelli && window.EsameAppelli.getSelectedDates) {
+              const selectedDates = window.EsameAppelli.getSelectedDates();
+              visibleProvisionalDates.push(...selectedDates);
             }
 
             const validationResult = isDateValid(selDate, dateValide, visibleProvisionalDates);
 
             if (!validationResult.isValid) {
               if (validationResult.isSameDayConflict) {
-                // Mostra notifica nella sidebar per conflitto stesso giorno
                 if (window.showMessage) {
                   window.showMessage(
                     'Non è possibile inserire due esami nello stesso giorno.',
@@ -277,7 +233,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 return;
               } else if (validationResult.isProvisionalConflict) {
-                // Mostra notifica nella sidebar per conflitto 14 giorni
                 if (window.showMessage) {
                   window.showMessage(
                     'Non è possibile inserire esami a meno di 14 giorni di distanza da altri eventi con proprietà "Apertura appelli".',
@@ -287,7 +242,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 return;
               } else if (!isAdmin) {
-                // Per altri errori di validazione, mostra messaggio nella sidebar
                 if (window.showMessage) {
                   window.showMessage(validationResult.message, 'Attenzione', 'notification');
                 }
@@ -295,29 +249,29 @@ document.addEventListener("DOMContentLoaded", function () {
               }
             }
 
-            // Crea l'evento provvisorio nel calendario con sectionNumber dinamico
-            // Determina il prossimo sectionNumber disponibile
-            let nextSectionNumber = 1;
-            while (document.getElementById(`dataora_${nextSectionNumber}`) && 
-                   document.getElementById(`dataora_${nextSectionNumber}`).value) {
-                nextSectionNumber++;
+            // Utilizza EsameAppelli per creare l'evento provvisorio
+            if (window.EsameAppelli && window.EsameAppelli.createProvisionalEventForDate) {
+              let nextSectionNumber = 1;
+              while (document.getElementById(`dataora_${nextSectionNumber}`) && 
+                     document.getElementById(`dataora_${nextSectionNumber}`).value) {
+                  nextSectionNumber++;
+              }
+              
+              window.EsameAppelli.createProvisionalEventForDate(selDateFormatted, nextSectionNumber);
             }
             
-            creaEventoProvvisorio(selDateFormatted, calendar, provisionalEvents, nextSectionNumber);
-            
-            // Verifica se il form è già aperto prima di mostrarlo
-            const formIsAlreadyOpen = document.getElementById('form-container') && 
-                                      document.getElementById('form-container').style.display === 'block';
-            
-            // Mostra il form e delega la gestione della data selezionata
-            EsameForm.showForm({ date: selDateFormatted }).then(formOpened => {
-              if (formOpened) {
-                // Delega la gestione della data selezionata a FormEsameData
-                if (window.FormEsameData && window.FormEsameData.handleDateSelection) {
-                  window.FormEsameData.handleDateSelection(selDateFormatted);
+            // Usa window.EsameForm invece di EsameForm
+            if (window.EsameForm) {
+              window.EsameForm.showForm({ date: selDateFormatted }).then(formOpened => {
+                if (formOpened) {
+                  if (window.FormEsameData && window.FormEsameData.handleDateSelection) {
+                    window.FormEsameData.handleDateSelection(selDateFormatted);
+                  }
                 }
-              }
-            });
+              });
+            } else {
+              console.error('EsameForm non disponibile');
+            }
           },
 
           eventClick: function (info) {
