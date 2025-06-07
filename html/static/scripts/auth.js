@@ -191,7 +191,18 @@ function clearAuthCache() {
   window.preloadUserDataPromise = null;
 }
 
+// Gestione permessi utente
+async function checkUserPermissions() {
+  const data = await getUserData();
+  return {
+    isAuthenticated: data.authenticated,
+    isAdmin: data.authenticated && data.user_data?.permessi_admin,
+    username: data.user_data?.username
+  };
+}
+
 // Esponi funzioni globalmente
 window.getUserData = getUserData;
 window.updatePageTitle = updatePageTitle;
 window.preloadUserData = preloadUserData;
+window.checkUserPermissions = checkUserPermissions;

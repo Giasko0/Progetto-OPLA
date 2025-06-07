@@ -212,12 +212,12 @@ document.addEventListener("DOMContentLoaded", function () {
             const selDate = info.date;
             const selDateFormatted = formatDateForInput(selDate);
 
-            // Utilizza EsameAppelli per ottenere le date provvisorie visibili
+            // Utilizza EsameAppelli per ottenere solo le date con "Apertura appelli" attivo
             const visibleProvisionalDates = [];
             
-            if (window.EsameAppelli && window.EsameAppelli.getSelectedDates) {
-              const selectedDates = window.EsameAppelli.getSelectedDates();
-              visibleProvisionalDates.push(...selectedDates);
+            if (window.EsameAppelli && window.EsameAppelli.getVisibleSectionDates) {
+              const visibleDates = window.EsameAppelli.getVisibleSectionDates();
+              visibleProvisionalDates.push(...visibleDates);
             }
 
             const validationResult = isDateValid(selDate, dateValide, visibleProvisionalDates);

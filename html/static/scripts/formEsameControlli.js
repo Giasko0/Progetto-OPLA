@@ -1,19 +1,70 @@
 // filepath: /home/giasko/Scrivania/UniPG/Tesi/Progetto-OPLA/html/static/scripts/formEsameControlli.js
 // Modulo per la gestione della validazione e controlli del form esame
 const FormEsameControlli = (function() {
-  // Verifica che FormUtils sia caricato
-  if (!window.FormUtils) {
-    throw new Error('FormUtils non è caricato. Assicurati che formUtils.js sia incluso prima di formEsameControlli.js');
+
+  // Validatori essenziali
+  const validators = {
+    oraAppello: (ora) => {
+      if (!ora) return false;
+      const [hours] = ora.split(":").map(Number);
+      return hours >= 8 && hours <= 23;
+    },
+    
+    durataEsame: (durataMinuti) => {
+      const durata = parseInt(durataMinuti, 10);
+      return durata >= 30 && durata <= 720;
+    },
+    
+    giornoSettimana: (data) => {
+      const giorno = new Date(data).getDay();
+      return giorno !== 0 && giorno !== 6;
+    }
+  };
+
+  // Regole di validazione
+  function getCommonValidationRules() {
+    return {
+      ora_appello: {
+        required: true,
+        validator: validators.oraAppello,
+        requiredMessage: "L'ora dell'appello è obbligatoria",
+        invalidMessage: "L'ora dell'appello deve essere compresa tra le 08:00 e le 23:00"
+      },
+      durata_esame: {
+        required: true,
+        validator: validators.durataEsame,
+        requiredMessage: "La durata dell'esame è obbligatoria",
+        invalidMessage: "La durata dell'esame deve essere di almeno 30 minuti e non superiore a 720 minuti"
+      },
+      giorno_settimana: {
+        required: true,
+        validator: validators.giornoSettimana,
+        requiredMessage: "La data dell'appello è obbligatoria",
+        invalidMessage: "Non è possibile inserire esami di sabato o domenica"
+      }
+    };
   }
 
-  // Importa utilità da FormUtils
-  const {
-    validateFormField,
-    validators,
-    getCommonValidationRules,
-    showValidationError,
-    checkUserPermissions
-  } = window.FormUtils;
+  // Validazione semplificata
+  function validateFormField(field, value, validationRules) {
+    const rule = validationRules[field];
+    if (!rule) return { isValid: true };
+    
+    if (rule.required && (!value || value.trim() === '')) {
+      return { isValid: false, message: rule.requiredMessage };
+    }
+    
+    if (rule.validator && !rule.validator(value)) {
+      return { isValid: false, message: rule.invalidMessage };
+    }
+    
+    return { isValid: true };
+  }
+
+  // Gestione messaggi di errore
+  function showValidationError(message) {
+    window.showMessage(message, "Errore di validazione", "error");
+  }
 
   // Configurazione validatori e regole
   const formValidationRules = getCommonValidationRules();
@@ -41,8 +92,8 @@ const FormEsameControlli = (function() {
   // Controlla se l'utente è un amministratore
   async function isUserAdmin() {
     try {
-      const permissions = await checkUserPermissions();
-      return permissions.isAdmin;
+      const data = await getUserData();
+      return data.authenticated && data.user_data?.permessi_admin;
     } catch (error) {
       console.error("Errore nel controllo dei permessi admin:", error);
       return false;
@@ -213,7 +264,11 @@ const FormEsameControlli = (function() {
     getDurationValue,
     isUserAdmin,
     validateForm,
-    validateFormWithBypass
+    validateFormWithBypass,
+    validateFormField,
+    validators,
+    getCommonValidationRules,
+    showValidationError
   };
 }());
 

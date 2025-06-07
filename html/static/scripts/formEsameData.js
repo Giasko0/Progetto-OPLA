@@ -1,18 +1,72 @@
 // Gestione dei dati del form esame
 const FormEsameData = (function() {
-  // Verifica che FormUtils sia caricato
-  if (!window.FormUtils) {
-    throw new Error('FormUtils non è caricato. Assicurati che formUtils.js sia incluso prima di formEsameData.js');
+
+  // Funzioni per impostare valori degli elementi
+  function setElementValue(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.value = value;
   }
 
-  // Importa le utilità necessarie da FormUtils
-  const {
-    setElementValue,
-    setRadioValue,
-    setCheckboxValue,
-    setDurationFromMinutes,
-    parseTimeString
-  } = window.FormUtils;
+  function setRadioValue(name, value) {
+    const radio = document.getElementById(`${name.replace('_radio', '')}${value}`);
+    if (radio) radio.checked = true;
+  }
+
+  function setCheckboxValue(id, value) {
+    const checkbox = document.getElementById(id);
+    if (checkbox) checkbox.checked = value === true || value === 'true';
+  }
+
+  // Helper per durata e ora
+  function setDurationFromMinutes(durataMinuti) {
+    const durata = parseInt(durataMinuti);
+    if (isNaN(durata)) return;
+    
+    const ore = Math.floor(durata / 60);
+    const minuti = durata % 60;
+    
+    setElementValue("durata_h", ore.toString());
+    setElementValue("durata_m", minuti.toString().padStart(2, '0'));
+    setElementValue("durata", durata.toString());
+  }
+
+  function combineTimeValues() {
+    const ora_h = document.getElementById('ora_h')?.value;
+    const ora_m = document.getElementById('ora_m')?.value;
+    if (ora_h && ora_m) {
+      setElementValue('ora', `${ora_h}:${ora_m}`);
+    }
+    
+    const durata_h = parseInt(document.getElementById('durata_h')?.value) || 0;
+    const durata_m = parseInt(document.getElementById('durata_m')?.value) || 0;
+    const durata_totale = (durata_h * 60) + durata_m;
+    
+    setElementValue('durata', durata_totale.toString());
+  }
+
+  // Parsing del tempo
+  function parseTimeString(timeString) {
+    if (!timeString || !timeString.includes(':')) return null;
+    const [hours, minutes] = timeString.split(':').map(val => val.padStart(2, '0'));
+    return { hours, minutes };
+  }
+
+  // Validazione date
+  function isValidDate(dateString) {
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date);
+  }
+
+  function isWeekday(dateString) {
+    const date = new Date(dateString);
+    const day = date.getDay();
+    return day !== 0 && day !== 6;
+  }
+
+  // Gestione messaggi operazioni
+  function showOperationMessage(message, title, type, options = {}) {
+    window.showMessage(message, title, type, options);
+  }
 
   // Compila il form con i dati dell'esame (modalità modifica)
   function fillFormWithExamData(elements, examData) {
@@ -450,7 +504,16 @@ const FormEsameData = (function() {
     setFormFields,
     handleInsegnamentoSelection,
     submitFormData,
-    handleDateSelection
+    handleDateSelection,
+    setElementValue,
+    setRadioValue,
+    setCheckboxValue,
+    setDurationFromMinutes,
+    combineTimeValues,
+    parseTimeString,
+    isValidDate,
+    isWeekday,
+    showOperationMessage
   };
 }());
 
