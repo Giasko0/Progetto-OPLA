@@ -1,0 +1,41 @@
+FROM python:3-alpine
+
+WORKDIR /app
+
+ENV CFLAGS="-Wno-error=incompatible-pointer-types"
+
+RUN apk add --no-cache \
+    build-base \
+    xmlsec-dev \
+    xmlsec \
+    libxslt-dev \
+    libxml2-dev \
+    libressl-dev \
+    libffi-dev \
+    musl-dev \
+    gcc \
+    python3-dev \
+    pkgconfig
+
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir lxml==5.2.1 && \
+    pip install --no-cache-dir xmlsec==1.3.14 && \
+    pip install --no-cache-dir \
+    flask \
+    psycopg2-binary \
+    python3-saml \
+    flask-session \
+    requests \
+    xlwt \
+    xlrd
+
+COPY ../flask /app
+
+ENV FLASK_APP=main.py \
+    FLASK_ENV=development \
+    FLASK_DEBUG=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+EXPOSE 5000
+
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload", "--debugger"]
