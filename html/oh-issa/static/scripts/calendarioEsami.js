@@ -224,17 +224,8 @@ function visualizzaCalendario(data) {
                             const data = new Date(esame.data_appello);
                             const giorno = data.getDate().toString().padStart(2, '0');
                             const mese = (data.getMonth() + 1).toString().padStart(2, '0');
-                            
-                            // Per la sessione invernale, mostra anche l'anno se diverso dall'anno di inizio
-                            if (tipoSessione === 'invernale') {
-                                const annoEsame = data.getFullYear();
-                                const annoInizioSessione = new Date(data.sessioni[tipoSessione].inizio).getFullYear();
-                                if (annoEsame !== annoInizioSessione) {
-                                    return `${giorno}/${mese}/${annoEsame}`;
-                                }
-                            }
-                            
-                            return `${giorno}/${mese}`;
+                            const anno = data.getFullYear();
+                            return `${giorno}/${mese}/${anno}`;
                         }).sort();
                         
                         tdEsami.textContent = dateEsami.join(' - ');
