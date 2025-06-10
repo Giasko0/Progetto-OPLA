@@ -25,9 +25,9 @@ init_db()
 
 # Configurazione della sessione
 app.config['SECRET_KEY'] = os.urandom(24)
-app.config['SESSION_TYPE'] = 'filesystem'  # Opzionalmente usare Redis o altro backend
+app.config['SESSION_TYPE'] = 'filesystem'  # Future work: usare Redis o altro backend
 app.config['SESSION_PERMANENT'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 ore in secondi
+app.config['PERMANENT_SESSION_LIFETIME'] = 10800  # 3 ore in secondi (durata sessione)
 
 # Registrazione dei blueprint
 app.register_blueprint(auth_bp)
