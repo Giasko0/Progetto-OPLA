@@ -220,13 +220,16 @@ function visualizzaCalendario(data) {
                     
                     // Se ci sono esami, mostra le date complete
                     if (esamiSessione.length > 0) {
+                        // Ordina cronologicamente prima di formattare
+                        esamiSessione.sort((a, b) => new Date(a.data_appello) - new Date(b.data_appello));
+                        
                         const dateEsami = esamiSessione.map(esame => {
                             const data = new Date(esame.data_appello);
                             const giorno = data.getDate().toString().padStart(2, '0');
                             const mese = (data.getMonth() + 1).toString().padStart(2, '0');
                             const anno = data.getFullYear();
                             return `${giorno}/${mese}/${anno}`;
-                        }).sort();
+                        });
                         
                         tdEsami.textContent = dateEsami.join(' - ');
                     }
