@@ -43,8 +43,8 @@ def upload_ugov():
       'des_cds': 8,                              # I - Des. Corso di Studio
       'des_curriculum': 13,                      # N - Des. Curriculum
       'id_insegnamento': 14,                     # O - Id. Insegnamento
-      'cod_insegnamento': 16,                    # P - Cod. Insegnamento
-      'des_insegnamento': 17,                    # Q - Des. Insegnamento
+      'cod_insegnamento': 15,                    # P - Cod. Insegnamento
+      'des_insegnamento': 16,                    # Q - Des. Insegnamento
       'anno_corso': 28,                          # AC - Anno Corso Insegnamento
       'des_periodo_insegnamento': 39,            # AN - Des. Periodo Insegnamento
       'des_raggruppamento_insegnamento': 63,     # BL - Des. Raggruppamento Insegnamento
@@ -89,7 +89,7 @@ def upload_ugov():
       # Aggiorna gli indici in base all'header reale
       for i, col_name in enumerate(header):
         for key, value in header_map.items():
-          if key in col_name:
+          if key == col_name:
             colonna_indices[value] = i
             break
     
