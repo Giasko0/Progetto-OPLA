@@ -26,7 +26,7 @@ const InsegnamentiManager = (function () {
     return selectedInsegnamenti.has(codice);
   }
 
-  function getSelectedCodes() {
+  function getSelectedInsegnamenti() {
     return Array.from(selectedInsegnamenti.keys());
   }
 
@@ -43,7 +43,7 @@ const InsegnamentiManager = (function () {
   }
 
   function notifyChange() {
-    onChangeCallbacks.forEach((callback) => callback(getSelectedCodes()));
+    onChangeCallbacks.forEach((callback) => callback(getSelectedInsegnamenti()));
   }
 
   // GESTIONE CDS
@@ -257,7 +257,7 @@ const InsegnamentiManager = (function () {
     // Se non sono forniti insegnamenti, carica quelli selezionati
     if (!insegnamenti) {
       const username = document.getElementById("docente")?.value;
-      if (!username || getSelectedCodes().length === 0) {
+      if (!username || getSelectedInsegnamenti().length === 0) {
         // Nessun insegnamento selezionato, mostra placeholder
         container.innerHTML =
           '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
@@ -266,7 +266,7 @@ const InsegnamentiManager = (function () {
 
       // Carica solo gli insegnamenti selezionati
       loadInsegnamenti(username, { 
-        filter: getSelectedCodes()
+        filter: getSelectedInsegnamenti()
       }, (data) => {
         syncUI(container, data);
       });
@@ -472,8 +472,8 @@ const InsegnamentiManager = (function () {
       });
       
       // Sincronizza i tag iniziali se ci sono già insegnamenti selezionati
-      if (getSelectedCodes().length > 0) {
-        loadInsegnamenti(username, { filter: getSelectedCodes() }, (data) => {
+      if (getSelectedInsegnamenti().length > 0) {
+        loadInsegnamenti(username, { filter: getSelectedInsegnamenti() }, (data) => {
           syncUI(newContainer, data);
         });
       } else {
@@ -496,7 +496,7 @@ const InsegnamentiManager = (function () {
       params.append("cds", selectedCds);
     }
 
-    const codici = getSelectedCodes();
+    const codici = getSelectedInsegnamenti();
     if (codici.length > 0) {
       params.append("insegnamenti", codici.join(","));
     } else if (docente) {
@@ -531,7 +531,7 @@ const InsegnamentiManager = (function () {
     selectInsegnamento,
     deselectInsegnamento,
     isSelected,
-    getSelectedCodes,
+    getSelectedInsegnamenti,
     clearSelection,
     onChange,
 

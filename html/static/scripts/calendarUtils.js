@@ -130,7 +130,7 @@ export async function loadDateValide(docente, insegnamenti = null) {
   if (docente) params.append("docente", docente);
 
   // Passa gli insegnamenti selezionati se presenti
-  const selectedInsegnamenti = Array.isArray(insegnamenti) ? insegnamenti : (window.InsegnamentiManager?.getSelectedCodes() || []);
+  const selectedInsegnamenti = Array.isArray(insegnamenti) ? insegnamenti : (window.InsegnamentiManager?.getSelectedInsegnamenti() || []);
   if (selectedInsegnamenti.length > 0) {
     params.append("insegnamenti", selectedInsegnamenti.join(","));
   }

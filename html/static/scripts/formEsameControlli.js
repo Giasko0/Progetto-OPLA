@@ -63,7 +63,9 @@ const FormEsameControlli = (function() {
 
   // Gestione messaggi di errore
   function showValidationError(message) {
-    window.showMessage(message, "Errore di validazione", "error");
+    if (window.showMessage) {
+      window.showMessage(message, "Errore di validazione", "warning");
+    }
   }
 
   // Configurazione validatori e regole

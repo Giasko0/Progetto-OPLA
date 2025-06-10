@@ -137,7 +137,7 @@ document.addEventListener("DOMContentLoaded", function () {
             let params = new URLSearchParams();
             params.append("docente", currentUsername);
             if (window.InsegnamentiManager) {
-              const selected = window.InsegnamentiManager.getSelectedCodes();
+              const selected = window.InsegnamentiManager.getSelectedInsegnamenti();
               if (selected.length > 0) params.append("insegnamenti", selected.join(","));
             }
             // Aggiungi l'anno accademico selezionato

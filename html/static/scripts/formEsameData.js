@@ -391,7 +391,7 @@ const FormEsameData = (function() {
       });
     } else {
       if (window.showMessage) {
-        window.showMessage("Seleziona almeno un insegnamento", "Errore", "error");
+        window.showMessage("Seleziona almeno un insegnamento", "Attenzione", "warning");
       }
       return;
     }
