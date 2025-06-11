@@ -32,24 +32,13 @@ def init_saml_auth(req):
   return OneLogin_Saml2_Auth(req, custom_base_path=saml_path)
 
 def prepare_flask_request(request):
-    # Usa gli header X-Forwarded se disponibili (impostati da nginx)
-    forwarded_proto = request.headers.get('X-Forwarded-Proto', 'https' if request.is_secure else 'http')
-    forwarded_host = request.headers.get('X-Forwarded-Host', request.host)
-    forwarded_port = request.headers.get('X-Forwarded-Port')
-    
-    # Costruisci l'host completo
-    if forwarded_port and forwarded_port not in ['80', '443']:
-        http_host = f"{forwarded_host}:{forwarded_port}"
-    else:
-        http_host = forwarded_host
-    
     return {
-        'https': 'on' if forwarded_proto == 'https' else 'off',
-        'http_host': http_host,
+        'https': 'on' if request.is_secure else 'off',
+        'http_host': request.host,
         'script_name': request.path,
         'get_data': request.args.copy(),
         'post_data': request.form.copy(),
-        'server_port': forwarded_port or ('443' if forwarded_proto == 'https' else '80')
+        'server_port': request.environ.get('SERVER_PORT', '80')
     }
 
 def get_user_attributes_from_saml(auth):

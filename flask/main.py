@@ -1,5 +1,6 @@
 # Import delle librerie
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 
 # Import delle funzioni di supporto
@@ -19,6 +20,16 @@ from oh_issa.common import common_bp
 from oh_issa.calendario_esami import calendario_esami_bp
 
 app = Flask(__name__)
+
+# Configura ProxyFix per gestire il reverse proxy nginx
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,      # numero di proxy davanti all'app per X-Forwarded-For
+    x_proto=1,    # numero di proxy per X-Forwarded-Proto  
+    x_host=1,     # numero di proxy per X-Forwarded-Host
+    x_port=1,     # numero di proxy per X-Forwarded-Port
+    x_prefix=1    # numero di proxy per X-Forwarded-Prefix
+)
 
 # Inizializza il pool di connessioni
 init_db()
