@@ -101,8 +101,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Applica i dati salvati a una sezione specifica
-    function applyDataToSection(data, section) {
+    // Applica i dati salvati a una sezione specifica - aggiornato per modifica
+    function applyDataToSection(data, section, isEditMode = false) {
       try {
         // Campi di testo
         const mappings = [
@@ -179,8 +179,8 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         }
 
-        // Aggiorna aule se ora è impostata
-        if (data.ora_h && data.ora_m) {
+        // Aggiorna aule se ora è impostata (solo se non in modalità modifica)
+        if (!isEditMode && data.ora_h && data.ora_m) {
           const sectionCounter = section.querySelector('[id^="ora_h_"]')?.id.split('_')[2];
           if (sectionCounter && window.EsameAppelli) {
             setTimeout(() => {
@@ -194,31 +194,31 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Precompila una nuova sezione con i dati della prima sezione
-    function precompileNewSection(newSection) {
+    // Precompila una nuova sezione con i dati della prima sezione - aggiornato
+    function precompileNewSection(newSection, excludeFromFirstSection = []) {
       try {
         const firstSection = document.querySelector('.date-appello-section');
         if (!firstSection || firstSection === newSection) return;
 
-        // Raccoglie i dati dalla prima sezione (escludendo data e aula)
+        // Raccoglie i dati dalla prima sezione (escludendo campi specificati)
         const dataToClone = {
           descrizione: firstSection.querySelector('[id^="descrizione_"]')?.value || '',
-          ora_h: firstSection.querySelector('[id^="ora_h_"]')?.value || '',
-          ora_m: firstSection.querySelector('[id^="ora_m_"]')?.value || '',
+          ora_h: excludeFromFirstSection.includes('ora_h') ? '' : firstSection.querySelector('[id^="ora_h_"]')?.value || '',
+          ora_m: excludeFromFirstSection.includes('ora_m') ? '' : firstSection.querySelector('[id^="ora_m_"]')?.value || '',
           durata_h: firstSection.querySelector('[id^="durata_h_"]')?.value || '2',
           durata_m: firstSection.querySelector('[id^="durata_m_"]')?.value || '0',
-          inizioIscrizione: firstSection.querySelector('[id^="inizioIscrizione_"]')?.value || '',
-          fineIscrizione: firstSection.querySelector('[id^="fineIscrizione_"]')?.value || '',
+          inizioIscrizione: excludeFromFirstSection.includes('inizioIscrizione') ? '' : firstSection.querySelector('[id^="inizioIscrizione_"]')?.value || '',
+          fineIscrizione: excludeFromFirstSection.includes('fineIscrizione') ? '' : firstSection.querySelector('[id^="fineIscrizione_"]')?.value || '',
           verbalizzazione: firstSection.querySelector('[id^="verbalizzazione_"]')?.value || 'FSS',
           tipoEsame: firstSection.querySelector('[id^="tipoEsame_"]')?.value || '',
-          note: firstSection.querySelector('[id^="note_"]')?.value || '',
+          note: excludeFromFirstSection.includes('note') ? '' : firstSection.querySelector('[id^="note_"]')?.value || '',
           mostra_nel_calendario: firstSection.querySelector('[id^="mostra_nel_calendario_"]')?.checked !== false,
           tipo_appello_radio: firstSection.querySelector('input[name^="tipo_appello_radio_"]:checked')?.value || 'PF'
         };
 
-        // Applica i dati alla nuova sezione (con un piccolo ritardo per assicurarsi che il DOM sia pronto)
+        // Applica i dati alla nuova sezione
         setTimeout(() => {
-          applyDataToSection(dataToClone, newSection);
+          applyDataToSection(dataToClone, newSection, false);
         }, 50);
 
       } catch (error) {
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Interfaccia pubblica
+    // Interfaccia pubblica aggiornata
     return {
       autoSaveFirstSection,
       loadSavedData,

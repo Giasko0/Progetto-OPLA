@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const {
       setElementValue,
       setCheckboxValue,
-      showOperationMessage,
       setDurationFromMinutes,
       combineTimeValues
     } = window.FormEsameData;
@@ -146,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
       saveFormPreference(currentUsername, 'esame', preferenceName, preferences)
         .then(data => {
           if (data.status === 'success') {
-            showOperationMessage(data.message, "Preferenze salvate", "notification");
+            window.showMessage(data.message, "Preferenze salvate", "success");
             loadUserPreferences();
           } else {
             showValidationError(data.message);
@@ -332,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
       deleteFormPreference(currentUsername, id)
         .then(data => {
           if (data.status === 'success') {
-            showOperationMessage(data.message, "Preferenze", "notification");
+            window.showMessage(data.message, "Preferenze", "success");
             loadUserPreferences();
           } else {
             showValidationError(data.message);

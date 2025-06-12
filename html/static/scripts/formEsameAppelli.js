@@ -69,6 +69,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function addDateSection(date = '') {
+      console.log('>>> APPELLI: addDateSection chiamata con data:', date);
+      
       const container = document.getElementById('dateAppelliContainer');
       if (!container) {
         console.error("Container dateAppelliContainer non trovato");
@@ -147,12 +149,20 @@ document.addEventListener('DOMContentLoaded', function() {
         container.appendChild(section);
       }
       
+      console.log('>>> APPELLI: sezione aggiunta al DOM');
+      
       // Aggiungi event listeners per questa sezione
       setupDateSectionListeners(sectionId, dateAppelliCounter);
       
-      // Precompila la nuova sezione con i dati della prima sezione (solo se non è la prima)
+      // Precompila la nuova sezione con i dati della prima sezione (solo se non è la prima e non siamo in modifica)
       if (dateAppelliCounter > 1 && window.FormEsameAutosave) {
-        window.FormEsameAutosave.precompileNewSection(section);
+        // Verifica se siamo in modalità modifica
+        const examIdField = document.getElementById('examIdField');
+        const isEditMode = examIdField && examIdField.value;
+        
+        if (!isEditMode) {
+          window.FormEsameAutosave.precompileNewSection(section);
+        }
       }
       
       // Assicurati che il checkbox "Apertura appelli" sia sempre selezionato per default
@@ -297,36 +307,41 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       });
 
-      // Aggiungi listener per il salvataggio automatico sui campi di testo se è la prima sezione
+      // Aggiungi listener per il salvataggio automatico sui campi di testo se è la prima sezione e non in modifica
       if (counter === 1 && window.FormEsameAutosave) {
-        const section = document.getElementById(sectionId);
-        if (section) {
-          // Campi di testo e textarea
-          const textInputs = section.querySelectorAll('input[type="text"], textarea, input[type="date"]');
-          textInputs.forEach(input => {
-            input.addEventListener('input', () => {
-              clearTimeout(input._autoSaveTimeout);
-              input._autoSaveTimeout = setTimeout(() => {
-                window.FormEsameAutosave.autoSaveFirstSection();
-              }, 500);
+        const examIdField = document.getElementById('examIdField');
+        const isEditMode = examIdField && examIdField.value;
+        
+        if (!isEditMode) {
+          const section = document.getElementById(sectionId);
+          if (section) {
+            // Campi di testo e textarea
+            const textInputs = section.querySelectorAll('input[type="text"], textarea, input[type="date"]');
+            textInputs.forEach(input => {
+              input.addEventListener('input', () => {
+                clearTimeout(input._autoSaveTimeout);
+                input._autoSaveTimeout = setTimeout(() => {
+                  window.FormEsameAutosave.autoSaveFirstSection();
+                }, 500);
+              });
             });
-          });
 
-          // Select e checkbox
-          const selectsAndCheckboxes = section.querySelectorAll('select, input[type="checkbox"]');
-          selectsAndCheckboxes.forEach(element => {
-            element.addEventListener('change', () => {
-              window.FormEsameAutosave.autoSaveFirstSection();
+            // Select e checkbox
+            const selectsAndCheckboxes = section.querySelectorAll('select, input[type="checkbox"]');
+            selectsAndCheckboxes.forEach(element => {
+              element.addEventListener('change', () => {
+                window.FormEsameAutosave.autoSaveFirstSection();
+              });
             });
-          });
-          
-          // Radio buttons per tipo appello
-          const radioButtons = section.querySelectorAll('input[type="radio"]');
-          radioButtons.forEach(radio => {
-            radio.addEventListener('change', () => {
-              window.FormEsameAutosave.autoSaveFirstSection();
+            
+            // Radio buttons per tipo appello
+            const radioButtons = section.querySelectorAll('input[type="radio"]');
+            radioButtons.forEach(radio => {
+              radio.addEventListener('change', () => {
+                window.FormEsameAutosave.autoSaveFirstSection();
+              });
             });
-          });
+          }
         }
       }
 
@@ -641,49 +656,62 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateAuleForSection(counter) {
-      const dateInput = document.getElementById(`dataora_${counter}`);
-      const oraH = document.getElementById(`ora_h_${counter}`);
-      const oraM = document.getElementById(`ora_m_${counter}`);
-      const aulaSelect = document.getElementById(`aula_${counter}`);
-      
-      if (!dateInput || !oraH || !oraM || !aulaSelect) return;
-      
-      const data = dateInput.value;
-      const ora_hValue = oraH.value;
-      const ora_mValue = oraM.value;
-      
-      if (!data) {
-        aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima una data</option>';
-        return;
-      }
-      
-      if (!ora_hValue || !ora_mValue) {
-        aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima un\'ora</option>';
-        return;
-      }
-      
-      aulaSelect.innerHTML = '<option value="" disabled selected hidden>Caricamento aule in corso...</option>';
-      
-      const periodo = parseInt(ora_hValue) >= 14 ? 1 : 0;
-      
-      loadAuleForDateTime(data, periodo)
-        .then(aule => {
-          populateAulaSelect(aulaSelect, aule, true);
-          
-          // Aggiungi listener per aggiornare l'evento provvisorio quando cambia l'aula
-          aulaSelect.addEventListener('change', function() {
-            updateEventAula(data, this.value);
+      return new Promise((resolve, reject) => {
+        const dateInput = document.getElementById(`dataora_${counter}`);
+        const oraH = document.getElementById(`ora_h_${counter}`);
+        const oraM = document.getElementById(`ora_m_${counter}`);
+        const aulaSelect = document.getElementById(`aula_${counter}`);
+        
+        if (!dateInput || !oraH || !oraM || !aulaSelect) {
+          console.warn(`Elementi mancanti per aggiornare le aule della sezione ${counter}`);
+          resolve(); // Risolve per non bloccare, ma con un avviso
+          return;
+        }
+        
+        const data = dateInput.value;
+        const ora_hValue = oraH.value;
+        const ora_mValue = oraM.value;
+        
+        if (!data) {
+          aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima una data</option>';
+          resolve();
+          return;
+        }
+        
+        if (!ora_hValue || !ora_mValue) {
+          aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima un\'ora</option>';
+          resolve();
+          return;
+        }
+        
+        aulaSelect.innerHTML = '<option value="" disabled selected hidden>Caricamento aule in corso...</option>';
+        
+        const periodo = parseInt(ora_hValue) >= 14 ? 1 : 0;
+        
+        loadAuleForDateTime(data, periodo)
+          .then(aule => {
+            populateAulaSelect(aulaSelect, aule, true);
+            
+            // Rimuovi listener esistente per evitare duplicati prima di aggiungerne uno nuovo
+            const newAulaSelect = aulaSelect.cloneNode(true); // Clona per rimuovere listener in modo pulito
+            aulaSelect.parentNode.replaceChild(newAulaSelect, aulaSelect);
+
+            newAulaSelect.addEventListener('change', function() {
+              updateEventAula(data, this.value);
+            });
+            resolve();
+          })
+          .catch(error => {
+            console.error("Errore nel recupero delle aule:", error);
+            aulaSelect.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
+            
+            const option = document.createElement("option");
+            option.value = "Studio docente DMI";
+            option.textContent = "Studio docente DMI";
+            aulaSelect.appendChild(option);
+            reject(error); // Rigetta in caso di errore per segnalarlo al chiamante
           });
-        })
-        .catch(error => {
-          console.error("Errore nel recupero delle aule:", error);
-          aulaSelect.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
-          
-          const option = document.createElement("option");
-          option.value = "Studio docente DMI";
-          option.textContent = "Studio docente DMI";
-          aulaSelect.appendChild(option);
-        });
+      });
     }
 
     // Funzione per aggiornare l'aula di un evento provvisorio
@@ -867,7 +895,45 @@ document.addEventListener('DOMContentLoaded', function() {
       return visibleDates;
     }
 
-    // Interfaccia pubblica
+    // Funzione per ottenere i dati di una sezione specifica
+    function getSectionData(sectionCounter) {
+      const section = document.getElementById(`dateSection_${sectionCounter}`);
+      if (!section) return null;
+
+      const getFieldValue = (prefix) => {
+        const field = section.querySelector(`[id^="${prefix}_${sectionCounter}"]`);
+        return field ? field.value : null;
+      };
+
+      const getCheckedValue = (prefix) => {
+        const field = section.querySelector(`[id^="${prefix}_${sectionCounter}"]`);
+        return field ? field.checked : false;
+      };
+
+      const getRadioValue = (name) => {
+        const radio = section.querySelector(`input[name^="${name}_${sectionCounter}"]:checked`);
+        return radio ? radio.value : null;
+      };
+
+      return {
+        descrizione: getFieldValue('descrizione'),
+        dataora: getFieldValue('dataora'),
+        ora_h: getFieldValue('ora_h'),
+        ora_m: getFieldValue('ora_m'),
+        durata_h: getFieldValue('durata_h'),
+        durata_m: getFieldValue('durata_m'),
+        aula: getFieldValue('aula'),
+        inizioIscrizione: getFieldValue('inizioIscrizione'),
+        fineIscrizione: getFieldValue('fineIscrizione'),
+        verbalizzazione: getFieldValue('verbalizzazione'),
+        tipoEsame: getFieldValue('tipoEsame'),
+        note: getFieldValue('note'),
+        mostra_nel_calendario: getCheckedValue('mostra_nel_calendario'),
+        tipo_appello_radio: getRadioValue('tipo_appello_radio')
+      };
+    }
+
+    // Interfaccia pubblica aggiornata
     return {
       addDateSection,
       removeDateSection,
@@ -890,7 +956,8 @@ document.addEventListener('DOMContentLoaded', function() {
       clearProvisionalEvents,
       removeProvisionalEventsByIds,
       loadAuleForDateTime,
-      populateAulaSelect
+      populateAulaSelect,
+      getSectionData // Nuovo per EditEsame
     };
   }());
 

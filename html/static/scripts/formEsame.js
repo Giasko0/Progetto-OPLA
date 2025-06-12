@@ -1,13 +1,5 @@
 // Script semplificato per la gestione del form di inserimento esame
 const EsameForm = (function() {
-  // Verifica dipendenze aggiornate
-  if (!window.FormEsameData) {
-    throw new Error('FormEsameData non è caricato. Assicurati che formEsameData.js sia incluso prima di formEsame.js');
-  }
-  if (!window.FormEsameControlli) {
-    throw new Error('FormEsameControlli non è caricato. Assicurati che formEsameControlli.js sia incluso prima di formEsame.js');
-  }
-
   let formContainer = null;
   let currentUsername = null;
   let isEditMode = false;
@@ -15,9 +7,6 @@ const EsameForm = (function() {
   // Carica il form HTML dinamicamente
   async function loadForm() {
     formContainer = document.getElementById('form-container');
-    if (!formContainer) {
-      throw new Error('Elemento form-container non trovato');
-    }
     
     // Se il contenuto è già stato caricato, non ricaricarlo
     if (formContainer.querySelector('#formEsame')) {
@@ -25,18 +14,12 @@ const EsameForm = (function() {
     }
     
     const formContent = document.getElementById('form-esame-content');
-    if (!formContent) {
-      throw new Error('Elemento form-esame-content non trovato');
-    }
-    
     formContainer.innerHTML = formContent.innerHTML;
     formContainer.classList.add('side-form', 'form-content-area');
     
     // Inizializza il listener di chiusura
     const closeBtn = formContainer.querySelector("#closeOverlay");
-    if (closeBtn) {
-      closeBtn.addEventListener("click", hideForm);
-    }
+    closeBtn.addEventListener("click", hideForm);
     
     return formContainer;
   }
@@ -47,65 +30,97 @@ const EsameForm = (function() {
     
     const isAlreadyOpen = formContainer.style.display === 'block';
     
-    // Mostra il form container
     formContainer.style.display = 'block';
     formContainer.classList.add('active');
     
     const calendar = document.getElementById('calendar');
-    if (calendar) calendar.classList.add('form-visible');
+    calendar.classList.add('form-visible');
     
     isEditMode = isEdit;
     
-    // Reset sezioni solo se necessario
-    if (!isEdit && !isAlreadyOpen && window.EsameAppelli) {
-      window.EsameAppelli.resetSections();
-    }
-    
-    // Configura form
-    const formTitle = formContainer.querySelector(".form-header h2");
-    const esameForm = formContainer.querySelector("#formEsame");
-    
-    if (formTitle) formTitle.textContent = isEdit ? "Modifica Esame" : "Aggiungi Esame";
-    
-    const idField = formContainer.querySelector("#examIdField");
-    if (idField) idField.value = isEdit && data.id ? data.id : "";
-    
-    // Reset form se necessario
-    const existingSections = formContainer.querySelectorAll('.date-appello-section');
-    const hasExistingData = Array.from(existingSections).some(section => {
-      const inputs = section.querySelectorAll('input, select, textarea');
-      return Array.from(inputs).some(input => {
-        if (input.type === 'checkbox' || input.type === 'radio') return input.checked;
-        return input.value && input.value.trim() !== '';
-      });
-    });
-    
-    if (isEdit || (!hasExistingData && !isAlreadyOpen)) {
-      if (esameForm) esameForm.reset();
-    }
-    
-    // Configura pulsanti
-    await setupButtons(isEdit, data.id);
-    
-    // Inizializza UI se necessario
-    if (!isAlreadyOpen || isEdit) {
-      initUI(data);
-      setupEventListeners();
-    }
-    
-    // Compila form
+    const examIdField = formContainer.querySelector("#examIdField");
+    examIdField.value = isEdit && data.id ? data.id : "";
+
     if (isEdit) {
-      window.FormEsameData.fillFormWithExamData(null, data);
-    } else if (!isAlreadyOpen && !hasExistingData && window.FormEsameAutosave) {
-      setTimeout(() => window.FormEsameAutosave.loadSavedData(), 100);
+      try {
+        await window.EditEsame.editExam(data.id);
+        // EditEsame.editExam chiama setupEditMode che imposta titolo e pulsanti.
+        // I listener per i pulsanti di modifica sono in EditEsame.setupEditButtons.
+      } catch (error) {
+        console.error("Errore nell'impostazione della modalità modifica:", error);
+        hideForm(true, true); // Nasconde il form e pulisce in caso di errore grave
+        return false;
+      }
+    } else {
+      // Modalità Creazione
+      const formTitle = formContainer.querySelector(".form-header h2");
+      formTitle.textContent = "Aggiungi Esame";
+      const esameForm = formContainer.querySelector("#formEsame");
+
+      // Reset e inizializzazione solo se il form non era già aperto per una nuova creazione
+      // o se stiamo aprendo per la prima volta.
+      if (!isAlreadyOpen || (isAlreadyOpen && !esameForm.dataset.creationInProgress) ) {
+        esameForm.reset();
+        window.EsameAppelli.resetSections();
+        initUI(data); // data è per precompilazione da calendario
+        loadUserPreferences();
+        setTimeout(() => {
+          if (window.FormEsameAutosave && !window.FormEsameAutosave.loadSavedData()) {
+            // Se non ci sono dati salvati, assicurati che i default siano applicati
+            // (es. checkbox 'mostra nel calendario' per la prima sezione)
+            const firstSection = document.querySelector('.date-appello-section');
+            if (firstSection) {
+                const counter = firstSection.id.split('_')[1] || '1';
+                const checkbox = firstSection.querySelector(`#mostra_nel_calendario_${counter}`);
+                if (checkbox && !checkbox.checked) checkbox.checked = true;
+            }
+          }
+        }, 150);
+        esameForm.dataset.creationInProgress = "true";
+      } else if (isAlreadyOpen && esameForm.dataset.creationInProgress === "true") {
+        // Form già aperto per creazione, l'utente ha cliccato di nuovo "Aggiungi esame"
+        // Potrebbe voler resettare o semplicemente continuare. Per ora, resettiamo.
+        esameForm.reset();
+        window.EsameAppelli.resetSections();
+        initUI(data); 
+        loadUserPreferences();
+        setTimeout(() => window.FormEsameAutosave.loadSavedData(), 150);
+      }
+      
+      await setupButtons(false, null); // Configura pulsanti per la creazione
+      setupEventListeners(); // Configura listener per la creazione (submit standard, bypass creazione)
     }
     
-    // Carica preferenze utente
-    if (!hasExistingData && !isAlreadyOpen) {
-      loadUserPreferences();
+    // Listener comuni (chiusura, preferenze)
+    // Assicurarsi che siano attaccati una sola volta o riattaccati correttamente.
+    const closeBtn = formContainer.querySelector("#closeOverlay");
+    if (closeBtn) {
+      closeBtn.removeEventListener("click", hideForm);
+      closeBtn.addEventListener("click", hideForm);
+    }
+
+    const savePrefBtn = document.getElementById("savePreferenceBtn");
+    if (savePrefBtn) {
+      savePrefBtn.removeEventListener("click", window.EsamePreferenze.toggleSavePreferenceForm);
+      savePrefBtn.addEventListener("click", window.EsamePreferenze.toggleSavePreferenceForm);
+    }
+    const loadPrefBtn = document.getElementById("loadPreferenceBtn");
+    if (loadPrefBtn) {
+      loadPrefBtn.removeEventListener("click", window.EsamePreferenze.togglePreferencesMenu);
+      loadPrefBtn.addEventListener("click", window.EsamePreferenze.togglePreferencesMenu);
+    }
+    const confirmSavePrefBtn = document.getElementById("confirmSavePreference");
+    if (confirmSavePrefBtn) {
+      confirmSavePrefBtn.removeEventListener("click", window.EsamePreferenze.handleSavePreference);
+      confirmSavePrefBtn.addEventListener("click", window.EsamePreferenze.handleSavePreference);
+    }
+    const cancelSavePrefBtn = document.getElementById("cancelSavePreference");
+    if (cancelSavePrefBtn) {
+      cancelSavePrefBtn.removeEventListener("click", window.EsamePreferenze.toggleSavePreferenceForm);
+      cancelSavePrefBtn.addEventListener("click", window.EsamePreferenze.toggleSavePreferenceForm);
     }
     
-    updateDynamicFields();
+    console.log('>>> FORM: showForm completato');
     return true;
   }
   
@@ -121,29 +136,28 @@ const EsameForm = (function() {
       }
       
       initUserData();
+      
+      // Aggiungi updateDynamicFields qui, dopo che le sezioni sono state create
+      setTimeout(() => {
+        updateDynamicFields();
+      }, 50);
     }, 10);
   }
-  
+
   // Inizializza dati utente
   function initUserData() {
     getUserData()
       .then((data) => {
-        if (data?.authenticated && data?.user_data) {
-          const field = document.getElementById("docente");
-          if (field) {
-            field.value = data.user_data.username;
-            currentUsername = data.user_data.username;
-            
-            // Inizializza multi-select insegnamenti
-            if (window.InsegnamentiManager) {
-              initInsegnamenti();
-            }
-          }
-        }
+        const field = document.getElementById("docente");
+        field.value = data.user_data.username;
+        currentUsername = data.user_data.username;
+        
+        // Inizializza multi-select insegnamenti
+        initInsegnamenti();
       })
       .catch((error) => console.error("Errore nel recupero dei dati utente:", error));
     
-    window.updatePageTitle?.();
+    window.updatePageTitle();
     checkPreselectedInsegnamenti();
   }
 
@@ -153,30 +167,22 @@ const EsameForm = (function() {
     const dropdownElement = document.getElementById("insegnamentoDropdown");
     const optionsElement = document.getElementById("insegnamentoOptions");
     
-    if (boxElement && dropdownElement && optionsElement) {
-      window.InsegnamentiManager.cleanup();
-      window.InsegnamentiManager.initUI("insegnamentoBox", "insegnamentoDropdown", "insegnamentoOptions", currentUsername);
-      
-      window.InsegnamentiManager.onChange(() => {
-        const multiSelectBox = document.getElementById("insegnamentoBox");
-        if (multiSelectBox) {
-          window.InsegnamentiManager.syncUI(multiSelectBox);
-        }
-      });
-    }
+    window.InsegnamentiManager.cleanup();
+    window.InsegnamentiManager.initUI("insegnamentoBox", "insegnamentoDropdown", "insegnamentoOptions", currentUsername);
+    
+    window.InsegnamentiManager.onChange(() => {
+      const multiSelectBox = document.getElementById("insegnamentoBox");
+      window.InsegnamentiManager.syncUI(multiSelectBox);
+    });
   }
 
   // Carica preferenze utente
   function loadUserPreferences() {
     getUserData()
       .then(data => {
-        if (data?.authenticated && data?.user_data) {
-          currentUsername = data.user_data.username;
-          if (window.EsamePreferenze) {
-            window.EsamePreferenze.setCurrentUsername(currentUsername);
-            window.EsamePreferenze.loadUserPreferences();
-          }
-        }
+        currentUsername = data.user_data.username;
+        window.EsamePreferenze.setCurrentUsername(currentUsername);
+        window.EsamePreferenze.loadUserPreferences();
       })
       .catch(error => console.error("Errore dati utente:", error));
   }
@@ -185,16 +191,16 @@ const EsameForm = (function() {
   function setupEventListeners() {
     const eventListeners = [
       { id: "formEsame", event: "submit", handler: handleFormSubmit },
-      { id: "savePreferenceBtn", event: "click", handler: window.EsamePreferenze?.toggleSavePreferenceForm },
-      { id: "loadPreferenceBtn", event: "click", handler: window.EsamePreferenze?.togglePreferencesMenu },
-      { id: "confirmSavePreference", event: "click", handler: window.EsamePreferenze?.handleSavePreference },
-      { id: "cancelSavePreference", event: "click", handler: window.EsamePreferenze?.toggleSavePreferenceForm },
+      { id: "savePreferenceBtn", event: "click", handler: window.EsamePreferenze.toggleSavePreferenceForm },
+      { id: "loadPreferenceBtn", event: "click", handler: window.EsamePreferenze.togglePreferencesMenu },
+      { id: "confirmSavePreference", event: "click", handler: window.EsamePreferenze.handleSavePreference },
+      { id: "cancelSavePreference", event: "click", handler: window.EsamePreferenze.toggleSavePreferenceForm },
       { id: "closeOverlay", event: "click", handler: hideForm }
     ];
 
     eventListeners.forEach(({ id, event, handler }) => {
       const element = document.getElementById(id);
-      if (element && handler) {
+      if (element) {
         element.removeEventListener(event, handler);
         element.addEventListener(event, handler);
       }
@@ -219,10 +225,13 @@ const EsameForm = (function() {
 
   // Aggiorna verbalizzazione in base al tipo appello
   function aggiornaVerbalizzazione() {
-    const tipoAppelloPP = document.getElementById("tipoAppelloPP");
-    const verbalizzazioneSelect = document.getElementById("verbalizzazione");
-
-    if (!tipoAppelloPP || !verbalizzazioneSelect) return;
+    // Cerca gli elementi in tutte le sezioni disponibili
+    const tipoAppelloPP = document.querySelector('input[name*="tipo_appello_radio"][value="PP"]');
+    const verbalizzazioneSelect = document.querySelector('select[name*="verbalizzazione"]');
+    
+    if (!tipoAppelloPP || !verbalizzazioneSelect) {
+      return;
+    }
 
     const options = tipoAppelloPP.checked 
       ? [
@@ -250,7 +259,7 @@ const EsameForm = (function() {
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedParam = urlParams.get("insegnamenti");
     
-    if (!preselectedParam || !currentUsername || !window.InsegnamentiManager) return;
+    if (!preselectedParam || !currentUsername) return;
     
     const preselectedCodes = preselectedParam.split(",");
     
@@ -258,20 +267,16 @@ const EsameForm = (function() {
       currentUsername, 
       { filter: preselectedCodes },
       data => {
-        if (data.length > 0) {
-          data.forEach(ins => {
-            window.InsegnamentiManager.selectInsegnamento(ins.codice, {
-              semestre: ins.semestre || 1,
-              anno_corso: ins.anno_corso || 1,
-              cds: ins.cds_codice || ""
-            });
+        data.forEach(ins => {
+          window.InsegnamentiManager.selectInsegnamento(ins.codice, {
+            semestre: ins.semestre || 1,
+            anno_corso: ins.anno_corso || 1,
+            cds: ins.cds_codice || ""
           });
-          
-          const multiSelectBox = document.getElementById("insegnamentoBox");
-          if (multiSelectBox) {
-            window.InsegnamentiManager.syncUI(multiSelectBox, data);
-          }
-        }
+        });
+        
+        const multiSelectBox = document.getElementById("insegnamentoBox");
+        window.InsegnamentiManager.syncUI(multiSelectBox, data);
       }
     );
   }
@@ -299,8 +304,6 @@ const EsameForm = (function() {
   // Configura pulsanti del form
   async function setupButtons(isEdit, examId) {
     const formActions = document.querySelector('.form-actions');
-    if (!formActions) return;
-
     formActions.innerHTML = '';
     const isAdmin = await window.FormEsameControlli.isUserAdmin();
 
@@ -329,7 +332,7 @@ const EsameForm = (function() {
       deleteBtn.textContent = "Elimina Esame";
       deleteBtn.onclick = () => {
         if (confirm("Sei sicuro di voler eliminare questo esame?")) {
-          if (window.deleteEsame) window.deleteEsame(examId);
+          window.deleteEsame(examId);
         }
       };
       formActions.appendChild(deleteBtn);
@@ -385,33 +388,30 @@ const EsameForm = (function() {
 
   // Nasconde il form
   function hideForm(cleanupProvisional = false, clearAutosave = false) {
-    if (!formContainer) return;
-
     if (clearAutosave && window.FormEsameAutosave) {
       window.FormEsameAutosave.clearSavedData();
     }
     
+    const esameForm = formContainer.querySelector("#formEsame");
+    if(esameForm) delete esameForm.dataset.creationInProgress;
+
     formContainer.classList.remove('active', 'form-content-area');
     setTimeout(() => formContainer.style.display = 'none', 300);
     
     const calendarEl = document.getElementById('calendar');
-    if (calendarEl) calendarEl.classList.remove('form-visible');
+    calendarEl.classList.remove('form-visible');
     
     if (cleanupProvisional) {
       const dropdown = document.getElementById('insegnamentoDropdown');
-      if (dropdown) dropdown.style.display = 'none';
+      dropdown.style.display = 'none';
       
-      if (window.InsegnamentiManager?.cleanup) {
-        window.InsegnamentiManager.cleanup();
-      }
+      window.InsegnamentiManager.cleanup();
 
       if (window.clearCalendarProvisionalEvents) {
         window.clearCalendarProvisionalEvents();
       }
       
-      if (window.EsameAppelli?.resetSections) {
-        window.EsameAppelli.resetSections();
-      }
+      window.EsameAppelli.resetSections();
               
       if (window.forceCalendarRefresh) {
         window.forceCalendarRefresh();
@@ -435,13 +435,3 @@ window.EsameForm = EsameForm;
 window.removeDateSection = function(sectionId) {
   EsameAppelli.removeDateSection(sectionId);
 };
-
-// Aggiungi un listener per l'evento DOMContentLoaded per assicurarti che 
-// gli elementi del form siano pronti quando vengono caricati dinamicamente
-document.addEventListener('DOMContentLoaded', function() {
-  const form = document.getElementById('formEsame');
-  // Se il form è stato già caricato nella pagina, configura i gestori
-  if (form) {
-    EsameForm.setupTimeCombiningHandlers();
-  }
-});

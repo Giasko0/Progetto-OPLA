@@ -135,9 +135,10 @@ export async function loadDateValide(docente, insegnamenti = null) {
     params.append("insegnamenti", selectedInsegnamenti.join(","));
   }
 
-  // Aggiungi l'anno accademico selezionato
-  if (window.selectedAcademicYear) {
-    params.append("anno", window.selectedAcademicYear);
+  // Aggiungi l'anno accademico selezionato usando AnnoAccademicoManager
+  const selectedYear = window.AnnoAccademicoManager?.getSelectedAcademicYear();
+  if (selectedYear) {
+    params.append("anno", selectedYear);
   }
 
   try {

@@ -51,91 +51,58 @@ const FormEsameData = (function() {
     return { hours, minutes };
   }
 
-  // Validazione date
-  function isValidDate(dateString) {
-    const date = new Date(dateString);
-    return date instanceof Date && !isNaN(date);
-  }
-
-  function isWeekday(dateString) {
-    const date = new Date(dateString);
-    const day = date.getDay();
-    return day !== 0 && day !== 6;
-  }
-
-  // Gestione messaggi operazioni
-  function showOperationMessage(message, title, type, options = {}) {
-    window.showMessage(message, title, type, options);
-  }
-
-  // Compila il form con i dati dell'esame (modalità modifica)
-  function fillFormWithExamData(elements, examData) {
-    // Imposta i campi diretti usando la funzione helper
-    setFormFields(examData);
-
-    // Gestione tipo appello (radio buttons)
-    setRadioValue('tipo_appello_radio', examData.tipo_appello === 'PP' ? 'PP' : 'PF');
-    aggiornaVerbalizzazione(); // Aggiorna le opzioni di verbalizzazione
-    
-    // Gestione checkbox mostra_nel_calendario
-    setCheckboxValue('mostra_nel_calendario', examData.mostra_nel_calendario);
-
-    // Usa handleSpecialFields per gestire ora e durata
-    handleSpecialFields(examData);
-
-    // Gestione insegnamento
-    handleInsegnamentoSelection(examData);
-  }
-
-  // Gestione campi speciali (es. data, ora) - aggiornato per sezioni modulari
-  function handleSpecialFields(data) {
-    // Data appello - imposta nella prima sezione disponibile
+  // Gestione campi speciali per sezioni modulari
+  function handleSpecialFields(data, sectionCounter = '1') {
+    // Data appello
     if (data.data_appello) {
-      const firstDateField = document.querySelector('[id^="dataora_"]');
-      if (firstDateField) firstDateField.value = data.data_appello;
+      const dateField = document.querySelector(`[id^="dataora_${sectionCounter}"]`);
+      if (dateField) dateField.value = data.data_appello;
     }
     
-    // Ora appello - imposta nella prima sezione disponibile
+    // Ora appello  
     if (data.ora_appello) {
       const oraParts = parseTimeString(data.ora_appello);
       if (oraParts && oraParts.hours) {
-        const firstOraH = document.querySelector('[id^="ora_h_"]');
-        const firstOraM = document.querySelector('[id^="ora_m_"]');
+        const oraH = document.querySelector(`[id^="ora_h_${sectionCounter}"]`);
+        const oraM = document.querySelector(`[id^="ora_m_${sectionCounter}"]`);
         
-        if (firstOraH) firstOraH.value = oraParts.hours;
-        if (firstOraM) firstOraM.value = oraParts.minutes;
+        if (oraH) oraH.value = oraParts.hours;
+        if (oraM) oraM.value = oraParts.minutes;
         
-        // Trigger update aule per la prima sezione
-        const firstSectionCounter = firstOraH?.id.split('_')[2];
-        if (firstSectionCounter && window.EsameAppelli) {
-          window.EsameAppelli.updateAuleForSection(firstSectionCounter);
-        }
+        // Trigger update aule per la sezione
+        window.EsameAppelli.updateAuleForSection(sectionCounter);
       }
     }
     
-    // Aula - imposta nella prima sezione disponibile  
+    // Aula
     if (data.aula) {
       setTimeout(() => {
-        const firstAulaSelect = document.querySelector('[id^="aula_"]');
-        if (firstAulaSelect) {
-          firstAulaSelect.value = data.aula;
+        const aulaSelect = document.querySelector(`[id^="aula_${sectionCounter}"]`);
+        if (aulaSelect) {
+          aulaSelect.value = data.aula;
         }
       }, 200);
     }
     
-    // Durata
+    // Durata per sezione specifica
     if (data.durata_appello) {
-      setDurationFromMinutes(data.durata_appello);
+      setDurationForSection(data.durata_appello, sectionCounter);
     }
+  }
+
+  // Imposta durata per una sezione specifica
+  function setDurationForSection(durataMinuti, sectionCounter) {
+    const durata = parseInt(durataMinuti);
+    if (isNaN(durata)) return;
     
-    // Tipo appello (prova parziale)
-    if (data.tipo_appello === 'PP') {
-      const provaParzialeCheckbox = document.getElementById("provaParziale");
-      if (provaParzialeCheckbox) {
-        provaParzialeCheckbox.checked = true;
-        aggiornaVerbalizzazione();
-      }
-    }
+    const ore = Math.floor(durata / 60);
+    const minuti = durata % 60;
+    
+    const durataH = document.querySelector(`[id^="durata_h_${sectionCounter}"]`);
+    const durataM = document.querySelector(`[id^="durata_m_${sectionCounter}"]`);
+    
+    if (durataH) durataH.value = ore.toString();
+    if (durataM) durataM.value = minuti.toString().padStart(2, '0');
   }
 
   // Compilazione form con dati parziali (es. data dal calendario)
@@ -163,9 +130,7 @@ const FormEsameData = (function() {
           }
         } else {
           // Aggiungi una nuova sezione
-          if (window.EsameAppelli) {
-            window.EsameAppelli.addDateSection(partialData.date);
-          }
+          window.EsameAppelli.addDateSection(partialData.date);
         }
       } else {
         // Se la data esiste già, evidenzia la sezione esistente
@@ -215,119 +180,143 @@ const FormEsameData = (function() {
   }
 
   function handleInsegnamentoSelection(data) {
-    if (window.InsegnamentiManager && data.insegnamento_codice) {
-      window.InsegnamentiManager.clearSelection();
-      window.InsegnamentiManager.selectInsegnamento(data.insegnamento_codice, {
-        semestre: data.semestre || 1,
-        anno_corso: data.anno_corso || 1,
-        cds: data.cds_codice || ""
-      });
-      
-      const multiSelectBox = document.getElementById("insegnamentoBox");
-      if (multiSelectBox) {
-        window.InsegnamentiManager.syncUI(multiSelectBox);
-      }
-    }
+    window.InsegnamentiManager.clearSelection();
+    window.InsegnamentiManager.selectInsegnamento(data.insegnamento_codice, {
+      semestre: data.semestre || 1,
+      anno_corso: data.anno_corso || 1,
+      cds: data.cds_codice || ""
+    });
+    
+    const multiSelectBox = document.getElementById("insegnamentoBox");
+    window.InsegnamentiManager.syncUI(multiSelectBox);
   }
 
   // Gestisce la selezione di una data dal calendario
   function handleDateSelection(date) {
-    // Verifica se esiste già una sezione con questa data
-    const existingSections = document.querySelectorAll('.date-appello-section');
-    const dateAlreadyExists = Array.from(existingSections).some(section => 
-      section.dataset.date === date
-    );
-    
-    if (!dateAlreadyExists) {
-      // Controlla se esiste una sezione vuota (senza data)
-      const emptySections = Array.from(existingSections).filter(section => 
-        !section.dataset.date || section.dataset.date === ''
-      );
-
-      if (emptySections.length > 0) {
-        // Usa la prima sezione vuota
-        const emptySection = emptySections[0];
-        const dateInput = emptySection.querySelector('input[type="date"]');
-        if (dateInput) {
-          dateInput.value = date;
-          emptySection.dataset.date = date;
-        }
-      } else {
-        // Aggiungi una nuova sezione solo se non esiste già una sezione per questa data
-        if (window.EsameAppelli) {
+    // Aspetta che il DOM sia pronto
+    setTimeout(() => {
+      // Verifica se esiste già una sezione con questa data
+      const existingSections = document.querySelectorAll('.date-appello-section');
+      
+      if (existingSections.length === 0) {
+        if (window.EsameAppelli && window.EsameAppelli.addDateSection) {
           window.EsameAppelli.addDateSection(date);
+          // Calcola le date di iscrizione per la nuova sezione
+          setTimeout(() => calculateAndSetInscriptionDates(date), 200);
+        } else {
+          console.error('>>> DATA: EsameAppelli.addDateSection non disponibile');
         }
+        return;
       }
-    } else {
-      // Se la data esiste già, evidenzia la sezione esistente
-      const existingSection = Array.from(existingSections).find(section => 
+      
+      const dateAlreadyExists = Array.from(existingSections).some(section => 
         section.dataset.date === date
       );
-      if (existingSection) {
-        existingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        existingSection.style.backgroundColor = '#fffacd';
-        setTimeout(() => {
-          existingSection.style.backgroundColor = '';
-        }, 2000);
-      }
-    }
-    
-    // Trova la sezione che contiene questa data e imposta le date di iscrizione
-    setTimeout(() => {
-      const dateSections = document.querySelectorAll('.date-appello-section');
-      let targetSection = null;
       
-      for (const section of dateSections) {
-        const dataInput = section.querySelector('[id^="dataora_"]');
-        if (dataInput && dataInput.value === date) {
-          targetSection = section;
-          break;
+      if (!dateAlreadyExists) {
+        // Controlla se esiste una sezione vuota (senza data)
+        const emptySections = Array.from(existingSections).filter(section => 
+          !section.dataset.date || section.dataset.date === ''
+        );
+
+        if (emptySections.length > 0) {
+          // Usa la prima sezione vuota
+          const emptySection = emptySections[0];
+          const dateInput = emptySection.querySelector('input[type="date"]');
+          if (dateInput) {
+            dateInput.value = date;
+            emptySection.dataset.date = date;
+            // Calcola le date di iscrizione per questa sezione
+            calculateAndSetInscriptionDatesForSection(emptySection, date);
+          } else {
+            console.error('>>> DATA: input date non trovato nella sezione vuota');
+          }
+        } else {
+          // Aggiungi una nuova sezione solo se non esiste già una sezione per questa data
+          if (window.EsameAppelli && window.EsameAppelli.addDateSection) {
+            window.EsameAppelli.addDateSection(date);
+            // Calcola le date di iscrizione per la nuova sezione
+            setTimeout(() => calculateAndSetInscriptionDates(date), 200);
+          } else {
+            console.error('>>> DATA: EsameAppelli.addDateSection non disponibile');
+          }
         }
-      }
-      
-      // Se abbiamo trovato la sezione, calcoliamo le date di inizio e fine iscrizione
-      if (targetSection) {
-        const inizioIscrizioneInput = targetSection.querySelector('[id^="inizioIscrizione_"]');
-        const fineIscrizioneInput = targetSection.querySelector('[id^="fineIscrizione_"]');
-        
-        if (inizioIscrizioneInput && fineIscrizioneInput) {
-          const appelloDate = new Date(date);
-          
-          // Inizio iscrizione: 30 giorni prima
-          const inizio = new Date(appelloDate);
-          inizio.setDate(appelloDate.getDate() - 30);
-          
-          // Fine iscrizione: 1 giorno prima
-          const fine = new Date(appelloDate);
-          fine.setDate(appelloDate.getDate() - 1);
-          
-          // Formatta le date in YYYY-MM-DD
-          const pad = n => n.toString().padStart(2, '0');
-          const format = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-          
-          inizioIscrizioneInput.value = format(inizio);
-          fineIscrizioneInput.value = format(fine);
+      } else {
+        // Se la data esiste già, evidenzia la sezione esistente
+        const existingSection = Array.from(existingSections).find(section => 
+          section.dataset.date === date
+        );
+        if (existingSection) {
+          existingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          existingSection.style.backgroundColor = '#fffacd';
+          setTimeout(() => {
+            existingSection.style.backgroundColor = '';
+          }, 2000);
         }
       }
     }, 100);
   }
 
+  // Calcola e imposta le date di iscrizione per una data specifica
+  function calculateAndSetInscriptionDates(date) {
+    const dateSections = document.querySelectorAll('.date-appello-section');
+    
+    let targetSection = null;
+    
+    for (const section of dateSections) {
+      const dataInput = section.querySelector('[id^="dataora_"]');
+      if (dataInput && dataInput.value === date) {
+        targetSection = section;
+        break;
+      }
+    }
+    
+    if (targetSection) {
+      calculateAndSetInscriptionDatesForSection(targetSection, date);
+    } else {
+      console.error('>>> DATA: sezione target non trovata per calcolo date iscrizione');
+    }
+  }
+
+  // Calcola e imposta le date di iscrizione per una sezione specifica
+  function calculateAndSetInscriptionDatesForSection(section, date) {
+    const inizioIscrizioneInput = section.querySelector('[id^="inizioIscrizione_"]');
+    const fineIscrizioneInput = section.querySelector('[id^="fineIscrizione_"]');
+    
+    if (inizioIscrizioneInput && fineIscrizioneInput) {
+      const appelloDate = new Date(date);
+      
+      // Inizio iscrizione: 30 giorni prima
+      const inizio = new Date(appelloDate);
+      inizio.setDate(appelloDate.getDate() - 30);
+      
+      // Fine iscrizione: 1 giorno prima
+      const fine = new Date(appelloDate);
+      fine.setDate(appelloDate.getDate() - 1);
+      
+      // Formatta le date in YYYY-MM-DD
+      const pad = n => n.toString().padStart(2, '0');
+      const format = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      
+      const inizioFormatted = format(inizio);
+      const fineFormatted = format(fine);
+      
+      inizioIscrizioneInput.value = inizioFormatted;
+      fineIscrizioneInput.value = fineFormatted;
+      
+      // Trigger eventi change per assicurarsi che i valori siano registrati
+      inizioIscrizioneInput.dispatchEvent(new Event('change', { bubbles: true }));
+      fineIscrizioneInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
   // Funzione unificata per inviare i dati del form
   function submitFormData(options = {}) {
     const form = document.getElementById("formEsame");
-    if (!form) return;
 
-    // Se siamo in modalità modifica, inviamo JSON
-    const isEditMode = options.isEdit || (document.getElementById("examIdField")?.value && document.getElementById("examIdField").value !== "");
-    if (isEditMode) {
-      // Logica per modalità modifica - JSON submission
-      const jsonData = {
-        id: document.getElementById("examIdField")?.value,
-        // ... altri campi per modifica ...
-      };
-      
-      // Non implementato in questo momento per il refactor
-      console.warn("Modalità modifica non ancora implementata nel nuovo modulo");
+    // La modalità modifica è ora gestita da EditEsame
+    if (options.isEdit) {
+      console.error("Modalità modifica spostata in EditEsame modulo");
       return;
     }
 
@@ -336,53 +325,14 @@ const FormEsameData = (function() {
     
     // Aggiungi solo i campi globali (docente e insegnamenti)
     const docenteField = document.getElementById('docente');
-    if (docenteField && docenteField.value) {
-      formData.append('docente', docenteField.value);
-    }
+    formData.append('docente', docenteField.value);
     
-    // Ottieni l'anno accademico selezionato dal cookie
-    let annoAccademico;
-    try {
-      // Usa il metodo getSelectedAcademicYear da calendarUtils se disponibile
-      if (window.getSelectedAcademicYear) {
-        annoAccademico = window.getSelectedAcademicYear();
-      } else {
-        // Fallback: recupera direttamente il cookie
-        const cookieName = "selectedAcademicYear";
-        const ca = document.cookie.split(';');
-        for (let i = 0; i < ca.length; i++) {
-          let c = ca[i];
-          while (c.charAt(0) === ' ') c = c.substring(1);
-          if (c.indexOf(cookieName + '=') === 0) {
-            annoAccademico = c.substring(cookieName.length + 1);
-            break;
-          }
-        }
-      }
-      
-      // Se non trovato, usa l'anno corrente come fallback
-      if (!annoAccademico) {
-        annoAccademico = new Date().getFullYear().toString();
-      }
-    } catch (error) {
-      // In caso di errore, usa l'anno corrente come fallback
-      annoAccademico = new Date().getFullYear().toString();
-      console.warn("Errore nel recupero dell'anno accademico, usato anno corrente:", error);
-    }
-    
+    // Ottieni l'anno accademico selezionato usando AnnoAccademicoManager
+    const annoAccademico = window.AnnoAccademicoManager.getSelectedAcademicYear() || new Date().getFullYear().toString();
     formData.append('anno_accademico', annoAccademico);
     
     // Gestisci gli insegnamenti usando InsegnamentiManager
-    let insegnamentiSelected = [];
-    if (window.InsegnamentiManager && typeof window.InsegnamentiManager.getSelectedInsegnamenti === 'function') {
-      insegnamentiSelected = window.InsegnamentiManager.getSelectedInsegnamenti();
-    } else {
-      // Fallback: usa il select nascosto
-      const insegnamentoSelect = document.getElementById('insegnamento');
-      if (insegnamentoSelect && insegnamentoSelect.selectedOptions.length > 0) {
-        insegnamentiSelected = Array.from(insegnamentoSelect.selectedOptions).map(option => option.value);
-      }
-    }
+    const insegnamentiSelected = window.InsegnamentiManager.getSelectedInsegnamenti();
     
     // Aggiungi gli insegnamenti al FormData
     if (insegnamentiSelected && insegnamentiSelected.length > 0) {
@@ -390,9 +340,7 @@ const FormEsameData = (function() {
         formData.append('insegnamenti[]', codice);
       });
     } else {
-      if (window.showMessage) {
-        window.showMessage("Seleziona almeno un insegnamento", "Attenzione", "warning");
-      }
+      window.showMessage("Seleziona almeno un insegnamento", "Attenzione", "warning");
       return;
     }
     
@@ -423,6 +371,26 @@ const FormEsameData = (function() {
       
       // Verifica che i campi obbligatori siano presenti
       if (fields.descrizione && fields.dataora && fields.ora_h && fields.ora_m && fields.aula) {
+        // Se le date di iscrizione sono vuote, calcolale automaticamente
+        if (!fields.inizioIscrizione || !fields.fineIscrizione) {
+          const appelloDate = new Date(fields.dataora);
+          
+          // Inizio iscrizione: 30 giorni prima
+          const inizio = new Date(appelloDate);
+          inizio.setDate(appelloDate.getDate() - 30);
+          
+          // Fine iscrizione: 1 giorno prima
+          const fine = new Date(appelloDate);
+          fine.setDate(appelloDate.getDate() - 1);
+          
+          // Formatta le date in YYYY-MM-DD
+          const pad = n => n.toString().padStart(2, '0');
+          const format = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+          
+          fields.inizioIscrizione = fields.inizioIscrizione || format(inizio);
+          fields.fineIscrizione = fields.fineIscrizione || format(fine);
+        }
+        
         // Aggiungi tutti i campi al FormData con indice sezione
         Object.entries(fields).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
@@ -445,9 +413,7 @@ const FormEsameData = (function() {
     });
     
     if (!hasValidSections) {
-      if (window.showMessage) {
-        window.showMessage("Compila almeno una sezione di appello valida", "Errore", "error");
-      }
+      window.showMessage("Compila almeno una sezione di appello valida", "Errore", "error");
       return;
     }
 
@@ -465,40 +431,27 @@ const FormEsameData = (function() {
     .then(data => {
       if (data.status === 'success') {
         // Pulisci i dati di salvataggio automatico quando l'esame viene salvato con successo
-        if (window.FormEsameAutosave) {
-          window.FormEsameAutosave.clearSavedData();
-        }
+        window.FormEsameAutosave.clearSavedData();
         
-        if (window.showMessage) {
-          window.showMessage(data.message, "Successo", "notification");
-        }
+        window.showMessage(data.message, "Successo", "notification");
         
         // Ricarica il calendario
-        if (window.calendar) {
-          window.calendar.refetchEvents();
-        }
+        window.calendar.refetchEvents();
         
         // Chiudi il form
-        if (window.EsameForm && window.EsameForm.hideForm) {
-          window.EsameForm.hideForm(true, true); // cleanup provisional events e autosave
-        }
+        window.EsameForm.hideForm(true, true); // cleanup provisional events e autosave
       } else {
-        if (window.showMessage) {
-          window.showMessage(data.message, "Errore", "error");
-        }
+        window.showMessage(data.message, "Errore", "error");
       }
     })
     .catch(error => {
       console.error('Errore di rete:', error);
-      if (window.showMessage) {
-        window.showMessage('Errore di rete durante l\'invio del form', "Errore", "error");
-      }
+      window.showMessage('Errore di rete durante l\'invio del form', "Errore", "error");
     });
   }
 
   // Interfaccia pubblica
   return {
-    fillFormWithExamData,
     handleSpecialFields,
     fillFormWithPartialData,
     setFormFields,
@@ -509,11 +462,11 @@ const FormEsameData = (function() {
     setRadioValue,
     setCheckboxValue,
     setDurationFromMinutes,
+    setDurationForSection,
     combineTimeValues,
     parseTimeString,
-    isValidDate,
-    isWeekday,
-    showOperationMessage
+    calculateAndSetInscriptionDates,
+    calculateAndSetInscriptionDatesForSection
   };
 }());
 

@@ -24,39 +24,33 @@ document.addEventListener("DOMContentLoaded", function () {
 function fetchAndDisplayEsami() {
   getUserData()
     .then((data) => {
-      if (data?.authenticated && data?.user_data) {
-        const userData = data.user_data;
-        const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
-        
-        if (!selectedYear) {
-          document.getElementById("contenitoreEsami").innerHTML = 
-            '<div class="error-message">Seleziona un anno accademico per visualizzare gli esami</div>';
-          return;
-        }
-
-        const params = new URLSearchParams({
-          docente: userData.username,
-          anno: selectedYear
-        });
-
-        Promise.all([
-          fetch(`/api/get-insegnamenti-docente?${params}`).then(r => r.json()),
-          fetch(`/api/getEsami?${params}`).then(r => r.json())
-        ])
-        .then(([insegnamentiResponse, esamiData]) => {
-          if (insegnamentiResponse.status !== 'success') {
-            throw new Error('Errore nel caricamento degli insegnamenti');
-          }
-
-          const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.username);
-          displayEsamiData(processedData);
-        })
-        .catch((error) => {
-          console.error("Errore:", error);
-          document.getElementById("contenitoreEsami").innerHTML = 
-            `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
-        });
+      const userData = data.user_data;
+      const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
+      
+      if (!selectedYear) {
+        document.getElementById("contenitoreEsami").innerHTML = 
+          '<div class="error-message">Seleziona un anno accademico per visualizzare gli esami</div>';
+        return;
       }
+
+      const params = new URLSearchParams({
+        docente: userData.username,
+        anno: selectedYear
+      });
+
+      Promise.all([
+        fetch(`/api/get-insegnamenti-docente?${params}`).then(r => r.json()),
+        fetch(`/api/getEsami?${params}`).then(r => r.json())
+      ])
+      .then(([insegnamentiResponse, esamiData]) => {
+        const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.username);
+        displayEsamiData(processedData);
+      })
+      .catch((error) => {
+        console.error("Errore:", error);
+        document.getElementById("contenitoreEsami").innerHTML = 
+          `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
+      });
     })
     .catch((error) => {
       console.error("Errore nell'ottenimento dati utente:", error);
@@ -145,13 +139,9 @@ function determinaSessioneEsame(dataEsame) {
   if (mese >= 1 && mese <= 2) {
     // Gennaio-Febbraio: può essere Anticipata o Invernale a seconda dell'anno accademico
     const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
-    if (selectedYear) {
-      // Se l'anno corrente è l'anno accademico di riferimento + 1, è Invernale
-      // Altrimenti è Anticipata
-      return anno === selectedYear + 1 ? 'Invernale' : 'Anticipata';
-    }
-    // Fallback: considera come Anticipata
-    return 'Anticipata';
+    // Se l'anno corrente è l'anno accademico di riferimento + 1, è Invernale
+    // Altrimenti è Anticipata
+    return anno === selectedYear + 1 ? 'Invernale' : 'Anticipata';
   } else if (mese >= 6 && mese <= 7) {
     return 'Estiva'; // Giugno-Luglio
   } else if (mese === 9) {
@@ -286,7 +276,7 @@ function displayTabelleEsami(data, insegnamento, container) {
       
       let cell1 = row.insertCell(1);
       cell1.className = "esami-td";
-      cell1.textContent = esame.cds || "N/A";
+      cell1.textContent = esame.cds;
       
       let cell2 = row.insertCell(2);
       cell2.className = "esami-td";
@@ -340,19 +330,8 @@ function displaySessioniEsami(data, insegnamento, container) {
   section.appendChild(title);
 
   const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
-    
-  let planningYear, nextYear;
-  
-  if (selectedYear) {
-    planningYear = parseInt(selectedYear);
-    nextYear = planningYear + 1;
-  } else {
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
-    planningYear = currentMonth >= 9 ? currentYear + 1 : currentYear;
-    nextYear = planningYear + 1;
-  }
+  const planningYear = parseInt(selectedYear);
+  const nextYear = planningYear + 1;
 
   const sessioni = data.insegnamenti[insegnamento];
 
@@ -499,7 +478,7 @@ function displayAllExams(data, container) {
     
     let cell1 = row.insertCell(1);
     cell1.className = "esami-td";
-    cell1.textContent = esame.cds || "N/A";
+    cell1.textContent = esame.cds;
     
     let cell2 = row.insertCell(2);
     cell2.className = "esami-td";
@@ -563,12 +542,8 @@ function sortTable(tableId, colIndex, type = "text") {
 
     if (type === "date") {
       // Usa il valore dell'attributo data-datetime per le date
-      aValue =
-        a.cells[colIndex].getAttribute("data-datetime") ||
-        a.cells[colIndex].textContent.trim();
-      bValue =
-        b.cells[colIndex].getAttribute("data-datetime") ||
-        b.cells[colIndex].textContent.trim();
+      aValue = a.cells[colIndex].getAttribute("data-datetime") || a.cells[colIndex].textContent.trim();
+      bValue = b.cells[colIndex].getAttribute("data-datetime") || b.cells[colIndex].textContent.trim();
 
       // Converti in oggetti Date per il confronto
       const dateA = new Date(aValue);
@@ -576,13 +551,11 @@ function sortTable(tableId, colIndex, type = "text") {
 
       return direction === "asc" ? dateA - dateB : dateB - dateA;
     } else {
-      // Per i campi di testo, usa il metodo esistente
+      // Per i campi di testo
       aValue = a.cells[colIndex].textContent.trim().toLowerCase();
       bValue = b.cells[colIndex].textContent.trim().toLowerCase();
 
-      return direction === "asc"
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
+      return direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
     }
   });
 
@@ -592,37 +565,21 @@ function sortTable(tableId, colIndex, type = "text") {
 
 // Funzione per formattare data e ora
 function formatDateTime(dateTimeStr) {
-  if (!dateTimeStr) return "Data non disponibile";
+  const date = new Date(dateTimeStr);
+  
+  // Formattazione in stile italiano: DD/MM/YYYY, HH:MM
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0"); // +1 perché i mesi sono 0-based
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
 
-  try {
-    const date = new Date(dateTimeStr);
-
-    if (isNaN(date.getTime())) {
-      // Gestione fallback per formati di data non standard
-      return dateTimeStr;
-    }
-
-    // Formattazione in stile italiano: DD/MM/YYYY, HH:MM
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0"); // +1 perché i mesi sono 0-based
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-
-    return `${day}/${month}/${year}, ${hours}:${minutes}`;
-  } catch (error) {
-    console.error("Errore nella formattazione della data:", error);
-    return dateTimeStr; // Restituisci la stringa originale in caso di errore
-  }
+  return `${day}/${month}/${year}, ${hours}:${minutes}`;
 }
 
 // Funzione per formattare la durata in ore e minuti
 function formatDurata(durataMinuti) {
-  if (!durataMinuti) return "N/D";
-  
   const durata = parseInt(durataMinuti, 10);
-  if (isNaN(durata)) return durataMinuti;
-  
   const ore = Math.floor(durata / 60);
   const minuti = durata % 60;
   
@@ -637,86 +594,18 @@ function formatDurata(durataMinuti) {
 
 // Funzione per aprire il form di modifica dell'esame
 function editEsame(esameId) {
-  // Verificare che EsameForm esista
-  if (window.EsameForm) {
-    // Carica i dettagli dell'esame e mostra il form
-    fetch(`/api/getEsameById?id=${esameId}`)
-      .then(response => {
-        return response.json();
-      })
-      .then(data => {
-        if (data.success) {
-          try {
-            // Assicurati che InsegnamentiManager sia disponibile
-            if (!window.InsegnamentiManager) {
-              throw new Error("InsegnamentiManager non inizializzato");
-            }
-
-            // Mostra il form e dopo inizializza InsegnamentiManager
-            window.EsameForm.showForm(data.esame, true)
-              .then(() => {
-                // Recupera l'username dal campo docente
-                const username = document.getElementById("docente")?.value;
-                if (username) {
-                  // Inizializza InsegnamentiManager
-                  window.InsegnamentiManager.initUI(
-                    "insegnamentoBox",
-                    "insegnamentoDropdown",
-                    "insegnamentoOptions",
-                    username
-                  );
-                }
-              });
-          } catch (err) {
-            console.error("Errore nella compilazione del form:", err);
-            showMessage("Errore nella compilazione del form: " + err.message, "Errore", "error");
-          }
-        } else {
-          console.error("Errore nella risposta API:", data.message);
-          showMessage(data.message, "Errore", "error");
-        }
-      })
-      .catch(error => {
-        console.error("Errore nel caricamento dei dettagli dell'esame:", error);
-        showMessage("Errore nel caricamento dei dettagli dell'esame", "Errore", "error");
-      });
-  } else {
-    console.error("EsameForm non disponibile");
-    showMessage("Impossibile modificare l'esame: modulo non disponibile", "Errore", "error");
-  }
+  window.EditEsame.editExam(esameId)
+    .then(examData => {
+      console.log("Esame caricato per modifica:", examData);
+    })
+    .catch(error => {
+      console.error("Errore nella modifica dell'esame:", error);
+    });
 }
 
 // Funzione per eliminare un esame
 function deleteEsame(examId) {
-  fetch('/api/deleteEsame', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ id: examId }),
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        showMessage("Esame eliminato con successo", "Successo", "success");
-        
-        // Chiudi il form usando EsameForm se disponibile
-        if (window.EsameForm && window.EsameForm.hideForm) {
-          window.EsameForm.hideForm();
-        }
-        
-        // Ricarica la pagina per aggiornare la tabella
-        setTimeout(() => {
-          location.reload();
-        }, 1000);
-      } else {
-        showMessage(data.message || "Errore nell'eliminazione dell'esame", "Errore", "error");
-      }
-    })
-    .catch(error => {
-      console.error("Errore nella richiesta di eliminazione:", error);
-      showMessage("Errore nella richiesta di eliminazione", "Errore", "error");
-    });
+  window.EditEsame.handleDeleteExam(examId);
 }
 
 // Espone funzioni necessarie per l'HTML
@@ -727,9 +616,7 @@ window.deleteEsame = deleteEsame;
 // Aggiorna l'evento del pulsante "Tutti gli appelli"
 document.addEventListener("DOMContentLoaded", function () {
   const allExamsButton = document.getElementById("allExamsButton");
-  if (allExamsButton) {
-    allExamsButton.onclick = function () {
-      window.location.href = window.location.pathname;
-    };
-  }
+  allExamsButton.onclick = function () {
+    window.location.href = window.location.pathname;
+  };
 });

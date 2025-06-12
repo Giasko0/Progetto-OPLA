@@ -259,7 +259,112 @@ const FormEsameControlli = (function() {
     return true;
   }
 
-  // Interfaccia pubblica
+  // Validazione per modalità modifica (singola sezione)
+  function validateFormForEdit() {
+    // Controlla se ci sono campi data con errori di validazione
+    const errorFields = document.querySelectorAll('.form-input-error');
+    if (errorFields.length > 0) {
+      showValidationError("Correggi gli errori nelle date prima di modificare l'esame");
+      errorFields[0].focus();
+      return false;
+    }
+
+    // Verifica che ci sia almeno una sezione
+    const firstSection = document.querySelector('.date-appello-section');
+    if (!firstSection) {
+      showValidationError("Nessuna sezione di appello trovata");
+      return false;
+    }
+
+    // Valida la prima sezione (in modifica dovrebbe essercene solo una)
+    const descrizione = firstSection.querySelector('[id^="descrizione_"]')?.value;
+    const dataora = firstSection.querySelector('[id^="dataora_"]')?.value;
+    const ora_h = firstSection.querySelector('[id^="ora_h_"]')?.value;
+    const ora_m = firstSection.querySelector('[id^="ora_m_"]')?.value;
+    const aula = firstSection.querySelector('[id^="aula_"]')?.value;
+    const durata_h = firstSection.querySelector('[id^="durata_h_"]')?.value;
+    const durata_m = firstSection.querySelector('[id^="durata_m_"]')?.value;
+
+    // Verifica campi obbligatori
+    if (!descrizione || !descrizione.trim()) {
+      showValidationError("Inserisci una descrizione per l'appello");
+      return false;
+    }
+
+    if (!dataora) {
+      showValidationError("Seleziona una data per l'appello");
+      return false;
+    }
+
+    if (!ora_h || !ora_m) {
+      showValidationError("Seleziona un orario per l'appello");
+      return false;
+    }
+
+    if (!aula) {
+      showValidationError("Seleziona un'aula per l'appello");
+      return false;
+    }
+
+    // Validazione giorno settimana e ora
+    const validationResults = {
+      giorno_settimana: validateFormField('giorno_settimana', dataora, formValidationRules),
+      ora_appello: validateFormField('ora_appello', `${ora_h}:${ora_m}`, formValidationRules)
+    };
+
+    // Controlla se ci sono errori di validazione
+    for (const [field, result] of Object.entries(validationResults)) {
+      if (!result.isValid) {
+        showValidationError(result.message);
+        return false;
+      }
+    }
+
+    // Validazione durata
+    const durataH = parseInt(durata_h) || 0;
+    const durataM = parseInt(durata_m) || 0;
+    const durataTotale = (durataH * 60) + durataM;
+    
+    if (durataTotale < 30 || durataTotale > 720) {
+      showValidationError("La durata deve essere tra 30 minuti e 12 ore");
+      return false;
+    }
+
+    return true;
+  }
+
+  // Validazione con bypass per modalità modifica
+  function validateFormForEditWithBypass() {
+    // Controlla errori di validazione delle date
+    const errorFields = document.querySelectorAll('.form-input-error');
+    if (errorFields.length > 0) {
+      showValidationError("Correggi gli errori nelle date prima di modificare, anche con bypass");
+      errorFields[0].focus();
+      return false;
+    }
+
+    // Verifica che ci sia almeno una sezione
+    const firstSection = document.querySelector('.date-appello-section');
+    if (!firstSection) {
+      showValidationError("Nessuna sezione di appello trovata");
+      return false;
+    }
+
+    // Controllo minimo: almeno i campi obbligatori devono essere presenti
+    const dataora = firstSection.querySelector('[id^="dataora_"]')?.value;
+    const ora_h = firstSection.querySelector('[id^="ora_h_"]')?.value;
+    const ora_m = firstSection.querySelector('[id^="ora_m_"]')?.value;
+    const aula = firstSection.querySelector('[id^="aula_"]')?.value;
+
+    if (!dataora || !ora_h || !ora_m || !aula) {
+      showValidationError("Compila almeno i campi obbligatori");
+      return false;
+    }
+
+    return true;
+  }
+
+  // Interfaccia pubblica aggiornata
   return {
     getFirstDateValue,
     getFirstTimeValue,
@@ -267,6 +372,8 @@ const FormEsameControlli = (function() {
     isUserAdmin,
     validateForm,
     validateFormWithBypass,
+    validateFormForEdit, // Nuovo per modalità modifica
+    validateFormForEditWithBypass, // Nuovo per bypass in modifica
     validateFormField,
     validators,
     getCommonValidationRules,

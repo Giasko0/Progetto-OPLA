@@ -140,9 +140,10 @@ document.addEventListener("DOMContentLoaded", function () {
               const selected = window.InsegnamentiManager.getSelectedInsegnamenti();
               if (selected.length > 0) params.append("insegnamenti", selected.join(","));
             }
-            // Aggiungi l'anno accademico selezionato
-            if (window.selectedAcademicYear) {
-              params.append("anno", window.selectedAcademicYear);
+            // Aggiungi l'anno accademico selezionato usando AnnoAccademicoManager
+            const selectedYear = window.AnnoAccademicoManager?.getSelectedAcademicYear();
+            if (selectedYear) {
+              params.append("anno", selectedYear);
             }
 
             fetch(`/api/getEsami?${params.toString()}`)
@@ -248,41 +249,51 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
               }
             }
-
-            // Utilizza EsameAppelli per creare l'evento provvisorio
-            if (window.EsameAppelli && window.EsameAppelli.createProvisionalEventForDate) {
-              let nextSectionNumber = 1;
-              while (document.getElementById(`dataora_${nextSectionNumber}`) && 
-                     document.getElementById(`dataora_${nextSectionNumber}`).value) {
-                  nextSectionNumber++;
-              }
-              
-              window.EsameAppelli.createProvisionalEventForDate(selDateFormatted, nextSectionNumber);
-            }
             
-            // Usa window.EsameForm invece di EsameForm
+            // Usa window.EsameForm per aprire il form
             if (window.EsameForm) {
               window.EsameForm.showForm({ date: selDateFormatted }).then(formOpened => {
-                if (formOpened) {
-                  if (window.FormEsameData && window.FormEsameData.handleDateSelection) {
+                if (formOpened && window.FormEsameData && window.FormEsameData.handleDateSelection) {
+                  // Aspetta che il form sia completamente caricato prima di gestire la selezione della data
+                  setTimeout(() => {
                     window.FormEsameData.handleDateSelection(selDateFormatted);
-                  }
+                  }, 200);
+                } else {
+                  console.error('>>> CALENDAR: FormEsameData o handleDateSelection non disponibili');
                 }
+              }).catch(error => {
+                console.error('>>> CALENDAR: errore nell\'apertura del form:', error);
               });
             } else {
-              console.error('EsameForm non disponibile');
+              console.error('>>> CALENDAR: EsameForm non disponibile');
             }
           },
 
-          eventClick: function (info) {
-            // Se l'evento cliccato è provvisorio non fare nulla
-            if (info.event.extendedProps.isProvisional) {
-              return; 
-            }
-            // Altrimenti, procedi con la logica di modifica esistente
-            const examId = info.event.id;
-            if (examId && window.EsameForm) {
-              window.EsameForm.showForm({ examId: examId }, true);
+          eventClick: function (clickInfo) {
+            const event = clickInfo.event;
+            console.log("Evento cliccato:", event);
+
+            if (event.extendedProps && event.extendedProps.isProvisional) {
+              // Gestisci diversamente gli eventi provvisori se necessario,
+              // ad esempio, non aprendo il form di modifica standard.
+              console.log("Evento provvisorio cliccato:", event);
+              // Potresti voler rimuovere l'evento provvisorio o fare altre azioni.
+            } else {
+              // Questo è un esame esistente, apri il form in modalità modifica.
+              // L'ID dell'esame è direttamente in event.id
+              const examId = event.id;
+
+              if (examId) {
+                console.log(`Tentativo di modifica esame con ID: ${examId}`);
+                if (window.EsameForm && window.EsameForm.showForm) {
+                  window.EsameForm.showForm({ id: examId }, true);
+                } else {
+                  console.error("EsameForm.showForm non è disponibile.");
+                }
+              } else {
+                console.error("ID dell'esame non trovato nell'evento cliccato (event.id è nullo o vuoto).", event);
+                alert("Impossibile modificare l'esame: ID non trovato.");
+              }
             }
           },
 
