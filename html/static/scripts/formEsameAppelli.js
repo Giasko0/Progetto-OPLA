@@ -1,10 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
   // Gestione delle sezioni modulari per date e appelli
   const EsameAppelli = (function() {
-    // Verifica che FormEsameAutosave sia caricato
-    if (!window.FormEsameAutosave) {
-      console.warn('FormEsameAutosave non è caricato. Funzionalità di salvataggio automatico non disponibile.');
-    }
 
     // Variabili per il tracking delle sezioni
     let dateAppelliCounter = 0;
@@ -178,18 +174,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function addDateSection(date = '') {
-      console.log('>>> APPELLI: addDateSection chiamata con data:', date);
-      
       const container = document.getElementById('dateAppelliContainer');
       if (!container) {
-        console.error("Container dateAppelliContainer non trovato");
         return null;
       }
 
-      // **FIX PRINCIPALE**: Non verificare se esiste già una sezione con questa data
-      // Ogni click deve creare una nuova sezione
-      
-      // Calcola il prossimo numero di sezione basandosi sulle sezioni esistenti
+      // Calcola il prossimo numero di sezione
       const existingSections = document.querySelectorAll('.date-appello-section');
       dateAppelliCounter = existingSections.length + 1;
       const sectionId = `dateSection_${dateAppelliCounter}`;
@@ -197,52 +187,40 @@ document.addEventListener('DOMContentLoaded', function() {
       const section = document.createElement('div');
       section.className = 'date-appello-section';
       section.id = sectionId;
-      section.dataset.date = date || ''; // Imposta stringa vuota se non c'è data
+      section.dataset.date = date || '';
 
-      // Usa il template inline - molto più veloce
-      const template = getAppelloTemplate();
-      
-      // Sostituisci i placeholder nel template
-      const processedTemplate = template
+      // Usa template processato
+      section.innerHTML = getAppelloTemplate()
         .replace(/COUNTER_PLACEHOLDER/g, dateAppelliCounter)
         .replace(/SECTION_ID_PLACEHOLDER/g, sectionId)
         .replace(/DATE_PLACEHOLDER/g, date);
 
-      section.innerHTML = processedTemplate;
-
-      // Inserisci la sezione prima del pulsante "Aggiungi data"
+      // Inserisci la sezione
       const addButton = container.querySelector('.add-date-btn');
-      if (addButton) {
-        container.insertBefore(section, addButton);
-      } else {
-        container.appendChild(section);
-      }
+      container.insertBefore(section, addButton || null);
       
-      console.log('>>> APPELLI: sezione aggiunta al DOM');
-      
-      // Aggiungi event listeners per questa sezione - ottimizzato
+      // Setup listeners e inizializzazione
       setupDateSectionListeners(sectionId, dateAppelliCounter);
       
-      // Precompila la nuova sezione solo se non è la prima e non siamo in modifica
+      // Precompila solo se necessario
       if (dateAppelliCounter > 1 && window.FormEsameAutosave) {
         const examIdField = document.getElementById('examIdField');
-        const isEditMode = examIdField && examIdField.value;
+        const isEditMode = examIdField?.value;
         
         if (!isEditMode) {
           window.FormEsameAutosave.precompileNewSection(section);
         }
       }
       
-      // Assicurati che il checkbox "Apertura appelli" sia sempre selezionato per default
+      // Imposta checkbox default
       const showInCalendarCheckbox = section.querySelector(`#mostra_nel_calendario_${dateAppelliCounter}`);
       if (showInCalendarCheckbox) {
         showInCalendarCheckbox.checked = true;
       }
       
-      // Se è stata fornita una data, crea subito l'evento provvisorio
+      // Gestisci evento provvisorio se c'è una data
       if (date) {
         createProvisionalEventForDate(date, dateAppelliCounter);
-        // Aggiungi la data al tracking
         if (!selectedDates.includes(date)) {
           selectedDates.push(date);
         }
@@ -298,134 +276,108 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function setupDateSectionListeners(sectionId, counter) {
-      const dateInput = document.getElementById(`dataora_${counter}`);
-      const oraH = document.getElementById(`ora_h_${counter}`);
-      const oraM = document.getElementById(`ora_m_${counter}`);
-      const durataH = document.getElementById(`durata_h_${counter}`);
-      const durataM = document.getElementById(`durata_m_${counter}`);
-      const tipoAppelloRadios = document.querySelectorAll(`input[name="tipo_appello_radio_${counter}"]`);
-      
-      if (dateInput) {
-        // Rimuovi stili di errore durante la digitazione
-        dateInput.addEventListener('input', () => {
-          dateInput.classList.remove('form-input-error');
-        });
-        
-        // Esegui la validazione solo quando il campo perde focus
-        dateInput.addEventListener('blur', () => {
-          if (dateInput.value && isValidDateFormat(dateInput.value)) {
-            handleDateInputChange(sectionId, counter);
-            updateAuleForSection(counter);
-          }
-        });
-      }
-      if (oraH) {
-        oraH.addEventListener('change', () => {
-          updateAuleForSection(counter);
-          // Salva automaticamente se è la prima sezione
-          if (counter === 1 && window.FormEsameAutosave) {
-            window.FormEsameAutosave.autoSaveFirstSection();
-          }
-        });
-      }
-      if (oraM) {
-        oraM.addEventListener('change', () => {
-          updateAuleForSection(counter);
-          // Salva automaticamente se è la prima sezione
-          if (counter === 1 && window.FormEsameAutosave) {
-            window.FormEsameAutosave.autoSaveFirstSection();
-          }
-        });
-      }
-      
-      // Gestione durata per sezione
-      if (durataH && durataM) {
-        // Rimuovi listener esistenti per evitare duplicati
-        durataH.removeEventListener('change', () => combineDurataForSection(counter));
-        durataM.removeEventListener('change', () => combineDurataForSection(counter));
-        
-        // Aggiungi nuovi listener
-        durataH.addEventListener('change', () => {
-          combineDurataForSection(counter);
-          // Salva automaticamente se è la prima sezione
-          if (counter === 1 && window.FormEsameAutosave) {
-            window.FormEsameAutosave.autoSaveFirstSection();
-          }
-        });
-        durataM.addEventListener('change', () => {
-          combineDurataForSection(counter);
-          // Salva automaticamente se è la prima sezione
-          if (counter === 1 && window.FormEsameAutosave) {
-            window.FormEsameAutosave.autoSaveFirstSection();
-          }
-        });
-        
-        // Inizializza il valore di durata al caricamento
-        setTimeout(() => combineDurataForSection(counter), 100);
-      }
-      
-      // Gestione tipo appello per sezione
+      const section = document.getElementById(sectionId);
+      if (!section) return;
+
+      // Elementi principali
+      const dateInput = section.querySelector(`#dataora_${counter}`);
+      const oraH = section.querySelector(`#ora_h_${counter}`);
+      const oraM = section.querySelector(`#ora_m_${counter}`);
+      const durataH = section.querySelector(`#durata_h_${counter}`);
+      const durataM = section.querySelector(`#durata_m_${counter}`);
+      const showInCalendarCheckbox = section.querySelector(`#mostra_nel_calendario_${counter}`);
+
+      // Configurazione listener ottimizzata
+      const listeners = [
+        {
+          element: dateInput,
+          events: [
+            { type: 'input', handler: () => dateInput.classList.remove('form-input-error') },
+            { type: 'blur', handler: () => handleDateInputChange(sectionId, counter) }
+          ]
+        },
+        {
+          element: oraH,
+          events: [{ type: 'change', handler: () => updateAuleForSection(counter) }]
+        },
+        {
+          element: oraM,
+          events: [{ type: 'change', handler: () => updateAuleForSection(counter) }]
+        },
+        {
+          element: durataH,
+          events: [{ type: 'change', handler: () => combineDurataForSection(counter) }]
+        },
+        {
+          element: durataM,
+          events: [{ type: 'change', handler: () => combineDurataForSection(counter) }]
+        },
+        {
+          element: showInCalendarCheckbox,
+          events: [{
+            type: 'change',
+            handler: function() {
+              this.setAttribute('data-user-modified', 'true');
+              validateAllDates();
+            }
+          }]
+        }
+      ];
+
+      // Applica listener
+      listeners.forEach(({ element, events }) => {
+        if (element) {
+          events.forEach(({ type, handler }) => {
+            element.addEventListener(type, handler);
+          });
+        }
+      });
+
+      // Radio buttons per tipo appello
+      const tipoAppelloRadios = section.querySelectorAll(`input[name="tipo_appello_radio_${counter}"]`);
       tipoAppelloRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-          aggiornaVerbalizzazioneForSection(counter);
-          // Salva automaticamente se è la prima sezione
-          if (counter === 1 && window.FormEsameAutosave) {
+        radio.addEventListener('change', () => aggiornaVerbalizzazioneForSection(counter));
+      });
+
+      // Salvataggio automatico per prima sezione
+      if (counter === 1 && window.FormEsameAutosave) {
+        setupAutoSaveForSection(section);
+      }
+
+      // Inizializza durata
+      setTimeout(() => combineDurataForSection(counter), 100);
+
+      // Assicura checkbox selezionato
+      if (showInCalendarCheckbox && !showInCalendarCheckbox.hasAttribute('data-user-modified')) {
+        showInCalendarCheckbox.checked = true;
+      }
+    }
+
+    // Funzione helper per autosave
+    function setupAutoSaveForSection(section) {
+      const examIdField = document.getElementById('examIdField');
+      const isEditMode = examIdField?.value;
+      
+      if (isEditMode) return;
+
+      // Campi con debounce
+      const textInputs = section.querySelectorAll('input[type="text"], textarea, input[type="date"]');
+      textInputs.forEach(input => {
+        input.addEventListener('input', () => {
+          clearTimeout(input._autoSaveTimeout);
+          input._autoSaveTimeout = setTimeout(() => {
             window.FormEsameAutosave.autoSaveFirstSection();
-          }
+          }, 500);
         });
       });
 
-      // Aggiungi listener per il salvataggio automatico sui campi di testo se è la prima sezione e non in modifica
-      if (counter === 1 && window.FormEsameAutosave) {
-        const examIdField = document.getElementById('examIdField');
-        const isEditMode = examIdField && examIdField.value;
-        
-        if (!isEditMode) {
-          const section = document.getElementById(sectionId);
-          if (section) {
-            // Campi di testo e textarea
-            const textInputs = section.querySelectorAll('input[type="text"], textarea, input[type="date"]');
-            textInputs.forEach(input => {
-              input.addEventListener('input', () => {
-                clearTimeout(input._autoSaveTimeout);
-                input._autoSaveTimeout = setTimeout(() => {
-                  window.FormEsameAutosave.autoSaveFirstSection();
-                }, 500);
-              });
-            });
-
-            // Select e checkbox
-            const selectsAndCheckboxes = section.querySelectorAll('select, input[type="checkbox"]');
-            selectsAndCheckboxes.forEach(element => {
-              element.addEventListener('change', () => {
-                window.FormEsameAutosave.autoSaveFirstSection();
-              });
-            });
-            
-            // Radio buttons per tipo appello
-            const radioButtons = section.querySelectorAll('input[type="radio"]');
-            radioButtons.forEach(radio => {
-              radio.addEventListener('change', () => {
-                window.FormEsameAutosave.autoSaveFirstSection();
-              });
-            });
-          }
-        }
-      }
-
-      // Gestione del checkbox "Apertura appelli" 
-      const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${counter}`);
-      if (showInCalendarCheckbox) {
-          // Assicurati che sia selezionato per default
-          if (!showInCalendarCheckbox.hasAttribute('data-user-modified')) {
-              showInCalendarCheckbox.checked = true;
-          }
-          
-          showInCalendarCheckbox.addEventListener('change', function() {
-              this.setAttribute('data-user-modified', 'true');
-              validateAllDates();
-          });
-      }
+      // Campi con cambio immediato
+      const immediateInputs = section.querySelectorAll('select, input[type="checkbox"], input[type="radio"]');
+      immediateInputs.forEach(element => {
+        element.addEventListener('change', () => {
+          window.FormEsameAutosave.autoSaveFirstSection();
+        });
+      });
     }
 
     // Nuova funzione per rivalidare tutte le date
@@ -505,7 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Funzione per validare i vincoli di data riutilizzando la logica esistente
     function validateDateConstraints(newDate, counter) {
-      if (!newDate || !isValidDateFormat(newDate)) return true; // Non validare se la data non è valida o vuota
+      if (!newDate || !isValidDateFormat(newDate)) return true;
       
       try {
           // Raccoglie solo le date delle sezioni con "Apertura appelli" attivo
@@ -519,28 +471,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
               const currentSectionCounter = parseInt(sectionCounterMatch[1], 10);
 
-              if (currentSectionCounter === counter) return; // Salta la sezione corrente
+              if (currentSectionCounter === counter) return;
 
               const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${currentSectionCounter}`);
               const dateInput = document.getElementById(`dataora_${currentSectionCounter}`);
 
-              // Include la data solo se il checkbox è selezionato e la data è valida
               if (showInCalendarCheckbox && showInCalendarCheckbox.checked && 
                   dateInput && dateInput.value && isValidDateFormat(dateInput.value)) {
                   visibleSectionDates.push(dateInput.value);
               }
           });
           
-          // Converte la nuova data in oggetto Date se è una stringa
           const dateToValidate = typeof newDate === 'string' ? new Date(newDate) : newDate;
-          
-          // Validazione custom solo per i vincoli tra appelli (non controlla le sessioni)
           const validationResult = validateDateConstraintsForSections(dateToValidate, visibleSectionDates);
               
           const dateInputElement = document.getElementById(`dataora_${counter}`);
           
           if (!validationResult.isValid) {
-              // Applica lo stile di errore al campo
               if (dateInputElement) {
                   dateInputElement.classList.add('form-input-error');
               }
@@ -548,7 +495,6 @@ document.addEventListener('DOMContentLoaded', function() {
               showError(`Appello ${counter}: ${validationResult.message}`);
               return false;
           } else {
-              // Rimuovi lo stile di errore se la validazione passa
               if (dateInputElement) {
                   dateInputElement.classList.remove('form-input-error');
               }
@@ -556,8 +502,7 @@ document.addEventListener('DOMContentLoaded', function() {
           
           return true;
       } catch (error) {
-          console.error('Errore nella validazione delle date:', error);
-          return true; // In caso di errore imprevisto, non bloccare l'utente
+          return true;
       }
     }
 
@@ -610,39 +555,36 @@ document.addEventListener('DOMContentLoaded', function() {
       const newDate = dateInput.value;
       const oldDate = section.dataset.date;
       
-      // Se la data non è completa o non è valida, non fare nulla
+      // Verifica validità data
       if (!newDate || newDate.length < 10 || !isValidDateFormat(newDate)) {
         return;
       }
       
       // Se la data è cambiata
       if (newDate !== oldDate) {
-        // Rimuovi l'evento provvisorio precedente se esisteva
+        // Cleanup evento precedente
         if (oldDate) {
           const matchingEvent = window.provisionalEvents?.find(event =>
             event.extendedProps?.formSectionDate === oldDate
           );
-          if (matchingEvent && matchingEvent.id) {
+          if (matchingEvent?.id) {
             removeProvisionalEventsByIds([matchingEvent.id]);
           }
-        }
-        
-        // Aggiorna il tracking delle date selezionate
-        if (oldDate && selectedDates.includes(oldDate)) {
+          
+          // Aggiorna tracking
           const index = selectedDates.indexOf(oldDate);
-          selectedDates.splice(index, 1);
+          if (index > -1) selectedDates.splice(index, 1);
         }
         
-        // Verifica il vincolo dei 14 giorni solo se il checkbox "Apertura appelli" è attivo
+        // Valida nuova data se necessario
         const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${counter}`);
-        if (showInCalendarCheckbox && showInCalendarCheckbox.checked) {
+        if (showInCalendarCheckbox?.checked) {
           if (!validateDateConstraints(newDate, counter)) {
-            // Data non valida - non creare evento provvisorio
             return;
           }
         }
         
-        // Data valida o checkbox disattivato - continua con la logica normale
+        // Aggiorna sezione
         section.dataset.date = newDate;
         createProvisionalEventForDate(newDate, counter);
         
@@ -650,29 +592,33 @@ document.addEventListener('DOMContentLoaded', function() {
           selectedDates.push(newDate);
         }
         
-        // Reset delle aule quando cambia la data
+        // Reset aule
         const aulaSelect = document.getElementById(`aula_${counter}`);
         if (aulaSelect) {
           aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
         }
 
-        // Calcola e imposta automaticamente le date di inizio e fine iscrizione
-        const inizioIscrizioneInput = document.getElementById(`inizioIscrizione_${counter}`);
-        const fineIscrizioneInput = document.getElementById(`fineIscrizione_${counter}`);
-        if (inizioIscrizioneInput && fineIscrizioneInput) {
-          const appelloDate = new Date(newDate);
-          // Inizio iscrizione: 30 giorni prima
-          const inizio = new Date(appelloDate);
-          inizio.setDate(appelloDate.getDate() - 30);
-          // Fine iscrizione: 1 giorno prima
-          const fine = new Date(appelloDate);
-          fine.setDate(appelloDate.getDate() - 1);
-          // Formatta le date in YYYY-MM-DD
-          const pad = n => n.toString().padStart(2, '0');
-          const format = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-          inizioIscrizioneInput.value = format(inizio);
-          fineIscrizioneInput.value = format(fine);
-        }
+        // Calcola date iscrizione automaticamente
+        calculateInscriptionDates(section, newDate);
+      }
+    }
+
+    // Funzione helper per calcolare date iscrizione
+    function calculateInscriptionDates(section, date) {
+      const inizioIscrizioneInput = section.querySelector('[id^="inizioIscrizione_"]');
+      const fineIscrizioneInput = section.querySelector('[id^="fineIscrizione_"]');
+      
+      if (inizioIscrizioneInput && fineIscrizioneInput) {
+        const appelloDate = new Date(date);
+        const inizio = new Date(appelloDate);
+        inizio.setDate(appelloDate.getDate() - 30);
+        const fine = new Date(appelloDate);
+        fine.setDate(appelloDate.getDate() - 1);
+        
+        const format = d => `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+        
+        inizioIscrizioneInput.value = format(inizio);
+        fineIscrizioneInput.value = format(fine);
       }
     }
 
@@ -724,15 +670,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateAuleForSection(counter) {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         const dateInput = document.getElementById(`dataora_${counter}`);
         const oraH = document.getElementById(`ora_h_${counter}`);
         const oraM = document.getElementById(`ora_m_${counter}`);
         const aulaSelect = document.getElementById(`aula_${counter}`);
         
         if (!dateInput || !oraH || !oraM || !aulaSelect) {
-          console.warn(`Elementi mancanti per aggiornare le aule della sezione ${counter}`);
-          resolve(); // Risolve per non bloccare, ma con un avviso
+          resolve();
           return;
         }
         
@@ -759,26 +704,27 @@ document.addEventListener('DOMContentLoaded', function() {
         loadAuleForDateTime(data, periodo)
           .then(aule => {
             populateAulaSelect(aulaSelect, aule, true);
-            
-            // Rimuovi listener esistente per evitare duplicati prima di aggiungerne uno nuovo
-            const newAulaSelect = aulaSelect.cloneNode(true); // Clona per rimuovere listener in modo pulito
-            aulaSelect.parentNode.replaceChild(newAulaSelect, aulaSelect);
-
-            newAulaSelect.addEventListener('change', function() {
-              updateEventAula(data, this.value);
-            });
+            setupAulaChangeListener(aulaSelect, data);
             resolve();
           })
           .catch(error => {
-            console.error("Errore nel recupero delle aule:", error);
             aulaSelect.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
             
             const option = document.createElement("option");
             option.value = "Studio docente DMI";
             option.textContent = "Studio docente DMI";
             aulaSelect.appendChild(option);
-            reject(error); // Rigetta in caso di errore per segnalarlo al chiamante
+            resolve();
           });
+      });
+    }
+
+    // Funzione helper per setup listener aula
+    function setupAulaChangeListener(aulaSelect, data) {
+      const newAulaSelect = aulaSelect.cloneNode(true);
+      aulaSelect.parentNode.replaceChild(newAulaSelect, aulaSelect);
+      newAulaSelect.addEventListener('change', function() {
+        updateEventAula(data, this.value);
       });
     }
 
@@ -814,7 +760,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeDateSections() {
       const container = document.getElementById('dateAppelliContainer');
       if (!container) {
-        console.error("Container dateAppelliContainer non trovato durante l'inizializzazione");
         return;
       }
           
@@ -829,12 +774,10 @@ document.addEventListener('DOMContentLoaded', function() {
           const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${i}`);
           
           if (showInCalendarCheckbox) {
-              // Assicurati che sia selezionato per default se non ha un valore salvato
               if (!showInCalendarCheckbox.hasAttribute('data-user-modified')) {
                   showInCalendarCheckbox.checked = true;
               }
               
-              // Marca come modificato dall'utente quando viene cambiato
               showInCalendarCheckbox.addEventListener('change', function() {
                   this.setAttribute('data-user-modified', 'true');
                   validateAllDates();
@@ -1036,8 +979,6 @@ document.addEventListener('DOMContentLoaded', function() {
   window.removeDateSection = function(sectionId) {
     if (window.EsameAppelli && window.EsameAppelli.removeDateSection) {
       window.EsameAppelli.removeDateSection(sectionId);
-    } else {
-      console.error("EsameAppelli non è inizializzato correttamente per removeDateSection.");
     }
   };
 });

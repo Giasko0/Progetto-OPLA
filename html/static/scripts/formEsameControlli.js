@@ -97,14 +97,13 @@ const FormEsameControlli = (function() {
       const data = await getUserData();
       return data.authenticated && data.user_data?.permessi_admin;
     } catch (error) {
-      console.error("Errore nel controllo dei permessi admin:", error);
       return false;
     }
   }
 
-  // Validazione standard del form - aggiornata per sezioni modulari
+  // Validazione standard del form
   function validateForm() {
-    // Controlla se ci sono campi data con errori di validazione
+    // Controlla errori di validazione delle date
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
       showValidationError("Correggi gli errori nelle date prima di inviare il form");
@@ -112,94 +111,94 @@ const FormEsameControlli = (function() {
       return false;
     }
 
-    // Verifica che ci sia almeno una sezione di appello valida
+    // Verifica sezioni valide
     const dateSections = document.querySelectorAll('.date-appello-section');
     if (dateSections.length === 0) {
       showValidationError("Aggiungi almeno una sezione di appello");
       return false;
     }
 
-    // Validazione per ogni sezione
-    let hasValidSection = false;
+    // Validazione semplificata per ogni sezione
     for (let i = 0; i < dateSections.length; i++) {
       const section = dateSections[i];
       const sectionNumber = i + 1;
 
-      // Campi obbligatori per ogni sezione
-      const descrizione = section.querySelector(`[id^="descrizione_"]`)?.value;
-      const dataora = section.querySelector(`[id^="dataora_"]`)?.value;
-      const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
-      const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
-      const aula = section.querySelector(`[id^="aula_"]`)?.value;
-      const durata_h = section.querySelector(`[id^="durata_h_"]`)?.value;
-      const durata_m = section.querySelector(`[id^="durata_m_"]`)?.value;
-
-      // Verifica campi obbligatori
-      if (!descrizione || !descrizione.trim()) {
-        showValidationError(`Inserisci una descrizione per l'appello ${sectionNumber}`);
+      if (!validateSectionFields(section, sectionNumber)) {
         return false;
       }
-
-      if (!dataora) {
-        showValidationError(`Seleziona una data per l'appello ${sectionNumber}`);
-        return false;
-      }
-
-      if (!ora_h || !ora_m) {
-        showValidationError(`Seleziona un orario per l'appello ${sectionNumber}`);
-        return false;
-      }
-
-      if (!aula) {
-        showValidationError(`Seleziona un'aula per l'appello ${sectionNumber}`);
-        return false;
-      }
-
-      // Validazione giorno settimana per questa sezione
-      const validationResults = {
-        giorno_settimana: validateFormField('giorno_settimana', dataora, formValidationRules),
-        ora_appello: validateFormField('ora_appello', `${ora_h}:${ora_m}`, formValidationRules)
-      };
-
-      // Controlla se ci sono errori di validazione per questa sezione
-      for (const [field, result] of Object.entries(validationResults)) {
-        if (!result.isValid) {
-          showValidationError(`Appello ${sectionNumber}: ${result.message}`);
-          return false;
-        }
-      }
-
-      // Validazione durata (se non è già calcolata automaticamente)
-      const durataH = parseInt(durata_h) || 0;
-      const durataM = parseInt(durata_m) || 0;
-      const durataTotale = (durataH * 60) + durataM;
-      
-      if (durataTotale < 30 || durataTotale > 720) {
-        showValidationError(`Appello ${sectionNumber}: La durata deve essere tra 30 minuti e 12 ore`);
-        return false;
-      }
-
-      hasValidSection = true;
     }
 
-    if (!hasValidSection) {
-      showValidationError("Nessuna sezione di appello valida trovata");
+    // Verifica insegnamenti
+    return validateInsegnamenti();
+  }
+
+  // Funzione helper per validare i campi di una sezione
+  function validateSectionFields(section, sectionNumber) {
+    const fields = {
+      descrizione: section.querySelector(`[id^="descrizione_"]`)?.value,
+      dataora: section.querySelector(`[id^="dataora_"]`)?.value,
+      ora_h: section.querySelector(`[id^="ora_h_"]`)?.value,
+      ora_m: section.querySelector(`[id^="ora_m_"]`)?.value,
+      aula: section.querySelector(`[id^="aula_"]`)?.value,
+      durata_h: section.querySelector(`[id^="durata_h_"]`)?.value,
+      durata_m: section.querySelector(`[id^="durata_m_"]`)?.value
+    };
+
+    // Verifica campi obbligatori
+    const requiredFields = [
+      { field: 'descrizione', message: 'Inserisci una descrizione' },
+      { field: 'dataora', message: 'Seleziona una data' },
+      { field: 'ora_h', message: 'Seleziona un orario' },
+      { field: 'ora_m', message: 'Seleziona un orario' },
+      { field: 'aula', message: 'Seleziona un\'aula' }
+    ];
+
+    for (const { field, message } of requiredFields) {
+      if (!fields[field] || !fields[field].trim()) {
+        showValidationError(`Appello ${sectionNumber}: ${message}`);
+        return false;
+      }
+    }
+
+    // Validazione regole specifiche
+    const validationResults = {
+      giorno_settimana: validateFormField('giorno_settimana', fields.dataora, formValidationRules),
+      ora_appello: validateFormField('ora_appello', `${fields.ora_h}:${fields.ora_m}`, formValidationRules)
+    };
+
+    for (const [field, result] of Object.entries(validationResults)) {
+      if (!result.isValid) {
+        showValidationError(`Appello ${sectionNumber}: ${result.message}`);
+        return false;
+      }
+    }
+
+    // Validazione durata
+    const durataH = parseInt(fields.durata_h) || 0;
+    const durataM = parseInt(fields.durata_m) || 0;
+    const durataTotale = (durataH * 60) + durataM;
+    
+    if (durataTotale < 30 || durataTotale > 720) {
+      showValidationError(`Appello ${sectionNumber}: La durata deve essere tra 30 minuti e 12 ore`);
       return false;
     }
 
-    // Verifica insegnamenti selezionati usando InsegnamentiManager
+    return true;
+  }
+
+  // Validazione insegnamenti semplificata
+  function validateInsegnamenti() {
     let insegnamentiSelected = [];
-    if (window.InsegnamentiManager && typeof window.InsegnamentiManager.getSelectedInsegnamenti === 'function') {
+    if (window.InsegnamentiManager?.getSelectedInsegnamenti) {
       insegnamentiSelected = window.InsegnamentiManager.getSelectedInsegnamenti();
     } else {
-      // Fallback: controlla il select nascosto
       const insegnamentoSelect = document.getElementById('insegnamento');
-      if (insegnamentoSelect && insegnamentoSelect.selectedOptions) {
+      if (insegnamentoSelect?.selectedOptions) {
         insegnamentiSelected = Array.from(insegnamentoSelect.selectedOptions).map(option => option.value);
       }
     }
     
-    if (!insegnamentiSelected || insegnamentiSelected.length === 0) {
+    if (!insegnamentiSelected?.length) {
       showValidationError("Seleziona almeno un insegnamento");
       return false;
     }
@@ -207,9 +206,8 @@ const FormEsameControlli = (function() {
     return true;
   }
 
-  // Validazione con bypass per amministratori - aggiornata per sezioni modulari
+  // Validazione con bypass
   function validateFormWithBypass() {
-    // Anche per il bypass, controlla se ci sono errori di validazione delle date
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
       showValidationError("Correggi gli errori nelle date prima di inviare il form, anche con bypass");
@@ -217,51 +215,31 @@ const FormEsameControlli = (function() {
       return false;
     }
 
-    // Verifica che ci sia almeno una sezione
     const dateSections = document.querySelectorAll('.date-appello-section');
     if (dateSections.length === 0) {
       showValidationError("Aggiungi almeno una sezione di appello");
       return false;
     }
 
-    // Controllo minimo: almeno i campi obbligatori devono essere presenti
-    let hasMinimalData = false;
-    for (let i = 0; i < dateSections.length; i++) {
-      const section = dateSections[i];
-      
+    // Controllo minimo per bypass
+    const hasMinimalData = Array.from(dateSections).some(section => {
       const dataora = section.querySelector(`[id^="dataora_"]`)?.value;
       const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
       const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
       const aula = section.querySelector(`[id^="aula_"]`)?.value;
-
-      if (dataora && ora_h && ora_m && aula) {
-        hasMinimalData = true;
-        break;
-      }
-    }
+      return dataora && ora_h && ora_m && aula;
+    });
 
     if (!hasMinimalData) {
       showValidationError("Compila almeno i campi obbligatori per una sezione di appello");
       return false;
     }
 
-    // Verifica insegnamenti anche per il bypass
-    let insegnamentiSelected = [];
-    if (window.InsegnamentiManager && typeof window.InsegnamentiManager.getSelectedInsegnamenti === 'function') {
-      insegnamentiSelected = window.InsegnamentiManager.getSelectedInsegnamenti();
-    }
-    
-    if (!insegnamentiSelected || insegnamentiSelected.length === 0) {
-      showValidationError("Seleziona almeno un insegnamento (richiesto anche con bypass)");
-      return false;
-    }
-
-    return true;
+    return validateInsegnamenti();
   }
 
-  // Validazione per modalità modifica (singola sezione)
+  // Validazione per modalità modifica semplificata
   function validateFormForEdit() {
-    // Controlla se ci sono campi data con errori di validazione
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
       showValidationError("Correggi gli errori nelle date prima di modificare l'esame");
@@ -269,73 +247,17 @@ const FormEsameControlli = (function() {
       return false;
     }
 
-    // Verifica che ci sia almeno una sezione
     const firstSection = document.querySelector('.date-appello-section');
     if (!firstSection) {
       showValidationError("Nessuna sezione di appello trovata");
       return false;
     }
 
-    // Valida la prima sezione (in modifica dovrebbe essercene solo una)
-    const descrizione = firstSection.querySelector('[id^="descrizione_"]')?.value;
-    const dataora = firstSection.querySelector('[id^="dataora_"]')?.value;
-    const ora_h = firstSection.querySelector('[id^="ora_h_"]')?.value;
-    const ora_m = firstSection.querySelector('[id^="ora_m_"]')?.value;
-    const aula = firstSection.querySelector('[id^="aula_"]')?.value;
-    const durata_h = firstSection.querySelector('[id^="durata_h_"]')?.value;
-    const durata_m = firstSection.querySelector('[id^="durata_m_"]')?.value;
-
-    // Verifica campi obbligatori
-    if (!descrizione || !descrizione.trim()) {
-      showValidationError("Inserisci una descrizione per l'appello");
-      return false;
-    }
-
-    if (!dataora) {
-      showValidationError("Seleziona una data per l'appello");
-      return false;
-    }
-
-    if (!ora_h || !ora_m) {
-      showValidationError("Seleziona un orario per l'appello");
-      return false;
-    }
-
-    if (!aula) {
-      showValidationError("Seleziona un'aula per l'appello");
-      return false;
-    }
-
-    // Validazione giorno settimana e ora
-    const validationResults = {
-      giorno_settimana: validateFormField('giorno_settimana', dataora, formValidationRules),
-      ora_appello: validateFormField('ora_appello', `${ora_h}:${ora_m}`, formValidationRules)
-    };
-
-    // Controlla se ci sono errori di validazione
-    for (const [field, result] of Object.entries(validationResults)) {
-      if (!result.isValid) {
-        showValidationError(result.message);
-        return false;
-      }
-    }
-
-    // Validazione durata
-    const durataH = parseInt(durata_h) || 0;
-    const durataM = parseInt(durata_m) || 0;
-    const durataTotale = (durataH * 60) + durataM;
-    
-    if (durataTotale < 30 || durataTotale > 720) {
-      showValidationError("La durata deve essere tra 30 minuti e 12 ore");
-      return false;
-    }
-
-    return true;
+    return validateSectionFields(firstSection, 1);
   }
 
-  // Validazione con bypass per modalità modifica
+  // Validazione bypass per modifica semplificata
   function validateFormForEditWithBypass() {
-    // Controlla errori di validazione delle date
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
       showValidationError("Correggi gli errori nelle date prima di modificare, anche con bypass");
@@ -343,14 +265,12 @@ const FormEsameControlli = (function() {
       return false;
     }
 
-    // Verifica che ci sia almeno una sezione
     const firstSection = document.querySelector('.date-appello-section');
     if (!firstSection) {
       showValidationError("Nessuna sezione di appello trovata");
       return false;
     }
 
-    // Controllo minimo: almeno i campi obbligatori devono essere presenti
     const dataora = firstSection.querySelector('[id^="dataora_"]')?.value;
     const ora_h = firstSection.querySelector('[id^="ora_h_"]')?.value;
     const ora_m = firstSection.querySelector('[id^="ora_m_"]')?.value;

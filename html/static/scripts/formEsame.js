@@ -30,11 +30,10 @@ const EsameForm = (function() {
     
     const isAlreadyOpen = formContainer.style.display === 'block';
     
+    // Mostra form
     formContainer.style.display = 'block';
     formContainer.classList.add('active');
-    
-    const calendar = document.getElementById('calendar');
-    calendar.classList.add('form-visible');
+    document.getElementById('calendar').classList.add('form-visible');
     
     isEditMode = isEdit;
     
@@ -42,88 +41,91 @@ const EsameForm = (function() {
     examIdField.value = isEdit && data.id ? data.id : "";
 
     if (isEdit) {
-      try {
-        await window.EditEsame.editExam(data.id);
-        // EditEsame.editExam chiama setupEditMode che imposta titolo e pulsanti.
-        // I listener per i pulsanti di modifica sono in EditEsame.setupEditButtons.
-      } catch (error) {
-        console.error("Errore nell'impostazione della modalità modifica:", error);
-        hideForm(true, true); // Nasconde il form e pulisce in caso di errore grave
-        return false;
-      }
+      await handleEditMode(data.id);
     } else {
-      // Modalità Creazione
-      const formTitle = formContainer.querySelector(".form-header h2");
-      formTitle.textContent = "Aggiungi Esame";
-      const esameForm = formContainer.querySelector("#formEsame");
-
-      // Reset e inizializzazione solo se il form non era già aperto per una nuova creazione
-      // o se stiamo aprendo per la prima volta.
-      if (!isAlreadyOpen || (isAlreadyOpen && !esameForm.dataset.creationInProgress) ) {
-        esameForm.reset();
-        window.EsameAppelli.resetSections();
-        initUI(data); // data è per precompilazione da calendario
-        loadUserPreferences();
-        setTimeout(() => {
-          if (window.FormEsameAutosave && !window.FormEsameAutosave.loadSavedData()) {
-            // Se non ci sono dati salvati, assicurati che i default siano applicati
-            // (es. checkbox 'mostra nel calendario' per la prima sezione)
-            const firstSection = document.querySelector('.date-appello-section');
-            if (firstSection) {
-                const counter = firstSection.id.split('_')[1] || '1';
-                const checkbox = firstSection.querySelector(`#mostra_nel_calendario_${counter}`);
-                if (checkbox && !checkbox.checked) checkbox.checked = true;
-            }
-          }
-        }, 150);
-        esameForm.dataset.creationInProgress = "true";
-      } else if (isAlreadyOpen && esameForm.dataset.creationInProgress === "true") {
-        // Form già aperto per creazione, l'utente ha cliccato di nuovo "Aggiungi esame"
-        // Potrebbe voler resettare o semplicemente continuare. Per ora, resettiamo.
-        esameForm.reset();
-        window.EsameAppelli.resetSections();
-        initUI(data); 
-        loadUserPreferences();
-        setTimeout(() => window.FormEsameAutosave.loadSavedData(), 150);
-      }
-      
-      await setupButtons(false, null); // Configura pulsanti per la creazione
-      setupEventListeners(); // Configura listener per la creazione (submit standard, bypass creazione)
+      await handleCreationMode(data, isAlreadyOpen);
     }
     
-    // Listener comuni (chiusura, preferenze)
-    // Assicurarsi che siano attaccati una sola volta o riattaccati correttamente.
-    const closeBtn = formContainer.querySelector("#closeOverlay");
-    if (closeBtn) {
-      closeBtn.removeEventListener("click", hideForm);
-      closeBtn.addEventListener("click", hideForm);
-    }
-
-    const savePrefBtn = document.getElementById("savePreferenceBtn");
-    if (savePrefBtn) {
-      savePrefBtn.removeEventListener("click", window.EsamePreferenze.toggleSavePreferenceForm);
-      savePrefBtn.addEventListener("click", window.EsamePreferenze.toggleSavePreferenceForm);
-    }
-    const loadPrefBtn = document.getElementById("loadPreferenceBtn");
-    if (loadPrefBtn) {
-      loadPrefBtn.removeEventListener("click", window.EsamePreferenze.togglePreferencesMenu);
-      loadPrefBtn.addEventListener("click", window.EsamePreferenze.togglePreferencesMenu);
-    }
-    const confirmSavePrefBtn = document.getElementById("confirmSavePreference");
-    if (confirmSavePrefBtn) {
-      confirmSavePrefBtn.removeEventListener("click", window.EsamePreferenze.handleSavePreference);
-      confirmSavePrefBtn.addEventListener("click", window.EsamePreferenze.handleSavePreference);
-    }
-    const cancelSavePrefBtn = document.getElementById("cancelSavePreference");
-    if (cancelSavePrefBtn) {
-      cancelSavePrefBtn.removeEventListener("click", window.EsamePreferenze.toggleSavePreferenceForm);
-      cancelSavePrefBtn.addEventListener("click", window.EsamePreferenze.toggleSavePreferenceForm);
-    }
+    // Setup listener comuni
+    setupCommonListeners();
     
-    console.log('>>> FORM: showForm completato');
     return true;
   }
-  
+
+  // Gestione modalità modifica
+  async function handleEditMode(examId) {
+    try {
+      await window.EditEsame.editExam(examId);
+    } catch (error) {
+      hideForm(true, true);
+      throw error;
+    }
+  }
+
+  // Gestione modalità creazione
+  async function handleCreationMode(data, isAlreadyOpen) {
+    const formTitle = formContainer.querySelector(".form-header h2");
+    formTitle.textContent = "Aggiungi Esame";
+    const esameForm = formContainer.querySelector("#formEsame");
+
+    // Reset se necessario
+    if (!isAlreadyOpen || !esameForm.dataset.creationInProgress) {
+      esameForm.reset();
+      window.EsameAppelli.resetSections();
+      initUI(data);
+      loadUserPreferences();
+      
+      setTimeout(() => {
+        if (!window.FormEsameAutosave?.loadSavedData()) {
+          setDefaultCheckboxes();
+        }
+      }, 150);
+      
+      esameForm.dataset.creationInProgress = "true";
+    } else {
+      // Reset per nuovo esame
+      esameForm.reset();
+      window.EsameAppelli.resetSections();
+      initUI(data);
+      loadUserPreferences();
+      setTimeout(() => window.FormEsameAutosave?.loadSavedData(), 150);
+    }
+    
+    await setupButtons(false, null);
+    setupEventListeners();
+  }
+
+  // Funzione helper per checkbox default
+  function setDefaultCheckboxes() {
+    const firstSection = document.querySelector('.date-appello-section');
+    if (firstSection) {
+      const counter = firstSection.id.split('_')[1] || '1';
+      const checkbox = firstSection.querySelector(`#mostra_nel_calendario_${counter}`);
+      if (checkbox && !checkbox.checked) {
+        checkbox.checked = true;
+      }
+    }
+  }
+
+  // Setup listener comuni
+  function setupCommonListeners() {
+    const listeners = [
+      { id: "closeOverlay", handler: hideForm },
+      { id: "savePreferenceBtn", handler: window.EsamePreferenze?.toggleSavePreferenceForm },
+      { id: "loadPreferenceBtn", handler: window.EsamePreferenze?.togglePreferencesMenu },
+      { id: "confirmSavePreference", handler: window.EsamePreferenze?.handleSavePreference },
+      { id: "cancelSavePreference", handler: window.EsamePreferenze?.toggleSavePreferenceForm }
+    ];
+
+    listeners.forEach(({ id, handler }) => {
+      const element = document.getElementById(id);
+      if (element && handler) {
+        element.removeEventListener("click", handler);
+        element.addEventListener("click", handler);
+      }
+    });
+  }
+
   // Inizializza l'interfaccia utente del form
   function initUI(options = {}) {
     setTimeout(() => {
@@ -190,12 +192,7 @@ const EsameForm = (function() {
   // Configura event listeners
   function setupEventListeners() {
     const eventListeners = [
-      { id: "formEsame", event: "submit", handler: handleFormSubmit },
-      { id: "savePreferenceBtn", event: "click", handler: window.EsamePreferenze.toggleSavePreferenceForm },
-      { id: "loadPreferenceBtn", event: "click", handler: window.EsamePreferenze.togglePreferencesMenu },
-      { id: "confirmSavePreference", event: "click", handler: window.EsamePreferenze.handleSavePreference },
-      { id: "cancelSavePreference", event: "click", handler: window.EsamePreferenze.toggleSavePreferenceForm },
-      { id: "closeOverlay", event: "click", handler: hideForm }
+      { id: "formEsame", event: "submit", handler: handleFormSubmit }
     ];
 
     eventListeners.forEach(({ id, event, handler }) => {
@@ -213,7 +210,12 @@ const EsameForm = (function() {
     });
 
     // Pulsante bypass per admin
-    window.FormEsameControlli.isUserAdmin().then(isAdmin => {
+    setupBypassButton();
+  }
+
+  // Setup pulsante bypass
+  function setupBypassButton() {
+    window.FormEsameControlli?.isUserAdmin().then(isAdmin => {
       const bypassChecksBtn = document.getElementById("bypassChecksBtn");
       if (bypassChecksBtn && isAdmin) {
         bypassChecksBtn.style.display = "block";
@@ -305,69 +307,84 @@ const EsameForm = (function() {
   async function setupButtons(isEdit, examId) {
     const formActions = document.querySelector('.form-actions');
     formActions.innerHTML = '';
-    const isAdmin = await window.FormEsameControlli.isUserAdmin();
+    const isAdmin = await window.FormEsameControlli?.isUserAdmin();
 
-    if (isEdit) {
-      // Pulsanti modalità modifica
-      const modifyBtn = document.createElement("button");
-      modifyBtn.type = "submit";
-      modifyBtn.className = "form-button";
-      modifyBtn.textContent = "Modifica";
-      formActions.appendChild(modifyBtn);
+    const buttons = isEdit ? getEditButtons(examId, isAdmin) : getCreationButtons(isAdmin);
+    
+    buttons.forEach(button => {
+      formActions.appendChild(button);
+    });
+  }
 
-      if (isAdmin) {
-        const bypassBtn = document.createElement("button");
-        bypassBtn.type = "button";
-        bypassBtn.id = "bypassChecksBtn";
-        bypassBtn.className = "form-button bypass";
-        bypassBtn.textContent = "Modifica senza controlli";
-        bypassBtn.addEventListener("click", handleBypassChecksSubmit);
-        formActions.appendChild(bypassBtn);
-      }
+  // Helper per pulsanti modifica
+  function getEditButtons(examId, isAdmin) {
+    const buttons = [];
+    
+    // Pulsante modifica
+    const modifyBtn = createButton("submit", "form-button", "Modifica");
+    buttons.push(modifyBtn);
 
-      const deleteBtn = document.createElement("button");
-      deleteBtn.id = "deleteExamBtn";
-      deleteBtn.type = "button";
-      deleteBtn.className = "form-button danger";
-      deleteBtn.textContent = "Elimina Esame";
-      deleteBtn.onclick = () => {
-        if (confirm("Sei sicuro di voler eliminare questo esame?")) {
-          window.deleteEsame(examId);
-        }
-      };
-      formActions.appendChild(deleteBtn);
-    } else {
-      // Pulsanti modalità creazione
-      const submitBtn = document.createElement("button");
-      submitBtn.type = "submit";
-      submitBtn.className = "form-button";
-      submitBtn.textContent = "Inserisci";
-      formActions.appendChild(submitBtn);
-
-      if (isAdmin) {
-        const bypassBtn = document.createElement("button");
-        bypassBtn.type = "button";
-        bypassBtn.id = "bypassChecksBtn";
-        bypassBtn.className = "invia bypass";
-        bypassBtn.textContent = "Inserisci senza controlli";
-        bypassBtn.addEventListener("click", handleBypassChecksSubmit);
-        formActions.appendChild(bypassBtn);
-      }
+    // Pulsante bypass admin
+    if (isAdmin) {
+      const bypassBtn = createButton("button", "form-button bypass", "Modifica senza controlli");
+      bypassBtn.id = "bypassChecksBtn";
+      bypassBtn.addEventListener("click", handleBypassChecksSubmit);
+      buttons.push(bypassBtn);
     }
+
+    // Pulsante elimina
+    const deleteBtn = createButton("button", "form-button danger", "Elimina Esame");
+    deleteBtn.id = "deleteExamBtn";
+    deleteBtn.onclick = () => {
+      if (confirm("Sei sicuro di voler eliminare questo esame?")) {
+        window.deleteEsame(examId);
+      }
+    };
+    buttons.push(deleteBtn);
+
+    return buttons;
+  }
+
+  // Helper per pulsanti creazione
+  function getCreationButtons(isAdmin) {
+    const buttons = [];
+    
+    // Pulsante inserisci
+    const submitBtn = createButton("submit", "form-button", "Inserisci");
+    buttons.push(submitBtn);
+
+    // Pulsante bypass admin
+    if (isAdmin) {
+      const bypassBtn = createButton("button", "invia bypass", "Inserisci senza controlli");
+      bypassBtn.id = "bypassChecksBtn";
+      bypassBtn.addEventListener("click", handleBypassChecksSubmit);
+      buttons.push(bypassBtn);
+    }
+
+    return buttons;
+  }
+
+  // Helper per creare pulsanti
+  function createButton(type, className, text) {
+    const button = document.createElement("button");
+    button.type = type;
+    button.className = className;
+    button.textContent = text;
+    return button;
   }
 
   // Gestisce invio form con bypass
   function handleBypassChecksSubmit() {
-    window.FormEsameControlli.isUserAdmin().then(isAdmin => {
+    window.FormEsameControlli?.isUserAdmin().then(isAdmin => {
       if (!isAdmin) {
-        window.FormEsameControlli.showValidationError("Solo gli amministratori possono utilizzare questa funzione");
+        window.FormEsameControlli?.showValidationError("Solo gli amministratori possono utilizzare questa funzione");
         return;
       }
       
-      if (!window.FormEsameControlli.validateFormWithBypass()) return;
+      if (!window.FormEsameControlli?.validateFormWithBypass()) return;
       
       combineTimeValuesForAllSections();
-      window.FormEsameData.submitFormData({ bypassChecks: true, isEdit: isEditMode });
+      window.FormEsameData?.submitFormData({ bypassChecks: true, isEdit: isEditMode });
     });
   }
 
@@ -376,9 +393,9 @@ const EsameForm = (function() {
     e.preventDefault();
     combineTimeValuesForAllSections();
 
-    if (!window.FormEsameControlli.validateForm()) return;
+    if (!window.FormEsameControlli?.validateForm()) return;
 
-    window.FormEsameData.submitFormData({ isEdit: isEditMode });
+    window.FormEsameData?.submitFormData({ isEdit: isEditMode });
   }
 
   // Aggiorna campi dinamici del form
@@ -388,34 +405,27 @@ const EsameForm = (function() {
 
   // Nasconde il form
   function hideForm(cleanupProvisional = false, clearAutosave = false) {
-    if (clearAutosave && window.FormEsameAutosave) {
-      window.FormEsameAutosave.clearSavedData();
+    if (clearAutosave) {
+      window.FormEsameAutosave?.clearSavedData();
     }
     
     const esameForm = formContainer.querySelector("#formEsame");
-    if(esameForm) delete esameForm.dataset.creationInProgress;
+    if (esameForm) {
+      delete esameForm.dataset.creationInProgress;
+    }
 
     formContainer.classList.remove('active', 'form-content-area');
     setTimeout(() => formContainer.style.display = 'none', 300);
     
-    const calendarEl = document.getElementById('calendar');
-    calendarEl.classList.remove('form-visible');
+    document.getElementById('calendar').classList.remove('form-visible');
     
     if (cleanupProvisional) {
-      const dropdown = document.getElementById('insegnamentoDropdown');
-      dropdown.style.display = 'none';
-      
-      window.InsegnamentiManager.cleanup();
-
-      if (window.clearCalendarProvisionalEvents) {
-        window.clearCalendarProvisionalEvents();
-      }
-      
-      window.EsameAppelli.resetSections();
-              
-      if (window.forceCalendarRefresh) {
-        window.forceCalendarRefresh();
-      }
+      // Cleanup completo
+      document.getElementById('insegnamentoDropdown').style.display = 'none';
+      window.InsegnamentiManager?.cleanup();
+      window.clearCalendarProvisionalEvents?.();
+      window.EsameAppelli?.resetSections();
+      window.forceCalendarRefresh?.();
     }
   }
 
