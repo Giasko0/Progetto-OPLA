@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Calendario appelli d'esame dell'Università degli Studi di Perugia. Visualizza e gestisci gli appelli d'esame, filtra per sessione o insegnamento.">
+  <meta name="description" content="Calendario appelli d'esame dell'Università degli Studi di Perugia">
   <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
   <title>Inserimento Appelli UniPG</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
@@ -25,6 +25,7 @@
   <script src="static/scripts/formEsameData.js"></script>
   <script src="static/scripts/editEsame.js"></script>
   <script src="static/scripts/formEsame.js"></script>
+  <script src="static/scripts/importEsamiFile.js"></script>
   <script src="static/scripts/calendar.js" type="module"></script>
 </head>
 
@@ -35,9 +36,7 @@
     <div class="content-inner">
       <div class="header-controls">
         <h1 class="titolo">Benvenuto, utente! - Fai il login per iniziare.</h1>
-        <div id="annoAccademicoContainer">
-          <!-- Il dropdown dell'anno accademico verrà generato qui -->
-        </div>
+        <div id="annoAccademicoContainer"></div>
       </div>
 
       <div class="content-row">
@@ -47,16 +46,15 @@
     </div>
     
     <div class="content-sidebar">
-      <button id="toggleSidebarFloat" class="toggle-sidebar-float" aria-label="Apri centro messaggi" aria-expanded="false">
+      <button id="toggleSidebarFloat" class="toggle-sidebar-float">
         <span class="material-symbols-outlined">keyboard_double_arrow_left</span>
         <span class="notification-badge" id="notificationBadge">0</span>
       </button>
 
-      <!-- Corpo sidebar -->
       <div class="message-sidebar" id="messageSidebar">
         <div class="sidebar-header">
           <h3>Centro Messaggi</h3>
-          <button id="closeSidebar" class="close-sidebar-btn" aria-label="Chiudi sidebar">
+          <button id="closeSidebar" class="close-sidebar-btn">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -66,9 +64,7 @@
               <span class="material-symbols-outlined section-icon">warning</span>
               <h4>Avvisi</h4>
             </div>
-            <div id="alertsContainer" class="alerts-container">
-              <!-- Qui verranno inseriti gli avvisi -->
-            </div>
+            <div id="alertsContainer" class="alerts-container"></div>
           </div>
           <div class="sidebar-divider"></div>
           <div class="sidebar-section">
@@ -76,16 +72,13 @@
               <span class="material-symbols-outlined section-icon">notifications</span>
               <h4>Notifiche</h4>
             </div>
-            <div id="notificationsContainer" class="notifications-container">
-              <!-- Qui verranno inserite le notifiche -->
-            </div>
+            <div id="notificationsContainer" class="notifications-container"></div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Template del form esame (nascosto) -->
   <template id="form-esame-content">
     <div class="form-header">
       <h2>Inserisci Esame</h2>
@@ -93,13 +86,15 @@
     </div>
     <div class="form-body">
       <form id="formEsame" method="post">
-
-        <!-- Pannello preferenze -->
         <div id="preferencesPanel" class="preferences-panel">
           <div class="preferences-header">
             <span>Preferenze</span>
-            <button type="button" id="savePreferenceBtn" class="preference-btn" title="Salva preferenza"><span class="material-symbols-outlined">save</span></button>
-            <button type="button" id="loadPreferenceBtn" class="preference-btn" title="Carica preferenza"><span class="material-symbols-outlined">folder_open</span></button>
+            <button type="button" id="savePreferenceBtn" class="preference-btn" title="Salva preferenza">
+              <span class="material-symbols-outlined">save</span>
+            </button>
+            <button type="button" id="loadPreferenceBtn" class="preference-btn" title="Carica preferenza">
+              <span class="material-symbols-outlined">folder_open</span>
+            </button>
           </div>
           <div id="preferencesMenu" class="preferences-menu" style="display: none;"></div>
           <div id="savePreferenceForm" class="preferences-form" style="display: none;">
@@ -111,10 +106,9 @@
 
         <p style="margin: 0; float: right">* Campi obbligatori</p>
 
-        <!-- Hidden values -->
-        <input type="text" id="docente" name="docente" class="form-input" hidden>
-        <input type="text" id="anno_accademico" name="anno_accademico" class="form-input" hidden>
-        <input type="text" id="examIdField" name="examIdField" class="form-input" hidden>
+        <input type="hidden" id="docente" name="docente">
+        <input type="hidden" id="anno_accademico" name="anno_accademico">
+        <input type="hidden" id="examIdField" name="examIdField">
 
         <div class="form-element">
           <label for="insegnamento">Insegnamenti*</label>
@@ -129,14 +123,9 @@
           </div>
         </div>
 
-        <!-- Sezioni Date e Appelli -->
-        <div id="dateAppelliContainer" class="date-appelli-container">
-          <!-- Le sezioni di date verranno aggiunte dinamicamente qui -->
-        </div>
+        <div id="dateAppelliContainer" class="date-appelli-container"></div>
 
-        <div class="form-actions">
-          <!-- I pulsanti verranno inseriti dinamicamente -->
-        </div>
+        <div class="form-actions"></div>
       </form>
     </div>
   </template>

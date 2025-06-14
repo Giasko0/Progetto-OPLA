@@ -1,6 +1,5 @@
 from flask import Blueprint, request, jsonify, session
 from datetime import datetime, timedelta, date, time
-import psycopg2
 from db import get_db_connection, release_connection
 from auth import require_auth
 
@@ -52,6 +51,14 @@ def generaDatiEsame():
     # Anno accademico obbligatorio
     anno_accademico = int(data.get('anno_accademico'))
     
+    # Mappature per verbalizzazione (per compatibilità con import Excel)
+    verbalizzazione_map = {
+        "FSS": "FSS",  # Firma digitale singola
+        "FWP": "FWP",  # Firma digitale con pubblicazione  
+        "PAR": "PAR",  # Prova parziale
+        "PPP": "PPP",  # Prova parziale con pubblicazione
+    }
+    
     # Raccolta sezioni appelli dal form
     sezioni_appelli = []
     descrizioni = request.form.getlist('descrizione[]')
@@ -82,7 +89,7 @@ def generaDatiEsame():
             'aula': aule[i],
             'inizio_iscrizione': inizi_iscrizione[i] if i < len(inizi_iscrizione) else None,
             'fine_iscrizione': fini_iscrizione[i] if i < len(fini_iscrizione) else None,
-            'verbalizzazione': verbalizzazioni[i] if i < len(verbalizzazioni) else 'FSS',
+            'verbalizzazione': verbalizzazione_map.get(verbalizzazioni[i] if i < len(verbalizzazioni) else 'FSS', 'FSS'),
             'tipo_esame': tipi_esame[i] if i < len(tipi_esame) else None,
             'note_appello': note_appelli[i] if i < len(note_appelli) else '',
             'tipo_appello': tipi_appello[i] if i < len(tipi_appello) else 'PF',

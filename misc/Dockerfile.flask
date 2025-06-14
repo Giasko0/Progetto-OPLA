@@ -32,7 +32,8 @@ RUN pip install --no-cache-dir lxml==5.2.1 && \
     flask-session \
     requests \
     xlwt \
-    xlrd
+    xlrd \
+    openpyxl
 
 ENV FLASK_APP=main.py
 

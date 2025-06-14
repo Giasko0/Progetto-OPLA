@@ -11,6 +11,7 @@ from auth import auth_bp, require_auth
 from fetch import fetch_bp
 from exams import exam_bp
 from user_preferences import preferences_bp
+from import_esami import import_bp
 
 # Import dei blueprint oh-issa
 from oh_issa.import_export import import_export_bp
@@ -45,6 +46,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(fetch_bp)
 app.register_blueprint(preferences_bp)
 app.register_blueprint(exam_bp)
+app.register_blueprint(import_bp)
 
 # Registrazione dei blueprint oh-issa
 app.register_blueprint(import_export_bp)

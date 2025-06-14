@@ -197,9 +197,7 @@ document.addEventListener("DOMContentLoaded", function () {
             aggiungiEsame: {
               text: "Importa da file",
               click: () => {
-                if (window.showMessage) {
-                  window.showMessage("Funzionalità di import non ancora implementata.", "Info", "notification");
-                }
+                window.importExamsFromFile();
               }
             }
           },

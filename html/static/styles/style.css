@@ -1731,3 +1731,222 @@ body {
   border: 2px solid var(--color-error) !important;
   box-shadow: 0 0 5px rgba(193, 34, 53, 0.3) !important;
 }
+/* File Upload Overlay Styles */
+.file-upload-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.file-upload-modal {
+  width: 600px;
+  max-width: 90%;
+  max-height: 90vh;
+  background-color: var(--color-bg-light);
+  border-radius: var(--radius);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.file-upload-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: var(--color-blue);
+  color: white;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.file-upload-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.file-upload-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  transition: color 0.2s;
+}
+
+.file-upload-close:hover {
+  color: var(--color-error);
+}
+
+.file-upload-content {
+  padding: 20px;
+  background-color: var(--color-bg-light);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.file-upload-instructions {
+  margin-bottom: 20px;
+  color: var(--color-text);
+}
+
+.file-upload-instructions ol {
+  padding-left: 20px;
+}
+
+.file-upload-instructions li {
+  margin-bottom: 8px;
+}
+
+.file-upload-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+}
+
+.file-upload-dropzone:hover {
+  border-color: var(--color-blue);
+  background-color: rgba(39, 52, 139, 0.05);
+}
+
+.file-upload-dropzone-active {
+  border-color: var(--color-blue) !important;
+  background-color: rgba(39, 52, 139, 0.05);
+}
+
+.file-upload-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 15px;
+  color: var(--color-text-light);
+}
+
+.file-upload-dropzone p {
+  margin: 10px 0;
+  color: var(--color-text);
+}
+
+.file-upload-dropzone small {
+  color: var(--color-text-light);
+}
+
+.file-upload-selected-file {
+  font-weight: bold;
+  margin-top: 15px;
+  color: var(--color-blue);
+}
+
+.file-upload-progress {
+  height: 10px;
+  background-color: var(--color-bg-secondary);
+  border-radius: 5px;
+  margin: 20px 0;
+  display: none;
+  overflow: hidden;
+}
+
+.file-upload-progress-bar {
+  height: 100%;
+  background-color: var(--color-blue);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.file-upload-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.file-upload-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius);
+  background-color: var(--color-blue);
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  flex: 1;
+  margin: 0 5px;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.file-upload-button:first-child {
+  margin-left: 0;
+}
+
+.file-upload-button:last-child {
+  margin-right: 0;
+}
+
+.file-upload-button:hover {
+  background-color: var(--color-blue);
+}
+
+.file-upload-button:disabled {
+  background-color: var(--color-border);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.file-upload-button.active {
+  background-color: var(--color-error);
+}
+
+.file-upload-result {
+  margin-top: 20px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.file-upload-success {
+  padding: 15px;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: var(--radius);
+  color: #155724;
+}
+
+.file-upload-success h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.file-upload-error {
+  padding: 15px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: var(--radius);
+  color: #721c24;
+}
+
+.file-upload-error h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}

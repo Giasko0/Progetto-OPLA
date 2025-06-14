@@ -27,7 +27,8 @@ RUN pip install --upgrade pip && \
     flask-session \
     requests \
     xlwt \
-    xlrd
+    xlrd \
+    openpyxl
 
 ENV FLASK_APP=main.py \
     FLASK_ENV=development \
