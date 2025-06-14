@@ -556,6 +556,8 @@ def download_ea():
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
     
   anno = request.args.get('anno')
+  details = request.args.get('details', 'true').lower() == 'true'
+  
   if not anno:
     return jsonify({'error': 'Anno accademico non specificato'}), 400
     
@@ -564,7 +566,7 @@ def download_ea():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Recupera dati degli esami con informazioni correlate sulle aule, insegnamenti e docenti
+    # Recupera dati degli esami
     cursor.execute("""
       SELECT 
         e.id,
@@ -574,31 +576,68 @@ def download_ea():
         e.durata_appello,
         a.codice_easyacademy AS aula_codice,
         a.nome AS aula_nome,
-        i.codice AS insegnamento_codice,
+        i.id AS insegnamento_id,
+        i.titolo AS insegnamento_titolo,
         e.anno_accademico,
         e.docente,
         u.nome AS docente_nome,
         u.cognome AS docente_cognome,
+        u.matricola AS docente_matricola,
         e.note_appello
       FROM esami e
       JOIN insegnamenti i ON e.insegnamento = i.id
       LEFT JOIN aule a ON e.aula = a.nome
       LEFT JOIN utenti u ON e.docente = u.username
       WHERE e.anno_accademico = %s
-      ORDER BY e.data_appello, e.insegnamento
+      ORDER BY e.data_appello, e.docente, e.ora_appello
     """, (anno,))
     
     esami = cursor.fetchall()
+
+    # Raggruppa gli esami per docente e data
+    gruppi_esami = {}
+    for esame in esami:
+      (id_esame, descrizione, data_appello, ora_appello, durata_appello, 
+       aula_codice, aula_nome, insegnamento_id, insegnamento_titolo, anno_accademico,
+       docente, docente_nome, docente_cognome, docente_matricola, note_appello) = esame
+      
+      # Chiave per raggruppamento
+      chiave = (docente, data_appello, ora_appello)
+      
+      if chiave not in gruppi_esami:
+        gruppi_esami[chiave] = {
+          'ids': [],
+          'descrizioni': [],
+          'insegnamento_ids': [],
+          'insegnamento_titoli': [],
+          'anni_accademici': [],
+          'docenti_cognomi': [],
+          'data_appello': data_appello,
+          'ora_appello': ora_appello,
+          'durata_appello': durata_appello,
+          'aula_codice': aula_codice,
+          'aula_nome': aula_nome,
+          'docente': docente,
+          'docente_nome': docente_nome,
+          'docente_cognome': docente_cognome,
+          'docente_matricola': docente_matricola,
+          'note_appello': note_appello
+        }
+      
+      # Aggiungi i dati al gruppo
+      gruppi_esami[chiave]['ids'].append(str(id_esame))
+      gruppi_esami[chiave]['descrizioni'].append(descrizione or "")
+      gruppi_esami[chiave]['insegnamento_ids'].append(insegnamento_id)
+      gruppi_esami[chiave]['insegnamento_titoli'].append(insegnamento_titolo)
+      gruppi_esami[chiave]['anni_accademici'].append(str(anno_accademico))
+      if docente_cognome and docente_cognome not in gruppi_esami[chiave]['docenti_cognomi']:
+        gruppi_esami[chiave]['docenti_cognomi'].append(docente_cognome)
 
     # Crea il file Excel in memoria
     workbook = xlwt.Workbook()
     worksheet = workbook.add_sheet('Prenotazioni')
 
-    # Formattazione per le date
-    date_format = xlwt.XFStyle()
-    date_format.num_format_str = 'DD-MM-YYYY, HH:MM'
-    
-    # Data attuale per il suffisso del codice prenotazione
+    # Data attuale per il codice prenotazione
     data_attuale = datetime.now().strftime('%Y%m%d')
 
     # Intestazioni
@@ -615,106 +654,131 @@ def download_ea():
     for col, header in enumerate(headers):
       worksheet.write(0, col, header)
 
-    # Scrivi i dati
-    for row_idx, esame in enumerate(esami, start=1):
-      (id_esame, descrizione, data_appello, ora_appello, durata_appello, 
-       aula_codice, aula_nome, insegnamento_codice, anno_accademico,
-       docente, docente_nome, docente_cognome, note_appello) = esame
-
+    # Scrivi i dati raggruppati
+    row_idx = 1
+    for gruppo in gruppi_esami.values():
+      data_appello = gruppo['data_appello']
+      ora_appello = gruppo['ora_appello']
+      durata_appello = gruppo['durata_appello']
+      
       # Calcola l'orario di fine esame
       if ora_appello and durata_appello:
-        # Converti ora_appello da time a datetime
         inizio_datetime = datetime.combine(data_appello, ora_appello)
-        # Aggiungi la durata (in minuti)
         fine_datetime = inizio_datetime + timedelta(minutes=durata_appello)
+        
+        # Formato testo per le date
+        inizio_str = inizio_datetime.strftime('%d-%m-%Y, %H:%M')
+        fine_str = fine_datetime.strftime('%d-%m-%Y, %H:%M')
       else:
-        inizio_datetime = None
-        fine_datetime = None
+        inizio_str = ""
+        fine_str = ""
+
+      # Concatena gli ID degli insegnamenti
+      insegnamenti_concatenati = "/".join(gruppo['insegnamento_ids'])
+      
+      # Anni accademici nell'ordine corrispondente agli insegnamenti
+      anni_concatenati = "/".join(gruppo['anni_accademici'])
+      
+      # Breve descrizione
+      insegnamenti_str = ", ".join(gruppo['insegnamento_titoli'])
+      cognomi_str = ", ".join([f"Prof. {cognome}" for cognome in gruppo['docenti_cognomi']])
+      breve_descrizione = f"{insegnamenti_str} - {cognomi_str}"
+      
+      # Descrizione completa
+      descrizione_completa = gruppo['descrizioni'][0] if gruppo['descrizioni'] and gruppo['descrizioni'][0] else gruppo['insegnamento_titoli'][0] if gruppo['insegnamento_titoli'] else ''
 
       col = 0
       # Colonna A: Codice prenotazione
-      worksheet.write(row_idx, col, f"opla_{data_attuale}_{id_esame}"); col += 1
+      worksheet.write(row_idx, col, f"opla_{data_attuale}_{row_idx:03d}"); col += 1
       # Colonna B: Breve descrizione
-      worksheet.write(row_idx, col, descrizione or ""); col += 1
+      worksheet.write(row_idx, col, breve_descrizione); col += 1
       # Colonna C: Descrizione completa
-      worksheet.write(row_idx, col, ""); col += 1
+      worksheet.write(row_idx, col, descrizione_completa); col += 1
       # Colonna D: Tipo prenotazione
       worksheet.write(row_idx, col, "Esame"); col += 1
       # Colonna E: Status
       worksheet.write(row_idx, col, "Confermata"); col += 1
       
       # Colonna F: Prenotazione da
-      if inizio_datetime:
-        worksheet.write(row_idx, col, inizio_datetime, date_format)
-      else:
-        worksheet.write(row_idx, col, "")
-      col += 1
-      
+      worksheet.write(row_idx, col, inizio_str); col += 1
       # Colonna G: Prenotazione a
-      if fine_datetime:
-        worksheet.write(row_idx, col, fine_datetime, date_format)
-      else:
-        worksheet.write(row_idx, col, "")
-      col += 1
-      
-      # Colonna H: Durata totale da (stesso valore di Prenotazione da)
-      if inizio_datetime:
-        worksheet.write(row_idx, col, inizio_datetime, date_format)
-      else:
-        worksheet.write(row_idx, col, "")
-      col += 1
-      
-      # Colonna I: Durata totale a (stesso valore di Prenotazione a)
-      if fine_datetime:
-        worksheet.write(row_idx, col, fine_datetime, date_format)
-      else:
-        worksheet.write(row_idx, col, "")
-      col += 1
+      worksheet.write(row_idx, col, fine_str); col += 1
+      # Colonna H: Durata totale da
+      worksheet.write(row_idx, col, inizio_str); col += 1
+      # Colonna I: Durata totale a
+      worksheet.write(row_idx, col, fine_str); col += 1
       
       # Colonna J: Tipo ripetizione
       worksheet.write(row_idx, col, "una volta"); col += 1
 
-      if aula_codice == 'STDOCENTE':
+      if gruppo['aula_codice'] == 'STDOCENTE':
+        # Colonna K: Codice aula
         worksheet.write(row_idx, col, ""); col += 1
+        # Colonna L: Nome aula
         worksheet.write(row_idx, col, ""); col += 1
+        # Colonna M: Codice sede
         worksheet.write(row_idx, col, ""); col += 1
+        # Colonna N: Sede
         worksheet.write(row_idx, col, ""); col += 1
       else:
-        worksheet.write(row_idx, col, aula_codice); col += 1                # Colonna K: Codice aula
-        worksheet.write(row_idx, col, aula_nome); col += 1                  # Colonna L: Nome aula
-        worksheet.write(row_idx, col, "P02E04"); col += 1                   # Colonna M: Codice sede
-        worksheet.write(row_idx, col, "Matematica e Informatica"); col += 1 # Colonna N: Sede
+        # Colonna K: Codice aula
+        worksheet.write(row_idx, col, gruppo['aula_codice']); col += 1
+        # Colonna L: Nome aula
+        worksheet.write(row_idx, col, gruppo['aula_nome']); col += 1
+        # Colonna M: Codice sede
+        worksheet.write(row_idx, col, "P02E04"); col += 1
+        # Colonna N: Sede
+        worksheet.write(row_idx, col, "Matematica e Informatica"); col += 1
 
       # Colonna O: Aula virtuale
-      if aula_codice == 'STDOCENTE':
+      if gruppo['aula_codice'] == 'STDOCENTE':
         worksheet.write(row_idx, col, "1"); col += 1
       else:
         worksheet.write(row_idx, col, ""); col += 1
 
       # Colonna P: Etichetta aula virtuale
-      if aula_codice == 'STDOCENTE':
+      if gruppo['aula_codice'] == 'STDOCENTE':
         worksheet.write(row_idx, col, "Studio docente DMI"); col += 1
       else:
         worksheet.write(row_idx, col, ""); col += 1
 
-      # Colonna Q: Codice insegnamento
-      worksheet.write(row_idx, col, insegnamento_codice or ""); col += 1
-      # Colonna R: Anno accademico
-      worksheet.write(row_idx, col, anno_accademico or ""); col += 1
-      # Colonna S: Codice raggruppamento
-      worksheet.write(row_idx, col, "P02E04"); col += 1
-      # Colonna T: Nome raggruppamento
-      worksheet.write(row_idx, col, "Matematica e Informatica"); col += 1
-      # Colonna U: Codice utente utilizzatore
-      worksheet.write(row_idx, col, docente or ""); col += 1
-      # Colonna V: Nome utente utilizzatore
-      worksheet.write(row_idx, col, docente_nome or ""); col += 1
-      # Colonna W: Cognome utente utilizzatore
-      worksheet.write(row_idx, col, docente_cognome or ""); col += 1
-      # Colonna X: Note
-      worksheet.write(row_idx, col, note_appello or ""); col += 1
-      # Colonna Y: Note interne
-      worksheet.write(row_idx, col, ""); col += 1
+      if details:
+        # Colonna Q: Codice insegnamento
+        worksheet.write(row_idx, col, insegnamenti_concatenati); col += 1
+        # Colonna R: Anno accademico
+        worksheet.write(row_idx, col, anni_concatenati); col += 1
+        # Colonna S: Codice raggruppamento
+        worksheet.write(row_idx, col, "DMI"); col += 1
+        # Colonna T: Nome raggruppamento
+        worksheet.write(row_idx, col, "Dipartimento di Matematica e Informatica"); col += 1
+        # Colonna U: Codice utente utilizzatore
+        worksheet.write(row_idx, col, gruppo['docente_matricola'] or ""); col += 1
+        # Colonna V: Nome utente utilizzatore
+        worksheet.write(row_idx, col, gruppo['docente_nome'] or ""); col += 1
+        # Colonna W: Cognome utente utilizzatore
+        worksheet.write(row_idx, col, gruppo['docente_cognome'] or ""); col += 1
+        # Colonna X: Note
+        worksheet.write(row_idx, col, gruppo['note_appello'] or ""); col += 1
+        # Colonna Y: Note interne
+        worksheet.write(row_idx, col, ""); col += 1
+      else:
+        # Salta le colonne Q e R (codice insegnamento e anno accademico)
+        worksheet.write(row_idx, col, ""); col += 1  # Q vuota
+        worksheet.write(row_idx, col, ""); col += 1  # R vuota
+        # Colonna S: Codice raggruppamento
+        worksheet.write(row_idx, col, "DMI"); col += 1
+        # Colonna T: Nome raggruppamento
+        worksheet.write(row_idx, col, "Dipartimento di Matematica e Informatica"); col += 1
+        # Salta le colonne U, V e W (dati docente)
+        worksheet.write(row_idx, col, ""); col += 1  # U vuota
+        worksheet.write(row_idx, col, ""); col += 1  # V vuota
+        worksheet.write(row_idx, col, ""); col += 1  # W vuota
+        # Colonna X: Note
+        worksheet.write(row_idx, col, gruppo['note_appello'] or ""); col += 1
+        # Colonna Y: Note interne
+        worksheet.write(row_idx, col, ""); col += 1
+      
+      row_idx += 1
 
     # Salva il workbook in memoria
     output = io.BytesIO()
@@ -723,7 +787,8 @@ def download_ea():
 
     # Genera il nome del file con la data odierna
     data_oggi = datetime.now().strftime('%Y%m%d')
-    filename = f'opla_easyacademy_{data_oggi}.xls'
+    suffix = "_dettagliato" if details else "_semplificato"
+    filename = f'opla_easyacademy{suffix}_{data_oggi}.xls'
 
     # Prepara la risposta
     response = make_response(output.getvalue())

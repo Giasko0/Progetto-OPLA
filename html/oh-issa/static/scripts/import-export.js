@@ -19,7 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
       showMessage('error', 'Seleziona prima un anno accademico');
       return;
     }
-    window.location.href = `/api/oh-issa/downloadFileEA?anno=${selectedAnno}`;
+    const includeDetails = document.getElementById('eaExportToggle').checked;
+    window.location.href = `/api/oh-issa/downloadFileEA?anno=${selectedAnno}&details=${includeDetails}`;
   });
 
   // Gestione caricamento file UGOV
