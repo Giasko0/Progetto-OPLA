@@ -1,14 +1,9 @@
 // Crea un dropdown unificato per sessioni, insegnamenti o anni accademici
 export function createDropdown(type) {
   const dropdown = document.createElement("div");
-  dropdown.className = "calendar-dropdown";
-  if (type === "sessioni") dropdown.id = "sessioniDropdown";
-  if (type === "insegnamenti") dropdown.id = "insegnamentiDropdown";
+  dropdown.className = "calendar-dropdown calendar-dropdown-mobile";
+  dropdown.id = `${type}Dropdown`;
   document.body.appendChild(dropdown);
-
-  // Aggiungi classe per stile responsive
-  dropdown.classList.add("calendar-dropdown-mobile");
-
   return dropdown;
 }
 
@@ -19,42 +14,51 @@ export function populateInsegnamentiDropdown(
   cdsFiltro = null,
   preloadedInsegnamenti = null
 ) {
-  // Funzione helper privata per renderizzare il dropdown degli insegnamenti
-  function renderInsegnamentiDropdown(insegnamentiPerCds, dropdownElement) {
-    let dropdownHTML = "";
+  // Funzione helper per organizzare insegnamenti per CdS
+  function organizeInsegnamentiPerCds(insegnamenti) {
+    const insegnamentiPerCds = {};
+    (insegnamenti || []).forEach((ins) => {
+      const cdsKey = ins.cds_codice || 'altro';
+      const cdsNome = ins.cds_nome || 'Altro';
+      
+      if (!insegnamentiPerCds[cdsKey]) {
+        insegnamentiPerCds[cdsKey] = { nome: cdsNome, insegnamenti: [] };
+      }
+      
+      // Evita duplicati
+      if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.codice === ins.codice)) {
+        insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
+      }
+    });
+    return insegnamentiPerCds;
+  }
 
+  // Funzione helper per renderizzare il dropdown degli insegnamenti (ottimizzata)
+  function renderInsegnamentiDropdown(insegnamentiPerCds, dropdownElement) {
     if (Object.keys(insegnamentiPerCds).length === 0) {
-      dropdownHTML = "<div class='dropdown-error'>Nessun insegnamento disponibile</div>";
-      dropdownElement.innerHTML = dropdownHTML;
+      dropdownElement.innerHTML = "<div class='dropdown-error'>Nessun insegnamento disponibile</div>";
       return;
     }
 
-    // Ordina i CdS per codice
-    const sortedCdsKeys = Object.keys(insegnamentiPerCds).sort((a, b) => a.localeCompare(b));
+    const sortedCdsKeys = Object.keys(insegnamentiPerCds).sort();
+    let dropdownHTML = "";
 
     sortedCdsKeys.forEach((cdsCodice) => {
       const cds = insegnamentiPerCds[cdsCodice];
-      if (!cds || !cds.insegnamenti || cds.insegnamenti.length === 0) return;
+      if (!cds?.insegnamenti?.length) return;
 
       dropdownHTML += `<div class="dropdown-cds-title">${cds.nome} (${cdsCodice})</div>`;
 
       // Ordina insegnamenti per titolo
-      const sortedInsegnamenti = cds.insegnamenti.sort((a, b) => a.titolo.localeCompare(b.titolo));
-
-      sortedInsegnamenti.forEach((ins) => {
-        const isSelected = window.InsegnamentiManager &&
-                          window.InsegnamentiManager.isSelected(ins.codice);
-
+      cds.insegnamenti.sort((a, b) => a.titolo.localeCompare(b.titolo)).forEach((ins) => {
+        const isSelected = window.InsegnamentiManager?.isSelected(ins.codice) || false;
         dropdownHTML += `
           <div class="dropdown-item dropdown-item-indented" data-codice="${ins.codice}"
                data-semestre="${ins.semestre || ""}" data-anno-corso="${ins.anno_corso || ""}"
                data-cds="${cdsCodice || ''}">
-            <input type="checkbox" id="ins-${ins.codice}"
-                value="${ins.codice}"
-                ${isSelected ? "checked" : ""}>
+            <input type="checkbox" id="ins-${ins.codice}" value="${ins.codice}" ${isSelected ? "checked" : ""}>
             <label for="ins-${ins.codice}">${ins.titolo}</label>
-          </div>
-        `;
+          </div>`;
       });
     });
 
@@ -63,59 +67,34 @@ export function populateInsegnamentiDropdown(
 
   // Utilizziamo InsegnamentiManager se disponibile
   if (window.InsegnamentiManager) {
-    const options = {};
-    if (cdsFiltro) options.cds = cdsFiltro;
+    const options = cdsFiltro ? { cds: cdsFiltro } : {};
 
-    const loadAndRender = (managerOptions) => {
-      window.InsegnamentiManager.loadInsegnamenti(docente, managerOptions, (insegnamenti) => {
-        // Organizza gli insegnamenti per CdS
-        const insegnamentiPerCds = {};
-        (insegnamenti || []).forEach((ins) => {
-          const cdsKey = ins.cds_codice || 'altro';
-          const cdsNome = ins.cds_nome || 'Altro';
-          if (!insegnamentiPerCds[cdsKey]) {
-            insegnamentiPerCds[cdsKey] = { nome: cdsNome, insegnamenti: [] };
-          }
-          // Aggiungi solo se non già presente
-          if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.codice === ins.codice)) {
-             insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
-          }
-        });
-        renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
-      });
+    const processInsegnamenti = (insegnamenti) => {
+      const insegnamentiPerCds = organizeInsegnamentiPerCds(insegnamenti);
+      renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
     };
 
-    // Se abbiamo già dati precaricati, li utilizziamo
     if (preloadedInsegnamenti) {
-      let insegnamentiPerCds = {};
+      let insegnamenti = [];
+      
       if (preloadedInsegnamenti.cds && Array.isArray(preloadedInsegnamenti.cds)) {
-         preloadedInsegnamenti.cds.forEach(cds => {
-           if (cds && cds.codice && cds.insegnamenti) {
-             insegnamentiPerCds[cds.codice] = {
-               nome: cds.nome || cds.nome_corso || "Sconosciuto",
-               insegnamenti: Array.isArray(cds.insegnamenti) ? cds.insegnamenti.map(ins => ({
-                 ...ins,
-                 cds_codice: cds.codice,
-                 cds_nome: cds.nome || cds.nome_corso || "Sconosciuto"
-               })) : []
-             };
-           }
-         });
+        preloadedInsegnamenti.cds.forEach(cds => {
+          if (cds?.codice && cds?.insegnamenti) {
+            const mappedInsegnamenti = (cds.insegnamenti || []).map(ins => ({
+              ...ins,
+              cds_codice: cds.codice,
+              cds_nome: cds.nome || cds.nome_corso || "Sconosciuto"
+            }));
+            insegnamenti.push(...mappedInsegnamenti);
+          }
+        });
       } else if (Array.isArray(preloadedInsegnamenti)) {
-         preloadedInsegnamenti.forEach((ins) => {
-           const cdsKey = ins.cds_codice || 'altro';
-           const cdsNome = ins.cds_nome || 'Altro';
-           if (!insegnamentiPerCds[cdsKey]) {
-             insegnamentiPerCds[cdsKey] = { nome: cdsNome, insegnamenti: [] };
-           }
-           if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.codice === ins.codice)) {
-              insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
-           }
-         });
+        insegnamenti = preloadedInsegnamenti;
       }
-      renderInsegnamentiDropdown(insegnamentiPerCds, dropdownInsegnamenti);
+      
+      processInsegnamenti(insegnamenti);
     } else {
-       loadAndRender(options);
+      window.InsegnamentiManager.loadInsegnamenti(docente, options, processInsegnamenti);
     }
     return;
   }
@@ -153,25 +132,27 @@ export async function loadDateValide(docente, insegnamenti = null) {
   }
 }
 
-// Aggiorna il dropdown delle sessioni
+// Aggiorna il dropdown delle sessioni (semplificata)
 export function updateSessioniDropdown(dropdown, dates) {
   if (!dropdown) return;
-  dropdown.innerHTML = "";
   
   if (!Array.isArray(dates) || dates.length === 0) {
-      dropdown.innerHTML = "<div class='dropdown-error'>Nessuna sessione definita</div>";
-      return;
+    dropdown.innerHTML = "<div class='dropdown-error'>Nessuna sessione definita</div>";
+    return;
   }
   
-  // Aggiungi le voci di menu per ogni tipo di sessione
-  for (const [start, end, nome] of dates) {
+  const fragment = document.createDocumentFragment();
+  dates.forEach(([start, end, nome]) => {
     const item = document.createElement("div");
     item.className = "dropdown-item";
     item.dataset.data = start;
     item.dataset.end = end;
     item.textContent = nome;
-    dropdown.appendChild(item);
-  }
+    fragment.appendChild(item);
+  });
+  
+  dropdown.innerHTML = "";
+  dropdown.appendChild(fragment);
 }
 
 // Funzione unificata per gestire i click sui pulsanti dei dropdown
@@ -210,107 +191,91 @@ export function handleDropdownButtonClick(e, type, calendar, dropdowns, populate
   dropdown.style.display = "block";
 }
 
-// Aggiunge listener per i click dentro i dropdown
+// Aggiunge listener per i click dentro i dropdown (ottimizzata)
 export function setupDropdownClickListeners(calendar, dropdowns, currentUsername, updateDateValideCallback) {
-    // Dropdown insegnamenti
-    if (dropdowns.insegnamenti) {
-        dropdowns.insegnamenti.addEventListener("click", (e) => {
-            const item = e.target.closest(".dropdown-item, .dropdown-item-indented");
-            if (!item) return;
-            const checkbox = item.querySelector('input[type="checkbox"]');
-            if (!checkbox) return;
+  // Dropdown insegnamenti
+  dropdowns.insegnamenti?.addEventListener("click", (e) => {
+    const item = e.target.closest(".dropdown-item, .dropdown-item-indented");
+    if (!item) return;
+    
+    const checkbox = item.querySelector('input[type="checkbox"]');
+    if (!checkbox) return;
 
-            // Se il click non è sul checkbox, inverti lo stato
-            if (e.target.type !== "checkbox") {
-                e.preventDefault();
-                checkbox.checked = !checkbox.checked;
-                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            // Aggiorna InsegnamentiManager
-            if (window.InsegnamentiManager) {
-                const codice = item.dataset.codice;
-                const semestre = parseInt(item.dataset.semestre) || null;
-                const annoCorso = parseInt(item.dataset.annoCorso) || null;
-                const cds = item.dataset.cds || "";
-
-                // Sincronizza stato manager se necessario
-                if (e.target.type !== "checkbox") {
-                   if (checkbox.checked) {
-                       window.InsegnamentiManager.selectInsegnamento(codice, { semestre, anno_corso: annoCorso, cds });
-                   } else {
-                       window.InsegnamentiManager.deselectInsegnamento(codice);
-                   }
-                }
-            }
-        });
+    // Se il click non è sul checkbox, inverti lo stato
+    if (e.target.type !== "checkbox") {
+      e.preventDefault();
+      checkbox.checked = !checkbox.checked;
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    // Dropdown sessioni
-    if (dropdowns.sessioni) {
-        dropdowns.sessioni.addEventListener("click", (e) => {
-            const item = e.target.closest(".dropdown-item");
-            if (item) {
-                const targetDate = item.dataset.data;
-                if (targetDate && calendar) {
-                    // Trova l'elemento del mese target nel DOM e scrolla verso di esso
-                    const targetDateObj = new Date(targetDate);
-                    const targetMonth = targetDateObj.getMonth() + 1; // 1-based
-                    const targetYear = targetDateObj.getFullYear();
-                    
-                    // Cerca l'elemento del mese nel calendario
-                    setTimeout(() => {
-                        const monthElements = document.querySelectorAll('[data-date*="' + targetYear + '-' + String(targetMonth).padStart(2, '0') + '"], .fc-multimonth-month[data-date*="' + targetYear + '-' + String(targetMonth).padStart(2, '0') + '"]');
-                        if (monthElements.length > 0) {
-                            monthElements[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        } else {
-                            // Fallback: cerca qualsiasi elemento che contenga l'anno target
-                            const yearElements = document.querySelectorAll(`[data-date*="${targetYear}"]`);
-                            if (yearElements.length > 0) {
-                                yearElements[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }
-                        }
-                    }, 100);
-                    
-                    dropdowns.sessioni.classList.remove('show');
-                    dropdowns.sessioni.style.display = 'none';
-                }
-            }
+    // Aggiorna InsegnamentiManager se disponibile
+    if (window.InsegnamentiManager && e.target.type !== "checkbox") {
+      const { codice, semestre, annoCorso, cds } = item.dataset;
+      const semestreParsed = parseInt(semestre) || null;
+      const annoCorsoParsed = parseInt(annoCorso) || null;
+
+      if (checkbox.checked) {
+        window.InsegnamentiManager.selectInsegnamento(codice, { 
+          semestre: semestreParsed, 
+          anno_corso: annoCorsoParsed, 
+          cds 
         });
+      } else {
+        window.InsegnamentiManager.deselectInsegnamento(codice);
+      }
     }
+  });
+
+  // Dropdown sessioni (semplificata)
+  dropdowns.sessioni?.addEventListener("click", (e) => {
+    const item = e.target.closest(".dropdown-item");
+    if (!item?.dataset.data) return;
+
+    const targetDate = new Date(item.dataset.data);
+    const targetMonth = targetDate.getMonth() + 1;
+    const targetYear = targetDate.getFullYear();
+    
+    setTimeout(() => {
+      const monthSelector = `[data-date*="${targetYear}-${String(targetMonth).padStart(2, '0')}"]`;
+      const monthElement = document.querySelector(monthSelector) || 
+                          document.querySelector(`.fc-multimonth-month${monthSelector}`) ||
+                          document.querySelector(`[data-date*="${targetYear}"]`);
+      
+      monthElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    
+    item.closest('.calendar-dropdown').classList.remove('show');
+    item.closest('.calendar-dropdown').style.display = 'none';
+  });
 }
 
-// Listener per chiudere i dropdown cliccando fuori
+// Listener per chiudere i dropdown cliccando fuori (ottimizzata)
 export function setupGlobalClickListeners(dropdowns) {
+  const closeAllDropdowns = () => {
+    Object.values(dropdowns).forEach(dropdown => {
+      if (dropdown?.classList.contains('show')) {
+        dropdown.classList.remove('show');
+        dropdown.style.display = 'none';
+      }
+    });
+  };
+
   document.addEventListener("click", (e) => {
-    // Se il click è su un pulsante che apre un dropdown, non fare nulla
-    if (e.target.closest('.fc-button')) {
-        const buttonClasses = e.target.closest('.fc-button').classList;
-        if (buttonClasses.contains('fc-pulsanteInsegnamenti-button') ||
-            buttonClasses.contains('fc-pulsanteSessioni-button')) {
-            return;
-        }
+    // Se il click è su un pulsante dropdown, non fare nulla
+    const button = e.target.closest('.fc-button');
+    if (button?.classList.contains('fc-pulsanteInsegnamenti-button') || 
+        button?.classList.contains('fc-pulsanteSessioni-button')) {
+      return;
     }
 
     // Chiudi tutti i dropdown se il click è fuori da essi
-    Object.values(dropdowns).forEach(dropdown => {
-        if (dropdown && dropdown.classList.contains('show') && !dropdown.contains(e.target)) {
-            dropdown.classList.remove('show');
-            dropdown.style.display = 'none';
-        }
-    });
+    if (!Object.values(dropdowns).some(dropdown => dropdown?.contains(e.target))) {
+      closeAllDropdowns();
+    }
   });
 
-  // Listener per chiudere dropdown con il tasto Escape
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      Object.values(dropdowns).forEach(dropdown => {
-        if (dropdown && dropdown.classList.contains('show')) {
-          dropdown.classList.remove('show');
-          dropdown.style.display = 'none';
-        }
-      });
-    }
+    if (e.key === "Escape") closeAllDropdowns();
   });
 }
 
@@ -338,13 +303,10 @@ export function formatDateForInput(date) {
   return `${year}-${month}-${day}`;
 }
 
-// Valida una data selezionata
+// Valida una data selezionata (semplificata)
 export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
   const selDate = new Date(selectedDate);
   selDate.setHours(0, 0, 0, 0);
-
-  let today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   // Controlla se la data è passata
   // if (selDate < today) {
@@ -354,15 +316,15 @@ export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
   //   };
   // }
 
-  // Controlla se c'è già un evento provvisorio nello stesso giorno
-  if (provisionalDates && provisionalDates.length > 0) {
-    const sameDayEvent = provisionalDates.some(provDateStr => {
+  // Controlla conflitti con eventi provvisori
+  if (provisionalDates.length > 0) {
+    const sameDayConflict = provisionalDates.some(provDateStr => {
       const provDate = new Date(provDateStr);
       provDate.setHours(0, 0, 0, 0);
       return selDate.getTime() === provDate.getTime();
     });
 
-    if (sameDayEvent) {
+    if (sameDayConflict) {
       return {
         isValid: false,
         message: "Non è possibile inserire due esami nello stesso giorno.",
@@ -370,19 +332,20 @@ export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
       };
     }
 
-    // Controlla vincolo dei 14 giorni con altri eventi provvisori
-    const days = 13;
-    for (const provDateStr of provisionalDates) {
+    // Controlla vincolo dei 14 giorni
+    const hasProvisionalConflict = provisionalDates.some(provDateStr => {
       const provDate = new Date(provDateStr);
       provDate.setHours(0, 0, 0, 0);
       const diffDays = Math.abs(selDate - provDate) / (1000 * 60 * 60 * 24);
-      if (diffDays <= days && selDate.getTime() !== provDate.getTime()) {
-        return {
-          isValid: false,
-          message: "Non è possibile inserire esami a meno di 14 giorni di distanza.",
-          isProvisionalConflict: true
-        };
-      }
+      return diffDays <= 13 && selDate.getTime() !== provDate.getTime();
+    });
+
+    if (hasProvisionalConflict) {
+      return {
+        isValid: false,
+        message: "Non è possibile inserire esami a meno di 14 giorni di distanza.",
+        isProvisionalConflict: true
+      };
     }
   }
 
@@ -395,32 +358,25 @@ export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
     return selDate >= startDate && selDate <= endDate;
   });
 
-  if (!isInSession) {
-    return {
-      isValid: false,
-      message: "Non è possibile inserire esami al di fuori delle sessioni previste.",
-    };
-  }
-
-  return { isValid: true };
+  return isInSession ? 
+    { isValid: true } : 
+    { isValid: false, message: "Non è possibile inserire esami al di fuori delle sessioni previste." };
 }
 
-// Scrolla alla prima data valida disponibile
+// Scrolla alla prima data valida disponibile (semplificata)
 export function scrollToPrimaDataValida(dateValide) {
-  if (!Array.isArray(dateValide) || dateValide.length === 0) {
-    return;
-  }
+  if (!Array.isArray(dateValide) || dateValide.length === 0) return;
 
-  // Trova la prima data valida
-  let primaDataValida = null;
   const oggi = new Date();
   oggi.setHours(0, 0, 0, 0);
 
-  for (const [start, end, nome] of dateValide) {
+  let primaDataValida = null;
+
+  // Trova la prima data valida futura o attuale
+  for (const [start, end] of dateValide) {
     const dataInizio = new Date(start);
     dataInizio.setHours(0, 0, 0, 0);
     
-    // Se la data di inizio è oggi o nel futuro
     if (dataInizio >= oggi) {
       primaDataValida = dataInizio;
       break;
@@ -435,43 +391,24 @@ export function scrollToPrimaDataValida(dateValide) {
     }
   }
 
-  if (!primaDataValida) {
-    return;
-  }
+  if (!primaDataValida) return;
 
-  // Cerca di scrollare alla data nel calendario
   const targetYear = primaDataValida.getFullYear();
-  const targetMonth = primaDataValida.getMonth() + 1; // 1-based
-  const targetDay = primaDataValida.getDate();
+  const targetMonth = String(primaDataValida.getMonth() + 1).padStart(2, '0');
 
-  // Prova diversi selettori per trovare l'elemento della data
-  const possibleSelectors = [
-    // Selezione per giorno specifico
-    `[data-date="${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}"]`,
-    // Selezione per mese
-    `[data-date*="${targetYear}-${String(targetMonth).padStart(2, '0')}"]`,
-    // Selezione per mese multimonth
-    `.fc-multimonth-month[data-date*="${targetYear}-${String(targetMonth).padStart(2, '0')}"]`,
-    // Selezione per anno
+  // Selettori semplificati in ordine di priorità
+  const selectors = [
+    `[data-date*="${targetYear}-${targetMonth}"]`,
+    `.fc-multimonth-month[data-date*="${targetYear}-${targetMonth}"]`,
     `[data-date*="${targetYear}"]`
   ];
 
-  let elementToScroll = null;
-  
-  for (const selector of possibleSelectors) {
-    const elements = document.querySelectorAll(selector);
-    if (elements.length > 0) {
-      elementToScroll = elements[0];
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
       break;
     }
-  }
-
-  if (elementToScroll) {
-    elementToScroll.scrollIntoView({ 
-      behavior: 'smooth', 
-      block: 'start',
-      inline: 'nearest'
-    });
   }
 }
 

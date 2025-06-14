@@ -191,70 +191,72 @@ const FormEsameData = (function() {
     window.InsegnamentiManager.syncUI(multiSelectBox);
   }
 
-  // Gestisce la selezione di una data dal calendario
+  // Gestisce la selezione di una data dal calendario - OTTIMIZZATO
   function handleDateSelection(date) {
-    // Aspetta che il DOM sia pronto
-    setTimeout(() => {
-      // Verifica se esiste già una sezione con questa data
-      const existingSections = document.querySelectorAll('.date-appello-section');
-      
-      if (existingSections.length === 0) {
-        if (window.EsameAppelli && window.EsameAppelli.addDateSection) {
-          window.EsameAppelli.addDateSection(date);
-          // Calcola le date di iscrizione per la nuova sezione
-          setTimeout(() => calculateAndSetInscriptionDates(date), 200);
-        } else {
-          console.error('>>> DATA: EsameAppelli.addDateSection non disponibile');
+    console.log('>>> DATA: handleDateSelection chiamata con data:', date);
+    
+    // Controlla se esiste già una sezione vuota (senza data)
+    const existingSections = document.querySelectorAll('.date-appello-section');
+    const emptySections = Array.from(existingSections).filter(section => 
+      !section.dataset.date || section.dataset.date === ''
+    );
+
+    if (emptySections.length > 0) {
+      // Usa la prima sezione vuota disponibile
+      const emptySection = emptySections[0];
+      const dateInput = emptySection.querySelector('input[type="date"]');
+      if (dateInput) {
+        dateInput.value = date;
+        emptySection.dataset.date = date;
+        // Calcola le date di iscrizione per questa sezione
+        calculateAndSetInscriptionDatesForSection(emptySection, date);
+        
+        // Crea evento provvisorio per questa sezione
+        if (window.EsameAppelli && window.EsameAppelli.createProvisionalEventForDate) {
+          const sectionIdMatch = emptySection.id.match(/dateSection_(\d+)/);
+          const sectionNumber = sectionIdMatch ? parseInt(sectionIdMatch[1]) : 1;
+          window.EsameAppelli.createProvisionalEventForDate(date, sectionNumber);
         }
+        
+        console.log('>>> DATA: utilizzata sezione vuota esistente');
         return;
       }
-      
-      const dateAlreadyExists = Array.from(existingSections).some(section => 
+    }
+    
+    // Se non ci sono sezioni vuote, verifica se la data esiste già
+    const dateAlreadyExists = Array.from(existingSections).some(section => 
+      section.dataset.date === date
+    );
+    
+    if (dateAlreadyExists) {
+      // Evidenzia la sezione esistente
+      const existingSection = Array.from(existingSections).find(section => 
         section.dataset.date === date
       );
-      
-      if (!dateAlreadyExists) {
-        // Controlla se esiste una sezione vuota (senza data)
-        const emptySections = Array.from(existingSections).filter(section => 
-          !section.dataset.date || section.dataset.date === ''
-        );
-
-        if (emptySections.length > 0) {
-          // Usa la prima sezione vuota
-          const emptySection = emptySections[0];
-          const dateInput = emptySection.querySelector('input[type="date"]');
-          if (dateInput) {
-            dateInput.value = date;
-            emptySection.dataset.date = date;
-            // Calcola le date di iscrizione per questa sezione
-            calculateAndSetInscriptionDatesForSection(emptySection, date);
-          } else {
-            console.error('>>> DATA: input date non trovato nella sezione vuota');
-          }
-        } else {
-          // Aggiungi una nuova sezione solo se non esiste già una sezione per questa data
-          if (window.EsameAppelli && window.EsameAppelli.addDateSection) {
-            window.EsameAppelli.addDateSection(date);
-            // Calcola le date di iscrizione per la nuova sezione
-            setTimeout(() => calculateAndSetInscriptionDates(date), 200);
-          } else {
-            console.error('>>> DATA: EsameAppelli.addDateSection non disponibile');
-          }
-        }
-      } else {
-        // Se la data esiste già, evidenzia la sezione esistente
-        const existingSection = Array.from(existingSections).find(section => 
-          section.dataset.date === date
-        );
-        if (existingSection) {
-          existingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          existingSection.style.backgroundColor = '#fffacd';
-          setTimeout(() => {
-            existingSection.style.backgroundColor = '';
-          }, 2000);
-        }
+      if (existingSection) {
+        existingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        existingSection.style.backgroundColor = '#fffacd';
+        setTimeout(() => {
+          existingSection.style.backgroundColor = '';
+        }, 2000);
       }
-    }, 100);
+      console.log('>>> DATA: data già esistente, sezione evidenziata');
+      return;
+    }
+
+    // Crea una nuova sezione per la data
+    if (window.EsameAppelli && window.EsameAppelli.addDateSection) {
+      const newSectionId = window.EsameAppelli.addDateSection(date);
+      
+      // Calcola le date di iscrizione per la nuova sezione
+      setTimeout(() => {
+        calculateAndSetInscriptionDates(date);
+      }, 50); // Ridotto il timeout
+      
+      console.log('>>> DATA: creata nuova sezione per la data');
+    } else {
+      console.error('>>> DATA: EsameAppelli.addDateSection non disponibile');
+    }
   }
 
   // Calcola e imposta le date di iscrizione per una data specifica

@@ -11,61 +11,170 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedDates = [];
     let appellobTemplate = null;
 
-    // Funzioni per validazione date
-    function isValidDate(dateString) {
-      const date = new Date(dateString);
-      return date instanceof Date && !isNaN(date);
-    }
-
-    function isWeekday(dateString) {
-      const date = new Date(dateString);
-      const day = date.getDay();
-      return day !== 0 && day !== 6;
-    }
-
-    // Parsing del tempo
-    function parseTimeString(timeString) {
-      if (!timeString || !timeString.includes(':')) return null;
-      const [hours, minutes] = timeString.split(':').map(val => val.padStart(2, '0'));
-      return { hours, minutes };
-    }
-
-    // Funzione helper per formattare la data per input
-    function formatDateForInput(date) {
-      if (!(date instanceof Date) || isNaN(date)) return '';
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    // Funzione helper per mostrare errori
-    function showError(message) {
-      if (window.showMessage) {
-        window.showMessage(message, 'Errore di validazione', 'error');
-      } else {
-        console.error(message);
-        alert(message); // Fallback per compatibilità
-      }
-    }
-
-    // Carica il template HTML per la sezione appello
-    async function loadAppelloTemplate() {
+    // Carica il template HTML inline per evitare fetch
+    function getAppelloTemplate() {
       if (appellobTemplate) {
         return appellobTemplate;
       }
       
-      try {
-        const response = await fetch('/formEsameAppello.html');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        appellobTemplate = await response.text();
-        return appellobTemplate;
-      } catch (error) {
-        console.error('Errore nel caricamento del template appello:', error);
-        throw error;
-      }
+      // Template inline per evitare fetch HTTP
+      appellobTemplate = `
+        <div class="date-appello-header">
+          <h4 class="date-appello-title">Appello COUNTER_PLACEHOLDER</h4>
+          <button type="button" class="remove-date-btn" onclick="removeDateSection('SECTION_ID_PLACEHOLDER')">
+            <span class="material-symbols-outlined">delete</span>
+            Rimuovi
+          </button>
+        </div>
+        <div class="date-appello-fields">
+          <div class="two-column-layout">
+            <div class="column">
+              <div class="form-element">
+                <label for="mostra_nel_calendario_COUNTER_PLACEHOLDER">Apertura appelli:</label>
+                <input type="checkbox" id="mostra_nel_calendario_COUNTER_PLACEHOLDER" name="mostra_nel_calendario[]" class="form-checkbox" checked>
+                <span class="tooltip">
+                  <span class="material-symbols-outlined">help</span>
+                  <span class="tooltiptext">Spunta quest'opzione se questo appello finirà sul calendario. Se l'opzione è spuntata l'esame conterà per il numero minimo (8) di esami annuali.</span>
+                </span>
+              </div>
+            </div>
+            <div class="column">
+              <div class="form-element">
+                <div class="radio-group">
+                  <input type="radio" id="tipoAppelloPF_COUNTER_PLACEHOLDER" name="tipo_appello_radio_COUNTER_PLACEHOLDER" value="PF" checked>
+                  <label for="tipoAppelloPF_COUNTER_PLACEHOLDER">Prova Finale</label>
+                  <input type="radio" id="tipoAppelloPP_COUNTER_PLACEHOLDER" name="tipo_appello_radio_COUNTER_PLACEHOLDER" value="PP">
+                  <label for="tipoAppelloPP_COUNTER_PLACEHOLDER">Prova Parziale</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-element">
+            <label for="descrizione_COUNTER_PLACEHOLDER">Descrizione*</label>
+            <input type="text" id="descrizione_COUNTER_PLACEHOLDER" name="descrizione[]" class="form-input" placeholder="Inserisci una descrizione" required>
+          </div>
+          
+          <div class="form-element">
+            <label for="dataora_COUNTER_PLACEHOLDER">Data Appello*</label>
+            <input type="date" id="dataora_COUNTER_PLACEHOLDER" name="dataora[]" class="form-input" value="DATE_PLACEHOLDER" required 
+                   onchange="if(window.FormEsameData && window.FormEsameData.calculateAndSetInscriptionDates) { window.FormEsameData.calculateAndSetInscriptionDates(this.value); }">
+          </div>
+          
+          <div class="two-column-layout">
+            <div class="column">
+              <div class="form-element">
+                <label for="ora_COUNTER_PLACEHOLDER">Ora Appello*</label>
+                <div class="time-select-container">
+                  <select id="ora_h_COUNTER_PLACEHOLDER" name="ora_h[]" class="form-input" required>
+                    <option value="" disabled selected hidden>Ora</option>
+                    <option value="08">08</option>
+                    <option value="09">09</option>
+                    <option value="10">10</option>
+                    <option value="11">11</option>
+                    <option value="12">12</option>
+                    <option value="13">13</option>
+                    <option value="14">14</option>
+                    <option value="15">15</option>
+                    <option value="16">16</option>
+                    <option value="17">17</option>
+                    <option value="18">18</option>
+                  </select>
+                  <span class="time-separator">:</span>
+                  <select id="ora_m_COUNTER_PLACEHOLDER" name="ora_m[]" class="form-input" required>
+                    <option value="" disabled selected hidden>Min</option>
+                    <option value="00">00</option>
+                    <option value="15">15</option>
+                    <option value="30">30</option>
+                    <option value="45">45</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="column">
+              <div class="form-element">
+                <label for="durata_h_COUNTER_PLACEHOLDER">Durata*</label>
+                <div class="time-select-container">
+                  <select id="durata_h_COUNTER_PLACEHOLDER" name="durata_h[]" class="form-input" required>
+                    <option value="0">0 ore</option>
+                    <option value="1">1 ora</option>
+                    <option value="2" selected>2 ore</option>
+                    <option value="3">3 ore</option>
+                    <option value="4">4 ore</option>
+                    <option value="5">5 ore</option>
+                    <option value="6">6 ore</option>
+                    <option value="7">7 ore</option>
+                    <option value="8">8 ore</option>
+                    <option value="9">9 ore</option>
+                    <option value="10">10 ore</option>
+                    <option value="11">11 ore</option>
+                    <option value="12">12 ore</option>
+                  </select>
+                  <select id="durata_m_COUNTER_PLACEHOLDER" name="durata_m[]" class="form-input" required>
+                    <option value="0" selected>0 minuti</option>
+                    <option value="15">15 minuti</option>
+                    <option value="30">30 minuti</option>
+                    <option value="45">45 minuti</option>
+                  </select>
+                  <input type="hidden" id="durata_COUNTER_PLACEHOLDER" name="durata[]" class="form-input">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-element">
+            <label for="aula_COUNTER_PLACEHOLDER">Aula*</label>
+            <select id="aula_COUNTER_PLACEHOLDER" name="aula[]" class="form-input" required>
+              <option value="" disabled selected hidden>Seleziona prima data e ora</option>
+            </select>
+          </div>
+          
+          <div class="two-column-layout">
+            <div class="column">
+              <div class="form-element">
+                <label for="inizioIscrizione_COUNTER_PLACEHOLDER">Data inizio iscrizione</label>
+                <input type="date" id="inizioIscrizione_COUNTER_PLACEHOLDER" name="inizioIscrizione[]" class="form-input">
+              </div>
+            </div>
+            <div class="column">
+              <div class="form-element">
+                <label for="fineIscrizione_COUNTER_PLACEHOLDER">Data fine iscrizione</label>
+                <input type="date" id="fineIscrizione_COUNTER_PLACEHOLDER" name="fineIscrizione[]" class="form-input">
+              </div>
+            </div>
+          </div>
+          
+          <div class="two-column-layout">
+            <div class="column">
+              <div class="form-element">
+                <label for="verbalizzazione_COUNTER_PLACEHOLDER">Verbalizzazione*</label>
+                <select id="verbalizzazione_COUNTER_PLACEHOLDER" name="verbalizzazione[]" class="form-input">
+                  <option value="FSS" selected>Firma digitale singola</option>
+                  <option value="FWP">Firma digitale con pubblicazione</option>
+                </select>
+              </div>
+            </div>
+            <div class="column">
+              <div class="form-element">
+                <label for="tipoEsame_COUNTER_PLACEHOLDER">Tipo esame</label>
+                <select id="tipoEsame_COUNTER_PLACEHOLDER" name="tipoEsame[]" class="form-input">
+                  <option value="" disabled selected hidden>Non definito</option>
+                  <option value="S">Scritto</option>
+                  <option value="O">Orale</option>
+                  <option value="SO">Scritto e orale</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-element">
+            <label for="note_COUNTER_PLACEHOLDER">Note</label>
+            <textarea id="note_COUNTER_PLACEHOLDER" name="note[]" class="form-textarea" rows="2"></textarea>
+          </div>
+        </div>
+      `;
+      
+      return appellobTemplate;
     }
 
     async function addDateSection(date = '') {
@@ -77,32 +186,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return null;
       }
 
-      // Verifica se esiste già una sezione con questa data
-      if (date) {
-        const existingSections = document.querySelectorAll('.date-appello-section');
-        const dateExists = Array.from(existingSections).some(section => 
-          section.dataset.date === date
-        );
-        
-        if (dateExists) {
-          console.log(`Sezione per la data ${date} già esistente, non verrà aggiunta di nuovo`);
-          
-          // Evidenzia la sezione esistente
-          const existingSection = Array.from(existingSections).find(section => 
-            section.dataset.date === date
-          );
-          if (existingSection) {
-            existingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            existingSection.style.backgroundColor = '#fffacd';
-            setTimeout(() => {
-              existingSection.style.backgroundColor = '';
-            }, 2000);
-            return existingSection.id;
-          }
-          return null;
-        }
-      }
-
+      // **FIX PRINCIPALE**: Non verificare se esiste già una sezione con questa data
+      // Ogni click deve creare una nuova sezione
+      
       // Calcola il prossimo numero di sezione basandosi sulle sezioni esistenti
       const existingSections = document.querySelectorAll('.date-appello-section');
       dateAppelliCounter = existingSections.length + 1;
@@ -113,33 +199,16 @@ document.addEventListener('DOMContentLoaded', function() {
       section.id = sectionId;
       section.dataset.date = date || ''; // Imposta stringa vuota se non c'è data
 
-      try {
-        // Carica il template HTML
-        const template = await loadAppelloTemplate();
-        
-        // Sostituisci i placeholder nel template usando JavaScript standard
-        const processedTemplate = template
-          .replace(/COUNTER_PLACEHOLDER/g, dateAppelliCounter)
-          .replace(/SECTION_ID_PLACEHOLDER/g, sectionId)
-          .replace(/DATE_PLACEHOLDER/g, date);
-    
-        section.innerHTML = processedTemplate;
-      } catch (error) {
-        console.error('Errore nel caricamento del template:', error);
-        // Fallback - usa un template semplificato
-        section.innerHTML = `
-          <div class="date-appello-header">
-            <h4 class="date-appello-title">Appello ${dateAppelliCounter}</h4>
-            <button type="button" class="remove-date-btn" onclick="removeDateSection('${sectionId}')">
-              <span class="material-symbols-outlined">delete</span>
-              Rimuovi
-            </button>
-          </div>
-          <div class="date-appello-fields">
-            <p>Errore nel caricamento del template. Ricarica la pagina.</p>
-          </div>
-        `;
-      }
+      // Usa il template inline - molto più veloce
+      const template = getAppelloTemplate();
+      
+      // Sostituisci i placeholder nel template
+      const processedTemplate = template
+        .replace(/COUNTER_PLACEHOLDER/g, dateAppelliCounter)
+        .replace(/SECTION_ID_PLACEHOLDER/g, sectionId)
+        .replace(/DATE_PLACEHOLDER/g, date);
+
+      section.innerHTML = processedTemplate;
 
       // Inserisci la sezione prima del pulsante "Aggiungi data"
       const addButton = container.querySelector('.add-date-btn');
@@ -151,12 +220,11 @@ document.addEventListener('DOMContentLoaded', function() {
       
       console.log('>>> APPELLI: sezione aggiunta al DOM');
       
-      // Aggiungi event listeners per questa sezione
+      // Aggiungi event listeners per questa sezione - ottimizzato
       setupDateSectionListeners(sectionId, dateAppelliCounter);
       
-      // Precompila la nuova sezione con i dati della prima sezione (solo se non è la prima e non siamo in modifica)
+      // Precompila la nuova sezione solo se non è la prima e non siamo in modifica
       if (dateAppelliCounter > 1 && window.FormEsameAutosave) {
-        // Verifica se siamo in modalità modifica
         const examIdField = document.getElementById('examIdField');
         const isEditMode = examIdField && examIdField.value;
         
@@ -174,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Se è stata fornita una data, crea subito l'evento provvisorio
       if (date) {
         createProvisionalEventForDate(date, dateAppelliCounter);
-        // Aggiungi la data al tracking solo se non è vuota
+        // Aggiungi la data al tracking
         if (!selectedDates.includes(date)) {
           selectedDates.push(date);
         }

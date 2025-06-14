@@ -14,7 +14,6 @@ import {
 
 document.addEventListener("DOMContentLoaded", function () {
   window.preloadUserData();
-  
   window.AnnoAccademicoManager.initSelectedAcademicYear();
 
   const calendarEl = document.getElementById("calendar");
@@ -24,8 +23,11 @@ document.addEventListener("DOMContentLoaded", function () {
   let dateValide = [];
   let eventsCache = [];
   let lastFetchTime = 0;
-  let dropdowns = { insegnamenti: null, sessioni: null };
+  const dropdowns = { insegnamenti: null, sessioni: null };
   let calendar = null;
+
+  // Cache per 5 minuti invece di 300000ms (più leggibile)
+  const CACHE_DURATION = 5 * 60 * 1000;
 
   // Delega la gestione degli eventi provvisori a EsameAppelli
   window.clearCalendarProvisionalEvents = function() {
@@ -48,14 +50,9 @@ document.addEventListener("DOMContentLoaded", function () {
     dateValide = newDates;
   };
 
+  // Funzione semplificata per eliminazione esame
   function deleteEsame(examId) {
-    if (!examId) return;
-    if (!window.showMessage) {
-      if (!confirm("Sei sicuro di voler eliminare questo esame?")) return;
-    } else {
-      // Per ora usiamo confirm, ma si potrebbe implementare un dialog personalizzato
-      if (!confirm("Sei sicuro di voler eliminare questo esame?")) return;
-    }
+    if (!examId || !confirm("Sei sicuro di voler eliminare questo esame?")) return;
 
     fetch('/api/deleteEsame', {
       method: 'POST',
@@ -64,15 +61,14 @@ document.addEventListener("DOMContentLoaded", function () {
     })
       .then(response => response.json())
       .then(data => {
+        const message = data.success ? "Esame eliminato con successo" : (data.message || "Errore nell'eliminazione dell'esame");
+        const type = data.success ? "success" : "error";
+        
+        window.showMessage(message, data.success ? "Successo" : "Errore", type);
+        
         if (data.success) {
-          window.showMessage("Esame eliminato con successo", "Successo", "success");
-          // Chiudi il form usando EsameForm se disponibile
-          if (window.EsameForm && window.EsameForm.hideForm) {
-            window.EsameForm.hideForm();
-          }
+          window.EsameForm?.hideForm?.();
           window.forceCalendarRefresh();
-        } else {
-          window.showMessage(data.message || "Errore nell'eliminazione dell'esame", "Errore", "error");
         }
       })
       .catch(error => {
@@ -88,7 +84,6 @@ document.addEventListener("DOMContentLoaded", function () {
     userData = data;
     currentUsername = data?.user_data?.username;
     isAdmin = data?.authenticated && data?.user_data?.permessi_admin;
-    
     window.currentUsername = currentUsername;
 
     Promise.all([
@@ -101,6 +96,7 @@ document.addEventListener("DOMContentLoaded", function () {
         dropdowns.insegnamenti = createDropdown("insegnamenti");
         updateSessioniDropdown(dropdowns.sessioni, dateValide);
 
+        // Gestione anno accademico semplificata
         window.AnnoAccademicoManager.createDropdownHTML('annoAccademicoContainer', 'annoAccademicoSelect')
           .then(() => {
             window.AnnoAccademicoManager.onYearChange((newYear) => {
@@ -111,15 +107,20 @@ document.addEventListener("DOMContentLoaded", function () {
             });
           });
 
-        calendar = new FullCalendar.Calendar(calendarEl, {
+        // Configurazione calendario semplificata
+        const calendarConfig = {
           locale: "it",
           initialView: 'multiMonthGrid',
           duration: { months: 15 },
           initialDate: window.AnnoAccademicoManager?.getSelectedAcademicYear() ? 
             `${window.AnnoAccademicoManager.getSelectedAcademicYear()}-12-01` : 
             new Date().toISOString().split('T')[0],
-          validRange: false, // Disabilita completamente le limitazioni di range
+          validRange: false,
           selectable: true,
+          weekends: false,
+          displayEventTime: true,
+          eventDisplay: "block",
+          eventTimeFormat: { hour: "2-digit", minute: "2-digit", hour12: false },
 
           views: {
             multiMonthList: { type: 'multiMonth', buttonText: 'Lista', multiMonthMaxColumns: 1 },
@@ -128,19 +129,21 @@ document.addEventListener("DOMContentLoaded", function () {
           },
 
           events: function (fetchInfo, successCallback, failureCallback) {
-            const currentTime = new Date().getTime();
-            if (eventsCache.length > 0 && currentTime - lastFetchTime < 300000) {
-              successCallback(eventsCache.filter(ev => ev && ev.start));
+            // Cache semplificata
+            if (eventsCache.length > 0 && Date.now() - lastFetchTime < CACHE_DURATION) {
+              successCallback(eventsCache.filter(ev => ev?.start));
               return;
             }
 
-            let params = new URLSearchParams();
-            params.append("docente", currentUsername);
-            if (window.InsegnamentiManager) {
-              const selected = window.InsegnamentiManager.getSelectedInsegnamenti();
-              if (selected.length > 0) params.append("insegnamenti", selected.join(","));
+            const params = new URLSearchParams({ docente: currentUsername });
+            
+            // Aggiungi insegnamenti selezionati
+            const selectedInsegnamenti = window.InsegnamentiManager?.getSelectedInsegnamenti() || [];
+            if (selectedInsegnamenti.length > 0) {
+              params.append("insegnamenti", selectedInsegnamenti.join(","));
             }
-            // Aggiungi l'anno accademico selezionato usando AnnoAccademicoManager
+            
+            // Aggiungi anno accademico
             const selectedYear = window.AnnoAccademicoManager?.getSelectedAcademicYear();
             if (selectedYear) {
               params.append("anno", selectedYear);
@@ -149,28 +152,21 @@ document.addEventListener("DOMContentLoaded", function () {
             fetch(`/api/getEsami?${params.toString()}`)
               .then(response => response.ok ? response.json() : Promise.reject(`HTTP ${response.status}`))
               .then(events => {
-                const validEvents = (events || []).filter(ev => ev && ev.start).map(event => {
-                  // Se l'esame non è del docente autenticato, applica stile giallo
-                  if (event.extendedProps?.insegnamentoDocente === false) {
-                    return {
-                      ...event,
-                      backgroundColor: '#FFD700',
-                      borderColor: '#FFD700',
-                      textColor: '#000000'
-                    };
-                  }
-                  
-                  // Altrimenti mantieni lo stile normale
-                  return event;
-                });
+                const validEvents = (events || []).filter(ev => ev?.start).map(event => ({
+                  ...event,
+                  // Applica stile giallo per esami di altri docenti
+                  ...(event.extendedProps?.insegnamentoDocente === false && {
+                    backgroundColor: '#FFD700',
+                    borderColor: '#FFD700',
+                    textColor: '#000000'
+                  })
+                }));
+                
                 eventsCache = validEvents;
-                lastFetchTime = currentTime;
+                lastFetchTime = Date.now();
                 successCallback(validEvents);
               })
-              .catch(error => {
-                console.error("Errore caricamento esami:", error);
-                failureCallback(error);
-              });
+              .catch(failureCallback);
           },
 
           headerToolbar: {
@@ -196,183 +192,121 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             aggiungiEsame: {
               text: "Importa da file",
-              click: () => {
-                window.importExamsFromFile();
-              }
+              click: () => window.importExamsFromFile()
             }
           },
 
-          weekends: false,
-          displayEventTime: true,
-          eventDisplay: "block",
-          eventTimeFormat: { hour: "2-digit", minute: "2-digit", hour12: false },
-
           dateClick: function (info) {
-            const selDate = info.date;
-            const selDateFormatted = formatDateForInput(selDate);
-
-            // Utilizza EsameAppelli per ottenere solo le date con "Apertura appelli" attivo
-            const visibleProvisionalDates = [];
+            const selDateFormatted = formatDateForInput(info.date);
             
-            if (window.EsameAppelli && window.EsameAppelli.getVisibleSectionDates) {
-              const visibleDates = window.EsameAppelli.getVisibleSectionDates();
-              visibleProvisionalDates.push(...visibleDates);
-            }
+            // Ottieni date provvisorie visibili
+            const visibleProvisionalDates = window.EsameAppelli?.getVisibleSectionDates?.() || [];
+            const validationResult = isDateValid(info.date, dateValide, visibleProvisionalDates);
 
-            const validationResult = isDateValid(selDate, dateValide, visibleProvisionalDates);
-
-            if (!validationResult.isValid) {
-              if (validationResult.isSameDayConflict) {
-                if (window.showMessage) {
-                  window.showMessage(
-                    'Non è possibile inserire due esami nello stesso giorno.',
-                    'Attenzione',
-                    'notification'
-                  );
-                }
-                return;
-              } else if (validationResult.isProvisionalConflict) {
-                if (window.showMessage) {
-                  window.showMessage(
-                    'Non è possibile inserire esami a meno di 14 giorni di distanza da altri eventi con proprietà "Apertura appelli".',
-                    'Attenzione',
-                    'notification'
-                  );
-                }
-                return;
-              } else if (!isAdmin) {
-                if (window.showMessage) {
-                  window.showMessage(validationResult.message, 'Attenzione', 'notification');
-                }
-                return;
-              }
+            // Gestione errori di validazione
+            if (!validationResult.isValid && !isAdmin) {
+              const messages = {
+                isSameDayConflict: 'Non è possibile inserire due esami nello stesso giorno.',
+                isProvisionalConflict: 'Non è possibile inserire esami a meno di 14 giorni di distanza da altri eventi con proprietà "Apertura appelli".',
+                default: validationResult.message
+              };
+              
+              const messageKey = validationResult.isSameDayConflict ? 'isSameDayConflict' : 
+                               validationResult.isProvisionalConflict ? 'isProvisionalConflict' : 'default';
+              
+              window.showMessage?.(messages[messageKey], 'Attenzione', 'notification');
+              return;
             }
             
-            // Usa window.EsameForm per aprire il form
-            if (window.EsameForm) {
-              window.EsameForm.showForm({ date: selDateFormatted }).then(formOpened => {
-                if (formOpened && window.FormEsameData && window.FormEsameData.handleDateSelection) {
-                  // Aspetta che il form sia completamente caricato prima di gestire la selezione della data
-                  setTimeout(() => {
-                    window.FormEsameData.handleDateSelection(selDateFormatted);
-                  }, 200);
-                } else {
-                  console.error('>>> CALENDAR: FormEsameData o handleDateSelection non disponibili');
-                }
-              }).catch(error => {
-                console.error('>>> CALENDAR: errore nell\'apertura del form:', error);
-              });
+            // Gestione apertura form ottimizzata
+            const formContainer = document.getElementById('form-container');
+            const isFormOpen = formContainer?.style.display === 'block';
+            
+            if (isFormOpen) {
+              window.FormEsameData?.handleDateSelection?.(selDateFormatted);
             } else {
-              console.error('>>> CALENDAR: EsameForm non disponibile');
+              window.EsameForm?.showForm({ date: selDateFormatted })
+                .then(formOpened => {
+                  if (formOpened) {
+                    setTimeout(() => window.FormEsameData?.handleDateSelection?.(selDateFormatted), 100);
+                  }
+                })
+                .catch(error => console.error('Errore apertura form:', error));
             }
           },
 
           eventClick: function (clickInfo) {
-            const event = clickInfo.event;
-            console.log("Evento cliccato:", event);
-
-            if (event.extendedProps && event.extendedProps.isProvisional) {
-              // Gestisci diversamente gli eventi provvisori se necessario,
-              // ad esempio, non aprendo il form di modifica standard.
+            const { event } = clickInfo;
+            
+            if (event.extendedProps?.isProvisional) {
               console.log("Evento provvisorio cliccato:", event);
-              // Potresti voler rimuovere l'evento provvisorio o fare altre azioni.
-            } else {
-              // Questo è un esame esistente, apri il form in modalità modifica.
-              // L'ID dell'esame è direttamente in event.id
-              const examId = event.id;
+              return;
+            }
 
-              if (examId) {
-                console.log(`Tentativo di modifica esame con ID: ${examId}`);
-                if (window.EsameForm && window.EsameForm.showForm) {
-                  window.EsameForm.showForm({ id: examId }, true);
-                } else {
-                  console.error("EsameForm.showForm non è disponibile.");
-                }
-              } else {
-                console.error("ID dell'esame non trovato nell'evento cliccato (event.id è nullo o vuoto).", event);
-                alert("Impossibile modificare l'esame: ID non trovato.");
-              }
+            // Gestione modifica esame esistente
+            if (event.id) {
+              window.EsameForm?.showForm?.({ id: event.id }, true);
+            } else {
+              console.error("ID dell'esame non trovato nell'evento:", event);
+              alert("Impossibile modificare l'esame: ID non trovato.");
             }
           },
 
           eventContent: function (arg) {
             const titoloInsegnamento = arg.event.title || 'Insegnamento';
-            let htmlContent = '';
+            const docenteCompleto = arg.event.extendedProps?.docenteNome || '';
+            const cognomeDocente = docenteCompleto ? docenteCompleto.split(' ').pop() : 
+                                  (userData?.user_data?.cognome || 'Docente');
 
-            if (arg.event.extendedProps.isProvisional) {
-              // Per eventi provvisori: Prima riga data, seconda riga "Cognome docente - Nuovo esame"
-              const cognomeDocente = userData?.user_data?.cognome || 'Docente';
-              const dataAppello = arg.event.start ? arg.event.start.toLocaleDateString('it-IT') : '';
-              
-              htmlContent += `<div class="fc-event-time fc-sticky">${dataAppello}</div>`;
-              htmlContent += `<div class="fc-event-title">${cognomeDocente} - Nuovo esame</div>`;
-            } else {
-              // Per eventi normali: Prima riga ora, seconda riga "Cognome docente - titolo insegnamento"
-              const docenteCompleto = arg.event.extendedProps.docenteNome || '';
-              const cognomeDocente = docenteCompleto ? docenteCompleto.split(' ').pop() : 'Docente';
-              
-              if (arg.event.start) {
-                const timeString = arg.event.start.toLocaleTimeString('it-IT', { 
-                  hour: '2-digit', 
-                  minute: '2-digit',
-                  hour12: false 
-                });
-                htmlContent += `<div class="fc-event-time fc-sticky">${timeString}</div>`;
-              }
-              
-              htmlContent += `<div class="fc-event-title">${cognomeDocente} - ${titoloInsegnamento}</div>`;
+            if (arg.event.extendedProps?.isProvisional) {
+              const dataAppello = arg.event.start?.toLocaleDateString('it-IT') || '';
+              return {
+                html: `<div class="fc-event-time fc-sticky">${dataAppello}</div>
+                       <div class="fc-event-title">${cognomeDocente} - Nuovo esame</div>`
+              };
             }
-            
-            return { html: htmlContent };
+
+            const timeString = arg.event.start?.toLocaleTimeString('it-IT', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false 
+            }) || '';
+
+            return {
+              html: `<div class="fc-event-time fc-sticky">${timeString}</div>
+                     <div class="fc-event-title">${cognomeDocente} - ${titoloInsegnamento}</div>`
+            };
           },
 
           dayCellClassNames: function (arg) {
-            const cellDate = new Date(arg.date.getTime());
-            
-            // Applica la classe fc-day-disabled se la data non è valida per utenti non admin
-            // o se è una data passata per gli admin
+            // Disabilita date non valide per utenti non admin
             if (!isAdmin) {
-                const validation = isDateValid(cellDate, dateValide, []);
-                if (!validation.isValid) {
-                    return ["fc-day-disabled"];
-                }
-            } else { 
-                // Logica per admin (solo date passate disabilitate)
-                // const today = new Date();
-                // today.setHours(0, 0, 0, 0);
-                // const comparableCellDate = new Date(cellDate.getTime());
-                // comparableCellDate.setHours(0,0,0,0);
-                // if (comparableCellDate < today) {
-                //     return ['fc-day-disabled'];
-                // }
+              const validation = isDateValid(arg.date, dateValide, []);
+              return validation.isValid ? [] : ["fc-day-disabled"];
             }
             return [];
           }
-        });
+        };
 
+        calendar = new FullCalendar.Calendar(calendarEl, calendarConfig);
         setupDropdownClickListeners(calendar, dropdowns, currentUsername, updateDateValideState);
         setupGlobalClickListeners(dropdowns);
         calendar.render();
         window.calendar = calendar;
 
-        // Scrolla alla prima data valida dopo il rendering del calendario
-        // setTimeout(() => {
-        //   scrollToPrimaDataValida(dateValide);
-        // }, 500);
-
+        // Gestione cambio insegnamenti con debounce
         if (window.InsegnamentiManager) {
           let debounceTimer;
           window.InsegnamentiManager.onChange(() => {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
-              loadDateValide(currentUsername)
-                .then(newDates => {
-                  dateValide = newDates;
-                  updateSessioniDropdown(dropdowns.sessioni, dateValide);
-                  eventsCache = [];
-                  lastFetchTime = 0;
-                  calendar.refetchEvents();
-                });
+              loadDateValide(currentUsername).then(newDates => {
+                dateValide = newDates;
+                updateSessioniDropdown(dropdowns.sessioni, dateValide);
+                eventsCache = [];
+                lastFetchTime = 0;
+                calendar.refetchEvents();
+              });
             }, 300);
           });
         }
