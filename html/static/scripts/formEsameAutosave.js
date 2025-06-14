@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const AUTOSAVE_COOKIE_KEY = 'form_esame_autosave';
     const COOKIE_EXPIRY_DAYS = 7; // I dati salvati durano 7 giorni
 
+    // Traccia l'ultima sezione modificata
+    let lastModifiedSection = null;
+    let lastModifiedSectionId = null;
+
     // Funzioni per la gestione dei cookie
     function setCookie(name, value, days) {
       const expires = new Date();
@@ -34,25 +38,33 @@ document.addEventListener('DOMContentLoaded', function() {
       document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
     }
 
-    // Salva automaticamente i dati della prima sezione
-    function autoSaveFirstSection() {
+    // Funzione per tracciare l'ultima sezione modificata
+    function trackSectionModification(sectionElement) {
+      lastModifiedSection = sectionElement;
+      lastModifiedSectionId = sectionElement.id;
+    }
+
+    // Salva automaticamente i dati dell'ultima sezione modificata
+    function autoSaveLastModifiedSection() {
       try {
-        const firstSection = document.querySelector('.date-appello-section');
-        if (!firstSection) return;
+        // Se non c'è una sezione modificata, usa la prima sezione
+        const sectionToSave = lastModifiedSection || document.querySelector('.date-appello-section');
+        if (!sectionToSave) return;
 
         const formData = {
-          descrizione: firstSection.querySelector('[id^="descrizione_"]')?.value || '',
-          ora_h: firstSection.querySelector('[id^="ora_h_"]')?.value || '',
-          ora_m: firstSection.querySelector('[id^="ora_m_"]')?.value || '',
-          durata_h: firstSection.querySelector('[id^="durata_h_"]')?.value || '2',
-          durata_m: firstSection.querySelector('[id^="durata_m_"]')?.value || '0',
-          inizioIscrizione: firstSection.querySelector('[id^="inizioIscrizione_"]')?.value || '',
-          fineIscrizione: firstSection.querySelector('[id^="fineIscrizione_"]')?.value || '',
-          verbalizzazione: firstSection.querySelector('[id^="verbalizzazione_"]')?.value || 'FSS',
-          tipoEsame: firstSection.querySelector('[id^="tipoEsame_"]')?.value || '',
-          note: firstSection.querySelector('[id^="note_"]')?.value || '',
-          mostra_nel_calendario: firstSection.querySelector('[id^="mostra_nel_calendario_"]')?.checked !== false,
-          tipo_appello_radio: firstSection.querySelector('input[name^="tipo_appello_radio_"]:checked')?.value || 'PF',
+          sectionId: sectionToSave.id,
+          descrizione: sectionToSave.querySelector('[id^="descrizione_"]')?.value || '',
+          ora_h: sectionToSave.querySelector('[id^="ora_h_"]')?.value || '',
+          ora_m: sectionToSave.querySelector('[id^="ora_m_"]')?.value || '',
+          durata_h: sectionToSave.querySelector('[id^="durata_h_"]')?.value || '2',
+          durata_m: sectionToSave.querySelector('[id^="durata_m_"]')?.value || '0',
+          inizioIscrizione: sectionToSave.querySelector('[id^="inizioIscrizione_"]')?.value || '',
+          fineIscrizione: sectionToSave.querySelector('[id^="fineIscrizione_"]')?.value || '',
+          verbalizzazione: sectionToSave.querySelector('[id^="verbalizzazione_"]')?.value || 'FSS',
+          tipoEsame: sectionToSave.querySelector('[id^="tipoEsame_"]')?.value || '',
+          note: sectionToSave.querySelector('[id^="note_"]')?.value || '',
+          mostra_nel_calendario: sectionToSave.querySelector('[id^="mostra_nel_calendario_"]')?.checked !== false,
+          tipo_appello_radio: sectionToSave.querySelector('input[name^="tipo_appello_radio_"]:checked')?.value || 'PF',
           timestamp: new Date().getTime()
         };
 
@@ -86,10 +98,21 @@ document.addEventListener('DOMContentLoaded', function() {
           return false;
         }
 
-        // Applica i dati alla prima sezione se esiste
-        const firstSection = document.querySelector('.date-appello-section');
-        if (firstSection) {
-          applyDataToSection(savedData, firstSection);
+        // Cerca di applicare i dati alla sezione salvata originariamente
+        let targetSection = null;
+        if (savedData.sectionId) {
+          targetSection = document.getElementById(savedData.sectionId);
+        }
+        
+        // Se la sezione originale non esiste, usa la prima sezione disponibile
+        if (!targetSection) {
+          targetSection = document.querySelector('.date-appello-section');
+        }
+
+        if (targetSection) {
+          applyDataToSection(savedData, targetSection);
+          lastModifiedSection = targetSection;
+          lastModifiedSectionId = targetSection.id;
           return true;
         }
         
@@ -194,31 +217,49 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Precompila una nuova sezione con i dati della prima sezione - aggiornato
-    function precompileNewSection(newSection, excludeFromFirstSection = []) {
-      try {
-        const firstSection = document.querySelector('.date-appello-section');
-        if (!firstSection || firstSection === newSection) return;
+    // Setup di listener per tracciare le modifiche alle sezioni
+    function setupSectionTracking(section) {
+      if (!section) return;
 
-        // Raccoglie i dati dalla prima sezione (escludendo campi specificati)
+      const inputs = section.querySelectorAll('input, select, textarea');
+      inputs.forEach(input => {
+        const handler = () => trackSectionModification(section);
+        
+        input.removeEventListener('input', handler);
+        input.removeEventListener('change', handler);
+        
+        input.addEventListener('input', handler);
+        input.addEventListener('change', handler);
+      });
+    }
+
+    // Precompila una nuova sezione con i dati della sezione di riferimento
+    function precompileNewSection(newSection, excludeFromReferenceSection = []) {
+      try {
+        // Usa l'ultima sezione modificata come riferimento, altrimenti la prima sezione
+        const referenceSection = lastModifiedSection || document.querySelector('.date-appello-section');
+        if (!referenceSection || referenceSection === newSection) return;
+
+        // Raccoglie i dati dalla sezione di riferimento (escludendo campi specificati)
         const dataToClone = {
-          descrizione: firstSection.querySelector('[id^="descrizione_"]')?.value || '',
-          ora_h: excludeFromFirstSection.includes('ora_h') ? '' : firstSection.querySelector('[id^="ora_h_"]')?.value || '',
-          ora_m: excludeFromFirstSection.includes('ora_m') ? '' : firstSection.querySelector('[id^="ora_m_"]')?.value || '',
-          durata_h: firstSection.querySelector('[id^="durata_h_"]')?.value || '2',
-          durata_m: firstSection.querySelector('[id^="durata_m_"]')?.value || '0',
-          inizioIscrizione: excludeFromFirstSection.includes('inizioIscrizione') ? '' : firstSection.querySelector('[id^="inizioIscrizione_"]')?.value || '',
-          fineIscrizione: excludeFromFirstSection.includes('fineIscrizione') ? '' : firstSection.querySelector('[id^="fineIscrizione_"]')?.value || '',
-          verbalizzazione: firstSection.querySelector('[id^="verbalizzazione_"]')?.value || 'FSS',
-          tipoEsame: firstSection.querySelector('[id^="tipoEsame_"]')?.value || '',
-          note: excludeFromFirstSection.includes('note') ? '' : firstSection.querySelector('[id^="note_"]')?.value || '',
-          mostra_nel_calendario: firstSection.querySelector('[id^="mostra_nel_calendario_"]')?.checked !== false,
-          tipo_appello_radio: firstSection.querySelector('input[name^="tipo_appello_radio_"]:checked')?.value || 'PF'
+          descrizione: referenceSection.querySelector('[id^="descrizione_"]')?.value || '',
+          ora_h: excludeFromReferenceSection.includes('ora_h') ? '' : referenceSection.querySelector('[id^="ora_h_"]')?.value || '',
+          ora_m: excludeFromReferenceSection.includes('ora_m') ? '' : referenceSection.querySelector('[id^="ora_m_"]')?.value || '',
+          durata_h: referenceSection.querySelector('[id^="durata_h_"]')?.value || '2',
+          durata_m: referenceSection.querySelector('[id^="durata_m_"]')?.value || '0',
+          inizioIscrizione: excludeFromReferenceSection.includes('inizioIscrizione') ? '' : referenceSection.querySelector('[id^="inizioIscrizione_"]')?.value || '',
+          fineIscrizione: excludeFromReferenceSection.includes('fineIscrizione') ? '' : referenceSection.querySelector('[id^="fineIscrizione_"]')?.value || '',
+          verbalizzazione: referenceSection.querySelector('[id^="verbalizzazione_"]')?.value || 'FSS',
+          tipoEsame: referenceSection.querySelector('[id^="tipoEsame_"]')?.value || '',
+          note: excludeFromReferenceSection.includes('note') ? '' : referenceSection.querySelector('[id^="note_"]')?.value || '',
+          mostra_nel_calendario: referenceSection.querySelector('[id^="mostra_nel_calendario_"]')?.checked !== false,
+          tipo_appello_radio: referenceSection.querySelector('input[name^="tipo_appello_radio_"]:checked')?.value || 'PF'
         };
 
         // Applica i dati alla nuova sezione
         setTimeout(() => {
           applyDataToSection(dataToClone, newSection, false);
+          setupSectionTracking(newSection);
         }, 50);
 
       } catch (error) {
@@ -250,12 +291,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Interfaccia pubblica aggiornata
     return {
-      autoSaveFirstSection,
+      autoSaveFirstSection: autoSaveLastModifiedSection, // Mantiene compatibilità con nome precedente
+      autoSaveLastModifiedSection,
       loadSavedData,
       precompileNewSection,
       clearSavedData,
       hasSavedData,
-      applyDataToSection
+      applyDataToSection,
+      setupSectionTracking,
+      trackSectionModification
     };
   }());
 

@@ -339,9 +339,10 @@ document.addEventListener('DOMContentLoaded', function() {
         radio.addEventListener('change', () => aggiornaVerbalizzazioneForSection(counter));
       });
 
-      // Salvataggio automatico per prima sezione
-      if (counter === 1 && window.FormEsameAutosave) {
+      // Salvataggio automatico per tutte le sezioni
+      if (window.FormEsameAutosave) {
         setupAutoSaveForSection(section);
+        window.FormEsameAutosave.setupSectionTracking(section);
       }
 
       // Inizializza durata
@@ -366,7 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', () => {
           clearTimeout(input._autoSaveTimeout);
           input._autoSaveTimeout = setTimeout(() => {
-            window.FormEsameAutosave.autoSaveFirstSection();
+            window.FormEsameAutosave.autoSaveLastModifiedSection();
           }, 500);
         });
       });
@@ -375,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const immediateInputs = section.querySelectorAll('select, input[type="checkbox"], input[type="radio"]');
       immediateInputs.forEach(element => {
         element.addEventListener('change', () => {
-          window.FormEsameAutosave.autoSaveFirstSection();
+          window.FormEsameAutosave.autoSaveLastModifiedSection();
         });
       });
     }
