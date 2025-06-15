@@ -4,41 +4,6 @@ from datetime import datetime
 
 common_bp = Blueprint('common', __name__, url_prefix='/api/oh-issa')
 
-# API per ottenere gli anni accademici disponibili
-@common_bp.route('/get-anni-accademici')
-def get_anni_accademici():
-  try:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Recupera tutti gli anni accademici unici dal database
-    cursor.execute("""
-      SELECT DISTINCT anno_accademico 
-      FROM cds 
-      ORDER BY anno_accademico DESC
-    """)
-    
-    # Estrae gli anni dalla query e li converte in una lista
-    anni = [row[0] for row in cursor.fetchall()]
-    
-    # Se non ci sono anni nel database, restituisci l'anno corrente
-    if not anni:
-      current_year = datetime.now().year
-      # Se siamo nel secondo semestre, mostro anche l'anno prossimo
-      if datetime.now().month > 9:
-        anni = [current_year, current_year + 1]
-      else:
-        anni = [current_year]
-    
-    return jsonify(anni)
-  except Exception as e:
-    return jsonify({"error": str(e)}), 500
-  finally:
-    if 'cursor' in locals() and cursor:
-      cursor.close()
-    if 'conn' in locals() and conn:
-      release_connection(conn)
-
 # Nuova API per ottenere l'elenco dei corsi di studio senza duplicati (per il calendario)
 @common_bp.route('/getCdSDistinct')
 def get_cds_distinct():

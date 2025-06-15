@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeAnnoSelector() {
-  fetch('/api/oh-issa/get-anni-accademici')
+  fetch('/api/get-anni-accademici')
     .then(response => response.json())
     .then(years => {
       const select = document.getElementById('annoSelect');
