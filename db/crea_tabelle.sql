@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS preferenze_utenti CASCADE;
 DROP TABLE IF EXISTS insegnamento_docente CASCADE;
 DROP TABLE IF EXISTS esami CASCADE;
 
--- Creazione della tabella 'aule'
+-- Tabella 'aule'
 CREATE TABLE aule (
     nome TEXT PRIMARY KEY,        -- Nome dell'aula (chiave primaria)
     codice_esse3 TEXT,            -- Codice dell'aula da ESSE3
@@ -19,7 +19,7 @@ CREATE TABLE aule (
     posti INT                     -- Numero di posti disponibili
 );
 
--- Creazione della tabella 'utenti'
+-- Tabella 'utenti'
 CREATE TABLE utenti (
     username TEXT PRIMARY KEY,      -- Username del docente (ad020022) (chiave primaria)
     matricola TEXT NOT NULL UNIQUE, -- Matricola del docente (011876)
@@ -29,7 +29,7 @@ CREATE TABLE utenti (
     permessi_admin BOOLEAN          -- Permessi admin (true/false)
 );
 
--- Creazione della tabella 'cds'
+-- Tabella 'cds'
 CREATE TABLE cds (
     codice TEXT NOT NULL,                -- Codice del corso di studio (L062)
     anno_accademico INT NOT NULL,        -- Anno accademico (2025 per 2025/2026)
@@ -40,7 +40,7 @@ CREATE TABLE cds (
     CONSTRAINT check_anno_accademico CHECK (anno_accademico >= 1900 AND anno_accademico <= 2100)
 );
 
--- Creazione della tabella "sessioni"
+-- Tabella "sessioni"
 CREATE TABLE sessioni (
     cds TEXT,
     anno_accademico INTEGER,
@@ -57,14 +57,14 @@ CREATE TABLE sessioni (
     ))
 );
 
--- Creazione della tabella 'insegnamenti' (generici, possono essere usati da qualsiasi corso di studio)
+-- Tabella 'insegnamenti' (generici, possono essere usati da qualsiasi corso di studio)
 CREATE TABLE insegnamenti (
     id TEXT PRIMARY KEY,          -- ID univoco dell'insegnamento (chiave primaria)
     codice TEXT NOT NULL,         -- Codice dell'insegnamento (A000702)
     titolo TEXT NOT NULL          -- Titolo dell'insegnamento
 );
 
--- Creazione della tabella 'insegnamenti_cds' (specifici per un corso di studio, potrebbero variare di anno in anno)
+-- Tabella 'insegnamenti_cds' (specifici per un corso di studio, potrebbero variare di anno in anno)
 CREATE TABLE insegnamenti_cds (
     insegnamento TEXT,          -- ID dell'insegnamento
     anno_accademico INT,        -- Anno accademico
@@ -78,8 +78,18 @@ CREATE TABLE insegnamenti_cds (
     CONSTRAINT check_semestre CHECK (semestre IN (1, 2, 3))
 );
 
+-- Tabella 'insegnamento_docente' (relazione N:N tra insegnamenti e utenti)
+CREATE TABLE insegnamento_docente (
+    insegnamento TEXT,           -- ID dell'insegnamento (chiave esterna)
+    docente TEXT,                -- Username del docente (chiave esterna)
+    annoaccademico INT,          -- Anno accademico
+    PRIMARY KEY (insegnamento, docente, annoaccademico),
+    FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
+    FOREIGN KEY (docente) REFERENCES utenti(username) ON DELETE CASCADE
+);
+
 -- Tabella per le preferenze degli utenti
-CREATE TABLE IF NOT EXISTS preferenze_utenti (
+CREATE TABLE preferenze_utenti (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL,
     form_type VARCHAR(50) NOT NULL,
@@ -91,17 +101,7 @@ CREATE TABLE IF NOT EXISTS preferenze_utenti (
     FOREIGN KEY (username) REFERENCES utenti(username) ON DELETE CASCADE
 );
 
--- Creazione della tabella 'insegnamento_docente' (relazione N:N tra insegnamenti e utenti)
-CREATE TABLE insegnamento_docente (
-    insegnamento TEXT,           -- ID dell'insegnamento (chiave esterna)
-    docente TEXT,                -- Username del docente (chiave esterna)
-    annoaccademico INT,          -- Anno accademico
-    PRIMARY KEY (insegnamento, docente, annoaccademico),
-    FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
-    FOREIGN KEY (docente) REFERENCES utenti(username) ON DELETE CASCADE
-);
-
--- Creazione della tabella 'esami'
+-- Tabella 'esami'
 CREATE TABLE esami (
     id SERIAL PRIMARY KEY,                -- Identificativo univoco dell'esame (chiave primaria)
     descrizione TEXT,                     -- Descrizione dell'esame
