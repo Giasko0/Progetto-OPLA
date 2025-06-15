@@ -154,6 +154,20 @@
           </div>
         </fieldset>
 
+        <!-- Periodi di Vacanza -->
+        <fieldset>
+          <legend>Periodi di Vacanza</legend>
+          <p class="form-text">Definisci i periodi in cui non è possibile programmare esami (vacanze natalizie, pasquali, etc.)</p>
+          
+          <div id="vacanze-container">
+            <!-- Le vacanze verranno aggiunte dinamicamente qui -->
+          </div>
+          
+          <div class="vacanza-actions">
+            <button type="button" id="addVacanzaBtn" class="btn">+ Aggiungi Periodo di Vacanza</button>
+          </div>
+        </fieldset>
+
         <div class="actions">
           <button type="submit" class="btn primary">Salva</button>
           <button type="button" id="resetForm" class="btn">Reset</button>
@@ -208,6 +222,32 @@
       </div>
     </div>
   </div>
+
+  <!-- Template per i periodi di vacanza (nascosto) -->
+  <template id="vacanza-template">
+    <div class="vacanza-item">
+      <div class="vacanza-header">
+        <h5>Periodo di Vacanza</h5>
+        <button type="button" class="btn danger small remove-vacanza">Rimuovi</button>
+      </div>
+      <div class="vacanza-content">
+        <div class="form-group">
+          <label>Descrizione:</label>
+          <input type="text" class="vacanza-descrizione" placeholder="es. Vacanze Natalizie, Vacanze Pasquali">
+        </div>
+        <div class="vacanza-dates">
+          <div>
+            <label>Data Inizio:</label>
+            <input type="date" class="vacanza-inizio">
+          </div>
+          <div>
+            <label>Data Fine:</label>
+            <input type="date" class="vacanza-fine">
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
 </body>
 
 </html>

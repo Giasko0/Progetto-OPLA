@@ -173,6 +173,43 @@ def save_cds_dates():
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
       """, (codice_cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo, esami_secondo))
     
+    # Elimina tutte le vacanze esistenti per questo CDS e anno accademico
+    cursor.execute("""
+      DELETE FROM vacanze 
+      WHERE cds = %s AND anno_accademico = %s AND curriculum = %s
+    """, (codice_cds, anno_accademico, curriculum))
+    
+    # Estrai i periodi di vacanza
+    vacanze = data.get('vacanze', [])
+    
+    # Inserisci le nuove vacanze
+    for vacanza in vacanze:
+      descrizione = vacanza.get('descrizione', '').strip()
+      inizio = vacanza.get('inizio')
+      fine = vacanza.get('fine')
+      
+      # Validazione vacanza
+      if not descrizione:
+        return jsonify({'status': 'error', 'message': 'Descrizione vacanza obbligatoria'}), 400
+      
+      if not inizio or not fine:
+        return jsonify({'status': 'error', 'message': f'Date di inizio e fine obbligatorie per: {descrizione}'}), 400
+      
+      # Verifica che la data di inizio sia precedente alla data di fine
+      try:
+        data_inizio = datetime.strptime(inizio, '%Y-%m-%d').date()
+        data_fine = datetime.strptime(fine, '%Y-%m-%d').date()
+        
+        if data_inizio > data_fine:
+          return jsonify({'status': 'error', 'message': f'Data inizio non può essere successiva alla data fine per: {descrizione}'}), 400
+      except ValueError:
+        return jsonify({'status': 'error', 'message': f'Formato date non valido per: {descrizione}'}), 400
+      
+      cursor.execute("""
+        INSERT INTO vacanze (cds, anno_accademico, curriculum, descrizione, inizio, fine)
+        VALUES (%s, %s, %s, %s, %s, %s)
+      """, (codice_cds, anno_accademico, curriculum, descrizione, inizio, fine))
+    
     # Commit delle modifiche
     conn.commit()
     
@@ -289,6 +326,25 @@ def get_cds_details():
     
     # Combina i dati del CdS con le sessioni d'esame
     cds_data.update(sessioni_data)
+    
+    # Query per ottenere le vacanze
+    cursor.execute("""
+      SELECT descrizione, inizio, fine
+      FROM vacanze
+      WHERE cds = %s AND anno_accademico = %s
+      ORDER BY inizio
+    """, (codice, anno_accademico))
+    
+    vacanze_data = []
+    for descrizione, inizio, fine in cursor.fetchall():
+      vacanze_data.append({
+        'descrizione': descrizione,
+        'inizio': inizio.isoformat() if inizio else None,
+        'fine': fine.isoformat() if fine else None
+      })
+    
+    # Aggiungi le vacanze ai dati del CdS
+    cds_data['vacanze'] = vacanze_data
     
     # Converti le date in stringhe ISO format
     for key, value in cds_data.items():

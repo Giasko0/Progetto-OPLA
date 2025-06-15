@@ -1074,6 +1074,103 @@ input[type="checkbox"], input[type="radio"] {
     text-decoration: underline;
 }
 
+/* Stili per la sezione vacanze */
+.vacanza-item {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.vacanza-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.vacanza-header h5 {
+    margin: 0;
+    color: #495057;
+    font-size: 1rem;
+}
+
+.vacanza-content .form-group {
+    margin-bottom: 1rem;
+}
+
+.vacanza-content label {
+    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
+}
+
+.vacanza-dates {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.vacanza-dates > div {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.vacanza-dates input {
+    margin: 0;
+}
+
+.vacanza-actions {
+    text-align: center;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #dee2e6;
+}
+
+.remove-vacanza {
+    background-color: #dc3545;
+    color: white;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+}
+
+.remove-vacanza:hover {
+    background-color: #c82333;
+}
+
+#addVacanzaBtn {
+    background-color: #28a745;
+    color: white;
+}
+
+#addVacanzaBtn:hover {
+    background-color: #218838;
+}
+
+/* Template nascosto */
+template {
+    display: none;
+}
+
+/* Responsive per vacanze */
+@media (max-width: 768px) {
+    .vacanza-dates {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .vacanza-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .cds-header {
@@ -1228,15 +1325,4 @@ input[type="checkbox"], input[type="radio"] {
         flex-direction: column;
         gap: 0.5rem;
     }
-}
-
-@media (max-width: 480px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .cds-stats {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
 }

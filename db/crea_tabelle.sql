@@ -2,6 +2,7 @@
 DROP TABLE IF EXISTS aule CASCADE;
 DROP TABLE IF EXISTS cds CASCADE;
 DROP TABLE IF EXISTS sessioni CASCADE;
+DROP TABLE IF EXISTS vacanze CASCADE;
 DROP TABLE IF EXISTS insegnamenti CASCADE;
 DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
 DROP TABLE IF EXISTS utenti CASCADE;
@@ -55,6 +56,26 @@ CREATE TABLE sessioni (
     CONSTRAINT check_tipo_sessione CHECK (tipo_sessione IN (
         'anticipata', 'estiva', 'autunnale', 'invernale'
     ))
+);
+
+-- Tabella 'vacanze' per gestire i periodi di vacanza per ogni CdS
+CREATE TABLE vacanze (
+    id SERIAL PRIMARY KEY,
+    cds TEXT NOT NULL,
+    anno_accademico INTEGER NOT NULL,
+    curriculum TEXT NOT NULL DEFAULT 'CORSO GENERICO',
+    descrizione TEXT NOT NULL,
+    inizio DATE NOT NULL,
+    fine DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (cds, anno_accademico, curriculum) 
+        REFERENCES cds(codice, anno_accademico, curriculum) 
+        ON DELETE CASCADE,
+    
+    -- Vincolo per verificare che la data di inizio sia precedente alla data di fine
+    CONSTRAINT check_date_order CHECK (inizio <= fine)
 );
 
 -- Tabella 'insegnamenti' (generici, possono essere usati da qualsiasi corso di studio)
@@ -193,6 +214,11 @@ CREATE INDEX idx_aule_edificio ON aule(edificio);
 -- Indici per la tabella 'cds'
 CREATE INDEX idx_cds_anno ON cds(anno_accademico);
 CREATE INDEX idx_cds_nome ON cds(nome_corso);
+
+-- Indici per la tabella 'vacanze'
+CREATE INDEX idx_vacanze_cds_anno ON vacanze(cds, anno_accademico, curriculum);
+CREATE INDEX idx_vacanze_date_range ON vacanze(inizio, fine);
+CREATE INDEX idx_vacanze_anno ON vacanze(anno_accademico);
 
 -- Inserimento dell'utente 'admin' con permessi di amministratore
 INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', 'password', true);

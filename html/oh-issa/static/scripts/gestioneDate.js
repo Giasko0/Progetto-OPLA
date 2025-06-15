@@ -36,6 +36,9 @@ document.addEventListener('DOMContentLoaded', function() {
             showCopyDatesModal();
         });
     }
+    
+    // Inizializza la gestione delle vacanze
+    initVacanzeManagement();
 });
 
 /**
@@ -198,6 +201,17 @@ function loadCdsDetails(value) {
                 }
             });
             
+            // Popola le vacanze
+            if (data.vacanze) {
+                loadVacanze(data.vacanze);
+            } else {
+                // Pulisci il container delle vacanze se non ci sono dati
+                const container = document.getElementById('vacanze-container');
+                if (container) {
+                    container.innerHTML = '';
+                }
+            }
+            
             // Scroll to form
             document.getElementById('cdsFormContainer').scrollIntoView({ behavior: 'smooth' });
         })
@@ -258,6 +272,9 @@ function saveCdsData() {
             cdsData[`${tipo}_esami_secondo`] = parseInt(esamiSecondo) || null;
         }
     });
+    
+    // Raccogli i dati delle vacanze
+    cdsData.vacanze = collectVacanzeData();
     
     // Validazione coppie di date
     for (const tipo of sessionTypes) {
@@ -524,4 +541,92 @@ function initResetConfirmModal() {
 function showResetConfirmModal() {
     const modal = document.getElementById('resetConfirmModal');
     modal.style.display = 'flex';
+}
+
+/**
+ * Inizializza la gestione delle vacanze
+ */
+function initVacanzeManagement() {
+    const addVacanzaBtn = document.getElementById('addVacanzaBtn');
+    if (addVacanzaBtn) {
+        addVacanzaBtn.addEventListener('click', addVacanzaItem);
+    }
+}
+
+/**
+ * Aggiunge un nuovo elemento vacanza
+ */
+function addVacanzaItem() {
+    const template = document.getElementById('vacanza-template');
+    const container = document.getElementById('vacanze-container');
+    
+    if (!template || !container) return;
+    
+    // Clona il template
+    const clone = template.content.cloneNode(true);
+    
+    // Aggiungi event listener per il pulsante rimuovi
+    const removeBtn = clone.querySelector('.remove-vacanza');
+    removeBtn.addEventListener('click', function() {
+        this.closest('.vacanza-item').remove();
+    });
+    
+    // Aggiungi al container
+    container.appendChild(clone);
+}
+
+/**
+ * Carica le vacanze esistenti per un CdS
+ */
+function loadVacanze(vacanzeData) {
+    const container = document.getElementById('vacanze-container');
+    if (!container) return;
+    
+    // Pulisci il container
+    container.innerHTML = '';
+    
+    // Se ci sono vacanze, aggiungile
+    if (vacanzeData && vacanzeData.length > 0) {
+        vacanzeData.forEach(vacanza => {
+            addVacanzaItem();
+            
+            // Popola l'ultimo elemento aggiunto
+            const items = container.querySelectorAll('.vacanza-item');
+            const lastItem = items[items.length - 1];
+            
+            if (lastItem) {
+                lastItem.querySelector('.vacanza-descrizione').value = vacanza.descrizione || '';
+                lastItem.querySelector('.vacanza-inizio').value = formatDateForInput(vacanza.inizio);
+                lastItem.querySelector('.vacanza-fine').value = formatDateForInput(vacanza.fine);
+            }
+        });
+    }
+}
+
+/**
+ * Raccoglie i dati delle vacanze dal form
+ */
+function collectVacanzeData() {
+    const container = document.getElementById('vacanze-container');
+    if (!container) return [];
+    
+    const vacanze = [];
+    const vacanzeItems = container.querySelectorAll('.vacanza-item');
+    
+    vacanzeItems.forEach(item => {
+        const descrizione = item.querySelector('.vacanza-descrizione').value.trim();
+        const inizio = item.querySelector('.vacanza-inizio').value;
+        const fine = item.querySelector('.vacanza-fine').value;
+        
+        // Aggiungi solo se ha almeno la descrizione
+        if (descrizione || inizio || fine) {
+            vacanze.push({
+                descrizione: descrizione,
+                inizio: inizio || null,
+                fine: fine || null
+            });
+        }
+    });
+    
+    return vacanze;
 }

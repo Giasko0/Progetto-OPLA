@@ -80,6 +80,7 @@
 
 .session-card.static:hover {
   transform: none;
+  cursor: default;
 }
 
 .tabs-container {
