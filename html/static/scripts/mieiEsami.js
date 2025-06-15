@@ -46,7 +46,7 @@ function fetchAndDisplayEsami() {
 
       Promise.all([
         fetch(`/api/get-insegnamenti-docente?${params}`).then(r => r.json()),
-        fetch(`/api/getEsami?${params}`).then(r => r.json())
+        fetch(`/api/get-esami?${params}`).then(r => r.json())
       ])
       .then(([insegnamentiResponse, esamiData]) => {
         const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, data.user_data.username);

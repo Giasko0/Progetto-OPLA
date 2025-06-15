@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
       showMessage('error', 'Seleziona prima un anno accademico');
       return;
     }
-    window.location.href = `/api/oh-issa/downloadFileESSE3?anno=${selectedAnno}`;
+    window.location.href = `/api/oh-issa/download-file-esse3?anno=${selectedAnno}`;
   });
 
   const downloadEasyAcademyButton = document.getElementById('downloadEasyAcademyButton');
@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     const includeDetails = document.getElementById('eaExportToggle').checked;
-    window.location.href = `/api/oh-issa/downloadFileEA?anno=${selectedAnno}&details=${includeDetails}`;
+    window.location.href = `/api/oh-issa/download-file-easyacademy?anno=${selectedAnno}&details=${includeDetails}`;
   });
 
   // Gestione caricamento file UGOV
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
       formData.append('file', fileInput.files[0]);
       
       // Invia richiesta al server
-      fetch('/api/oh-issa/uploadFileUGOV', {
+      fetch('/api/oh-issa/upload-file-ugov', {
         method: 'POST',
         body: formData
       })
@@ -112,7 +112,7 @@ function checkProgrammazioneDidattica(anno) {
   
   updateStatus('loading', 'Verifico stato programmazione...');
   
-  fetch(`/api/oh-issa/checkProgrammazioneDidattica?anno=${anno}`)
+  fetch(`/api/oh-issa/check-programmazione-didattica?anno=${anno}`)
     .then(response => response.json())
     .then(data => {
       if (data.error) {

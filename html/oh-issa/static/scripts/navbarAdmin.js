@@ -13,7 +13,7 @@ async function getUserData() {
   
   // Se non c'è cache, fai la chiamata API
   try {
-    const response = await fetch('/api/get_user_data');
+    const response = await fetch('/api/get-user-data');
     const data = await response.json();
     
     // Salva in cache se autenticato

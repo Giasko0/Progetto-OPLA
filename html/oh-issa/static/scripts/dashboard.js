@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("downloadFileESSE3").addEventListener("click", function () {
-    window.location.href = "/api/oh-issa/downloadFileESSE3";
+    window.location.href = "/api/oh-issa/download-file-esse3";
   });
 
   // Gestione upload file unificato

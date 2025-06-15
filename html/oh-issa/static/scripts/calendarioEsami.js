@@ -51,7 +51,7 @@ function loadCorsiForAnno(anno) {
         return;
     }
     
-    fetch(`/api/oh-issa/getCdSByAnno?anno=${anno}`)
+    fetch(`/api/oh-issa/get-cds-by-anno?anno=${anno}`)
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('selectCds');
@@ -92,7 +92,7 @@ function loadCurriculumForCds(cdsCode, anno) {
         return;
     }
     
-    fetch(`/api/oh-issa/getCurriculumByCds?cds=${cdsCode}&anno=${anno}`)
+    fetch(`/api/oh-issa/get-curriculum-by-cds?cds=${cdsCode}&anno=${anno}`)
         .then(response => response.json())
         .then(data => { // data è un array di stringhe curriculum, es: ["GENERALE", "CYBERSECURITY"]
             const select = document.getElementById('selectCurriculum');
@@ -159,7 +159,7 @@ function generaCalendario() {
     calendarioContainer.innerHTML = '<div class="loading">Generazione calendario in corso...</div>';
         
     // Richiedi il calendario al server
-    fetch(`/api/oh-issa/getCalendarioEsami?cds=${cdsValue}&anno=${annoAccademicoValue}&curriculum=${encodeURIComponent(curriculumValue)}`)
+    fetch(`/api/oh-issa/get-calendario-esami?cds=${cdsValue}&anno=${annoAccademicoValue}&curriculum=${encodeURIComponent(curriculumValue)}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Errore HTTP: ${response.status}`);
@@ -342,7 +342,7 @@ function esportaXLSX() {
     calendarioContainer.innerHTML = '<div class="loading">Generazione file Excel in corso...</div>';
     
     // Crea l'URL per il download
-    const url = `/api/oh-issa/esportaCalendarioEsami?cds=${cdsValue}&anno=${annoAccademicoValue}&curriculum=${encodeURIComponent(curriculumValue)}`;
+    const url = `/api/oh-issa/esporta-calendario-esami?cds=${cdsValue}&anno=${annoAccademicoValue}&curriculum=${encodeURIComponent(curriculumValue)}`;
     
     // Usa fetch per controllare la risposta prima del download
     fetch(url)

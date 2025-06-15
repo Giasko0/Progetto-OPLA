@@ -10,36 +10,8 @@ import logging
 
 calendario_esami_bp = Blueprint('calendario_esami', __name__, url_prefix='/api/oh-issa')
 
-@calendario_esami_bp.route('/getCdSByAnno')
-def get_cds_by_anno():
-    try:
-        anno_accademico = request.args.get('anno')
-        if not anno_accademico:
-            return jsonify({'error': 'Parametro anno mancante'}), 400
-        
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=DictCursor)
-        
-        # Seleziona codice e nome_corso distinti.
-        cursor.execute("""
-            SELECT DISTINCT codice, nome_corso
-            FROM cds
-            WHERE anno_accademico = %s
-            ORDER BY codice, nome_corso
-        """, (anno_accademico,))
-        
-        corsi = cursor.fetchall()
-        return jsonify(corsi)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            release_connection(conn)
-
 # API per ottenere i curriculum per un corso di studi e anno
-@calendario_esami_bp.route('/getCurriculumByCds')
+@calendario_esami_bp.route('/get-curriculum-by-cds')
 def get_curriculum_by_cds():
     try:
         cds_code = request.args.get('cds')
@@ -70,7 +42,7 @@ def get_curriculum_by_cds():
             release_connection(conn)
 
 # API per ottenere i dati del calendario esami
-@calendario_esami_bp.route('/getCalendarioEsami')
+@calendario_esami_bp.route('/get-calendario-esami')
 def get_calendario_esami():
   try:
     cds_code = request.args.get('cds')
@@ -195,7 +167,7 @@ def get_calendario_esami():
       release_connection(conn)
 
 # API per esportare il calendario esami in formato XLSX
-@calendario_esami_bp.route('/esportaCalendarioEsami')
+@calendario_esami_bp.route('/esporta-calendario-esami')
 def esporta_calendario_esami():
     try:
         cds_code = request.args.get('cds')

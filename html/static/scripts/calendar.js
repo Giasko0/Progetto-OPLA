@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function deleteEsame(examId) {
     if (!examId || !confirm("Sei sicuro di voler eliminare questo esame?")) return;
 
-    fetch('/api/deleteEsame', {
+    fetch('/api/delete-esame', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: examId }),
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", function () {
               params.append("anno", selectedYear);
             }
 
-            fetch(`/api/getEsami?${params.toString()}`)
+            fetch(`/api/get-esami?${params.toString()}`)
               .then(response => response.ok ? response.json() : Promise.reject(`HTTP ${response.status}`))
               .then(events => {
                 const validEvents = (events || []).filter(ev => ev?.start).map(event => ({

@@ -76,7 +76,7 @@ function loadCorsiForAnno(anno) {
         return;
     }
     
-    fetch(`/api/oh-issa/getCdSByAnno?anno=${anno}`)
+    fetch(`/api/oh-issa/get-cds-by-anno?anno=${anno}`)
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('selectCds');
@@ -131,7 +131,7 @@ function loadCdsDetails(value) {
     // Aggiungi un indicatore di caricamento
     document.getElementById('cdsInfoContainer').innerHTML = '<p>Caricamento informazioni...</p>';
     
-    fetch(`/api/oh-issa/getCdsDetails?codice=${cdsCode}&anno=${annoAccademico}`)
+    fetch(`/api/oh-issa/get-cds-details?codice=${cdsCode}&anno=${annoAccademico}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -409,7 +409,7 @@ function loadCorsiForAnnoModal(anno) {
         return;
     }
     
-    fetch(`/api/oh-issa/getCdSByAnno?anno=${anno}`)
+    fetch(`/api/oh-issa/get-cds-by-anno?anno=${anno}`)
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('sourceCds');
@@ -457,7 +457,7 @@ function copyDatesFromSource() {
     
     const [sourceCode, sourceYear] = sourceCdsValue.split('_');
     
-    fetch(`/api/oh-issa/getCdsDetails?codice=${sourceCode}&anno=${sourceYear}`)
+    fetch(`/api/oh-issa/get-cds-details?codice=${sourceCode}&anno=${sourceYear}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {

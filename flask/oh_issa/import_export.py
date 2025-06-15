@@ -8,7 +8,7 @@ from auth import require_auth
 
 import_export_bp = Blueprint('import_export', __name__, url_prefix='/api/oh-issa')
 
-@import_export_bp.route('/uploadFileUGOV', methods=['POST'])
+@import_export_bp.route('/upload-file-ugov', methods=['POST'])
 def upload_ugov():
     if not session.get('permessi_admin'):
         return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
@@ -333,7 +333,7 @@ def upload_ugov():
         """
     })
 
-@import_export_bp.route('/downloadFileESSE3')
+@import_export_bp.route('/download-file-esse3')
 def download_esse3():
   if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
@@ -550,7 +550,7 @@ def download_esse3():
     if 'conn' in locals() and conn:
       release_connection(conn)
 
-@import_export_bp.route('/downloadFileEA')
+@import_export_bp.route('/download-file-easyacademy')
 def download_ea():
   if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
@@ -805,7 +805,7 @@ def download_ea():
     if 'conn' in locals() and conn:
       release_connection(conn)
 
-@import_export_bp.route('/checkProgrammazioneDidattica')
+@import_export_bp.route('/check-programmazione-didattica')
 def check_programmazione_didattica():
   if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401

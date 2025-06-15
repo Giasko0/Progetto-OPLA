@@ -38,7 +38,7 @@ def get_user_admin_status(username):
 
 # ================== Funzioni per la gestione dei dati degli esami ==================
 
-def generaDatiEsame():
+def genera_dati_esame():
     """Raccoglie i dati dal form modulare e li valida."""
     data = request.form
     docente = data.get('docente')
@@ -146,7 +146,7 @@ def generaDatiEsame():
         'anno_accademico': anno_accademico
     }
 
-def controllaVincoli(dati_esame, aula_originale=None):
+def controlla_vincoli(dati_esame, aula_originale=None):
     """Controlla i vincoli per tutti gli esami."""
     if "status" in dati_esame and dati_esame["status"] == "error":
         return False, dati_esame["message"]
@@ -248,7 +248,7 @@ def controllaVincoli(dati_esame, aula_originale=None):
     release_connection(conn)
     return True, None
 
-def inserisciEsami(dati_esame):
+def inserisci_esami(dati_esame):
     """Inserisce tutti gli esami nel database."""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -304,9 +304,9 @@ def inserisciEsami(dati_esame):
 
 # ================== Endpoints API ==================
 
-@exam_bp.route('/api/inserisciEsame', methods=['POST'])
+@exam_bp.route('/api/inserisci-esame', methods=['POST'])
 @require_auth
-def inserisciEsame():
+def inserisci_esame():
     """API per inserire esami nel database."""
     username = session.get('username')
     
@@ -315,13 +315,13 @@ def inserisciEsame():
     bypass_checks = request.form.get('bypass_checks', 'false').lower() == 'true'
     
     # Raccolta e validazione dati
-    dati_esame = generaDatiEsame()
+    dati_esame = genera_dati_esame()
     if "status" in dati_esame and dati_esame["status"] == "error":
         return jsonify(dati_esame), 400
     
     # Bypass controlli se admin
     if is_admin and bypass_checks:
-        esami_inseriti = inserisciEsami(dati_esame)
+        esami_inseriti = inserisci_esami(dati_esame)
         return jsonify({
             'status': 'success',
             'message': 'Esami inseriti con successo (controlli bypassati)',
@@ -329,19 +329,19 @@ def inserisciEsame():
         }), 200
     
     # Controlli vincoli
-    vincoli_ok, errore_vincoli = controllaVincoli(dati_esame)
+    vincoli_ok, errore_vincoli = controlla_vincoli(dati_esame)
     if not vincoli_ok:
         return jsonify({'status': 'error', 'message': errore_vincoli}), 400
     
     # Inserimento
-    esami_inseriti = inserisciEsami(dati_esame)
+    esami_inseriti = inserisci_esami(dati_esame)
     return jsonify({
         'status': 'success',
         'message': 'Tutti gli esami sono stati inseriti con successo',
         'inserted': esami_inseriti
     }), 200
 
-@exam_bp.route('/api/getEsameById', methods=['GET'])
+@exam_bp.route('/api/get-esame-by-id', methods=['GET'])
 @require_auth
 def get_esame_by_id():
     """Recupera i dettagli di un esame specifico per ID."""
@@ -396,7 +396,7 @@ def get_esame_by_id():
     release_connection(conn)
     return jsonify({'success': True, 'esame': esame_dict})
 
-@exam_bp.route('/api/updateEsame', methods=['POST'])
+@exam_bp.route('/api/update-esame', methods=['POST'])
 @require_auth
 def update_esame():
     """Aggiorna un esame esistente con supporto per sezioni modulari."""
@@ -462,7 +462,7 @@ def update_esame():
         }
 
         # Controllo vincoli passando l'aula originale
-        vincoli_ok, errore = controllaVincoli(dati_controllo, aula_originale=esame_dict['aula'])
+        vincoli_ok, errore = controlla_vincoli(dati_controllo, aula_originale=esame_dict['aula'])
         if not vincoli_ok:
             cursor.close()
             release_connection(conn)
@@ -495,7 +495,7 @@ def update_esame():
         
     return jsonify({'success': True, 'message': message})
 
-@exam_bp.route('/api/deleteEsame', methods=['POST'])
+@exam_bp.route('/api/delete-esame', methods=['POST'])
 @require_auth
 def delete_esame():
     """Elimina un esame esistente."""

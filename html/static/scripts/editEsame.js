@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Carica i dettagli di un esame per la modifica
     async function loadExamForEdit(examId) {
-      return fetch(`/api/getEsameById?id=${examId}`)
+      return fetch(`/api/get-esame-by-id?id=${examId}`)
         .then(response => response.json())
         .then(async data => {
           if (data.success) {
@@ -289,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
       examDataFromForm.id = currentExamData.id;
       examDataFromForm.bypass_checks = bypassChecks;
 
-      fetch('/api/updateEsame', {
+      fetch('/api/update-esame', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleDeleteExam(examId) {
       if (!confirm('Sei sicuro di voler eliminare questo esame?')) return;
 
-      fetch('/api/deleteEsame', {
+      fetch('/api/delete-esame', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

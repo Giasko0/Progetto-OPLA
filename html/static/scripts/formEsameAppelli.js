@@ -633,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Gestione aule
     function loadAuleForDateTime(data, periodo) {
-      return fetch(`/api/getAule?data=${data}&periodo=${periodo}`)
+      return fetch(`/api/get-aule?data=${data}&periodo=${periodo}`)
         .then(response => {
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           return response.json();

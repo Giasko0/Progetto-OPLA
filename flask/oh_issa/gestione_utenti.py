@@ -6,7 +6,7 @@ from auth import require_auth
 gestione_utenti_bp = Blueprint('gestione_utenti', __name__, url_prefix='/api/oh-issa')
 
 # API per ottenere la lista degli utenti
-@gestione_utenti_bp.route('/getUsers')
+@gestione_utenti_bp.route('/get-users')
 def get_users():
   if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
@@ -43,7 +43,7 @@ def get_users():
       release_connection(conn)
 
 # API per aggiornare i permessi di amministratore di un utente
-@gestione_utenti_bp.route('/updateUserAdmin', methods=['POST'])
+@gestione_utenti_bp.route('/update-user-admin', methods=['POST'])
 def update_user_admin():
   if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
@@ -89,7 +89,7 @@ def update_user_admin():
       release_connection(conn)
 
 # API per eliminare un utente
-@gestione_utenti_bp.route('/deleteUser', methods=['POST'])
+@gestione_utenti_bp.route('/delete-user', methods=['POST'])
 def delete_user():
   if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
@@ -129,7 +129,7 @@ def delete_user():
       release_connection(conn)
 
 # API per aggiungere un nuovo utente
-@gestione_utenti_bp.route('/addUser', methods=['POST'])
+@gestione_utenti_bp.route('/add-user', methods=['POST'])
 def add_user():
     if not session.get('permessi_admin'):
         return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401

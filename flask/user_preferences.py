@@ -6,7 +6,7 @@ import psycopg2.extras
 
 preferences_bp = Blueprint('preferences', __name__)
 
-@preferences_bp.route('/api/salvaPreferenzaForm', methods=['POST'])
+@preferences_bp.route('/api/salva-preferenza-form', methods=['POST'])
 def salva_preferenza_form():
     """Salva le preferenze del form per un utente"""
     conn = None
@@ -71,7 +71,7 @@ def salva_preferenza_form():
         if conn:
             release_connection(conn)
 
-@preferences_bp.route('/api/getPreferenzeForm', methods=['GET'])
+@preferences_bp.route('/api/get-preferenze-form', methods=['GET'])
 def ottieni_preferenze_form():
     """Ottiene tutte le preferenze del form per un utente"""
     conn = None
@@ -122,7 +122,7 @@ def ottieni_preferenze_form():
         if conn:
             release_connection(conn)
 
-@preferences_bp.route('/api/eliminaPreferenzaForm', methods=['DELETE'])
+@preferences_bp.route('/api/elimina-preferenza-form', methods=['DELETE'])
 def elimina_preferenza_form():
     """Elimina una preferenza di un utente"""
     conn = None

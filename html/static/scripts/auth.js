@@ -34,7 +34,7 @@ async function preloadUserData() {
     return window.preloadUserDataPromise;
   }
   
-  window.preloadUserDataPromise = fetch("/api/get_user_data")
+  window.preloadUserDataPromise = fetch("/api/get-user-data")
     .then((response) => response.json())
     .then((data) => {
       authCache.data = data;
@@ -80,7 +80,7 @@ async function getUserData() {
     return window.preloadUserDataPromise;
   }
 
-  const response = await fetch("/api/get_user_data", {
+  const response = await fetch("/api/get-user-data", {
     credentials: 'include'
   });
   const data = await response.json();

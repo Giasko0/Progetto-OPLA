@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Funzioni per la gestione delle preferenze API
     function saveFormPreference(username, formType, preferenceName, preferences) {
-      return fetch('/api/salvaPreferenzaForm', {
+      return fetch('/api/salva-preferenza-form', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadFormPreferences(username, formType) {
-      return fetch(`/api/getPreferenzeForm?username=${encodeURIComponent(username)}&form_type=${formType}`)
+      return fetch(`/api/get-preferenze-form?username=${encodeURIComponent(username)}&form_type=${formType}`)
         .then(response => {
           if (!response.ok) {
             throw new Error(`Errore nella risposta del server: ${response.status}`);
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function deleteFormPreference(username, id) {
-      return fetch('/api/eliminaPreferenzaForm', {
+      return fetch('/api/elimina-preferenza-form', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'

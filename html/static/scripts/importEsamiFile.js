@@ -318,7 +318,7 @@ const ExamFileImporter = {
     this.setButtonLoading(downloadBtn, true);
 
     try {
-      const response = await fetch(`/api/getExamTemplate?docente=${encodeURIComponent(username)}&anno=${encodeURIComponent(anno)}`, {
+      const response = await fetch(`/api/get-exam-template?docente=${encodeURIComponent(username)}&anno=${encodeURIComponent(anno)}`, {
         method: 'GET',
         credentials: 'same-origin'
       });
@@ -376,7 +376,7 @@ const ExamFileImporter = {
     const progressInterval = this.startProgressSimulation();
 
     try {
-      const response = await fetch('/api/importExamsFromFile', {
+      const response = await fetch('/api/import-exams-from-file', {
         method: 'POST',
         body: formData
       });

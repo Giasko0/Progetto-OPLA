@@ -123,7 +123,7 @@ def logout():
   session.clear()
   return redirect('/')
 
-@auth_bp.route('/api/get_user_data')
+@auth_bp.route('/api/get-user-data')
 def get_user_data():
   if not session.get('authenticated'):
     return jsonify({'authenticated': False, 'user_data': None})

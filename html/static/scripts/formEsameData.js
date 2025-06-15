@@ -390,7 +390,7 @@ const FormEsameData = (function() {
 
   // Funzione per invio al server
   function submitToServer(formData) {
-    fetch('/api/inserisciEsame', {
+    fetch('/api/inserisci-esami', {
       method: 'POST',
       body: formData
     })

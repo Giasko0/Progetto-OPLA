@@ -8,11 +8,11 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from db import get_db_connection, release_connection
 from auth import require_auth
-from exams import controllaVincoli, inserisciEsami
+from exams import controlla_vincoli, inserisci_esami
 
 import_bp = Blueprint('import_bp', __name__)
 
-@import_bp.route('/api/getExamTemplate')
+@import_bp.route('/api/get-exam-template')
 @require_auth
 def get_exam_template():
     """Genera template Excel per inserimento esami."""
@@ -225,7 +225,7 @@ def get_exam_template():
         logging.error(f"Errore template: {e}")
         return jsonify({"error": str(e)}), 500
 
-@import_bp.route('/api/importExamsFromFile', methods=['POST'])
+@import_bp.route('/api/import-exams-from-file', methods=['POST'])
 @require_auth
 def import_exams_from_file():
     """Importa esami da Excel con mappatura automatica dei valori."""
@@ -439,7 +439,7 @@ def import_exams_from_file():
                 
                 # Controlli opzionali
                 if not bypass:
-                    ok, msg = controllaVincoli(esame)
+                    ok, msg = controlla_vincoli(esame)
                     if not ok:
                         errori.append(f"Riga {i}: {msg}")
                         continue
@@ -462,7 +462,7 @@ def import_exams_from_file():
         
         for esame in esami:
             try:
-                inserisciEsami(esame)
+                inserisci_esami(esame)
                 successi += 1
             except Exception as e:
                 fallimenti.append(f"{esame['insegnamenti'][0]}: {e}")

@@ -36,8 +36,8 @@ def ottieni_insegnamenti_docente(docente, anno_accademico):
         if 'conn' in locals() and conn:
             release_connection(conn)
 
-@fetch_bp.route('/api/getAule', methods=['GET'])
-def ottieniAule():
+@fetch_bp.route('/api/get-aule', methods=['GET'])
+def get_aule():
     data = request.args.get('data')
     periodo = request.args.get('periodo')
     
@@ -111,8 +111,8 @@ def ottieniAule():
         if 'conn' in locals() and conn:
             release_connection(conn)
 
-@fetch_bp.route('/api/getEsami', methods=['GET'])
-def getEsami():
+@fetch_bp.route('/api/get-esami', methods=['GET'])
+def get_esami():
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=DictCursor)
