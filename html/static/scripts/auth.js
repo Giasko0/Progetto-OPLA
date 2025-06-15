@@ -153,7 +153,7 @@ function capitalizeWords(text) {
 function updatePageTitle(data = null) {
   const updateTitle = (userData) => {
     if (userData?.authenticated && userData?.user_data) {
-      const titolo = document.querySelector(".titolo, .title-primary");
+      const titolo = document.querySelector(".titolo");
       if (titolo && userData.user_data) {
         const currentPage = window.location.pathname.split("/").pop() || 
                           (window.location.pathname.endsWith('/') ? 'index.html' : '');

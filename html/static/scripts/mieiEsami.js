@@ -210,7 +210,8 @@ function createTableStructure(tableId, headers) {
   const headerCells = headers.map((header, index) => {
     const sortType = header.text === 'Data' ? 'date' : 'text';
     const onClick = header.sortable !== false ? `onclick="sortTable('${tableId}', ${index}${sortType === 'date' ? ", 'date'" : ''})"` : '';
-    return `<th class="esami-th" ${onClick}>${header.text}</th>`;
+    const hideClass = header.hideOnMobile ? 'col-responsive-hide' : '';
+    return `<th class="esami-th ${hideClass}" ${onClick}>${header.text}</th>`;
   }).join('');
 
   return `
@@ -227,24 +228,25 @@ function createTableRow(esame) {
   row.className = "esami-tr";
   
   const cellsData = [
-    esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale",
-    esame.cds,
-    esame.insegnamento,
-    esame.docenteNome,
-    { content: formatDateTime(esame.dataora), datetime: esame.dataora },
-    esame.aula,
-    formatDurata(esame.durata_appello)
+    { content: esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale", hideOnMobile: true },
+    { content: esame.cds, hideOnMobile: true },
+    { content: esame.insegnamento, hideOnMobile: false },
+    { content: esame.docenteNome, hideOnMobile: true },
+    { content: formatDateTime(esame.dataora), datetime: esame.dataora, hideOnMobile: false },
+    { content: esame.aula, hideOnMobile: false },
+    { content: formatDurata(esame.durata_appello), hideOnMobile: true }
   ];
 
   cellsData.forEach((cellData, index) => {
     const cell = row.insertCell(index);
-    cell.className = "esami-td";
+    const hideClass = cellData.hideOnMobile ? 'col-responsive-hide' : '';
+    cell.className = `esami-td ${hideClass}`;
     
-    if (typeof cellData === 'object' && cellData.datetime) {
+    if (cellData.datetime) {
       cell.textContent = cellData.content;
       cell.setAttribute("data-datetime", cellData.datetime);
     } else {
-      cell.textContent = cellData;
+      cell.textContent = cellData.content;
     }
   });
 
@@ -266,18 +268,22 @@ function displayTabelleEsami(data, insegnamento, container) {
   const section = document.createElement("div");
   section.className = "section";
 
+  // Container scrollabile per la tabella
+  const tableContainer = document.createElement("div");
+  tableContainer.className = "table-container";
+
   const table = document.createElement("table");
   table.id = `tabella-${insegnamento.replace(/\s+/g, "-")}`;
   table.className = "esami-table";
 
   const headers = [
-    { text: "Tipo prova" },
-    { text: "CDS" },
-    { text: "Insegnamento" },
-    { text: "Docente" },
-    { text: "Data" },
-    { text: "Aula" },
-    { text: "Durata (min)" }
+    { text: "Tipo prova", hideOnMobile: true },
+    { text: "CDS", hideOnMobile: true },
+    { text: "Insegnamento", hideOnMobile: false },
+    { text: "Docente", hideOnMobile: true },
+    { text: "Data", hideOnMobile: false },
+    { text: "Aula", hideOnMobile: false },
+    { text: "Durata", hideOnMobile: true }
   ];
 
   table.innerHTML = createTableStructure(table.id, headers);
@@ -287,7 +293,8 @@ function displayTabelleEsami(data, insegnamento, container) {
     tbody.appendChild(createTableRow(esame));
   });
 
-  section.appendChild(table);
+  tableContainer.appendChild(table);
+  section.appendChild(tableContainer);
   container.appendChild(section);
 }
 
@@ -372,18 +379,22 @@ function displayAllExams(data, container) {
   const section = document.createElement("div");
   section.className = "section";
 
+  // Container scrollabile per la tabella
+  const tableContainer = document.createElement("div");
+  tableContainer.className = "table-container";
+
   const tableAllExams = document.createElement("table");
   tableAllExams.id = "tabella-tutti-appelli";
   tableAllExams.className = "esami-table";
 
   const headers = [
-    { text: "Tipo prova" },
-    { text: "CDS" },
-    { text: "Insegnamento" },
-    { text: "Docente" },
-    { text: "Data" },
-    { text: "Aula" },
-    { text: "Durata" }
+    { text: "Tipo prova", hideOnMobile: true },
+    { text: "CDS", hideOnMobile: true },
+    { text: "Insegnamento", hideOnMobile: false },
+    { text: "Docente", hideOnMobile: true },
+    { text: "Data", hideOnMobile: false },
+    { text: "Aula", hideOnMobile: false },
+    { text: "Durata", hideOnMobile: true }
   ];
 
   tableAllExams.innerHTML = createTableStructure(tableAllExams.id, headers);
@@ -395,7 +406,8 @@ function displayAllExams(data, container) {
     tbody.appendChild(createTableRow(esame));
   });
 
-  section.appendChild(tableAllExams);
+  tableContainer.appendChild(tableAllExams);
+  section.appendChild(tableContainer);
   container.appendChild(section);
 }
 

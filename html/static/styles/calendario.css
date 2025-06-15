@@ -175,6 +175,7 @@
 
 .form-button {
   padding: 10px 15px;
+  margin: 0 5px;
   cursor: pointer;
   display: block;
   background-color: var(--color-light-blue);

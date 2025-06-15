@@ -116,6 +116,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // Verifica se siamo in modalità mobile/responsive
+  function isMobileView() {
+    return window.innerWidth <= 768;
+  }
+
   // Mostra un messaggio nella sidebar
   // Gli argomenti sono messaggio, titolo, tipo e opzioni (se è html e tempo di timeout)
   function showMessage(
@@ -190,7 +195,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     updateBadge();
 
-    openSidebar();
+    // Apri la sidebar automaticamente solo se non siamo in modalità mobile
+    if (!isMobileView()) {
+      openSidebar();
+    }
 
     // Per le notifiche, aggiungi la barra di progresso e timeout
     if (isNotification && settings.timeout > 0) {

@@ -355,7 +355,7 @@ const EsameForm = (function() {
 
     // Pulsante bypass admin
     if (isAdmin) {
-      const bypassBtn = createButton("button", "invia bypass", "Inserisci senza controlli");
+      const bypassBtn = createButton("button", "form-button bypass", "Inserisci senza controlli");
       bypassBtn.id = "bypassChecksBtn";
       bypassBtn.addEventListener("click", handleBypassChecksSubmit);
       buttons.push(bypassBtn);
