@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Controllo esami minimi nel sistema OH-ISSA dell'Università degli Studi di Perugia. Verifica il numero minimo di esami inseriti per ogni insegnamento.">
+  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
+  <title>Controllo Esami Minimi - OH-ISSA</title>
+  <link rel="stylesheet" href="static/styles/admin.css">
+  <script src="static/scripts/authCheck.js"></script>
+  <script src="static/scripts/navbarAdmin.js"></script>
+  <script src="static/scripts/footerAdmin.js"></script>
+  <script src="static/scripts/controlloEsamiMinimi.js"></script>
+</head>
+
+<body>
+  <div id="navbar"></div>
+
+  <main>
+    <h1>Controllo Esami Minimi</h1>
+
+    <!-- Sezione per selezionare anno e corso -->
+    <section class="selector-section">
+      <div class="columns-container">
+        <div class="column">
+          <label for="selectAnnoAccademico">Anno Accademico:</label>
+          <select id="selectAnnoAccademico">
+            <option value="">Seleziona anno accademico</option>
+            <!-- Opzioni caricate dinamicamente -->
+          </select>
+        </div>
+        <div class="column">
+          <label for="selectCds">Corso di Studio (opzionale):</label>
+          <select id="selectCds">
+            <option value="">Tutti i corsi</option>
+            <!-- Opzioni caricate dinamicamente -->
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="btnControllaEsami" class="btn primary">Controlla Esami Minimi</button>
+      </div>
+    </section>
+
+    <!-- Sezione statistiche riassuntive -->
+    <section class="stats-section" id="statsSection" style="display: none;">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="totalInsegnamenti">0</div>
+          <div class="stat-label">Insegnamenti Totali</div>
+        </div>
+        <div class="stat-card conformi">
+          <div class="stat-number" id="insegnamentiConformi">0</div>
+          <div class="stat-label">Conformi (≥8 esami)</div>
+        </div>
+        <div class="stat-card non-conformi">
+          <div class="stat-number" id="insegnamentiNonConformi">0</div>
+          <div class="stat-label">Non Conformi (&lt;8 esami)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filtri per i risultati -->
+    <section class="filters-section" id="filtersSection" style="display: none;">
+      <div class="filters-container">
+        <div class="filter-options">
+          <label>
+            <input type="radio" name="filterType" value="all" class="filter-radio" checked>
+            Mostra tutti
+          </label>
+          <label>
+            <input type="radio" name="filterType" value="conformi" class="filter-radio">
+            Solo conformi (≥8 esami)
+          </label>
+          <label>
+            <input type="radio" name="filterType" value="non-conformi" class="filter-radio">
+            Solo non conformi (&lt;8 esami)
+          </label>
+        </div>
+        <div class="search-box">
+          <input type="text" id="searchInsegnamento" placeholder="Cerca insegnamento..." class="search-input">
+        </div>
+      </div>
+    </section>
+
+    <!-- Contenuto principale -->
+    <div id="reportContainer" class="report-container">
+      <p>Seleziona un anno accademico per iniziare il controllo degli esami minimi.</p>
+    </div>
+
+    <!-- Indicatore di caricamento -->
+    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+      <span class="loading-text">Controllo esami minimi in corso...</span>
+    </div>
+
+    <div id="responseMessages"></div>
+  </main>
+
+  <footer id="footer"></footer>
+</body>
+
+</html>

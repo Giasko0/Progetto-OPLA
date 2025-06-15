@@ -173,7 +173,7 @@ input, select, textarea {
     margin-bottom: 1rem;
 }
 
-input[type="checkbox"] {
+input[type="checkbox"], input[type="radio"] {
     margin-bottom: 0;
     width: auto;
 }
@@ -546,11 +546,7 @@ input[type="checkbox"] {
   background-color: #3a7bc8;
 }
 
-/* Tabella utenti */
-.users-section {
-    margin-top: 2rem;
-}
-
+/* Tabelle e contenitori dati */
 .table-container {
     overflow-x: auto;
     margin-bottom: 1.5rem;
@@ -558,19 +554,21 @@ input[type="checkbox"] {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
-.users-table {
+.users-table, .insegnamenti-table, .table-calendar {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.95rem;
 }
 
-.users-table th, .users-table td {
+.users-table th, .users-table td,
+.insegnamenti-table th, .insegnamenti-table td,
+.table-calendar th, .table-calendar td {
     padding: 0.75rem;
     text-align: left;
     border-bottom: 1px solid #e9ecef;
 }
 
-.users-table th {
+.users-table th, .insegnamenti-table th, .table-calendar th {
     background-color: #f8f9fa;
     font-weight: 600;
     color: #495057;
@@ -580,7 +578,7 @@ input[type="checkbox"] {
     border-bottom: 2px solid #dee2e6;
 }
 
-.users-table tr:hover {
+.users-table tr:hover, .insegnamenti-table tr:hover {
     background-color: #f8f9fa;
 }
 
@@ -588,7 +586,7 @@ input[type="checkbox"] {
     background-color: #fafafa;
 }
 
-.users-table .centered {
+.users-table .centered, .numero-esami, .status, .mancanti {
     text-align: center;
 }
 
@@ -597,6 +595,32 @@ input[type="checkbox"] {
     white-space: nowrap;
 }
 
+.table-calendar th, .table-calendar td {
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid #dee2e6;
+    padding: 8px;
+}
+
+.table-calendar td:first-child {
+    text-align: left;
+    font-weight: bold;
+    background-color: #f8f9fa;
+}
+
+.insegnamenti-table {
+    font-size: 0.9rem;
+}
+
+.insegnamenti-table tr.conforme {
+    background-color: #d4edda;
+}
+
+.insegnamenti-table tr.non-conforme {
+    background-color: #f8d7da;
+}
+
+/* Barre azioni e filtri */
 .actions-bar {
     display: flex;
     justify-content: space-between;
@@ -634,19 +658,23 @@ input[type="checkbox"] {
 .filter-options {
     display: flex;
     align-items: center;
-}
-
-.filter-checkbox {
-    margin-right: 0.5rem;
-    width: auto;
+    gap: 1.5rem;
+    flex: 2;
 }
 
 .filter-options label {
     display: flex;
     align-items: center;
-    margin: 0;
+    gap: 0.5rem;
     font-weight: normal;
     cursor: pointer;
+    flex: 1;
+    margin: 0;
+}
+
+.filter-checkbox, .filter-radio {
+    margin-right: 0.5rem;
+    width: auto;
 }
 
 .loading-indicator {
@@ -695,27 +723,7 @@ input[type="checkbox"] {
     margin-bottom: 15px;
 }
 
-/* Calendario esami */
-.table-calendar {
-  margin-bottom: 30px;
-  border-collapse: collapse;
-  width: 100%;
-}
-.table-calendar th, .table-calendar td {
-  text-align: center;
-  vertical-align: middle;
-  border: 1px solid #dee2e6;
-  padding: 8px;
-}
-.table-calendar th {
-  background-color: #f8f9fa;
-  font-weight: bold;
-}
-.table-calendar td:first-child {
-  text-align: left;
-  font-weight: bold;
-  background-color: #f8f9fa;
-}
+/* Corso di studi e anni */
 .anno-corso {
   margin-bottom: 40px;
 }
@@ -768,6 +776,267 @@ input[type="checkbox"] {
     font-size: 0.9rem;
 }
 
+/* Stili per la pagina Gestione Insegnamenti */
+.filters-section {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid #dee2e6;
+}
+
+.filters-container {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.stats-section {
+  margin-bottom: 2rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card.conformi {
+    border-left: 4px solid #28a745;
+}
+
+.stat-card.non-conformi {
+    border-left: 4px solid #dc3545;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #0366d6;
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.cds-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.cds-section, .cds-report-section {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.cds-header {
+  background: #0366d6;
+  color: white;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.cds-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: white;
+}
+
+.cds-stats, .cds-summary {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.cds-stats .stat {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+}
+
+.cds-summary .conformi {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.cds-summary .non-conformi {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.insegnamenti-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.insegnamento-card {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.insegnamento-card.no-docenti {
+  border-left: 4px solid #dc3545;
+}
+
+.insegnamento-card.with-docenti {
+  border-left: 4px solid #28a745;
+}
+
+.insegnamento-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.insegnamento-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.insegnamento-code {
+  background: #0366d6;
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.insegnamento-details {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.detail-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #666;
+}
+
+.detail-value {
+  color: #333;
+}
+
+.docenti-section h5 {
+  margin: 0 0 0.8rem 0;
+  font-size: 0.95rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.docenti-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.docente-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.docente-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.docente-username {
+  font-size: 0.85rem;
+  color: #666;
+  font-family: monospace;
+}
+
+.no-docenti-text {
+  color: #dc3545;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
+  background: #f8d7da;
+  border-radius: 6px;
+  border: 1px solid #f5c6cb;
+}
+
+.insegnamento-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.insegnamento-info .titolo {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.insegnamento-info .codice {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.docenti {
+    font-size: 0.85rem;
+}
+
+.status {
+    font-weight: bold;
+}
+
+.status.conforme {
+    color: #28a745;
+}
+
+.status.non-conforme {
+    color: #dc3545;
+}
+
+.mancanti {
+    font-weight: bold;
+    color: #dc3545;
+}
+
 /* Footer styles */
 #footer {
     background-color: #222;
@@ -805,274 +1074,160 @@ input[type="checkbox"] {
     text-decoration: underline;
 }
 
-/* Stili per la pagina Gestione Insegnamenti */
-.filters-section {
-  background: var(--card-background);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  border: 1px solid var(--border-color);
+/* Responsive */
+@media (max-width: 768px) {
+    .cds-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .cds-summary, .cds-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .insegnamenti-table, .users-table {
+        font-size: 0.8rem;
+    }
+    
+    .filter-options {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
 }
 
-.filters-container {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-  flex-wrap: wrap;
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.insegnamenti-table tr.non-conforme {
+    background-color: #f8d7da;
 }
 
-.filter-options {
-  display: flex;
-  gap: 1.5rem;
-  align-items: center;
+.insegnamento-info {
+    display: flex;
+    flex-direction: column;
 }
 
-.filter-options label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  cursor: pointer;
+.insegnamento-info .titolo {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
 }
 
-.filter-checkbox {
-  width: 16px;
-  height: 16px;
+.insegnamento-info .codice {
+    font-size: 0.8rem;
+    color: #666;
 }
 
-.stats-section {
-  margin-bottom: 2rem;
+.docenti {
+    font-size: 0.85rem;
 }
 
+.numero-esami {
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.status {
+    text-align: center;
+    font-weight: bold;
+}
+
+.status.conforme {
+    color: #28a745;
+}
+
+.status.non-conforme {
+    color: #dc3545;
+}
+
+.mancanti {
+    text-align: center;
+    font-weight: bold;
+    color: #dc3545;
+}
+
+/* Stili per le statistiche */
 .stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
 }
 
 .stat-card {
-  background: var(--card-background);
-  border-radius: 8px;
-  padding: 1.5rem;
-  text-align: center;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+    border-left: 4px solid #007bff;
+}
+
+.stat-card.conformi {
+    border-left-color: #28a745;
+}
+
+.stat-card.non-conformi {
+    border-left-color: #dc3545;
 }
 
 .stat-number {
-  font-size: 2rem;
-  font-weight: bold;
-  color: var(--primary-color);
-  margin-bottom: 0.5rem;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 0.5rem;
 }
 
 .stat-label {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  font-weight: 500;
+    color: #666;
+    font-size: 0.9rem;
 }
 
-.cds-container {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+/* Filtri specifici per controllo esami */
+.filter-options {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    flex: 2;
 }
 
-.cds-section {
-  background: var(--card-background);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-}
-
-.cds-header {
-  background: var(--primary-color);
-  color: white;
-  padding: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.cds-header h2 {
-  margin: 0;
-  font-size: 1.4rem;
-}
-
-.cds-stats {
-  display: flex;
-  gap: 1.5rem;
-  font-size: 0.9rem;
-}
-
-.cds-stats .stat {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.3rem 0.8rem;
-  border-radius: 15px;
-}
-
-.insegnamenti-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1rem;
-  padding: 1.5rem;
-}
-
-.insegnamento-card {
-  background: white;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.5rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.insegnamento-card.no-docenti {
-  border-left: 4px solid var(--danger-color);
-}
-
-.insegnamento-card.with-docenti {
-  border-left: 4px solid var(--success-color);
-}
-
-.insegnamento-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-  gap: 1rem;
-}
-
-.insegnamento-title {
-  margin: 0;
-  font-size: 1.1rem;
-  color: var(--text-primary);
-  line-height: 1.3;
-  flex: 1;
-}
-
-.insegnamento-code {
-  background: var(--accent-color);
-  color: white;
-  padding: 0.3rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.insegnamento-details {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-
-.detail-row {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.detail-label {
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.detail-value {
-  color: var(--text-primary);
-}
-
-.docenti-section h5 {
-  margin: 0 0 0.8rem 0;
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.docenti-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.docente-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--background-light);
-  padding: 0.6rem 0.8rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-light);
-}
-
-.docente-name {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.docente-username {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  font-family: monospace;
-}
-
-.no-docenti-text {
-  color: var(--danger-color);
-  font-style: italic;
-  text-align: center;
-  padding: 1rem;
-  background: var(--danger-light);
-  border-radius: 6px;
-  border: 1px solid var(--danger-border);
-}
-
-/* Responsive design per la gestione insegnamenti */
-@media (max-width: 768px) {
-  .filters-container {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .filter-options {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .cds-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .cds-stats {
-    flex-wrap: wrap;
-  }
-  
-  .insegnamenti-grid {
-    grid-template-columns: 1fr;
-    padding: 1rem;
-  }
-  
-  .insegnamento-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .insegnamento-details {
-    flex-direction: column;
+.filter-options label {
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
-  }
-  
-  .docente-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.3rem;
-  }
+    cursor: pointer;
+    flex: 1;
+}
+
+.filter-radio {
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .cds-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .cds-summary {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .insegnamenti-table {
+        font-size: 0.8rem;
+    }
+    
+    .filter-options {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
 }
 
 @media (max-width: 480px) {
