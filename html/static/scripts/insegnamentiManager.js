@@ -69,7 +69,7 @@ const InsegnamentiManager = (function () {
   // Controllo se l'utente è un amministratore
   async function isAdmin() {
     try {
-      const data = await getUserData();
+      const data = await window.getUserData();
       return data.authenticated && data.user_data && data.user_data.permessi_admin;
     } catch (error) {
       console.error("Errore nel controllo dei permessi admin:", error);

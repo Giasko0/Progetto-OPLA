@@ -148,7 +148,7 @@ const EsameForm = (function() {
 
   // Inizializza dati utente
   function initUserData() {
-    getUserData()
+    window.getUserData()
       .then((data) => {
         const field = document.getElementById("docente");
         field.value = data.user_data.username;
@@ -180,7 +180,7 @@ const EsameForm = (function() {
 
   // Carica preferenze utente
   function loadUserPreferences() {
-    getUserData()
+    window.getUserData()
       .then(data => {
         currentUsername = data.user_data.username;
         window.EsamePreferenze.setCurrentUsername(currentUsername);

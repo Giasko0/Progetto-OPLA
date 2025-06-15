@@ -39,8 +39,8 @@ document.addEventListener("DOMContentLoaded", function () {
       navlinksDiv.classList.toggle("open");
     });
 
-    // Utilizziamo getUserData per verificare i permessi admin
-    getUserData()
+    // Utilizziamo getUserData centralizzata per verificare i permessi admin
+    window.getUserData()
       .then((data) => {
         const isAdmin = data.authenticated && data.user_data && data.user_data.permessi_admin;
 

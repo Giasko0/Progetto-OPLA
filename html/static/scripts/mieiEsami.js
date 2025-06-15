@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", function () {
 function fetchAndDisplayEsami() {
   const contenitoreEsami = document.getElementById("contenitoreEsami");
   
-  getUserData()
+  window.getUserData()
     .then((data) => {
       const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
       

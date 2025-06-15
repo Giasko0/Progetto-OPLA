@@ -201,8 +201,71 @@ async function checkUserPermissions() {
   };
 }
 
+// Gestione pagina di login
+function handleLoginPage() {
+  // Verifica se l'utente è già autenticato
+  getUserData().then((data) => {
+    if (data.authenticated) {
+      // Se già autenticato, reindirizza alla home
+      window.location.href = "index.html";
+    }
+  });
+
+  // Gestione degli eventi del form di login se necessario
+  const loginForm = document.querySelector("form");
+  if (loginForm) {
+    loginForm.addEventListener("submit", function (event) {
+      // Invalida la cache quando facciamo un nuovo login
+      clearAuthCache();
+    });
+  }
+}
+
+// Gestione pulsanti CTA per la pagina index
+function handleIndexCTA() {
+  const loginMessage = document.getElementById("login-message");
+  const buttonsContainer = document.getElementById("auth-buttons");
+  const ctaButton = document.querySelector(".cta-button");
+
+  // Controlla lo stato di autenticazione dell'utente
+  getUserData()
+    .then((data) => {
+      if (data && data.authenticated) {
+        // Se l'utente è già autenticato, mostra i pulsanti e nascondi il messaggio di login
+        if (loginMessage) loginMessage.style.display = "none";
+        if (buttonsContainer) buttonsContainer.style.display = "flex";
+      } else {
+        // Se l'utente non è autenticato, mostra il messaggio di login e nascondi i pulsanti
+        if (loginMessage) loginMessage.style.display = "block";
+        if (buttonsContainer) buttonsContainer.style.display = "none";
+
+        // Configura il pulsante per andare al login con redirect
+        if (ctaButton) {
+          ctaButton.href = `login.html?redirect=${encodeURIComponent(
+            "/calendario.html"
+          )}`;
+          ctaButton.textContent = "Accedi ora";
+        }
+      }
+    })
+    .catch((error) => {
+      console.error("Errore nel controllo dell'autenticazione:", error);
+      // In caso di errore, impostare il comportamento predefinito
+      if (loginMessage) loginMessage.style.display = "block";
+      if (buttonsContainer) buttonsContainer.style.display = "none";
+      if (ctaButton) {
+        ctaButton.href = `login.html?redirect=${encodeURIComponent(
+          "/calendario.html"
+        )}`;
+      }
+    });
+}
+
 // Esponi funzioni globalmente
 window.getUserData = getUserData;
 window.updatePageTitle = updatePageTitle;
 window.preloadUserData = preloadUserData;
 window.checkUserPermissions = checkUserPermissions;
+window.clearAuthCache = clearAuthCache;
+window.handleLoginPage = handleLoginPage;
+window.handleIndexCTA = handleIndexCTA;

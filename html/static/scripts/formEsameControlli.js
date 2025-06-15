@@ -94,7 +94,7 @@ const FormEsameControlli = (function() {
   // Controlla se l'utente è un amministratore
   async function isUserAdmin() {
     try {
-      const data = await getUserData();
+      const data = await window.getUserData();
       return data.authenticated && data.user_data?.permessi_admin;
     } catch (error) {
       return false;

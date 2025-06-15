@@ -73,19 +73,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
       
-      loadFormPreferences(currentUsername, 'esame')
-        .then(data => {
-          if (data.status === 'success' && data.preferences) {
-            userPreferences = data.preferences;
-            // Aggiorna il menu delle preferenze
-            updatePreferencesMenu();
-          } else {
-            console.error("Errore nel caricamento delle preferenze:", data.message);
-          }
-        })
-        .catch(error => {
-          console.error('Errore nel caricamento delle preferenze:', error);
-        });
+      // Usa la funzione centralizzata se disponibile
+      if (window.getUserData) {
+        window.getUserData()
+          .then(data => {
+            if (data.authenticated && data.user_data) {
+              currentUsername = data.user_data.username;
+              window.EsamePreferenze.setCurrentUsername(currentUsername);
+              loadFormPreferences(currentUsername, 'esame')
+                .then(data => {
+                  if (data.status === 'success' && data.preferences) {
+                    userPreferences = data.preferences;
+                    updatePreferencesMenu();
+                  } else {
+                    console.error("Errore nel caricamento delle preferenze:", data.message);
+                  }
+                })
+                .catch(error => {
+                  console.error('Errore nel caricamento delle preferenze:', error);
+                });
+            }
+          })
+          .catch(error => {
+            console.error('Errore nel caricamento delle preferenze:', error);
+          });
+      } else {
+        // Fallback al metodo originale
+        loadFormPreferences(currentUsername, 'esame')
+          .then(data => {
+            if (data.status === 'success' && data.preferences) {
+              userPreferences = data.preferences;
+              updatePreferencesMenu();
+            } else {
+              console.error("Errore nel caricamento delle preferenze:", data.message);
+            }
+          })
+          .catch(error => {
+            console.error('Errore nel caricamento delle preferenze:', error);
+          });
+      }
     }
 
     // Salva le preferenze correnti
