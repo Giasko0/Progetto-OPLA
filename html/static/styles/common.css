@@ -1,0 +1,349 @@
+/*------------------------------------VARIABILI GLOBALI------------------------------------*/
+:root {
+  /* Colori principali */
+  --color-blue: #27348b;
+  --color-light-blue: #0a58ca;
+  --color-error: #C12235;
+  --color-success: #4CAF50;
+  --color-warning: #FFD700;
+  
+  /* Sfondi e contenitori */
+  --color-bg: #f0f0f0;
+  --color-bg-light: #fff;
+  --color-bg-secondary: #e6e6fa;
+  
+  /* Elementi funzionali */
+  --color-nav: #dbdbdb;
+  --table-cell: #fff;
+  --table-cell-disabled: #dbdbdb;
+  
+  /* Testo e bordi */
+  --color-text: #293133;
+  --color-text-light: #666;
+  --color-border: #ccc;
+  
+  /* Layout constants */
+  --nav-height: 10dvh;
+  --foot-height: 10dvh;
+  --sidebar-width: calc(100dvw / 6);
+  --radius: 8px;
+  --form-margin: 15px;
+  
+  /* Responsive layout constants */
+  --mobile-sidebar-width: 80vw;
+  --mobile-content-width: 90%;
+  --mobile-shift-offset: 30px;
+}
+
+/* Dark mode variables */
+html.dark {
+  /* Colori principali in dark mode */
+  --color-blue: #6790d3;
+  --color-light-blue: #adbee6;
+  --color-error: #e63946;
+  --color-success: #388E3C;
+  --color-warning: #FFD700;
+  
+  /* Sfondi e contenitori */
+  --color-bg: #121212;
+  --color-bg-light: #292929;
+  --color-bg-secondary: #2a2a4a;
+  
+  /* Elementi funzionali */
+  --color-nav: #333;
+  --table-cell: #111;
+  --table-cell-disabled: #444;
+  
+  /* Testo e bordi */
+  --color-text: #e0e0e0;
+  --color-text-light: #888;
+  --color-border: #444;
+}
+
+/*------------------------------------STILI GLOBALI------------------------------------*/
+/* Transizioni globali */
+*, *::before, *::after {
+  transition: all .3s ease;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+html, body {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/*------------------------------------CONTENT DIV GENERALE------------------------------------*/
+.content {
+  flex: 1;
+  width: 100dvw;
+  display: flex;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.content-inner {
+  transform: translateX(calc(var(--sidebar-width) / 2));
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  height: fit-content;
+}
+
+.content.sidebar-visible .content-inner {
+  transform: translateX(calc(-1 * var(--sidebar-width) / 8));
+  margin-left: calc(var(--sidebar-width) / 4);
+}
+
+/*---------------------------------------------HEADER CONTROLS---------------------------------------------*/
+.header-controls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  margin: 20px 0;
+  position: relative;
+}
+
+.header-controls .titolo {
+  margin: 0;
+  text-align: left;
+  width: 50%;
+}
+
+.header-controls #annoAccademicoContainer {
+  display: inline-flex;
+  align-items: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.header-controls .anno-accademico-container {
+  gap: 10px;
+}
+
+.anno-accademico-container label {
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.anno-accademico-select {
+  padding: 10px 15px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+  font-size: 1.1rem;
+  min-width: 180px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.anno-accademico-select:hover {
+  border-color: var(--color-blue);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.anno-accademico-select:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 3px rgba(39, 52, 139, 0.2);
+}
+
+.anno-accademico-select option {
+  padding: 10px 15px;
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+}
+
+/*------------------------------------COMPONENTI COMUNI------------------------------------*/
+.titolo {
+  position: relative;
+  align-self: flex-start;
+  color: var(--color-text);
+  margin: 10px 0 0 0;
+}
+
+.email-link {
+  color: var(--color-blue);
+}
+
+/* Landing page */
+.landing-container {
+  margin: 60px auto;
+  padding: 40px;
+  text-align: center;
+}
+
+/* Bottoni */
+.cta-button, .tab-button, .all-exams-button {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 0 10px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.cta-button {
+  background-color: var(--color-blue);
+  color: var(--color-bg-light);
+  font-size: 1.2rem;
+  margin-top: 20px;
+  padding: 15px 30px;
+}
+
+.cta-button:hover {
+  background-color: var(--color-light-blue);
+  transform: translateY(-3px);
+}
+
+/* Container */
+.container-panel {
+  background-color: var(--color-bg-light);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  margin: 20px auto;
+  padding: 40px;
+  width: 100%;
+  height: fit-content;
+  max-width: 800px;
+}
+
+/* Titoli */
+.title-primary {
+  margin-bottom: 20px;
+  color: var(--color-blue);
+  font-weight: bold;
+}
+
+.title-xl {
+  font-size: 2.4rem;
+}
+
+.title-lg {
+  font-size: 2rem;
+}
+
+.subtitle {
+  color: var(--color-text);
+  margin-bottom: 30px;
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+
+/* Flex Containers */
+.flex-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.flex-spaced {
+  justify-content: space-between;
+  margin: 40px 0;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.flex-gap {
+  gap: 12px;
+}
+
+/*---------------------------------------------ALERT MESSAGES---------------------------------------------*/
+.alert {
+  padding: 15px;
+  border-radius: 5px;
+  margin: 20px;
+}
+
+.alert p {
+  margin: 0 20px;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border: 1px solid var(--color-warning);
+  color: var(--color-text);
+}
+
+.alert-success {
+  background-color: var(--color-bg-light);
+  border: 1px solid var(--color-success);
+  color: var(--color-text);
+}
+
+/*---------------------------------------------TOOLTIP---------------------------------------------*/
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+}
+
+.tooltip .material-symbols-outlined {
+  vertical-align: bottom;
+  font-size: 1.4em;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 200px;
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+  text-align: center;
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  position: absolute;
+  z-index: 10;
+  top: -5px;
+  left: 110%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--color-border);
+  font-size: 0.85em;
+  font-weight: normal;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.tooltip .tooltiptext::after {
+  content: "";
+  position: absolute;
+  top: 12%;
+  right: 100%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent var(--color-border) transparent transparent;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+}
+
+/* Stili per campi con errore di validazione */
+.form-input-error {
+  border: 2px solid var(--color-error) !important;
+  box-shadow: 0 0 5px rgba(193, 34, 53, 0.3) !important;
+}

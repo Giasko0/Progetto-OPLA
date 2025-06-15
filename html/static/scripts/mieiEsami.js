@@ -18,23 +18,29 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   
   window.updatePageTitle();
+  
+  // Configura il pulsante "Tutti gli appelli"
+  const allExamsButton = document.getElementById("allExamsButton");
+  if (allExamsButton) {
+    allExamsButton.onclick = () => window.location.href = window.location.pathname;
+  }
 });
 
 // Carica gli esami dell'utente e li visualizza
 function fetchAndDisplayEsami() {
+  const contenitoreEsami = document.getElementById("contenitoreEsami");
+  
   getUserData()
     .then((data) => {
-      const userData = data.user_data;
       const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
       
       if (!selectedYear) {
-        document.getElementById("contenitoreEsami").innerHTML = 
-          '<div class="error-message">Seleziona un anno accademico per visualizzare gli esami</div>';
+        contenitoreEsami.innerHTML = '<div class="error-message">Seleziona un anno accademico per visualizzare gli esami</div>';
         return;
       }
 
       const params = new URLSearchParams({
-        docente: userData.username,
+        docente: data.user_data.username,
         anno: selectedYear
       });
 
@@ -43,19 +49,17 @@ function fetchAndDisplayEsami() {
         fetch(`/api/getEsami?${params}`).then(r => r.json())
       ])
       .then(([insegnamentiResponse, esamiData]) => {
-        const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.username);
+        const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, data.user_data.username);
         displayEsamiData(processedData);
       })
       .catch((error) => {
         console.error("Errore:", error);
-        document.getElementById("contenitoreEsami").innerHTML = 
-          `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
+        contenitoreEsami.innerHTML = `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
       });
     })
     .catch((error) => {
       console.error("Errore nell'ottenimento dati utente:", error);
-      document.getElementById("contenitoreEsami").innerHTML = 
-        `<div class="error-message">Si è verificato un errore nell'ottenimento dei dati: ${error.message}</div>`;
+      contenitoreEsami.innerHTML = `<div class="error-message">Si è verificato un errore nell'ottenimento dei dati: ${error.message}</div>`;
     });
 }
 
@@ -90,12 +94,8 @@ function processDataForDisplay(cdsData, esamiData, username) {
   esamiData.forEach(esame => {
     // Considera solo gli esami del docente corrente che sono suoi insegnamenti
     if (esame.extendedProps.insegnamentoDocente && esame.extendedProps.docente === username) {
-      
-      // Determina la sessione dalla data dell'esame
       const dataEsame = new Date(esame.start);
       const sessione = determinaSessioneEsame(dataEsame);
-      
-      // Ottieni informazioni CdS dall'insegnamento o dai dati extended
       const insegnamentoInfo = insegnamentiDocente.get(esame.title) || {};
       
       // Formato compatibile con il codice esistente
@@ -105,14 +105,11 @@ function processDataForDisplay(cdsData, esamiData, username) {
         docenteNome: esame.extendedProps.docenteNome,
         insegnamento: esame.title,
         aula: esame.aula || 'N/A',
-        data: formatDateOnly(dataEsame),
-        ora: formatTimeOnly(dataEsame),
         dataora: esame.start,
         cds: esame.extendedProps.nome_cds || insegnamentoInfo.cds_nome || 'N/A',
         codice_cds: esame.extendedProps.codice_cds || insegnamentoInfo.cds_codice || 'N/A',
         durata_appello: esame.extendedProps.durata_appello || 120,
-        tipo_appello: esame.extendedProps.tipo_appello || 'F',
-        categoria: esame.extendedProps.categoria || 'standard'
+        tipo_appello: esame.extendedProps.tipo_appello || 'F'
       };
       
       esamiProcessed.push(esameFormatted);
@@ -124,45 +121,24 @@ function processDataForDisplay(cdsData, esamiData, username) {
     }
   });
 
-  return {
-    esami: esamiProcessed,
-    insegnamenti: insegnamenti
-  };
+  return { esami: esamiProcessed, insegnamenti };
 }
 
-// Determina la sessione in base alla data dell'esame usando le stesse regole del backend
+// Determina la sessione in base alla data dell'esame
 function determinaSessioneEsame(dataEsame) {
-  const mese = dataEsame.getMonth() + 1; // getMonth() è 0-based
+  const mese = dataEsame.getMonth() + 1;
   const anno = dataEsame.getFullYear();
   
-  // Logica per determinare la sessione in base al mese e all'anno accademico
   if (mese >= 1 && mese <= 2) {
-    // Gennaio-Febbraio: può essere Anticipata o Invernale a seconda dell'anno accademico
     const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
-    // Se l'anno corrente è l'anno accademico di riferimento + 1, è Invernale
-    // Altrimenti è Anticipata
     return anno === selectedYear + 1 ? 'Invernale' : 'Anticipata';
   } else if (mese >= 6 && mese <= 7) {
-    return 'Estiva'; // Giugno-Luglio
+    return 'Estiva';
   } else if (mese === 9) {
-    return 'Autunnale'; // Settembre
+    return 'Autunnale';
   }
   
-  return null; // Per date che non rientrano nei periodi standard
-}
-
-// Funzioni di utilità per formattazione date
-function formatDateOnly(date) {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-}
-
-function formatTimeOnly(date) {
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
+  return null;
 }
 
 // Visualizza i dati usando la logica esistente
@@ -176,19 +152,15 @@ function displayEsamiData(data) {
   tabsHeader.appendChild(allExamsButton);
 
   const insegnamenti = Object.keys(data.insegnamenti);
-  window.esamiData = data;
 
-  // Crea i pulsanti dei tabs
-  insegnamenti.forEach((insegnamento, index) => {
+  // Crea i pulsanti dei tabs e il contenuto
+  insegnamenti.forEach((insegnamento) => {
     const tabButton = document.createElement("button");
     tabButton.className = "tab-button";
     tabButton.textContent = insegnamento;
-    tabButton.onclick = function () {
-      window.location.href = `?insegnamento=${encodeURIComponent(insegnamento)}`;
-    };
+    tabButton.onclick = () => window.location.href = `?insegnamento=${encodeURIComponent(insegnamento)}`;
     tabsHeader.appendChild(tabButton);
 
-    // Crea il contenuto del tab
     const tabContent = document.createElement("div");
     tabContent.className = "tab-content";
     tabContent.style.display = "none";
@@ -218,8 +190,7 @@ function displayEsamiData(data) {
 
     if (tab) {
       tab.style.display = "block";
-      const buttons = document.querySelectorAll(".tab-button");
-      buttons.forEach((button) => {
+      document.querySelectorAll(".tab-button").forEach((button) => {
         if (button.textContent === insegnamentoParam) {
           button.classList.add("active");
         }
@@ -234,91 +205,90 @@ function displayEsamiData(data) {
   }
 }
 
+// Crea la struttura HTML della tabella
+function createTableStructure(tableId, headers) {
+  const headerCells = headers.map((header, index) => {
+    const sortType = header.text === 'Data' ? 'date' : 'text';
+    const onClick = header.sortable !== false ? `onclick="sortTable('${tableId}', ${index}${sortType === 'date' ? ", 'date'" : ''})"` : '';
+    return `<th class="esami-th" ${onClick}>${header.text}</th>`;
+  }).join('');
+
+  return `
+    <thead class="esami-thead">
+      <tr class="esami-tr">${headerCells}</tr>
+    </thead>
+    <tbody class="esami-tbody"></tbody>
+  `;
+}
+
+// Crea una riga della tabella
+function createTableRow(esame) {
+  const row = document.createElement("tr");
+  row.className = "esami-tr";
+  
+  const cellsData = [
+    esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale",
+    esame.cds,
+    esame.insegnamento,
+    esame.docenteNome,
+    { content: formatDateTime(esame.dataora), datetime: esame.dataora },
+    esame.aula,
+    formatDurata(esame.durata_appello)
+  ];
+
+  cellsData.forEach((cellData, index) => {
+    const cell = row.insertCell(index);
+    cell.className = "esami-td";
+    
+    if (typeof cellData === 'object' && cellData.datetime) {
+      cell.textContent = cellData.content;
+      cell.setAttribute("data-datetime", cellData.datetime);
+    } else {
+      cell.textContent = cellData;
+    }
+  });
+
+  return row;
+}
+
 // Funzione per visualizzare le tabelle degli esami
 function displayTabelleEsami(data, insegnamento, container) {
-  const esamiInsegnamento = data.esami.filter(
-    (esame) => esame.insegnamento === insegnamento
-  );
+  const esamiInsegnamento = data.esami.filter(esame => esame.insegnamento === insegnamento);
 
-  if (esamiInsegnamento.length > 0) {
-    const section = document.createElement("div");
-    section.className = "section";
-
-    const table = document.createElement("table");
-    table.id = `tabella-${insegnamento.replace(/\s+/g, "-")}`;
-    table.className = "esami-table";
-
-    table.innerHTML = `
-      <thead class="esami-thead">
-          <tr class="esami-tr">
-              <th class="esami-th" onclick="sortTable('${table.id}', 0)">Tipo prova</th>
-              <th class="esami-th" onclick="sortTable('${table.id}', 1)">CDS</th>
-              <th class="esami-th" onclick="sortTable('${table.id}', 2)">Insegnamento</th>
-              <th class="esami-th" onclick="sortTable('${table.id}', 3)">Docente</th>
-              <th class="esami-th" onclick="sortTable('${table.id}', 4, 'date')">Data</th>
-              <th class="esami-th" onclick="sortTable('${table.id}', 5)">Aula</th>
-              <th class="esami-th" onclick="sortTable('${table.id}', 6)">Durata (min)</th>
-              <th class="esami-th">Azioni</th>
-          </tr>
-      </thead>
-      <tbody class="esami-tbody"></tbody>
-    `;
-
-    const tbody = table.querySelector("tbody");
-
-    esamiInsegnamento.forEach((esame) => {
-      const row = tbody.insertRow();
-      row.className = "esami-tr";
-      
-      let cell0 = row.insertCell(0);
-      cell0.className = "esami-td";
-      cell0.textContent = esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale";
-      
-      let cell1 = row.insertCell(1);
-      cell1.className = "esami-td";
-      cell1.textContent = esame.cds;
-      
-      let cell2 = row.insertCell(2);
-      cell2.className = "esami-td";
-      cell2.textContent = esame.insegnamento;
-      
-      let cell3 = row.insertCell(3);
-      cell3.className = "esami-td";
-      cell3.textContent = esame.docenteNome;
-
-      const dataCell = row.insertCell(4);
-      dataCell.className = "esami-td";
-      dataCell.textContent = formatDateTime(esame.dataora);
-      dataCell.setAttribute("data-datetime", esame.dataora);
-
-      let cell5 = row.insertCell(5);
-      cell5.className = "esami-td";
-      cell5.textContent = esame.aula;
-      
-      let cell6 = row.insertCell(6);
-      cell6.className = "esami-td";
-      cell6.textContent = formatDurata(esame.durata_appello);
-      
-      const actionCell = row.insertCell(7);
-      actionCell.className = "esami-td esami-td-actions";
-      const modifyButton = document.createElement("button");
-      modifyButton.className = "form-button";
-      modifyButton.textContent = "Modifica";
-      modifyButton.setAttribute("data-id", esame.id);
-      modifyButton.onclick = function() {
-        editEsame(esame.id);
-      };
-      actionCell.appendChild(modifyButton);
-    });
-
-    section.appendChild(table);
-    container.appendChild(section);
-  } else {
+  if (esamiInsegnamento.length === 0) {
     const noExamsMsg = document.createElement("p");
     noExamsMsg.style.textAlign = "center";
     noExamsMsg.textContent = "Inserisci degli appelli d'esame per visualizzarli qui!";
     container.appendChild(noExamsMsg);
+    return;
   }
+
+  const section = document.createElement("div");
+  section.className = "section";
+
+  const table = document.createElement("table");
+  table.id = `tabella-${insegnamento.replace(/\s+/g, "-")}`;
+  table.className = "esami-table";
+
+  const headers = [
+    { text: "Tipo prova" },
+    { text: "CDS" },
+    { text: "Insegnamento" },
+    { text: "Docente" },
+    { text: "Data" },
+    { text: "Aula" },
+    { text: "Durata (min)" }
+  ];
+
+  table.innerHTML = createTableStructure(table.id, headers);
+  const tbody = table.querySelector("tbody");
+
+  esamiInsegnamento.forEach(esame => {
+    tbody.appendChild(createTableRow(esame));
+  });
+
+  section.appendChild(table);
+  container.appendChild(section);
 }
 
 function displaySessioniEsami(data, insegnamento, container) {
@@ -329,54 +299,26 @@ function displaySessioniEsami(data, insegnamento, container) {
   title.textContent = insegnamento;
   section.appendChild(title);
 
-  const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
-  const planningYear = parseInt(selectedYear);
-  const nextYear = planningYear + 1;
-
+  const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
   const sessioni = data.insegnamenti[insegnamento];
 
   const gridContainer = document.createElement("div");
   gridContainer.className = "sessions-grid";
 
   const sessioniDaVisualizzare = [
-    {
-      nome: "Sessione Anticipata",
-      periodo: `Gen/Feb ${planningYear}`,
-      count: sessioni.Anticipata || 0,
-      max: 3,
-    },
-    {
-      nome: "Sessione Estiva",
-      periodo: `Giu/Lug ${planningYear}`,
-      count: sessioni.Estiva || 0,
-      max: 3,
-    },
-    {
-      nome: "Sessione Autunnale",
-      periodo: `Set ${planningYear}`,
-      count: sessioni.Autunnale || 0,
-      max: 2,
-    },
-    {
-      nome: "Sessione Invernale",
-      periodo: `Gen/Feb ${nextYear}`,
-      count: sessioni.Invernale || 0,
-      max: 3,
-    },
+    { nome: "Sessione Anticipata", periodo: `Gen/Feb ${selectedYear}`, count: sessioni.Anticipata || 0, max: 3 },
+    { nome: "Sessione Estiva", periodo: `Giu/Lug ${selectedYear}`, count: sessioni.Estiva || 0, max: 3 },
+    { nome: "Sessione Autunnale", periodo: `Set ${selectedYear}`, count: sessioni.Autunnale || 0, max: 2 },
+    { nome: "Sessione Invernale", periodo: `Gen/Feb ${selectedYear + 1}`, count: sessioni.Invernale || 0, max: 3 }
   ];
 
   sessioniDaVisualizzare.forEach((sessione) => {
     const card = document.createElement("div");
     card.className = "session-card static";
-
-    const heading = document.createElement("h4");
-    heading.textContent = `${sessione.nome} (${sessione.periodo})`;
-
-    const count = document.createElement("p");
-    count.textContent = `${sessione.count}/${sessione.max} esami`;
-
-    card.appendChild(heading);
-    card.appendChild(count);
+    card.innerHTML = `
+      <h4>${sessione.nome} (${sessione.periodo})</h4>
+      <p>${sessione.count}/${sessione.max} esami</p>
+    `;
     gridContainer.appendChild(card);
   });
 
@@ -385,6 +327,7 @@ function displaySessioniEsami(data, insegnamento, container) {
 }
 
 function displayAllExams(data, container) {
+  // Sezione riepilogo insegnamenti
   const sessionsSection = document.createElement("div");
   sessionsSection.className = "exam-section";
 
@@ -395,23 +338,12 @@ function displayAllExams(data, container) {
   const sessionsGrid = document.createElement("div");
   sessionsGrid.className = "sessions-grid";
 
-  const insegnamenti = Object.keys(data.insegnamenti);
-  insegnamenti.forEach((insegnamento) => {
+  Object.keys(data.insegnamenti).forEach((insegnamento) => {
     const sessioni = data.insegnamenti[insegnamento];
-    const totaleEsami = Object.values(sessioni).reduce(
-      (sum, val) => sum + (val || 0),
-      0
-    );
+    const totaleEsami = Object.values(sessioni).reduce((sum, val) => sum + (val || 0), 0);
 
     const cardElement = document.createElement("div");
-    cardElement.className = "session-card";
-
-    if (totaleEsami < 8) {
-      cardElement.classList.add("warning-card");
-    } else {
-      cardElement.classList.add("success-card");
-    }
-
+    cardElement.className = `session-card ${totaleEsami < 8 ? 'warning-card' : 'success-card'}`;
     cardElement.innerHTML = `
       <h4>${insegnamento}</h4>
       <p>${totaleEsami} esami inseriti</p>
@@ -419,9 +351,7 @@ function displayAllExams(data, container) {
     `;
 
     cardElement.addEventListener("click", () => {
-      window.location.href = `?insegnamento=${encodeURIComponent(
-        insegnamento
-      )}`;
+      window.location.href = `?insegnamento=${encodeURIComponent(insegnamento)}`;
     });
 
     sessionsGrid.appendChild(cardElement);
@@ -438,6 +368,7 @@ function displayAllExams(data, container) {
     return;
   }
 
+  // Tabella di tutti gli esami
   const section = document.createElement("div");
   section.className = "section";
 
@@ -445,131 +376,68 @@ function displayAllExams(data, container) {
   tableAllExams.id = "tabella-tutti-appelli";
   tableAllExams.className = "esami-table";
 
-  tableAllExams.innerHTML = `
-    <thead class="esami-thead">
-        <tr class="esami-tr">
-            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 0)">Tipo prova</th>
-            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 1)">CDS</th>
-            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 2)">Insegnamento</th>
-            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 3)">Docente</th>
-            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 4, 'date')">Data</th>
-            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 5)">Aula</th>
-            <th class="esami-th" onclick="sortTable('${tableAllExams.id}', 6)">Durata</th>
-            <th class="esami-th">Azioni</th>
-        </tr>
-    </thead>
-    <tbody class="esami-tbody"></tbody>
-  `;
+  const headers = [
+    { text: "Tipo prova" },
+    { text: "CDS" },
+    { text: "Insegnamento" },
+    { text: "Docente" },
+    { text: "Data" },
+    { text: "Aula" },
+    { text: "Durata" }
+  ];
 
-  const tbodyAllExams = tableAllExams.querySelector("tbody");
-  const esamiOrdinati = [...data.esami].sort((a, b) => {
-    const dateA = new Date(a.dataora);
-    const dateB = new Date(b.dataora);
-    return dateA - dateB;
-  });
+  tableAllExams.innerHTML = createTableStructure(tableAllExams.id, headers);
+  const tbody = tableAllExams.querySelector("tbody");
 
-  esamiOrdinati.forEach((esame) => {
-    const row = tbodyAllExams.insertRow();
-    row.className = "esami-tr";
-    
-    let cell0 = row.insertCell(0);
-    cell0.className = "esami-td";
-    cell0.textContent = esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale";
-    
-    let cell1 = row.insertCell(1);
-    cell1.className = "esami-td";
-    cell1.textContent = esame.cds;
-    
-    let cell2 = row.insertCell(2);
-    cell2.className = "esami-td";
-    cell2.textContent = esame.insegnamento;
-    
-    let cell3 = row.insertCell(3);
-    cell3.className = "esami-td";
-    cell3.textContent = esame.docenteNome;
-
-    const dataCell = row.insertCell(4);
-    dataCell.className = "esami-td";
-    dataCell.textContent = formatDateTime(esame.dataora);
-    dataCell.setAttribute("data-datetime", esame.dataora);
-
-    let cell5 = row.insertCell(5);
-    cell5.className = "esami-td";
-    cell5.textContent = esame.aula;
-    
-    let cell6 = row.insertCell(6);
-    cell6.className = "esami-td";
-    cell6.textContent = formatDurata(esame.durata_appello);
-    
-    const actionCell = row.insertCell(7);
-    actionCell.className = "esami-td esami-td-actions";
-    const modifyButton = document.createElement("button");
-    modifyButton.className = "form-button";
-    modifyButton.textContent = "Modifica";
-    modifyButton.setAttribute("data-id", esame.id);
-    modifyButton.onclick = function() {
-      editEsame(esame.id);
-    };
-    actionCell.appendChild(modifyButton);
+  // Ordina per data e crea le righe
+  const esamiOrdinati = [...data.esami].sort((a, b) => new Date(a.dataora) - new Date(b.dataora));
+  esamiOrdinati.forEach(esame => {
+    tbody.appendChild(createTableRow(esame));
   });
 
   section.appendChild(tableAllExams);
   container.appendChild(section);
 }
 
-// Ordinamento tabella migliorato per gestire correttamente le date
+// Ordinamento tabella
 function sortTable(tableId, colIndex, type = "text") {
   const table = document.getElementById(tableId);
   const tbody = table.tBodies[0];
   const rows = Array.from(tbody.rows);
-  let direction = "asc";
-
-  // Verifica se stiamo invertendo la direzione dell'ordinamento
-  if (
-    table.getAttribute("data-sort-col") === colIndex.toString() &&
-    table.getAttribute("data-sort-dir") === "asc"
-  ) {
-    direction = "desc";
-  }
-
-  // Memorizza lo stato dell'ordinamento
+  
+  // Determina direzione ordinamento
+  const currentDir = table.getAttribute("data-sort-dir");
+  const direction = (table.getAttribute("data-sort-col") === colIndex.toString() && currentDir === "asc") ? "desc" : "asc";
+  
   table.setAttribute("data-sort-col", colIndex);
   table.setAttribute("data-sort-dir", direction);
 
-  // Esegue l'ordinamento
-  rows.sort((a, b) => {
+  // Funzione di confronto
+  const compare = (a, b) => {
     let aValue, bValue;
 
     if (type === "date") {
-      // Usa il valore dell'attributo data-datetime per le date
       aValue = a.cells[colIndex].getAttribute("data-datetime") || a.cells[colIndex].textContent.trim();
       bValue = b.cells[colIndex].getAttribute("data-datetime") || b.cells[colIndex].textContent.trim();
-
-      // Converti in oggetti Date per il confronto
-      const dateA = new Date(aValue);
-      const dateB = new Date(bValue);
-
-      return direction === "asc" ? dateA - dateB : dateB - dateA;
+      const comparison = new Date(aValue) - new Date(bValue);
+      return direction === "asc" ? comparison : -comparison;
     } else {
-      // Per i campi di testo
       aValue = a.cells[colIndex].textContent.trim().toLowerCase();
       bValue = b.cells[colIndex].textContent.trim().toLowerCase();
-
-      return direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      const comparison = aValue.localeCompare(bValue);
+      return direction === "asc" ? comparison : -comparison;
     }
-  });
+  };
 
-  // Ricostruisce la tabella con le righe ordinate
-  rows.forEach((row) => tbody.appendChild(row));
+  // Ordina e ricostruisci
+  rows.sort(compare).forEach(row => tbody.appendChild(row));
 }
 
 // Funzione per formattare data e ora
 function formatDateTime(dateTimeStr) {
   const date = new Date(dateTimeStr);
-  
-  // Formattazione in stile italiano: DD/MM/YYYY, HH:MM
   const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0"); // +1 perché i mesi sono 0-based
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
@@ -583,40 +451,10 @@ function formatDurata(durataMinuti) {
   const ore = Math.floor(durata / 60);
   const minuti = durata % 60;
   
-  if (ore === 0) {
-    return `${minuti} min`;
-  } else if (minuti === 0) {
-    return ore === 1 ? `${ore} ora` : `${ore} ore`;
-  } else {
-    return `${ore} ${ore === 1 ? 'ora' : 'ore'} e ${minuti} min`;
-  }
-}
-
-// Funzione per aprire il form di modifica dell'esame
-function editEsame(esameId) {
-  window.EditEsame.editExam(esameId)
-    .then(examData => {
-      console.log("Esame caricato per modifica:", examData);
-    })
-    .catch(error => {
-      console.error("Errore nella modifica dell'esame:", error);
-    });
-}
-
-// Funzione per eliminare un esame
-function deleteEsame(examId) {
-  window.EditEsame.handleDeleteExam(examId);
+  if (ore === 0) return `${minuti} min`;
+  if (minuti === 0) return `${ore} ${ore === 1 ? 'ora' : 'ore'}`;
+  return `${ore} ${ore === 1 ? 'ora' : 'ore'} e ${minuti} min`;
 }
 
 // Espone funzioni necessarie per l'HTML
 window.sortTable = sortTable;
-window.editEsame = editEsame;
-window.deleteEsame = deleteEsame;
-
-// Aggiorna l'evento del pulsante "Tutti gli appelli"
-document.addEventListener("DOMContentLoaded", function () {
-  const allExamsButton = document.getElementById("allExamsButton");
-  allExamsButton.onclick = function () {
-    window.location.href = window.location.pathname;
-  };
-});

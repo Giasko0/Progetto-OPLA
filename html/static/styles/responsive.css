@@ -1,0 +1,260 @@
+/*------------------------------------MEDIA QUERIES------------------------------------*/
+@media (max-width: 768px) {
+  .content {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .content-inner {
+    width: var(--mobile-content-width);
+  }
+
+  .content.sidebar-visible .content-inner {
+    transform: translateX(0);
+  }
+
+  .content-row {
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .content-sidebar {
+    width: 100%;
+  }
+
+  #calendar, #form-container {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .header-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .header-controls .titolo {
+    width: 100%;
+    text-align: left;
+  }
+
+  .header-controls .anno-accademico-container {
+    position: static;
+    transform: none;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .anno-accademico-select {
+    min-width: 120px;
+    flex: 1;
+    max-width: 200px;
+  }
+
+  .message-sidebar {
+    width: var(--mobile-sidebar-width);
+    transform: translateX(100%);
+  }
+
+  .message-sidebar.visible {
+    transform: translateX(0);
+  }
+
+  .side-form {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .side-form .form {
+    width: 85vw;
+    right: -85vw;
+    transform: translateX(100%);
+  }
+
+  .side-form .form.active {
+    right: 0;
+    transform: translateX(0);
+  }
+
+  .container-panel {
+    padding: 20px;
+  }
+
+  .landing-container {
+    margin: 30px auto;
+    padding: 20px;
+  }
+
+  .titolo {
+    font-size: 1.5rem;
+  }
+
+  .title-xl {
+    font-size: 2rem;
+  }
+
+  .tooltip .tooltiptext {
+    width: 150px;
+    padding: 6px 8px;
+    font-size: 0.75em;
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .tooltip .tooltiptext::after {
+    top: 100%;
+    left: 50%;
+    right: auto;
+    margin-top: 0;
+    margin-left: -5px;
+    border-color: var(--color-border) transparent transparent transparent;
+  }
+
+  .banner-avviso {
+    width: 95%;
+    bottom: 5%;
+  }
+
+  .navbar {
+    position: relative;
+    padding: 0 1rem;
+  }
+
+  .navbar .logo {
+    height: calc(var(--nav-height) * .8);
+    margin-left: -1rem;
+  }
+
+  .hamburger-menu {
+    display: flex;
+    position: absolute;
+    right: 1rem;
+    z-index: 20;
+  }
+
+  .navlinks {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+    z-index: 15;
+    background-color: var(--color-nav);
+  }
+
+  .navlinks.open {
+    max-height: 300px;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .navlinks a {
+    margin: .5rem 0;
+    padding: .5rem 0;
+    font-size: 1.2rem;
+  }
+
+  #darkModeButton {
+    position: absolute;
+    right: 4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 0;
+  }
+
+  #footer {
+    height: auto;
+  }
+
+  .footer-content {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .fc .fc-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .fc .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .fc .fc-toolbar-title {
+    margin: 0.5rem 0;
+    width: 100%;
+    font-size: 1.2em;
+    text-align: center;
+  }
+
+  .fc .fc-button {
+    padding: 0.3em;
+    font-size: 0.8em;
+  }
+
+  .fc .fc-view-harness {
+    min-height: 400px;
+    height: auto !important;
+  }
+
+  .fc-event-time, .fc-event-title, .fc-event-description {
+    font-size: 0.8em !important;
+    overflow: hidden;
+  }
+
+  .toggle-sidebar-float.sidebar-open {
+    right: var(--mobile-sidebar-width);
+  }
+
+  .sidebar-header {
+    position: sticky;
+    top: 0;
+    padding: 20px 15px;
+    background-color: var(--color-blue);
+    border-radius: 0;
+    z-index: 2;
+  }
+
+  .notifications-container, .alerts-container {
+    padding-bottom: 30px;
+  }
+
+  .notification-badge {
+    width: 24px;
+    height: 24px;
+    top: -8px;
+    right: -8px;
+    font-size: 13px;
+  }
+
+  #contenitoreEsami {
+    width: 100%;
+  }
+
+  .tab-content {
+    width: 100%;
+  }
+
+  .tab-button {
+    margin-bottom: 10px;
+  }
+
+  td, th {
+    padding: 2px;
+    font-size: .6rem;
+  }
+
+  .date-appello-fields {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}

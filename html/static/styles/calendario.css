@@ -1,0 +1,778 @@
+/*---------------------------------------------CALENDARIO---------------------------------------------*/
+.content-row {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  gap: 20px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+#calendar {
+  width: 100%;
+  position: relative;
+}
+
+/* Form container */
+#form-container {
+  position: relative;
+  width: 0;
+  background-color: var(--color-bg-light);
+  border-radius: var(--radius);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Form container quando è attivo */
+#form-container.active {
+  width: 50%;
+}
+
+/* Stile per rendere scrollabile solo il contenuto del calendario ma non l'header */
+.fc .fc-view-harness {
+  max-height: calc(70vh - 50px); /* Altezza massima per il contenuto scrollabile */
+  overflow-y: auto;
+}
+
+/* Fissa la posizione dell'header */
+.fc .fc-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 10px 0;
+}
+
+.fc-multimonth-title {
+  color: var(--color-bg);
+  background-color: var(--color-blue);
+}
+
+.fc-button-primary {
+  background-color: var(--color-blue);
+}
+
+.fc-daygrid-day {
+  background-color: var(--table-cell);
+  cursor: pointer;
+}
+
+.fc-header-cell {
+  background-color: var(--color-blue);
+  color: var(--color-bg-light);
+}
+
+.fc-day-disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+  background-color: var(--table-cell-disabled) !important;
+  pointer-events: none !important;
+}
+
+.fc-event-main-frame {
+  overflow: hidden;
+}
+
+.fc-h-event .fc-event-main-frame {
+  display: block;
+}
+
+.fc-list-event {
+  background-color: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+}
+
+.calendar-dropdown {
+  display: none;
+  position: absolute;
+  background-color: var(--color-bg-light);
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1000;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.calendar-dropdown.show {
+  display: block;
+}
+
+.calendar-dropdown .dropdown-item {
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  color: var(--color-text);
+}
+
+.calendar-dropdown .dropdown-item:hover {
+  background-color: var(--color-bg);
+}
+
+.dropdown-cds-title {
+  font-weight: bold;
+  padding: 8px 12px;
+  background-color: var(--color-bg-light);
+  border-bottom: 1px solid var(--color-border);
+  margin-top: 5px;
+}
+
+.dropdown-item-indented {
+  margin-left: 15px;
+  border-left: 3px solid var(--color-border);
+}
+
+.calendar-dropdown .dropdown-item, .calendar-dropdown .dropdown-item *{
+  cursor: pointer;
+}
+
+/*---------------------------------------------FORM ESAMI---------------------------------------------*/
+.form-header {
+  position: sticky;
+  top: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--color-bg);
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-header h2 {
+  color: var(--color-text);
+  margin: 10px;
+}
+
+.form-close {
+  cursor: pointer;
+  font-size: 2em;
+}
+
+.form-body {
+  overflow-y: scroll;
+  height: 65dvh;
+  padding: 10px;
+  font-size: 1em;
+  border-radius: inherit;
+  color: var(--color-text);
+}
+
+.form-element {
+  margin-bottom: var(--form-margin);
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 8px;
+  height: 38px;
+  box-sizing: border-box;
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 1em;
+  resize: vertical;
+}
+
+.form-button {
+  padding: 10px 15px;
+  cursor: pointer;
+  display: block;
+  background-color: var(--color-light-blue);
+  color: var(--color-bg-light);
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+.form-button:hover {
+  background-color: var(--color-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.form-button.bypass {
+  background-color: var(--color-warning);
+  color: var(--color-text);
+}
+
+.form-button.bypass:hover {
+  background-color: #e0a800;
+}
+
+.form-button.danger {
+  background-color: var(--color-error);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.two-column-layout {
+  display: flex;
+  gap: 15px;
+}
+
+.column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.column select {
+  width: 100%;
+}
+
+.time-select-container {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.time-select-container select {
+  flex: 1;
+}
+
+.time-separator {
+  font-weight: bold;
+}
+
+#durata_h, #durata_m {
+  width: auto;
+}
+
+/* Stili per i Radio Button Personalizzati */
+.radio-group {
+  display: flex;
+  align-items: center;
+}
+
+.radio-group input[type="radio"] {
+  opacity: 0; /* Nasconde il radio button di default */
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.radio-group label {
+  position: relative;
+  padding-left: 30px; /* Spazio per il radio button personalizzato */
+  cursor: pointer;
+  font-size: 1rem;
+  color: #333;
+  display: inline-flex; /* Allinea l'etichetta con il radio button custom */
+  align-items: center;
+  margin-right: 15px; /* Spazio tra un'opzione radio e la successiva */
+}
+
+.radio-group label::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid #007bff; /* Colore del bordo del radio non selezionato */
+  border-radius: 50%;
+  background-color: #fff;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.radio-group label::after {
+  content: '';
+  position: absolute;
+  left: 6px; /* Posizionamento del pallino interno */
+  top: 50%;
+  transform: translateY(-50%) scale(0); /* Nascosto di default */
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #007bff; /* Colore del radio selezionato */
+  transition: transform 0.2s ease-in-out;
+}
+
+.radio-group input[type="radio"]:checked + label::before {
+  border-color: #0056b3; /* Colore del bordo del radio selezionato */
+}
+
+.radio-group input[type="radio"]:checked + label::after {
+  transform: translateY(-50%) scale(1); /* Mostra il pallino interno quando selezionato */
+}
+
+.radio-group input[type="radio"]:focus + label::before {
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); /* Effetto focus */
+}
+
+/* Sezione Date e Appelli */
+.date-appelli-container {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.date-appello-section {
+  position: relative;
+  margin: 20px 0;
+  padding: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  background-color: var(--color-bg-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.date-appello-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.date-appello-title {
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.add-date-btn, .remove-date-btn {
+  background: none;
+  border: none;
+  color: var(--color-text);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/*---------------------------------------------PREFERENZE FORM--------------------------------------------*/
+.preferences-panel {
+  margin-bottom: 15px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.preferences-header {
+  display: flex;
+  align-items: center;
+  background-color: var(--color-bg-secondary);
+  padding: 8px 10px;
+}
+
+.preferences-header span {
+  flex-grow: 1;
+  vertical-align: middle;
+  color: var(--color-blue);
+}
+
+.preference-btn {
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  cursor: pointer;
+  margin: 0 0 0 5px;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.preference-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.preferences-menu {
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: var(--color-bg-light);
+}
+
+.preference-item {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.preference-item:hover {
+  background-color: var(--color-bg);
+}
+
+.preference-item span {
+  flex-grow: 1;
+  vertical-align: middle;
+}
+
+.preference-item .delete-btn {
+  color: var(--color-error);
+  cursor: pointer;
+  visibility: hidden;
+  flex-grow: 0;
+}
+
+.preference-item:hover .delete-btn {
+  visibility: visible;
+}
+
+.preferences-form {
+  padding: 10px;
+  background-color: var(--color-bg-light);
+  display: flex;
+  gap: 5px;
+}
+
+.preferences-form input {
+  flex-grow: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin: 0;
+}
+
+.preferences-form button {
+  width: 5rem;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--radius);
+  background-color: var(--color-blue);
+  color: white;
+  cursor: pointer;
+}
+
+.preferences-form button:last-child {
+  background-color: var(--color-bg-secondary);
+}
+
+/*---------------------------------------------MULTI-SELECT---------------------------------------------*/
+.multi-select-container {
+  width: 100%;
+  position: relative;
+}
+
+.multi-select-box {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+}
+
+.multi-select-box.active {
+  border-color: var(--color-blue);
+}
+
+.multi-select-placeholder {
+  color: var(--color-text-light);
+}
+
+.multi-select-tag {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--color-blue);
+  color: var(--color-bg-light);
+  border-radius: var(--radius);
+  padding: 3px 8px;
+  margin: 2px;
+  font-size: 0.9em;
+}
+
+.multi-select-tag-remove {
+  margin-left: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.multi-select-dropdown {
+  position: absolute;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  z-index: 10;
+  display: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  top: 100%;
+  left: 0;
+}
+
+.multi-select-search {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  box-sizing: border-box;
+  font-size: 0.95em;
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+}
+
+.multi-select-search:focus {
+  outline: none;
+  border-bottom-color: var(--color-blue);
+}
+
+.multi-select-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.multi-select-option:hover {
+  background-color: var(--color-bg);
+}
+
+.multi-select-option.selected {
+  background-color: var(--color-bg-secondary);
+}
+
+.multi-select-hidden {
+  display: none;
+}
+
+.multi-select-loading,
+.multi-select-no-results,
+.multi-select-error {
+  padding: 12px;
+  text-align: center;
+  color: var(--color-border);
+  font-style: italic;
+}
+
+.multi-select-error {
+  color: var(--color-error);
+}
+
+.multi-select-no-results {
+  color: var(--color-border);
+}
+
+/* File Upload Overlay Styles */
+.file-upload-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.file-upload-modal {
+  width: 600px;
+  max-width: 90%;
+  max-height: 90vh;
+  background-color: var(--color-bg-light);
+  border-radius: var(--radius);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.file-upload-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: var(--color-blue);
+  color: white;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.file-upload-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.file-upload-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  transition: color 0.2s;
+}
+
+.file-upload-close:hover {
+  color: var(--color-error);
+}
+
+.file-upload-content {
+  padding: 20px;
+  background-color: var(--color-bg-light);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.file-upload-instructions {
+  margin-bottom: 20px;
+  color: var(--color-text);
+}
+
+.file-upload-instructions ol {
+  padding-left: 20px;
+}
+
+.file-upload-instructions li {
+  margin-bottom: 8px;
+}
+
+.file-upload-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+}
+
+.file-upload-dropzone:hover {
+  border-color: var(--color-blue);
+  background-color: rgba(39, 52, 139, 0.05);
+}
+
+.file-upload-dropzone-active {
+  border-color: var(--color-blue) !important;
+  background-color: rgba(39, 52, 139, 0.05);
+}
+
+.file-upload-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 15px;
+  color: var(--color-text-light);
+}
+
+.file-upload-dropzone p {
+  margin: 10px 0;
+  color: var(--color-text);
+}
+
+.file-upload-dropzone small {
+  color: var(--color-text-light);
+}
+
+.file-upload-selected-file {
+  font-weight: bold;
+  margin-top: 15px;
+  color: var(--color-blue);
+}
+
+.file-upload-progress {
+  height: 10px;
+  background-color: var(--color-bg-secondary);
+  border-radius: 5px;
+  margin: 20px 0;
+  display: none;
+  overflow: hidden;
+}
+
+.file-upload-progress-bar {
+  height: 100%;
+  background-color: var(--color-blue);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.file-upload-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.file-upload-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius);
+  background-color: var(--color-blue);
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  flex: 1;
+  margin: 0 5px;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.file-upload-button:first-child {
+  margin-left: 0;
+}
+
+.file-upload-button:last-child {
+  margin-right: 0;
+}
+
+.file-upload-button:hover {
+  background-color: var(--color-blue);
+}
+
+.file-upload-button:disabled {
+  background-color: var(--color-border);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.file-upload-button.active {
+  background-color: var(--color-error);
+}
+
+.file-upload-result {
+  margin-top: 20px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.file-upload-success {
+  padding: 15px;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: var(--radius);
+  color: #155724;
+}
+
+.file-upload-success h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.file-upload-error {
+  padding: 15px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: var(--radius);
+  color: #721c24;
+}
+
+.file-upload-error h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}

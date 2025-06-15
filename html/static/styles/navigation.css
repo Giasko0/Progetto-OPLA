@@ -1,0 +1,337 @@
+/*---------------------------------------------NAVBAR---------------------------------------------*/
+.navbar {
+  width: 100vw;
+  height: var(--nav-height);
+  background-color: var(--color-nav);
+  display: flex;
+  align-items: center;
+  z-index: 10;
+}
+
+.navbar .logo {
+  height: var(--nav-height);
+}
+
+.navlinks {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-left: auto;
+}
+
+.navlinks a {
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  margin-right: 2em;
+}
+
+.navlinks a, #darkModeButton {
+  color: var(--color-blue);
+  text-decoration: none;
+  margin-right: 2rem;
+}
+
+.navlinks a:hover {
+  color: var(--color-light-blue);
+}
+
+.navlinks a.active {
+  color: var(--color-light-blue);
+  position: relative;
+}
+
+.navlinks a.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-light-blue);
+}
+
+.vertical-divider {
+  height: 2rem;
+  width: 1px;
+  background-color: var(--color-blue);
+  margin: 0 1em 0 -1em;
+}
+
+.system-link {
+  margin-left: auto;
+}
+
+#darkModeButton {
+  font-size: 2rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+#darkModeButton:hover {
+  color: var(--color-light-blue);
+}
+
+/* Stili per il menu hamburger */
+.hamburger-menu {
+  display: none;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.hamburger-menu span {
+  width: 2rem;
+  height: 0.25rem;
+  background: var(--color-blue);
+  border-radius: 10px;
+  position: relative;
+  transform-origin: 1px;
+}
+
+/*---------------------------------------------SIDEBAR---------------------------------------------*/
+/* Content sidebar - contiene sia il pulsante che la sidebar */
+.content-sidebar {
+  position: relative;
+  height: calc(100vh - var(--nav-height) - var(--foot-height));
+  transform: translateX(var(--sidebar-width));
+}
+
+.content-sidebar.sidebar-visible {
+  transform: translateX(0);
+}
+
+/* Header della sidebar */
+.sidebar-header {
+  background-color: var(--color-blue);
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  color: var(--color-bg-light);
+  font-size: 1.2em;
+}
+
+/* Pulsante chiusura nel header */
+.close-sidebar-btn {
+  color: var(--color-bg-light);
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+}
+
+.close-sidebar-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Pulsante a linguetta per aprire/chiudere la sidebar */
+.toggle-sidebar-float {
+  position: absolute;
+  right: var(--sidebar-width);
+  top: 2em;
+  width: 30px;
+  height: 60px;
+  background-color: var(--color-nav);
+  color: var(--color-text);
+  border: 1px solid #ccc;
+  border-right: none;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  z-index: 91;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px 0 0 8px;
+}
+
+/* Badge di notifica */
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  left: 0;
+  background-color: var(--color-error);
+  color: var(--color-bg-light);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+
+/* Sidebar per messaggi e notifiche */
+.message-sidebar {
+  position: static;
+  width: var(--sidebar-width);
+  height: inherit;
+  background-color: var(--color-nav);
+  overflow-y: auto;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.notification-badge.has-notifications {
+  opacity: 1;
+}
+
+.sidebar-content {
+  padding: 15px;
+}
+
+.sidebar-section {
+  margin-bottom: 25px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-icon {
+  margin-right: 8px;
+  font-size: 20px;
+  color: var(--color-text);
+}
+
+.sidebar-section h4 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1em;
+  font-weight: 500;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background-color: var(--color-nav);
+  margin: 20px 0;
+  opacity: 0.5;
+}
+
+.alerts-container, .notifications-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-item, .notification-item {
+  padding: 12px;
+  border-radius: 10px;
+  background-color: var(--color-bg-light);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.alert-item:hover, .notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+}
+
+.alert-item {
+  border-left: 3px solid var(--color-error);
+}
+
+.notification-item {
+  border-left: 3px solid var(--color-blue);
+  animation: fadeIn 0.3s ease-in;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-item.fading {
+  animation: fadeOutRight 0.5s ease-out forwards;
+}
+
+/* Barra di avanzamento per notifiche temporanee */
+.notification-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background-color: var(--color-blue);
+  opacity: 0.7;
+  transform-origin: left center;
+}
+
+.alert-close, .notification-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  cursor: pointer;
+  color: var(--color-border);
+  font-size: 0.9em;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.alert-close:hover, .notification-close:hover {
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(100%); }
+}
+
+/* Animazione per la barra di progresso delle notifiche */
+@keyframes shrinkWidth {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+/*---------------------------------------------FOOTER---------------------------------------------*/
+#footer {
+  min-height: var(--foot-height);
+  width: 100%;
+  background-color: var(--color-nav);
+  color: var(--color-text);
+  z-index: 1;
+  padding: 20px 0;
+  margin-top: auto;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  max-width: 100dvw;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.footer-section {
+  flex: 1;
+  text-align: center;
+  padding: 0 15px;
+}
