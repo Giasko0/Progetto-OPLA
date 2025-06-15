@@ -21,7 +21,7 @@
   <main>
     <h1>Calendario Esami</h1>
 
-    <!-- Sezione per selezionare anno e corso in due colonne -->
+    <!-- Sezione per selezionare anno, corso e curriculum -->
     <section class="selector-section">
       <div class="columns-container">
         <div class="column">
@@ -38,15 +38,23 @@
             <!-- Opzioni caricate dinamicamente -->
           </select>
         </div>
+        <div class="column">
+          <label for="selectCurriculum">Curriculum:</label>
+          <select id="selectCurriculum">
+            <option value="">Seleziona un curriculum</option>
+            <!-- Opzioni caricate dinamicamente -->
+          </select>
+        </div>
       </div>
       <div class="actions">
         <button id="btnGeneraCalendario" class="btn primary">Genera Calendario</button>
+        <button id="btnEsportaXLSX" class="btn secondary" style="display: none;">Esporta XLSX</button>
       </div>
     </section>
 
     <div id="calendarioContainer" class="calendar-container">
       <!-- Il calendario sarà generato qui dinamicamente -->
-      <p>Seleziona un corso di studi e un anno accademico per visualizzare il calendario degli esami.</p>
+      <p>Seleziona un corso di studi, un anno accademico e un curriculum per visualizzare il calendario degli esami.</p>
     </div>
   </main>
 

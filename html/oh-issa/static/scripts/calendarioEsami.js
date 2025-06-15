@@ -2,12 +2,14 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Elementi DOM
     const btnGeneraCalendario = document.getElementById('btnGeneraCalendario');
+    const btnEsportaXLSX = document.getElementById('btnEsportaXLSX');
     
     // Inizializza i selettori
     loadAnniAccademici();
     
     // Event listeners
     btnGeneraCalendario.addEventListener('click', generaCalendario);
+    btnEsportaXLSX.addEventListener('click', esportaXLSX);
 });
 
 // Carica gli anni accademici per il selettore
@@ -45,6 +47,7 @@ function loadAnniAccademici() {
 function loadCorsiForAnno(anno) {
     if (!anno) {
         document.getElementById('selectCds').innerHTML = '<option value="">Seleziona un corso</option>';
+        document.getElementById('selectCurriculum').innerHTML = '<option value="">Seleziona un curriculum</option>';
         return;
     }
     
@@ -62,11 +65,19 @@ function loadCorsiForAnno(anno) {
             } else {
                 data.forEach(cds => {
                     const option = document.createElement('option');
-                    option.value = `${cds.codice}_${anno}`;
+                    option.value = cds.codice;
                     option.textContent = `${cds.codice} - ${cds.nome_corso}`;
                     select.appendChild(option);
                 });
             }
+            
+            // Aggiungi event listener per caricare i curriculum quando cambia il corso
+            select.addEventListener('change', function() {
+                loadCurriculumForCds(this.value, anno);
+            });
+            
+            // Reset curriculum selector
+            document.getElementById('selectCurriculum').innerHTML = '<option value="">Seleziona un curriculum</option>';
         })
         .catch(error => {
             console.error('Errore nel caricamento dei corsi:', error);
@@ -74,26 +85,81 @@ function loadCorsiForAnno(anno) {
         });
 }
 
-// Genera il calendario degli esami
-function generaCalendario() {
-    const cdsSelectValue = document.getElementById('selectCds').value;
-    const annoAccademicoValue = document.getElementById('selectAnnoAccademico').value;
-    const calendarioContainer = document.getElementById('calendarioContainer');
-    
-    // Verifica entrambi i valori
-    if (!cdsSelectValue || !annoAccademicoValue) {
-        mostraErrore('Seleziona sia il Corso di Studi che l\'Anno Accademico');
+// Carica i curriculum per un corso di studi specifico
+function loadCurriculumForCds(cdsCode, anno) {
+    if (!cdsCode || !anno) {
+        document.getElementById('selectCurriculum').innerHTML = '<option value="">Seleziona un curriculum</option>';
         return;
     }
+    
+    fetch(`/api/oh-issa/getCurriculumByCds?cds=${cdsCode}&anno=${anno}`)
+        .then(response => response.json())
+        .then(data => { // data è un array di stringhe curriculum, es: ["GENERALE", "CYBERSECURITY"]
+            const select = document.getElementById('selectCurriculum');
+            select.innerHTML = '<option value="">Seleziona un curriculum</option>';
+            
+            if (!data || data.length === 0) { // Nessun curriculum per questo CdS/Anno
+                const option = document.createElement('option');
+                option.disabled = true;
+                option.textContent = "Nessun curriculum disponibile";
+                select.appendChild(option);
+                return;
+            }
 
-    // Il valore è in formato "codice_anno"
-    const [codiceCds, annoAccademico] = cdsSelectValue.split('_');
+            const curriculaOriginali = data;
+            // Filtra i curriculum che includono "gener" (case-insensitive)
+            const curriculaFiltrati = curriculaOriginali.filter(c => !c.toLowerCase().includes('gener'));
+
+            let curriculaDaMostrare = [];
+
+            if (curriculaFiltrati.length > 0) {
+                // Se ci sono curriculum non generali, mostra quelli
+                curriculaDaMostrare = curriculaFiltrati;
+            } else if (curriculaOriginali.length > 0) { 
+                // Altrimenti, se c'erano solo curriculum "generali", mostra quelli
+                curriculaDaMostrare = curriculaOriginali;
+            }
+
+            if (curriculaDaMostrare.length === 0) { 
+                // Caso fallback: nessun curriculum da mostrare (dovrebbe essere coperto dalla prima condizione !data || data.length === 0)
+                const option = document.createElement('option');
+                option.disabled = true;
+                option.textContent = "Nessun curriculum disponibile";
+                select.appendChild(option);
+            } else {
+                // Popola il selettore con i curriculum da mostrare, ordinati
+                curriculaDaMostrare.sort().forEach(curriculum => {
+                    const option = document.createElement('option');
+                    option.value = curriculum;
+                    option.textContent = curriculum;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento dei curriculum:', error);
+            mostraErrore('Impossibile caricare i curriculum per il corso selezionato');
+        });
+}
+
+// Genera il calendario degli esami
+function generaCalendario() {
+    const cdsValue = document.getElementById('selectCds').value;
+    const annoAccademicoValue = document.getElementById('selectAnnoAccademico').value;
+    const curriculumValue = document.getElementById('selectCurriculum').value;
+    const calendarioContainer = document.getElementById('calendarioContainer');
+    
+    // Verifica tutti i valori
+    if (!cdsValue || !annoAccademicoValue || !curriculumValue) {
+        mostraErrore('Seleziona Anno Accademico, Corso di Studi e Curriculum');
+        return;
+    }
     
     // Mostra messaggio di caricamento
     calendarioContainer.innerHTML = '<div class="loading">Generazione calendario in corso...</div>';
         
     // Richiedi il calendario al server
-    fetch(`/api/oh-issa/getCalendarioEsami?cds=${codiceCds}&anno=${annoAccademico}`)
+    fetch(`/api/oh-issa/getCalendarioEsami?cds=${cdsValue}&anno=${annoAccademicoValue}&curriculum=${encodeURIComponent(curriculumValue)}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Errore HTTP: ${response.status}`);
@@ -113,6 +179,9 @@ function generaCalendario() {
             
             // Visualizza il calendario
             visualizzaCalendario(data);
+            
+            // Mostra il pulsante di esportazione
+            document.getElementById('btnEsportaXLSX').style.display = 'inline-block';
         })
         .catch(error => {
             console.error('Errore nella generazione del calendario:', error);
@@ -246,13 +315,81 @@ function visualizzaCalendario(data) {
         calendarioContainer.appendChild(annoDiv);
     });
     
-    // Aggiungi la descrizione del corso
+    // Aggiungi la descrizione del corso con curriculum
     if (data.nome_corso) {
         const corsoInfo = document.createElement('div');
         corsoInfo.className = 'corso-info';
-        corsoInfo.innerHTML = `<h2>Calendario esami: ${data.nome_corso}</h2>`;
+        const titoloCurriculum = data.curriculum ? ` - ${data.curriculum}` : '';
+        corsoInfo.innerHTML = `<h2>Calendario esami: ${data.nome_corso}${titoloCurriculum}</h2>`;
         calendarioContainer.prepend(corsoInfo);
     }
+}
+
+// Esporta il calendario in formato XLSX
+function esportaXLSX() {
+    const cdsValue = document.getElementById('selectCds').value;
+    const annoAccademicoValue = document.getElementById('selectAnnoAccademico').value;
+    const curriculumValue = document.getElementById('selectCurriculum').value;
+    
+    if (!cdsValue || !annoAccademicoValue || !curriculumValue) {
+        mostraErrore('Seleziona Anno Accademico, Corso di Studi e Curriculum prima di esportare');
+        return;
+    }
+    
+    // Mostra messaggio di caricamento
+    const calendarioContainer = document.getElementById('calendarioContainer');
+    const originalContent = calendarioContainer.innerHTML;
+    calendarioContainer.innerHTML = '<div class="loading">Generazione file Excel in corso...</div>';
+    
+    // Crea l'URL per il download
+    const url = `/api/oh-issa/esportaCalendarioEsami?cds=${cdsValue}&anno=${annoAccademicoValue}&curriculum=${encodeURIComponent(curriculumValue)}`;
+    
+    // Usa fetch per controllare la risposta prima del download
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || `Errore HTTP: ${response.status}`);
+                });
+            }
+            
+            // Se la risposta è OK, scarica il file
+            return response.blob();
+        })
+        .then(blob => {
+            // Crea un URL per il blob e scarica il file
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `calendario_esami_${cdsValue}_${annoAccademicoValue}_${curriculumValue.replace(/\s+/g, '_')}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Pulisci l'URL del blob
+            window.URL.revokeObjectURL(downloadUrl);
+            
+            // Ripristina il contenuto originale
+            calendarioContainer.innerHTML = originalContent;
+            
+            // Mostra messaggio di successo
+            const successMsg = document.createElement('div');
+            successMsg.className = 'alert alert-success';
+            successMsg.innerHTML = '<strong>Successo:</strong> File Excel scaricato correttamente!';
+            calendarioContainer.insertBefore(successMsg, calendarioContainer.firstChild);
+            
+            // Rimuovi il messaggio dopo 3 secondi
+            setTimeout(() => {
+                if (successMsg.parentNode) {
+                    successMsg.parentNode.removeChild(successMsg);
+                }
+            }, 3000);
+        })
+        .catch(error => {
+            console.error('Errore nel download del file:', error);
+            calendarioContainer.innerHTML = originalContent;
+            mostraErrore('Errore nel download del file: ' + error.message);
+        });
 }
 
 // Mostra un messaggio di errore
@@ -263,4 +400,7 @@ function mostraErrore(message) {
             <strong>Errore:</strong> ${message}
         </div>
     `;
+    
+    // Nascondi il pulsante di esportazione in caso di errore
+    document.getElementById('btnEsportaXLSX').style.display = 'none';
 }

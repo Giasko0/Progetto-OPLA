@@ -262,22 +262,6 @@ def get_date_valide():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@fetch_bp.route('/api/get-anni-accademici', methods=['GET'])
-def get_anni_accademici():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT DISTINCT anno_accademico FROM cds ORDER BY anno_accademico ASC")
-        anni = [row[0] for row in cursor.fetchall()]
-        return jsonify(anni)
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            release_connection(conn)
-
 @fetch_bp.route('/api/get-insegnamenti-docente', methods=['GET'])
 def get_insegnamenti_docente():
     docente = request.args.get('docente')
