@@ -2,7 +2,7 @@ FROM python:3-alpine
 
 WORKDIR /app
 
-# Risolve un errore del cazzo con xmlsec
+# Risolve un errore con xmlsec
 # https://github.com/xmlsec/python-xmlsec/issues/323
 ENV CFLAGS="-Wno-error=incompatible-pointer-types"
 
