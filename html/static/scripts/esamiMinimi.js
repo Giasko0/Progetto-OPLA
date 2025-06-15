@@ -3,19 +3,8 @@ function checkEsamiMinimi() {
   // Costruisci i parametri per includere l'anno selezionato
   let params = new URLSearchParams();
   
-  // Aggiungi l'anno selezionato
-  const selectedYear = window.AnnoAccademicoManager?.getSelectedAcademicYear();
-  if (!selectedYear) {
-    console.warn('Anno accademico non selezionato per il controllo esami minimi');
-    // Non procedere se non c'è un anno selezionato
-    return;
-  }
-  params.append('anno', selectedYear);
-  
-  // Ottieni il docente se disponibile (per admin)
-  if (window.currentUsername) {
-    params.append('docente', window.currentUsername);
-  }
+  params.append('anno', window.AnnoAccademicoManager?.getSelectedAcademicYear());
+  params.append('docente', window.currentUsername);
   
   const url = `/api/check-esami-minimi?${params.toString()}`;
 
@@ -67,9 +56,6 @@ function checkEsamiMinimi() {
     });
 }
 
-// Espone la funzione globalmente per poterla chiamare dopo inserimenti riusciti
-// NOTA: Questa funzione viene automaticamente chiamata da window.forceCalendarRefresh()
-// che deve essere invocata dopo ogni inserimento, modifica o eliminazione di esami
 window.checkEsamiMinimi = checkEsamiMinimi;
 
 document.addEventListener("DOMContentLoaded", function () {

@@ -4,6 +4,7 @@ from datetime import datetime
 from auth import get_user_data
 from psycopg2.extras import DictCursor
 import requests
+from utils.sessions import (ottieni_intersezione_sessioni_docente, ottieni_sessioni_da_insegnamenti)
 
 fetch_bp = Blueprint('fetch', __name__)
 
@@ -267,25 +268,20 @@ def get_date_valide():
         if not user_data['authenticated']:
             return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
         
-        is_admin_user = user_data['user_data']['permessi_admin']
         docente = request.args.get('docente')
-        insegnamenti = request.args.get('insegnamenti')
         anno = int(request.args.get('anno', 0))
+        insegnamenti = request.args.get('insegnamenti')
         
-        if not anno:
-            return jsonify({'status': 'error', 'message': 'Anno accademico mancante'}), 400
-        
-        from utils.sessions import (ottieni_sessioni_da_cds, ottieni_intersezione_sessioni_docente, 
-                                  ottieni_tutte_sessioni, ottieni_sessioni_da_insegnamenti)
-        
-        if is_admin_user:
-            sessions = ottieni_tutte_sessioni(anno)
-        elif insegnamenti:
+        # Docente e anno sono sempre obbligatori
+        if not docente or not anno:
+            return jsonify({'status': 'error', 'message': 'Docente e anno accademico sono obbligatori'}), 400
+                
+        # Se sono specificati insegnamenti, usa quelli per filtrare le sessioni
+        if insegnamenti:
             sessions = ottieni_sessioni_da_insegnamenti(insegnamenti.split(','), anno)
-        elif docente:
-            sessions = ottieni_intersezione_sessioni_docente(docente, anno)
         else:
-            return jsonify({'status': 'error', 'message': 'Parametri insufficienti'}), 400
+            # Altrimenti usa tutte le sessioni del docente
+            sessions = ottieni_intersezione_sessioni_docente(docente, anno)
 
         date_valide = [
             [session['inizio'].isoformat(), session['fine'].isoformat(), session['nome']]
@@ -373,12 +369,12 @@ def check_esami_minimi():
     if not user_data['authenticated']:
         return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
     
-    is_admin_user = user_data['user_data']['permessi_admin']
+    docente = request.args.get('docente')
     anno = int(request.args.get('anno', 0))
-    docente = request.args.get('docente') if is_admin_user else user_data['user_data']['username']
     
-    if not anno or not docente:
-        return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
+    # Docente e anno sono sempre obbligatori
+    if not docente or not anno:
+        return jsonify({'status': 'error', 'message': 'Docente e anno accademico sono obbligatori'}), 400
     
     try:
         insegnamenti = ottieni_insegnamenti_docente(docente, anno)
