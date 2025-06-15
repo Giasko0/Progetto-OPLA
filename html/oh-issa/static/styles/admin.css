@@ -805,101 +805,283 @@ input[type="checkbox"] {
     text-decoration: underline;
 }
 
-/* Responsive footer */
+/* Stili per la pagina Gestione Insegnamenti */
+.filters-section {
+  background: var(--card-background);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border-color);
+}
+
+.filters-container {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.filter-options {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.filter-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.filter-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.stats-section {
+  margin-bottom: 2rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.stat-card {
+  background: var(--card-background);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.cds-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.cds-section {
+  background: var(--card-background);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.cds-header {
+  background: var(--primary-color);
+  color: white;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.cds-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.cds-stats {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.cds-stats .stat {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+}
+
+.insegnamenti-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.insegnamento-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.insegnamento-card.no-docenti {
+  border-left: 4px solid var(--danger-color);
+}
+
+.insegnamento-card.with-docenti {
+  border-left: 4px solid var(--success-color);
+}
+
+.insegnamento-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.insegnamento-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  line-height: 1.3;
+  flex: 1;
+}
+
+.insegnamento-code {
+  background: var(--accent-color);
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.insegnamento-details {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.detail-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.detail-value {
+  color: var(--text-primary);
+}
+
+.docenti-section h5 {
+  margin: 0 0 0.8rem 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.docenti-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.docente-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--background-light);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.docente-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.docente-username {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.no-docenti-text {
+  color: var(--danger-color);
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
+  background: var(--danger-light);
+  border-radius: 6px;
+  border: 1px solid var(--danger-border);
+}
+
+/* Responsive design per la gestione insegnamenti */
 @media (max-width: 768px) {
-    .footer-content {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .footer-section {
-        text-align: center;
-        margin: 10px 0;
-    }
+  .filters-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-options {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .cds-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .cds-stats {
+    flex-wrap: wrap;
+  }
+  
+  .insegnamenti-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+  
+  .insegnamento-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .insegnamento-details {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .docente-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+}
 
-    #navbar {
-        position: relative;
-        padding: 0 1rem;
-        flex-direction: row; /* Mantiene layout orizzontale */
-        height: auto;
-        min-height: 10vh;
-    }
-    
-    .hamburger-menu {
-        display: flex;
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        right: 1rem;
-        z-index: 20;
-    }
-    
-    .navbar-nav {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        width: 100%;
-        background-color: #222;
-        flex-direction: column;
-        align-items: center;
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease-in-out;
-        z-index: 15;
-    }
-    
-    .navbar-nav.open {
-        max-height: 300px; /* Altezza sufficiente per i menu */
-        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
-    }
-    
-    .navbar-nav li {
-        margin: 0.5rem 0;
-        width: 100%;
-        text-align: center;
-    }
-    
-    .nav-right {
-        margin-left: 0;
-    }
-
-    .session-group {
-        padding: 15px;
-        grid-template-columns: 1fr;
-    }
-
-    .control-column {
-        flex: 100%;
-    }
-    
-    .button-container {
-        justify-content: flex-start;
-    }
-    
-    .actions-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .search-box {
-        max-width: 100%;
-        margin-bottom: 1rem;
-    }
-    
-    .filter-options {
-        justify-content: flex-start;
-    }
-
-    .modal-content {
-        width: 95%;
-        padding: 1.5rem;
-    }
-    
-    .grid-container {
-        grid-template-columns: 1fr;
-    }
-    
-    .card {
-        padding: 20px 15px;
-    }
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .cds-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }

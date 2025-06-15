@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Gestione degli insegnamenti del sistema OH-ISSA dell'Università degli Studi di Perugia. Visualizza insegnamenti per corso di studio e relativi docenti assegnati.">
+  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
+  <title>Gestione Insegnamenti - OH-ISSA</title>
+  <link rel="stylesheet" href="static/styles/admin.css">
+  <script src="static/scripts/authCheck.js"></script>
+  <script src="static/scripts/navbarAdmin.js"></script>
+  <script src="static/scripts/footerAdmin.js"></script>
+  <script src="static/scripts/gestioneInsegnamenti.js"></script>
+</head>
+
+<body>
+  <div id="navbar"></div>
+
+  <main>
+    <h1>Gestione Insegnamenti</h1>
+
+    <!-- Selettore Anno Accademico -->
+    <section class="anno-selector">
+      <h3>Selezione Anno Accademico</h3>
+      <div class="anno-controls">
+        <div>
+          <select id="annoSelect">
+            <option value="">Seleziona anno accademico</option>
+          </select>
+        </div>
+        <div id="statusIndicator" class="status-indicator loading">
+          <span id="statusText">Seleziona un anno accademico per visualizzare gli insegnamenti</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sezione filtri e ricerca -->
+    <section class="filters-section" id="filtersSection" style="display: none;">
+      <div class="filters-container">
+        <div class="search-box">
+          <input type="text" id="searchInsegnamento" placeholder="Cerca insegnamento o docente..." class="search-input">
+        </div>
+        <div class="filter-options">
+          <label>
+            <input type="checkbox" id="showOnlyWithoutDocenti" class="filter-checkbox">
+            Mostra solo insegnamenti senza docenti
+          </label>
+          <label>
+            <input type="checkbox" id="showOnlyWithDocenti" class="filter-checkbox">
+            Mostra solo insegnamenti con docenti
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sezione statistiche -->
+    <section class="stats-section" id="statsSection" style="display: none;">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="totalInsegnamenti">0</div>
+          <div class="stat-label">Insegnamenti Totali</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="insegnamentiConDocenti">0</div>
+          <div class="stat-label">Con Docenti</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="insegnamentiSenzaDocenti">0</div>
+          <div class="stat-label">Senza Docenti</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="totalDocenti">0</div>
+          <div class="stat-label">Docenti Coinvolti</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sezione contenuto insegnamenti -->
+    <section class="content-section" id="contentSection" style="display: none;">
+      <div id="cdsContainer" class="cds-container">
+        <!-- Il contenuto verrà generato dinamicamente -->
+      </div>
+    </section>
+
+    <!-- Indicatore di caricamento -->
+    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+      <span class="loading-text">Caricamento insegnamenti...</span>
+    </div>
+
+    <!-- Messaggio nessun risultato -->
+    <div id="noResultsMessage" class="no-results-message" style="display: none;">
+      Nessun insegnamento trovato per l'anno accademico selezionato.
+    </div>
+
+    <div id="responseMessages"></div>
+  </main>
+
+  <footer id="footer"></footer>
+</body>
+
+</html>

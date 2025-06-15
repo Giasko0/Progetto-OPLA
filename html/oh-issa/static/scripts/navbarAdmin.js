@@ -1,4 +1,3 @@
-
 // Funzione per ottenere i dati utente
 async function getUserData() {
   // Controlla prima la cache
@@ -45,6 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <li><a href="/oh-issa/">Dashboard</a></li>
         <li><a href="/oh-issa/import-export.html">Import/Export Dati</a></li>
         <li><a href="/oh-issa/gestioneDate.html">Gestione Date</a></li>
+        <li><a href="/oh-issa/gestioneInsegnamenti.html">Gestione Insegnamenti</a></li>
         <li><a href="/oh-issa/gestioneUtenti.html">Gestione Utenti</a></li>
         <li><a href="/oh-issa/calendarioEsami.html">Calendario Esami</a></li>
         <li id="loginLogoutItem" class="nav-right">
