@@ -17,6 +17,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     await checkAuthAndRedirect();
     updateUIByAuth(currentUserData);
     updatePageTitle(currentUserData);
+    
+    // Gestisci la pagina index se siamo su di essa
+    const currentPage = window.location.pathname.split("/").pop() || "index.html";
+    if (currentPage === "index.html" || currentPage === "") {
+      handleIndexCTA();
+    }
 
     // Configura logout
     const logoutLinks = document.querySelectorAll('a[href="/api/logout"]');
