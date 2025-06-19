@@ -358,7 +358,7 @@ def check_esami_minimi():
         return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
     
     docente = request.args.get('docente')
-    anno = int(request.args.get('anno', 0))
+    anno = int(request.args.get('anno'))
     
     # Docente e anno sono sempre obbligatori
     if not docente or not anno:
