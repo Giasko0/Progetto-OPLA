@@ -94,7 +94,7 @@ function loadCurriculumForCds(cdsCode, anno) {
     
     fetch(`/api/oh-issa/get-curriculum-by-cds?cds=${cdsCode}&anno=${anno}`)
         .then(response => response.json())
-        .then(data => { // data è un array di stringhe curriculum, es: ["GENERALE", "CYBERSECURITY"]
+        .then(data => { // data è un array di oggetti curriculum, es: [{"codice": "GEN", "nome": "CORSO GENERICO"}, {"codice": "E01", "nome": "CYBERSECURITY"}]
             const select = document.getElementById('selectCurriculum');
             select.innerHTML = '<option value="">Seleziona un curriculum</option>';
             
@@ -106,35 +106,13 @@ function loadCurriculumForCds(cdsCode, anno) {
                 return;
             }
 
-            const curriculaOriginali = data;
-            // Filtra i curriculum che includono "gener" (case-insensitive)
-            const curriculaFiltrati = curriculaOriginali.filter(c => !c.toLowerCase().includes('gener'));
-
-            let curriculaDaMostrare = [];
-
-            if (curriculaFiltrati.length > 0) {
-                // Se ci sono curriculum non generali, mostra quelli
-                curriculaDaMostrare = curriculaFiltrati;
-            } else if (curriculaOriginali.length > 0) { 
-                // Altrimenti, se c'erano solo curriculum "generali", mostra quelli
-                curriculaDaMostrare = curriculaOriginali;
-            }
-
-            if (curriculaDaMostrare.length === 0) { 
-                // Caso fallback: nessun curriculum da mostrare (dovrebbe essere coperto dalla prima condizione !data || data.length === 0)
+            // Popola il selettore con tutti i curriculum, ordinati per nome
+            data.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(curriculum => {
                 const option = document.createElement('option');
-                option.disabled = true;
-                option.textContent = "Nessun curriculum disponibile";
+                option.value = curriculum.codice; // Usa il codice come valore
+                option.textContent = curriculum.nome; // Mostra il nome all'utente
                 select.appendChild(option);
-            } else {
-                // Popola il selettore con i curriculum da mostrare, ordinati
-                curriculaDaMostrare.sort().forEach(curriculum => {
-                    const option = document.createElement('option');
-                    option.value = curriculum;
-                    option.textContent = curriculum;
-                    select.appendChild(option);
-                });
-            }
+            });
         })
         .catch(error => {
             console.error('Errore nel caricamento dei curriculum:', error);

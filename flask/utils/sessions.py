@@ -52,15 +52,20 @@ def ottieni_intersezione_sessioni_docente(docente, year, cds_list=None):
         if not cds_list:
             return []
         
-        # Ottieni tutte le sessioni per ciascun CdS
+        # Ottieni tutte le sessioni per ciascun CdS (usando curriculum generico come fallback)
         all_sessions = {}
         for cds_code in cds_list:
             cursor.execute("""
                 SELECT tipo_sessione, inizio, fine 
                 FROM sessioni
-                WHERE cds = %s AND anno_accademico = %s
+                WHERE cds = %s AND anno_accademico = %s 
+                  AND (curriculum_codice = 'GEN' OR curriculum_codice IN (
+                    SELECT DISTINCT curriculum_codice FROM insegnamenti_cds ic
+                    JOIN insegnamento_docente id ON ic.insegnamento = id.insegnamento
+                    WHERE id.docente = %s AND ic.cds = %s AND ic.anno_accademico = %s
+                  ))
                 ORDER BY inizio
-            """, (cds_code, year))
+            """, (cds_code, year, docente, cds_code, year))
             
             all_sessions[cds_code] = {
                 row[0]: {'inizio': row[1], 'fine': row[2]} 

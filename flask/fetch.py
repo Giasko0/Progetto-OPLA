@@ -10,9 +10,6 @@ fetch_bp = Blueprint('fetch', __name__)
 
 def ottieni_insegnamenti_docente(docente, anno_accademico):
     """Ottiene gli insegnamenti di un docente per un anno accademico"""
-    if not anno_accademico:
-        return {}
-    
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -125,7 +122,7 @@ def get_esami():
         is_admin_user = user_data['user_data']['permessi_admin']
         docente = request.args.get('docente')
         insegnamenti = request.args.get('insegnamenti')
-        anno = int(request.args.get('anno', 0))
+        anno = int(request.args.get('anno'))
         
         if not docente or not anno:
             return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
@@ -142,7 +139,7 @@ def get_esami():
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.id
             LEFT JOIN insegnamenti_cds ic ON i.id = ic.insegnamento AND ic.anno_accademico = e.anno_accademico
-            LEFT JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
+            LEFT JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
             LEFT JOIN aule a ON e.aula = a.nome
         """
         
@@ -243,15 +240,6 @@ def get_anni_accademici():
     # Estrae gli anni dalla query e li converte in una lista
     anni = [row[0] for row in cursor.fetchall()]
     
-    # Se non ci sono anni nel database, restituisci l'anno corrente
-    if not anni:
-      current_year = datetime.now().year
-      # Se siamo nel secondo semestre, mostro anche l'anno prossimo
-      if datetime.now().month > 9:
-        anni = [current_year, current_year + 1]
-      else:
-        anni = [current_year]
-    
     return jsonify(anni)
   except Exception as e:
     return jsonify({"error": str(e)}), 500
@@ -269,7 +257,7 @@ def get_date_valide():
             return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
         
         docente = request.args.get('docente')
-        anno = int(request.args.get('anno', 0))
+        anno = int(request.args.get('anno'))
         insegnamenti = request.args.get('insegnamenti')
         
         # Docente e anno sono sempre obbligatori
@@ -296,7 +284,7 @@ def get_date_valide():
 @fetch_bp.route('/api/get-insegnamenti-docente', methods=['GET'])
 def get_insegnamenti_docente():
     docente = request.args.get('docente')
-    anno = int(request.args.get('anno', 0))
+    anno = int(request.args.get('anno'))
     
     if not docente or not anno:
         return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
@@ -316,21 +304,21 @@ def get_insegnamenti_docente():
         
         if is_admin_user:
             cursor.execute("""
-                SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum, 
+                SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum_codice, 
                        ic.semestre, ic.anno_corso
                 FROM insegnamenti i
                 JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
+                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
                 WHERE ic.anno_accademico = %s
                 ORDER BY ic.cds, i.codice
             """, (anno,))
         else:
             cursor.execute("""
-                SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum, 
+                SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum_codice, 
                        ic.semestre, ic.anno_corso
                 FROM insegnamenti i
                 JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
+                JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
                 JOIN insegnamento_docente id ON i.id = id.insegnamento
                 WHERE ic.anno_accademico = %s AND id.annoaccademico = %s AND id.docente = %s
                 ORDER BY ic.cds, i.codice
@@ -339,12 +327,12 @@ def get_insegnamenti_docente():
         # Organizza per CdS
         cds_dict = {}
         for row in cursor.fetchall():
-            ins_id, codice, titolo, cds_code, nome_corso, curriculum, semestre, anno_corso = row
-            cds_key = f"{cds_code}_{curriculum}"
+            ins_id, codice, titolo, cds_code, nome_corso, curriculum_codice, semestre, anno_corso = row
+            cds_key = f"{cds_code}_{curriculum_codice}"
             
             if cds_key not in cds_dict:
                 cds_dict[cds_key] = {
-                    "codice": cds_code, "nome": nome_corso, "curriculum": curriculum, "insegnamenti": []
+                    "codice": cds_code, "nome": nome_corso, "curriculum_codice": curriculum_codice, "insegnamenti": []
                 }
             
             cds_dict[cds_key]["insegnamenti"].append({

@@ -35,9 +35,10 @@ CREATE TABLE cds (
     codice TEXT NOT NULL,                -- Codice del corso di studio (L062)
     anno_accademico INT NOT NULL,        -- Anno accademico (2025 per 2025/2026)
     nome_corso TEXT NOT NULL,            -- Nome del corso di studio (INFORMATICA)
-    curriculum TEXT NOT NULL,            -- Curriculum del corso di studio (CYBERSECURITY)
+    curriculum_codice TEXT NOT NULL,     -- Codice del curriculum (GEN, E01, etc.)
+    curriculum_nome TEXT NOT NULL,       -- Nome del curriculum (CORSO GENERICO, CYBERSECURITY, etc.)
     target_esami INTEGER,                -- Numero target di esami per il corso di studio
-    PRIMARY KEY (codice, anno_accademico, curriculum),
+    PRIMARY KEY (codice, anno_accademico, curriculum_codice),
     CONSTRAINT check_anno_accademico CHECK (anno_accademico >= 1900 AND anno_accademico <= 2100)
 );
 
@@ -45,14 +46,14 @@ CREATE TABLE cds (
 CREATE TABLE sessioni (
     cds TEXT,
     anno_accademico INTEGER,
-    curriculum TEXT,
+    curriculum_codice TEXT,
     tipo_sessione TEXT, -- 'anticipata', 'estiva', 'autunnale', 'invernale'
     inizio DATE NOT NULL,
     fine DATE NOT NULL,
     esami_primo_semestre INTEGER,
     esami_secondo_semestre INTEGER,
-    PRIMARY KEY (cds, anno_accademico, curriculum, tipo_sessione),
-    FOREIGN KEY (cds, anno_accademico, curriculum) REFERENCES cds(codice, anno_accademico, curriculum) ON DELETE CASCADE,
+    PRIMARY KEY (cds, anno_accademico, curriculum_codice, tipo_sessione),
+    FOREIGN KEY (cds, anno_accademico, curriculum_codice) REFERENCES cds(codice, anno_accademico, curriculum_codice) ON DELETE CASCADE,
     CONSTRAINT check_tipo_sessione CHECK (tipo_sessione IN (
         'anticipata', 'estiva', 'autunnale', 'invernale'
     ))
@@ -63,15 +64,15 @@ CREATE TABLE vacanze (
     id SERIAL PRIMARY KEY,
     cds TEXT NOT NULL,
     anno_accademico INTEGER NOT NULL,
-    curriculum TEXT NOT NULL DEFAULT 'CORSO GENERICO',
+    curriculum_codice TEXT NOT NULL DEFAULT 'GEN',
     descrizione TEXT NOT NULL,
     inizio DATE NOT NULL,
     fine DATE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (cds, anno_accademico, curriculum) 
-        REFERENCES cds(codice, anno_accademico, curriculum) 
+    FOREIGN KEY (cds, anno_accademico, curriculum_codice) 
+        REFERENCES cds(codice, anno_accademico, curriculum_codice) 
         ON DELETE CASCADE,
     
     -- Vincolo per verificare che la data di inizio sia precedente alla data di fine
@@ -90,12 +91,12 @@ CREATE TABLE insegnamenti_cds (
     insegnamento TEXT,          -- ID dell'insegnamento
     anno_accademico INT,        -- Anno accademico
     cds TEXT,                   -- Codice del corso di studio
-    curriculum TEXT,            -- Curriculum del corso di studio
+    curriculum_codice TEXT,     -- Codice del curriculum del corso di studio
     anno_corso INT NOT NULL,    -- Anno del corso di studio
     semestre INT NOT NULL,      -- Semestre (Insegnamento annuale = 3)
-    PRIMARY KEY (insegnamento, anno_accademico, cds, curriculum),
+    PRIMARY KEY (insegnamento, anno_accademico, cds, curriculum_codice),
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
-    FOREIGN KEY (cds, anno_accademico, curriculum) REFERENCES cds(codice, anno_accademico, curriculum) ON DELETE CASCADE,
+    FOREIGN KEY (cds, anno_accademico, curriculum_codice) REFERENCES cds(codice, anno_accademico, curriculum_codice) ON DELETE CASCADE,
     CONSTRAINT check_semestre CHECK (semestre IN (1, 2, 3))
 );
 
@@ -131,7 +132,7 @@ CREATE TABLE esami (
     insegnamento TEXT NOT NULL,           -- ID dell'insegnamento (chiave esterna)
     cds TEXT NOT NULL,                    -- Codice del corso di studio
     anno_accademico INT NOT NULL,         -- Anno accademico
-    curriculum TEXT NOT NULL,             -- Curriculum del corso di studio
+    curriculum_codice TEXT NOT NULL,      -- Codice del curriculum del corso di studio
     aula TEXT,                            -- Nome dell'aula dove si svolgerà l'esame (chiave esterna)
     data_appello DATE NOT NULL,           -- Data dell'esame
     data_inizio_iscrizione DATE NOT NULL, -- Data di apertura iscrizioni
@@ -155,7 +156,7 @@ CREATE TABLE esami (
     FOREIGN KEY (docente) REFERENCES utenti(username) ON DELETE CASCADE,
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
     FOREIGN KEY (aula) REFERENCES aule(nome) ON DELETE SET NULL,
-    FOREIGN KEY (cds, anno_accademico, curriculum) REFERENCES cds(codice, anno_accademico, curriculum) ON DELETE CASCADE,
+    FOREIGN KEY (cds, anno_accademico, curriculum_codice) REFERENCES cds(codice, anno_accademico, curriculum_codice) ON DELETE CASCADE,
     CONSTRAINT check_date_esami CHECK (
         data_inizio_iscrizione <= data_fine_iscrizione 
         AND data_fine_iscrizione <= data_appello
@@ -168,7 +169,7 @@ CREATE TABLE esami (
 CREATE INDEX idx_esami_data_appello ON esami(data_appello);
 CREATE INDEX idx_esami_docente ON esami(docente);
 CREATE INDEX idx_esami_insegnamento ON esami(insegnamento);
-CREATE INDEX idx_esami_cds_anno_curriculum ON esami(cds, anno_accademico, curriculum);
+CREATE INDEX idx_esami_cds_anno_curriculum ON esami(cds, anno_accademico, curriculum_codice);
 CREATE INDEX idx_esami_aula_data_periodo ON esami(aula, data_appello, periodo);
 CREATE INDEX idx_esami_periodo ON esami(periodo);
 CREATE INDEX idx_esami_data_iscrizione ON esami(data_inizio_iscrizione, data_fine_iscrizione);
@@ -181,7 +182,7 @@ CREATE INDEX idx_esami_insegnamento_data ON esami(insegnamento, data_appello);
 CREATE INDEX idx_insegnamenti_cds_anno_semestre ON insegnamenti_cds(anno_corso, semestre);
 CREATE INDEX idx_insegnamenti_cds_anno_accademico ON insegnamenti_cds(anno_accademico);
 CREATE INDEX idx_insegnamenti_cds_cds ON insegnamenti_cds(cds);
-CREATE INDEX idx_insegnamenti_cds_curriculum ON insegnamenti_cds(curriculum);
+CREATE INDEX idx_insegnamenti_cds_curriculum ON insegnamenti_cds(curriculum_codice);
 
 -- Indici per la tabella 'insegnamento_docente'
 CREATE INDEX idx_insegnamento_docente_anno ON insegnamento_docente(annoaccademico);
@@ -216,7 +217,7 @@ CREATE INDEX idx_cds_anno ON cds(anno_accademico);
 CREATE INDEX idx_cds_nome ON cds(nome_corso);
 
 -- Indici per la tabella 'vacanze'
-CREATE INDEX idx_vacanze_cds_anno ON vacanze(cds, anno_accademico, curriculum);
+CREATE INDEX idx_vacanze_cds_anno ON vacanze(cds, anno_accademico, curriculum_codice);
 CREATE INDEX idx_vacanze_date_range ON vacanze(inizio, fine);
 CREATE INDEX idx_vacanze_anno ON vacanze(anno_accademico);
 
@@ -224,17 +225,15 @@ CREATE INDEX idx_vacanze_anno ON vacanze(anno_accademico);
 INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', 'password', true);
 
 -- Inserimento dei corsi di studio default
-INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum) VALUES
-('L062', 2023, 'INFORMATICA', 'CORSO GENERICO'),
-('L062', 2024, 'INFORMATICA', 'CORSO GENERICO');
+INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum_codice, curriculum_nome) VALUES
+('L062', 2024, 'INFORMATICA', 'GEN', 'CORSO GENERICO');
 
 -- Inserimento delle sessioni di prova
-INSERT INTO sessioni (cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre) VALUES
-('L062', 2023, 'CORSO GENERICO', 'invernale', '2025-01-07', '2025-02-22', 2, 3),
-('L062', 2024, 'CORSO GENERICO', 'anticipata', '2025-01-07', '2025-02-22', 2, 0),
-('L062', 2024, 'CORSO GENERICO', 'estiva', '2025-06-10', '2025-07-25', 2, 3),
-('L062', 2024, 'CORSO GENERICO', 'autunnale', '2025-09-01', '2025-9-30', 2, 2),
-('L062', 2024, 'CORSO GENERICO', 'invernale', '2026-01-10', '2026-02-25', 2, 3);
+INSERT INTO sessioni (cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre) VALUES
+('L062', 2024, 'GEN', 'anticipata', '2025-01-07', '2025-02-22', 2, 0),
+('L062', 2024, 'GEN', 'estiva', '2025-06-10', '2025-07-25', 2, 3),
+('L062', 2024, 'GEN', 'autunnale', '2025-09-01', '2025-9-30', 2, 2),
+('L062', 2024, 'GEN', 'invernale', '2026-01-10', '2026-02-25', 2, 3);
 
 -- Inserimento delle aule
 INSERT INTO aule (nome, codice_esse3, codice_easyacademy, sede, edificio, posti) VALUES

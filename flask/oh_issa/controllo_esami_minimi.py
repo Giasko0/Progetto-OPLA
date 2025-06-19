@@ -77,7 +77,7 @@ def controlla_esami_minimi():
                 i.titolo as insegnamento_titolo,
                 ic.cds as cds_codice,
                 c.nome_corso as cds_nome,
-                ic.curriculum,
+                ic.curriculum_codice,
                 ic.anno_corso,
                 ic.semestre,
                 COUNT(CASE WHEN e.mostra_nel_calendario = TRUE AND e.tipo_appello != 'PP' THEN e.id END) as numero_esami,
@@ -86,10 +86,10 @@ def controlla_esami_minimi():
                 u.cognome as docente_cognome
             FROM insegnamenti i
             JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-            JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum = c.curriculum
+            JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
             LEFT JOIN insegnamento_docente id ON i.id = id.insegnamento AND id.annoaccademico = %s
             LEFT JOIN utenti u ON id.docente = u.username
-            LEFT JOIN esami e ON i.id = e.insegnamento AND e.anno_accademico = %s AND e.cds = ic.cds AND e.curriculum = ic.curriculum
+            LEFT JOIN esami e ON i.id = e.insegnamento AND e.anno_accademico = %s AND e.cds = ic.cds AND e.curriculum_codice = ic.curriculum_codice
             WHERE ic.anno_accademico = %s
         """
         
@@ -105,7 +105,7 @@ def controlla_esami_minimi():
             params.append(docente_filter)
         
         base_query += """
-            GROUP BY i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum, 
+            GROUP BY i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum_codice, 
                      ic.anno_corso, ic.semestre, u.username, u.nome, u.cognome
             ORDER BY ic.cds, i.titolo, u.cognome, u.nome
         """
@@ -117,7 +117,7 @@ def controlla_esami_minimi():
         insegnamenti_dict = {}
         
         for row in rows:
-            ins_key = f"{row['insegnamento_id']}_{row['cds_codice']}_{row['curriculum']}"
+            ins_key = f"{row['insegnamento_id']}_{row['cds_codice']}_{row['curriculum_codice']}"
             
             if ins_key not in insegnamenti_dict:
                 insegnamenti_dict[ins_key] = {
@@ -126,7 +126,7 @@ def controlla_esami_minimi():
                     'titolo': row['insegnamento_titolo'],
                     'cds_codice': row['cds_codice'],
                     'cds_nome': row['cds_nome'],
-                    'curriculum': row['curriculum'],
+                    'curriculum_codice': row['curriculum_codice'],
                     'anno_corso': row['anno_corso'],
                     'semestre': row['semestre'],
                     'numero_esami': row['numero_esami'],

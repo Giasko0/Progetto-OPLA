@@ -23,8 +23,10 @@ def check_user_permissions(exam_docente, username, is_admin):
 
 def check_exam_modifiable(exam_date):
     """Controlla se l'esame può essere modificato (almeno 7 giorni nel futuro)."""
-    today = datetime.now().date()
-    return (exam_date - today).days >= 7
+    # DISABILITATO: Controllo dei 7 giorni per modificabilità esame
+    # today = datetime.now().date()
+    # return (exam_date - today).days >= 7
+    return True  # Permetti sempre la modifica
 
 def get_user_admin_status(username):
     """Ottiene lo status admin dell'utente dal database."""
@@ -268,12 +270,12 @@ def inserisci_esami(dati_esame):
             
             # Ottieni info CDS
             cursor.execute("""
-                SELECT cds, curriculum FROM insegnamenti_cds 
+                SELECT cds, curriculum_codice FROM insegnamenti_cds 
                 WHERE insegnamento = %s AND anno_accademico = %s LIMIT 1
             """, (insegnamento_id, anno_accademico))
             
             cds_info = cursor.fetchone()
-            cds, curriculum = cds_info
+            cds, curriculum_codice = cds_info
             
             # Inserimento
             cursor.execute("""
@@ -283,7 +285,7 @@ def inserisci_esami(dati_esame):
                  verbalizzazione, descrizione, note_appello, tipo_appello, 
                  definizione_appello, gestione_prenotazione, riservato, 
                  tipo_iscrizione, periodo, durata_appello, cds, anno_accademico, 
-                 curriculum, mostra_nel_calendario)
+                 curriculum_codice, mostra_nel_calendario)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 docente, insegnamento_id, sezione['aula'], sezione['data_appello'],
@@ -292,7 +294,7 @@ def inserisci_esami(dati_esame):
                 sezione['note_appello'], sezione['tipo_appello'], sezione['definizione_appello'],
                 sezione['gestione_prenotazione'], sezione['riservato'], sezione['tipo_iscrizione'],
                 sezione['periodo'], sezione['durata_appello'], cds, anno_accademico,
-                curriculum, sezione['mostra_nel_calendario']
+                curriculum_codice, sezione['mostra_nel_calendario']
             ))
             
             esami_inseriti.append(f"{titolo_insegnamento} - {sezione['data_appello']}")
@@ -361,7 +363,7 @@ def get_esame_by_id():
     FROM esami e
     JOIN insegnamenti i ON e.insegnamento = i.id
     JOIN cds c ON e.cds = c.codice AND e.anno_accademico = c.anno_accademico 
-               AND e.curriculum = c.curriculum
+               AND e.curriculum_codice = c.curriculum_codice
     WHERE e.id = %s
     """, (exam_id,))
     

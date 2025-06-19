@@ -70,13 +70,14 @@ def save_cds_dates():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Semplifichiamo usando sempre "CORSO GENERICO" come curriculum
-    curriculum = "CORSO GENERICO"
+    # Usa sempre "GEN" come curriculum generico
+    curriculum_codice = "GEN"
+    curriculum_nome = "CORSO GENERICO"
     
     # Verifica se esistono record per questo corso e anno accademico
     cursor.execute(
-      "SELECT COUNT(*) FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum = %s",
-      (codice_cds, anno_accademico, curriculum)
+      "SELECT COUNT(*) FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s",
+      (codice_cds, anno_accademico, curriculum_codice)
     )
     count = cursor.fetchone()[0]
     exists = count > 0
@@ -86,31 +87,33 @@ def save_cds_dates():
       cursor.execute("""
         UPDATE cds SET 
           nome_corso = %s,
-          target_esami = %s
-        WHERE codice = %s AND anno_accademico = %s AND curriculum = %s
+          target_esami = %s,
+          curriculum_nome = %s
+        WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s
       """, (
         nome_corso, 
         target_esami,
-        codice_cds, anno_accademico, curriculum
+        curriculum_nome,
+        codice_cds, anno_accademico, curriculum_codice
       ))
       message = f"Date del corso {codice_cds} per l'anno accademico {anno_accademico} aggiornate con successo"
     else:
       cursor.execute("""
         INSERT INTO cds (
-          codice, anno_accademico, nome_corso, curriculum, target_esami
+          codice, anno_accademico, nome_corso, curriculum_codice, curriculum_nome, target_esami
         ) VALUES (
-          %s, %s, %s, %s, %s
+          %s, %s, %s, %s, %s, %s
         )
       """, (
-        codice_cds, anno_accademico, nome_corso, curriculum, target_esami
+        codice_cds, anno_accademico, nome_corso, curriculum_codice, curriculum_nome, target_esami
       ))
       message = f"Nuovo corso {codice_cds} per l'anno accademico {anno_accademico} creato con successo"
     
     # Elimina tutte le sessioni esistenti per questo CDS e anno accademico
     cursor.execute("""
       DELETE FROM sessioni 
-      WHERE cds = %s AND anno_accademico = %s AND curriculum = %s
-    """, (codice_cds, anno_accademico, curriculum))
+      WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s
+    """, (codice_cds, anno_accademico, curriculum_codice))
     
     # Prepara le sessioni da inserire con i relativi limiti esami
     sessioni = []
@@ -125,7 +128,7 @@ def save_cds_dates():
         
         # Semplifichiamo il controllo: verifichiamo solo se esiste un record CDS per l'anno precedente
         cursor.execute(
-          "SELECT COUNT(*) FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum = %s",
+          "SELECT COUNT(*) FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s",
           (codice_cds, anno_precedente, curriculum)
         )
         exists_prev_year = cursor.fetchone()[0] > 0
@@ -145,7 +148,7 @@ def save_cds_dates():
         # In entrambi i casi, eliminiamo eventuali periodi invernali esistenti
         cursor.execute("""
           DELETE FROM sessioni 
-          WHERE cds = %s AND anno_accademico = %s AND curriculum = %s AND tipo_sessione = 'invernale'
+          WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s AND tipo_sessione = 'invernale'
         """, (codice_cds, anno_precedente, curriculum))
         
         # E inseriamo la nuova sessione invernale per l'anno precedente
@@ -169,15 +172,15 @@ def save_cds_dates():
     # Inserisci le sessioni d'esame
     for tipo_sessione, inizio, fine, esami_primo, esami_secondo in sessioni:
       cursor.execute("""
-        INSERT INTO sessioni (cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre)
+        INSERT INTO sessioni (cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-      """, (codice_cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo, esami_secondo))
+      """, (codice_cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo, esami_secondo))
     
     # Elimina tutte le vacanze esistenti per questo CDS e anno accademico
     cursor.execute("""
       DELETE FROM vacanze 
-      WHERE cds = %s AND anno_accademico = %s AND curriculum = %s
-    """, (codice_cds, anno_accademico, curriculum))
+      WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s
+    """, (codice_cds, anno_accademico, curriculum_codice))
     
     # Estrai i periodi di vacanza
     vacanze = data.get('vacanze', [])
@@ -206,9 +209,9 @@ def save_cds_dates():
         return jsonify({'status': 'error', 'message': f'Formato date non valido per: {descrizione}'}), 400
       
       cursor.execute("""
-        INSERT INTO vacanze (cds, anno_accademico, curriculum, descrizione, inizio, fine)
+        INSERT INTO vacanze (cds, anno_accademico, curriculum_codice, descrizione, inizio, fine)
         VALUES (%s, %s, %s, %s, %s, %s)
-      """, (codice_cds, anno_accademico, curriculum, descrizione, inizio, fine))
+      """, (codice_cds, anno_accademico, curriculum_codice, descrizione, inizio, fine))
     
     # Commit delle modifiche
     conn.commit()

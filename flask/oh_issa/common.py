@@ -18,13 +18,14 @@ def get_cds_by_anno():
     cursor = conn.cursor()
     
     cursor.execute("""
-      SELECT DISTINCT ON (codice) codice, nome_corso, anno_accademico
+      SELECT DISTINCT ON (codice) codice, nome_corso, anno_accademico, curriculum_codice, curriculum_nome
       FROM cds
       WHERE anno_accademico = %s
       ORDER BY codice, nome_corso
     """, (anno,))
     
-    cds_list = [{"codice": row[0], "nome_corso": row[1], "anno_accademico": row[2]} for row in cursor.fetchall()]
+    cds_list = [{"codice": row[0], "nome_corso": row[1], "anno_accademico": row[2], 
+                "curriculum_codice": row[3], "curriculum_nome": row[4]} for row in cursor.fetchall()]
     return jsonify(cds_list)
   except Exception as e:
     return jsonify({"error": str(e)}), 500

@@ -24,13 +24,13 @@ def get_curriculum_by_cds():
         cursor = conn.cursor(cursor_factory=DictCursor)
         
         cursor.execute("""
-            SELECT DISTINCT curriculum
+            SELECT DISTINCT curriculum_codice, curriculum_nome
             FROM cds
             WHERE codice = %s AND anno_accademico = %s
-            ORDER BY curriculum
+            ORDER BY curriculum_codice
         """, (cds_code, anno_accademico))
         
-        curriculum_list = [row['curriculum'] for row in cursor.fetchall()]
+        curriculum_list = [{'codice': row['curriculum_codice'], 'nome': row['curriculum_nome']} for row in cursor.fetchall()]
         
         return jsonify(curriculum_list)
     except Exception as e:
@@ -58,9 +58,9 @@ def get_calendario_esami():
     
     # Ottieni i dettagli del corso di studi
     cursor.execute("""
-      SELECT nome_corso, curriculum
+      SELECT nome_corso, curriculum_codice, curriculum_nome
       FROM cds
-      WHERE codice = %s AND anno_accademico = %s AND curriculum = %s
+      WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s
     """, (cds_code, anno_accademico, curriculum))
     
     cds_info = cursor.fetchone()
@@ -70,20 +70,20 @@ def get_calendario_esami():
     # Ottieni tutti gli insegnamenti per il curriculum selezionato + curriculum generale
     # Filtra solo gli esami con mostra_nel_calendario = TRUE
     cursor.execute("""
-      SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre, ic.curriculum,
+      SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre, ic.curriculum_codice,
            COALESCE(e.data_appello, NULL) as data_appello
       FROM insegnamenti i
       JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
       LEFT JOIN esami e ON i.id = e.insegnamento
                         AND e.cds = %s
                         AND e.anno_accademico = %s
-                        AND e.curriculum IN (%s, (SELECT curriculum FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum ILIKE '%%gener%%' LIMIT 1))
+                        AND e.curriculum_codice IN (%s, 'GEN')
                         AND e.data_appello >= %s
                         AND e.mostra_nel_calendario = TRUE
       WHERE ic.cds = %s AND ic.anno_accademico = %s 
-        AND (ic.curriculum = %s OR ic.curriculum ILIKE '%%gener%%')
+        AND (ic.curriculum_codice = %s OR ic.curriculum_codice = 'GEN')
       ORDER BY ic.anno_corso, i.titolo
-    """, (cds_code, anno_accademico, curriculum, cds_code, anno_accademico, f"{anno_accademico}-01-01", 
+    """, (cds_code, anno_accademico, curriculum, f"{anno_accademico}-01-01", 
           cds_code, anno_accademico, curriculum))
     
     insegnamenti_raw = cursor.fetchall()
@@ -101,7 +101,7 @@ def get_calendario_esami():
           'titolo': row['titolo'],
           'anno_corso': row['anno_corso'],
           'semestre': row['semestre'],
-          'curriculum': row['curriculum'],
+          'curriculum_codice': row['curriculum_codice'],
           'esami': []
         })
         esami_per_insegnamento[id_insegnamento] = insegnamenti[-1]['esami']
@@ -117,7 +117,7 @@ def get_calendario_esami():
       SELECT tipo_sessione, inizio, fine
       FROM sessioni
       WHERE cds = %s AND anno_accademico = %s 
-        AND (curriculum = %s OR curriculum ILIKE '%%gener%%')
+        AND (curriculum_codice = %s OR curriculum_codice = 'GEN')
       ORDER BY inizio
     """, (cds_code, anno_accademico, curriculum))
     
@@ -144,7 +144,7 @@ def get_calendario_esami():
         SELECT inizio, fine
         FROM sessioni
         WHERE cds = %s AND anno_accademico = %s AND tipo_sessione = 'invernale'
-          AND (curriculum = %s OR curriculum ILIKE '%%gener%%')
+          AND (curriculum_codice = %s OR curriculum_codice = 'GEN')
       """, (cds_code, int(anno_accademico) - 1, curriculum))
       
       sessione_precedente = cursor.fetchone()
@@ -154,7 +154,7 @@ def get_calendario_esami():
     
     return jsonify({
       'nome_corso': cds_info['nome_corso'],
-      'curriculum': cds_info['curriculum'],
+      'curriculum': cds_info['curriculum_nome'],
       'insegnamenti': insegnamenti,
       'sessioni': sessioni_calendario
     })
@@ -186,8 +186,8 @@ def esporta_calendario_esami():
         cursor = conn.cursor(cursor_factory=DictCursor)
         
         cursor.execute("""
-            SELECT nome_corso, curriculum FROM cds
-            WHERE codice = %s AND anno_accademico = %s AND curriculum = %s
+            SELECT nome_corso, curriculum_codice, curriculum_nome FROM cds
+            WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s
         """, (cds_code, anno_accademico, curriculum))
         
         cds_info = cursor.fetchone()
@@ -195,18 +195,18 @@ def esporta_calendario_esami():
             return jsonify({'error': 'Corso di studi non trovato'}), 404
         
         cursor.execute("""
-            SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre, ic.curriculum,
+            SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre, ic.curriculum_codice,
                    COALESCE(e.data_appello, NULL) as data_appello
             FROM insegnamenti i
             JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
             LEFT JOIN esami e ON i.id = e.insegnamento
                               AND e.cds = %s AND e.anno_accademico = %s
-                              AND e.curriculum IN (%s, (SELECT curriculum FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum ILIKE '%%gener%%' LIMIT 1))
+                              AND e.curriculum_codice IN (%s, 'GEN')
                               AND e.data_appello >= %s AND e.mostra_nel_calendario = TRUE
             WHERE ic.cds = %s AND ic.anno_accademico = %s 
-              AND (ic.curriculum = %s OR ic.curriculum ILIKE '%%gener%%')
+              AND (ic.curriculum_codice = %s OR ic.curriculum_codice = 'GEN')
             ORDER BY ic.anno_corso, i.titolo
-        """, (cds_code, anno_accademico, curriculum, cds_code, anno_accademico, f"{anno_accademico}-01-01", 
+        """, (cds_code, anno_accademico, curriculum, f"{anno_accademico}-01-01", 
               cds_code, anno_accademico, curriculum))
         
         insegnamenti_raw = cursor.fetchall()
@@ -214,7 +214,7 @@ def esporta_calendario_esami():
         cursor.execute("""
             SELECT tipo_sessione, inizio, fine FROM sessioni
             WHERE cds = %s AND anno_accademico = %s 
-              AND (curriculum = %s OR curriculum ILIKE '%%gener%%')
+              AND (curriculum_codice = %s OR curriculum_codice = 'GEN')
             ORDER BY inizio
         """, (cds_code, anno_accademico, curriculum))
         
@@ -245,7 +245,7 @@ def esporta_calendario_esami():
                     'titolo': row['titolo'],
                     'anno_corso': row['anno_corso'],
                     'semestre': row['semestre'],
-                    'curriculum': row['curriculum'],
+                    'curriculum_codice': row['curriculum_codice'],
                     'esami': []
                 })
                 esami_per_insegnamento[id_insegnamento] = insegnamenti[-1]['esami']
