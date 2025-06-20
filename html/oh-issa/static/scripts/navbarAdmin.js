@@ -34,7 +34,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (navbarContainer) {
     // Crea la struttura base della navbar
     const navbarHTML = `
-      <a class="navbar-brand" href="/oh-issa/">OH-ISSA</a>
+      <a class="navbar-brand" href="/oh-issa/">
+        <span class="material-symbols-outlined">school</span>
+        OH-ISSA
+      </a>
       <button class="hamburger-menu" aria-label="Menu di navigazione">
         <span></span>
         <span></span>
