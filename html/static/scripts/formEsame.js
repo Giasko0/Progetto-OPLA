@@ -48,7 +48,10 @@ const EsameForm = (function() {
     
     // Setup listener comuni
     setupCommonListeners();
-    
+    setTimeout(() => {
+      window.closeSidebar();
+    }, 200);
+
     return true;
   }
 

@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <option value="12">12 ore</option>
                   </select>
                   <select id="durata_m_COUNTER_PLACEHOLDER" name="durata_m[]" class="form-input" required>
-                    <option value="0" selected>0 minuti</option>
+                    <option value="00" selected>0 minuti</option>
                     <option value="15">15 minuti</option>
                     <option value="30">30 minuti</option>
                     <option value="45">45 minuti</option>
@@ -298,7 +298,16 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         {
           element: oraH,
-          events: [{ type: 'change', handler: () => updateAuleForSection(counter) }]
+          events: [{ 
+            type: 'change', 
+            handler: () => {
+              // Imposta automaticamente i minuti a "00" quando viene selezionata un'ora
+              if (oraM && oraH.value && oraM.value === '') {
+                oraM.value = '00';
+              }
+              updateAuleForSection(counter);
+            }
+          }]
         },
         {
           element: oraM,
@@ -670,54 +679,41 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    function updateAuleForSection(counter) {
-      return new Promise((resolve) => {
-        const dateInput = document.getElementById(`dataora_${counter}`);
-        const oraH = document.getElementById(`ora_h_${counter}`);
-        const oraM = document.getElementById(`ora_m_${counter}`);
-        const aulaSelect = document.getElementById(`aula_${counter}`);
+    async function updateAuleForSection(sectionCounter) {
+      const aulaSelect = document.getElementById(`aula_${sectionCounter}`);
+      const dataField = document.getElementById(`dataora_${sectionCounter}`);
+      const oraH = document.getElementById(`ora_h_${sectionCounter}`);
+      const oraM = document.getElementById(`ora_m_${sectionCounter}`);
+      const durataH = document.getElementById(`durata_h_${sectionCounter}`);
+      const durataM = document.getElementById(`durata_m_${sectionCounter}`);
+
+      if (!dataField.value || !oraH.value || oraH.value === "") {
+        let message = "Seleziona prima la data e l'ora";
+        if (!dataField.value) message = "Seleziona prima la data";
+        else if (!oraH.value || oraH.value === "") message = "Seleziona prima l'ora";
         
-        if (!dateInput || !oraH || !oraM || !aulaSelect) {
-          resolve();
-          return;
-        }
-        
-        const data = dateInput.value;
-        const ora_hValue = oraH.value;
-        const ora_mValue = oraM.value;
-        
-        if (!data) {
-          aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima una data</option>';
-          resolve();
-          return;
-        }
-        
-        if (!ora_hValue || !ora_mValue) {
-          aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima un\'ora</option>';
-          resolve();
-          return;
-        }
-        
-        aulaSelect.innerHTML = '<option value="" disabled selected hidden>Caricamento aule in corso...</option>';
-        
-        const periodo = parseInt(ora_hValue) >= 14 ? 1 : 0;
-        
-        loadAuleForDateTime(data, periodo)
-          .then(aule => {
-            populateAulaSelect(aulaSelect, aule, true);
-            setupAulaChangeListener(aulaSelect, data);
-            resolve();
-          })
-          .catch(error => {
-            aulaSelect.innerHTML = '<option value="" disabled selected>Errore nel caricamento delle aule</option>';
-            
-            const option = document.createElement("option");
-            option.value = "Studio docente DMI";
-            option.textContent = "Studio docente DMI";
-            aulaSelect.appendChild(option);
-            resolve();
-          });
-      });
+        populateAulaSelect(sectionCounter, [], message, true);
+        return;
+      }
+
+      const data = dataField.value;
+      const ora = `${oraH.value}:${oraM.value}`;
+      const durata = `${durataH.value}:${durataM.value}`;
+
+      // Caricamento aule
+      aulaSelect.innerHTML = '<option value="" disabled selected hidden>Caricamento aule in corso...</option>';
+      
+      const periodo = parseInt(oraH.value) >= 14 ? 1 : 0;
+      
+      loadAuleForDateTime(data, periodo)
+        .then(aule => {
+          populateAulaSelect(aulaSelect, aule);
+          setupAulaChangeListener(aulaSelect, data);
+        })
+        .catch(error => {
+          console.error(`Errore nel caricamento aule per la sezione ${sectionCounter}:`, error);
+          aulaSelect.innerHTML = '<option value="" disabled selected hidden>Errore nel caricamento aule</option>';
+        });
     }
 
     // Funzione helper per setup listener aula

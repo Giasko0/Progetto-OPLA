@@ -37,6 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
       clearContainer("notificationsContainer", true);
     window.clearAlerts = () => clearContainer("alertsContainer", false);
     window.toggleSidebar = toggleSidebar;
+    window.closeSidebar = closeSidebar;
   }
 
   // Aggiorna il badge di notifiche
