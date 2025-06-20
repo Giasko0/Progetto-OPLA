@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Gestione delle Date Globali nel sistema OH-ISSA dell'Università degli Studi di Perugia. Configura date che si applicano a tutti i corsi di studio dell'ateneo.">
+  <title>Gestione Date Globali - OH-ISSA</title>
+  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+  <link rel="stylesheet" href="static/styles/admin.css">
+  <script src="static/scripts/authCheck.js"></script>
+  <script src="static/scripts/navbarAdmin.js"></script>
+  <script src="static/scripts/footerAdmin.js"></script>
+  <script src="static/scripts/gestioneDateGlobali.js"></script>
+</head>
+
+<body>
+  <div id="navbar"></div>
+
+  <main>
+    <h1>Gestione Date Globali</h1>
+
+    <!-- Sezione per selezionare anno accademico -->
+    <section class="selector-section">
+      <div class="form-group">
+        <label for="selectAnnoAccademico">Anno Accademico:</label>
+        <select id="selectAnnoAccademico" onchange="loadAnnoAccademicoDetails(this.value)">
+          <option value="">Seleziona anno accademico</option>
+          <!-- Opzioni caricate dinamicamente -->
+        </select>
+      </div>
+    </section>
+
+    <section class="form-section" id="globalDatesFormContainer" style="display: none;">
+      <h2>Configurazione Date Globali</h2>
+
+      <!-- Informazioni dell'anno accademico (solo visualizzazione) -->
+      <div id="annoInfoContainer" class="info-container">
+        <!-- Il contenuto verrà generato dinamicamente da JavaScript -->
+      </div>
+
+      <form id="globalDatesForm">
+        <!-- Campo nascosto per anno accademico -->
+        <input type="hidden" id="anno_accademico" name="anno_accademico">
+
+        <!-- Configurazione Target Esami -->
+        <fieldset>
+          <legend>Configurazione Target Esami</legend>
+          
+          <div class="form-group">
+            <label for="target_esami_default">Numero Target Esami di Default:</label>
+            <input type="number" id="target_esami_default" name="target_esami_default" min="0" placeholder="es. 8">
+            <small class="form-text">Numero indicativo di default del totale di esami previsti per i corsi di studio</small>
+          </div>
+        </fieldset>
+
+        <!-- Periodi di Vacanza Globali -->
+        <fieldset>
+          <legend>Periodi di Vacanza Globali</legend>
+          <p class="form-text">Definisci i periodi di vacanza che si applicano a tutti i corsi di studio dell'ateneo</p>
+          
+          <div id="vacanze-container">
+            <!-- I periodi di vacanza verranno aggiunti dinamicamente qui -->
+          </div>
+          
+          <div class="vacanza-actions">
+            <button type="button" id="addVacanzaBtn" class="btn">+ Aggiungi Periodo di Vacanza</button>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button type="submit" class="btn primary">Salva Configurazione</button>
+          <button type="button" id="resetForm" class="btn">Reset</button>
+          <button type="button" id="copyFromPreviousYear" class="btn">Copia da Anno Precedente</button>
+        </div>
+      </form>
+    </section>
+
+    <div id="responseMessages"></div>
+  </main>
+
+  <footer id="footer"></footer>
+
+  <!-- Modal per copiare da anno precedente -->
+  <div id="copyFromPreviousModal" class="modal">
+    <div class="modal-content">
+      <h2>Copia da Anno Precedente</h2>
+      <p>Seleziona l'anno accademico da cui copiare le configurazioni:</p>
+      
+      <div class="form-group">
+        <label for="sourceYear">Anno Accademico:</label>
+        <select id="sourceYear">
+          <option value="">Seleziona anno accademico</option>
+          <!-- Opzioni caricate dinamicamente -->
+        </select>
+      </div>
+      
+      <div class="modal-actions">
+        <button id="confirmCopyYear" class="btn primary">Copia</button>
+        <button id="cancelCopyYear" class="btn">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal per confermare il reset del form -->
+  <div id="resetConfirmModal" class="modal">
+    <div class="modal-content">
+      <h2>Conferma reset</h2>
+      <p>Sei sicuro di voler annullare le modifiche e ripristinare i dati originali?</p>
+      
+      <div class="modal-actions">
+        <button id="confirmReset" class="btn primary">Conferma</button>
+        <button id="cancelReset" class="btn">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template per le vacanze globali (nascosto) -->
+  <template id="vacanza-template">
+    <div class="vacanza-item">
+      <div class="vacanza-header">
+        <h5>Periodo di Vacanza</h5>
+        <button type="button" class="btn danger small remove-vacanza">Rimuovi</button>
+      </div>
+      <div class="vacanza-content">
+        <div class="form-group">
+          <label>Descrizione:</label>
+          <input type="text" class="vacanza-descrizione" placeholder="es. Vacanze Natalizie, Vacanze Pasquali">
+        </div>
+        <div class="vacanza-dates">
+          <div>
+            <label>Data Inizio:</label>
+            <input type="date" class="vacanza-inizio">
+          </div>
+          <div>
+            <label>Data Fine:</label>
+            <input type="date" class="vacanza-fine">
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+</body>
+
+</html>

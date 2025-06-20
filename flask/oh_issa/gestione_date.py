@@ -32,9 +32,6 @@ def save_cds_dates():
     if not nome_corso:
       return jsonify({'status': 'error', 'message': 'Nome corso mancante'}), 400
     
-    # Target esami per il CdS
-    target_esami = data.get('target_esami') or None
-    
     # Date di sessioni d'esame
     anticipata_inizio = data.get('anticipata_inizio') or None
     anticipata_fine = data.get('anticipata_fine') or None
@@ -87,12 +84,10 @@ def save_cds_dates():
       cursor.execute("""
         UPDATE cds SET 
           nome_corso = %s,
-          target_esami = %s,
           curriculum_nome = %s
         WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s
       """, (
         nome_corso, 
-        target_esami,
         curriculum_nome,
         codice_cds, anno_accademico, curriculum_codice
       ))
@@ -100,12 +95,12 @@ def save_cds_dates():
     else:
       cursor.execute("""
         INSERT INTO cds (
-          codice, anno_accademico, nome_corso, curriculum_codice, curriculum_nome, target_esami
+          codice, anno_accademico, nome_corso, curriculum_codice, curriculum_nome
         ) VALUES (
-          %s, %s, %s, %s, %s, %s
+          %s, %s, %s, %s, %s
         )
       """, (
-        codice_cds, anno_accademico, nome_corso, curriculum_codice, curriculum_nome, target_esami
+        codice_cds, anno_accademico, nome_corso, curriculum_codice, curriculum_nome
       ))
       message = f"Nuovo corso {codice_cds} per l'anno accademico {anno_accademico} creato con successo"
     
@@ -129,7 +124,7 @@ def save_cds_dates():
         # Semplifichiamo il controllo: verifichiamo solo se esiste un record CDS per l'anno precedente
         cursor.execute(
           "SELECT COUNT(*) FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s",
-          (codice_cds, anno_precedente, curriculum)
+          (codice_cds, anno_precedente, curriculum_codice)
         )
         exists_prev_year = cursor.fetchone()[0] > 0
         
@@ -137,25 +132,25 @@ def save_cds_dates():
           # Se non esiste, creiamo un record base
           cursor.execute("""
             INSERT INTO cds (
-              codice, anno_accademico, nome_corso, curriculum
+              codice, anno_accademico, nome_corso, curriculum_codice, curriculum_nome
             ) VALUES (
-              %s, %s, %s, %s
+              %s, %s, %s, %s, %s
             )
           """, (
-            codice_cds, anno_precedente, nome_corso, curriculum
+            codice_cds, anno_precedente, nome_corso, curriculum_codice, curriculum_nome
           ))
         
         # In entrambi i casi, eliminiamo eventuali periodi invernali esistenti
         cursor.execute("""
           DELETE FROM sessioni 
           WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s AND tipo_sessione = 'invernale'
-        """, (codice_cds, anno_precedente, curriculum))
+        """, (codice_cds, anno_precedente, curriculum_codice))
         
         # E inseriamo la nuova sessione invernale per l'anno precedente
         cursor.execute("""
-          INSERT INTO sessioni (cds, anno_accademico, curriculum, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre)
+          INSERT INTO sessioni (cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre)
           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (codice_cds, anno_precedente, curriculum, 'invernale', anticipata_inizio, anticipata_fine, anticipata_esami_primo, None))
+        """, (codice_cds, anno_precedente, curriculum_codice, 'invernale', anticipata_inizio, anticipata_fine, anticipata_esami_primo, None))
         
       except Exception as e:
         # Non interrompiamo il flusso principale se questa parte fallisce
@@ -174,44 +169,7 @@ def save_cds_dates():
       cursor.execute("""
         INSERT INTO sessioni (cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-      """, (codice_cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo, esami_secondo))
-    
-    # Elimina tutte le vacanze esistenti per questo CDS e anno accademico
-    cursor.execute("""
-      DELETE FROM vacanze 
-      WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s
-    """, (codice_cds, anno_accademico, curriculum_codice))
-    
-    # Estrai i periodi di vacanza
-    vacanze = data.get('vacanze', [])
-    
-    # Inserisci le nuove vacanze
-    for vacanza in vacanze:
-      descrizione = vacanza.get('descrizione', '').strip()
-      inizio = vacanza.get('inizio')
-      fine = vacanza.get('fine')
-      
-      # Validazione vacanza
-      if not descrizione:
-        return jsonify({'status': 'error', 'message': 'Descrizione vacanza obbligatoria'}), 400
-      
-      if not inizio or not fine:
-        return jsonify({'status': 'error', 'message': f'Date di inizio e fine obbligatorie per: {descrizione}'}), 400
-      
-      # Verifica che la data di inizio sia precedente alla data di fine
-      try:
-        data_inizio = datetime.strptime(inizio, '%Y-%m-%d').date()
-        data_fine = datetime.strptime(fine, '%Y-%m-%d').date()
-        
-        if data_inizio > data_fine:
-          return jsonify({'status': 'error', 'message': f'Data inizio non può essere successiva alla data fine per: {descrizione}'}), 400
-      except ValueError:
-        return jsonify({'status': 'error', 'message': f'Formato date non valido per: {descrizione}'}), 400
-      
-      cursor.execute("""
-        INSERT INTO vacanze (cds, anno_accademico, curriculum_codice, descrizione, inizio, fine)
-        VALUES (%s, %s, %s, %s, %s, %s)
-      """, (codice_cds, anno_accademico, curriculum_codice, descrizione, inizio, fine))
+      """,        (codice_cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo, esami_secondo))
     
     # Commit delle modifiche
     conn.commit()
@@ -252,7 +210,7 @@ def get_cds_details():
     # Query per ottenere le informazioni di base del CdS
     query_cds = """
       SELECT 
-        codice, anno_accademico, nome_corso, target_esami
+        codice, anno_accademico, nome_corso
       FROM cds 
       WHERE codice = %s
     """
@@ -330,25 +288,6 @@ def get_cds_details():
     # Combina i dati del CdS con le sessioni d'esame
     cds_data.update(sessioni_data)
     
-    # Query per ottenere le vacanze
-    cursor.execute("""
-      SELECT descrizione, inizio, fine
-      FROM vacanze
-      WHERE cds = %s AND anno_accademico = %s
-      ORDER BY inizio
-    """, (codice, anno_accademico))
-    
-    vacanze_data = []
-    for descrizione, inizio, fine in cursor.fetchall():
-      vacanze_data.append({
-        'descrizione': descrizione,
-        'inizio': inizio.isoformat() if inizio else None,
-        'fine': fine.isoformat() if fine else None
-      })
-    
-    # Aggiungi le vacanze ai dati del CdS
-    cds_data['vacanze'] = vacanze_data
-    
     # Converti le date in stringhe ISO format
     for key, value in cds_data.items():
       if isinstance(value, date): # Controlla se è un oggetto date (datetime è una sottoclasse di date)
@@ -365,3 +304,184 @@ def get_cds_details():
       cursor.close()
     if 'conn' in locals() and conn:
       release_connection(conn)
+
+@gestione_date_bp.route('/save-global-dates', methods=['POST'])
+def save_global_dates():
+    if not session.get('permessi_admin'):
+        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
+    
+    conn = None
+    cursor = None
+    
+    try:
+        data = request.get_json()
+        
+        # Estrai i parametri dal JSON ricevuto
+        try:
+            anno_accademico = int(data.get('anno_accademico'))
+        except (ValueError, TypeError) as e:
+            return jsonify({'status': 'error', 'message': f'Anno accademico non valido: {data.get("anno_accademico")}'}), 400
+        
+        # Target esami di default
+        target_esami_default = data.get('target_esami_default') or None
+        
+        # Connessione al database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verifica se esistono già configurazioni globali per questo anno
+        cursor.execute(
+            "SELECT COUNT(*) FROM configurazioni_globali WHERE anno_accademico = %s",
+            (anno_accademico,)
+        )
+        count = cursor.fetchone()[0]
+        exists = count > 0
+        
+        # Upsert per le configurazioni globali
+        if exists:
+            cursor.execute("""
+                UPDATE configurazioni_globali SET 
+                    target_esami_default = %s
+                WHERE anno_accademico = %s
+            """, (
+                target_esami_default,
+                anno_accademico
+            ))
+            message = f"Configurazioni globali per l'anno accademico {anno_accademico} aggiornate con successo"
+        else:
+            cursor.execute("""
+                INSERT INTO configurazioni_globali (
+                    anno_accademico,
+                    target_esami_default
+                ) VALUES (
+                    %s, %s
+                )
+            """, (
+                anno_accademico,
+                target_esami_default
+            ))
+            message = f"Nuove configurazioni globali per l'anno accademico {anno_accademico} create con successo"
+        
+        # Elimina le vacanze globali esistenti per questo anno
+        cursor.execute("""
+            DELETE FROM vacanze 
+            WHERE anno_accademico = %s
+        """, (anno_accademico,))
+        
+        # Estrai i periodi di vacanza globali
+        vacanze = data.get('vacanze', [])
+        
+        # Inserisci le nuove vacanze globali
+        for vacanza in vacanze:
+            descrizione = vacanza.get('descrizione', '').strip()
+            inizio = vacanza.get('inizio')
+            fine = vacanza.get('fine')
+            
+            # Validazione vacanza
+            if not descrizione:
+                return jsonify({'status': 'error', 'message': 'Descrizione vacanza obbligatoria'}), 400
+            
+            if not inizio or not fine:
+                return jsonify({'status': 'error', 'message': f'Date di inizio e fine obbligatorie per: {descrizione}'}), 400
+            
+            # Verifica che la data di inizio sia precedente alla data di fine
+            try:
+                data_inizio = datetime.strptime(inizio, '%Y-%m-%d').date()
+                data_fine = datetime.strptime(fine, '%Y-%m-%d').date()
+                
+                if data_inizio > data_fine:
+                    return jsonify({'status': 'error', 'message': f'Data inizio non può essere successiva alla data fine per: {descrizione}'}), 400
+            except ValueError:
+                return jsonify({'status': 'error', 'message': f'Formato date non valido per: {descrizione}'}), 400
+            
+            cursor.execute("""
+                INSERT INTO vacanze (anno_accademico, descrizione, inizio, fine)
+                VALUES (%s, %s, %s, %s)
+            """, (anno_accademico, descrizione, inizio, fine))
+        
+        # Commit delle modifiche
+        conn.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': message
+        })
+        
+    except Exception as e:
+        import traceback
+        
+        if conn:
+            conn.rollback()
+        
+        return jsonify({'status': 'error', 'message': f'Si è verificato un errore: {str(e)}'}), 500
+    
+    finally:
+        # Chiudi le risorse
+        if cursor:
+            cursor.close()
+        if conn:
+            release_connection(conn)
+
+@gestione_date_bp.route('/get-global-dates')
+def get_global_dates():
+    anno = request.args.get('anno')
+    
+    if not anno:
+        return jsonify({'error': 'Anno accademico mancante'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Query per ottenere le configurazioni globali
+        cursor.execute("""
+            SELECT 
+                anno_accademico,
+                target_esami_default
+            FROM configurazioni_globali 
+            WHERE anno_accademico = %s
+        """, (int(anno),))
+        
+        result = cursor.fetchone()
+        if not result:
+            return jsonify({'error': 'Configurazioni non trovate per questo anno accademico'}), 404
+            
+        # Converti in un dizionario
+        columns = [col[0] for col in cursor.description]
+        global_data = dict(zip(columns, result))
+        
+        # Query per ottenere le vacanze globali
+        cursor.execute("""
+            SELECT descrizione, inizio, fine
+            FROM vacanze
+            WHERE anno_accademico = %s
+            ORDER BY inizio
+        """, (int(anno),))
+        
+        vacanze_data = []
+        for descrizione, inizio, fine in cursor.fetchall():
+            vacanze_data.append({
+                'descrizione': descrizione,
+                'inizio': inizio.isoformat() if inizio else None,
+                'fine': fine.isoformat() if fine else None
+            })
+        
+        # Aggiungi le vacanze ai dati globali
+        global_data['vacanze'] = vacanze_data
+        
+        # Converti le date in stringhe ISO format
+        for key, value in global_data.items():
+            if isinstance(value, date):
+                global_data[key] = value.isoformat()
+                
+        return jsonify(global_data)
+        
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)

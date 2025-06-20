@@ -106,6 +106,11 @@ def ottieni_intersezione_sessioni_docente(docente, year, cds_list=None):
                     'nome': format_session_name(tipo_sessione.lower())
                 })
         
+        # Se non c'è intersezione, restituisci l'unione delle sessioni
+        if not result:
+            print(f"Nessuna intersezione trovata per {list(all_sessions.keys())}, utilizzo unione delle sessioni")
+            return ottieni_unione_sessioni_cds(list(all_sessions.keys()), year)
+        
         return sorted(result, key=lambda x: x['inizio'])
         
     except Exception as e:
@@ -141,7 +146,13 @@ def ottieni_sessioni_da_insegnamenti(insegnamenti_list, year):
         elif len(cds_list) == 1:
             return ottieni_sessioni_da_cds(cds_list[0], year)
         else:
-            return ottieni_intersezione_sessioni_docente(None, year, cds_list)
+            # Prima prova l'intersezione, se non funziona usa l'unione
+            intersect_result = ottieni_intersezione_sessioni_docente(None, year, cds_list)
+            if intersect_result:
+                return intersect_result
+            else:
+                # Se non c'è intersezione, restituisci l'unione
+                return ottieni_unione_sessioni_cds(cds_list, year)
     
     except Exception as e:
         print(f"Errore nel recupero delle sessioni per insegnamenti: {e}")
@@ -213,6 +224,129 @@ def getSessionePerData(data, cds_codice, anno_accademico):
     except Exception as e:
         print(f"Errore in getSessionePerData: {str(e)}")
         return (None, None)
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+def ottieni_vacanze(anno_accademico):
+    """Ottiene tutte le vacanze per l'anno accademico specificato"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT inizio, fine, descrizione
+            FROM vacanze
+            WHERE anno_accademico = %s
+            ORDER BY inizio
+        """, (anno_accademico,))
+        
+        vacanze = []
+        for inizio, fine, descrizione in cursor.fetchall():
+            vacanze.append({
+                'inizio': inizio,
+                'fine': fine,
+                'descrizione': descrizione
+            })
+        
+        return vacanze
+        
+    except Exception as e:
+        print(f"Errore nel recupero delle vacanze: {str(e)}")
+        return []
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+def escludi_vacanze_da_sessioni(sessions, vacanze):
+    """Esclude i periodi di vacanza dalle sessioni, dividendole se necessario"""
+    if not vacanze:
+        return sessions
+    
+    result = []
+    
+    for session in sessions:
+        periodi_validi = [{'inizio': session['inizio'], 'fine': session['fine']}]
+        
+        # Per ogni vacanza, dividi i periodi che si sovrappongono
+        for vacanza in vacanze:
+            nuovi_periodi = []
+            
+            for periodo in periodi_validi:
+                # Se la vacanza non si sovrappone con il periodo, mantienilo così com'è
+                if vacanza['fine'] < periodo['inizio'] or vacanza['inizio'] > periodo['fine']:
+                    nuovi_periodi.append(periodo)
+                else:
+                    # La vacanza si sovrappone, dividi il periodo
+                    # Periodo prima della vacanza
+                    if periodo['inizio'] < vacanza['inizio']:
+                        nuovi_periodi.append({
+                            'inizio': periodo['inizio'],
+                            'fine': vacanza['inizio'] - timedelta(days=1)
+                        })
+                    
+                    # Periodo dopo la vacanza
+                    if periodo['fine'] > vacanza['fine']:
+                        nuovi_periodi.append({
+                            'inizio': vacanza['fine'] + timedelta(days=1),
+                            'fine': periodo['fine']
+                        })
+            
+            periodi_validi = nuovi_periodi
+        
+        # Aggiungi i periodi validi risultanti alla lista finale
+        for i, periodo in enumerate(periodi_validi):
+            if periodo['inizio'] <= periodo['fine']:  # Solo periodi validi
+                nome_sessione = session['nome']
+                if len(periodi_validi) > 1:
+                    nome_sessione += f" (Parte {i + 1})"
+                
+                result.append({
+                    'tipo': session['tipo'],
+                    'inizio': periodo['inizio'],
+                    'fine': periodo['fine'],
+                    'nome': nome_sessione
+                })
+    
+    return sorted(result, key=lambda x: x['inizio'])
+
+def ottieni_unione_sessioni_cds(cds_list, year):
+    """Ottiene l'unione delle sessioni per i CdS specificati"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if not cds_list:
+            return []
+        
+        # Ottieni tutte le sessioni per tutti i CdS
+        placeholders = ', '.join(['%s'] * len(cds_list))
+        cursor.execute(f"""
+            SELECT DISTINCT tipo_sessione, MIN(inizio) as inizio, MAX(fine) as fine
+            FROM sessioni
+            WHERE cds IN ({placeholders}) AND anno_accademico = %s
+            GROUP BY tipo_sessione
+            ORDER BY MIN(inizio)
+        """, cds_list + [year])
+        
+        sessions = []
+        for tipo_sessione, inizio, fine in cursor.fetchall():
+            sessions.append({
+                'tipo': tipo_sessione.lower(),
+                'inizio': inizio,
+                'fine': fine,
+                'nome': format_session_name(tipo_sessione.lower())
+            })
+        
+        return sessions
+        
+    except Exception as e:
+        print(f"Errore nell'ottenere l'unione delle sessioni: {str(e)}")
+        return []
     finally:
         if 'cursor' in locals() and cursor:
             cursor.close()

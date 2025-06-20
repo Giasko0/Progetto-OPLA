@@ -4,7 +4,7 @@ from datetime import datetime
 from auth import get_user_data
 from psycopg2.extras import DictCursor
 import requests
-from utils.sessions import (ottieni_intersezione_sessioni_docente, ottieni_sessioni_da_insegnamenti)
+from utils.sessions import (ottieni_intersezione_sessioni_docente, ottieni_sessioni_da_insegnamenti, ottieni_vacanze, escludi_vacanze_da_sessioni)
 
 fetch_bp = Blueprint('fetch', __name__)
 
@@ -271,9 +271,13 @@ def get_date_valide():
             # Altrimenti usa tutte le sessioni del docente
             sessions = ottieni_intersezione_sessioni_docente(docente, anno)
 
+        # Ottieni le vacanze per l'anno accademico e escludile dalle sessioni
+        vacanze = ottieni_vacanze(anno)
+        sessions_senza_vacanze = escludi_vacanze_da_sessioni(sessions, vacanze)
+
         date_valide = [
             [session['inizio'].isoformat(), session['fine'].isoformat(), session['nome']]
-            for session in sorted(sessions, key=lambda x: (x['inizio'].year, x['inizio'].month))
+            for session in sorted(sessions_senza_vacanze, key=lambda x: (x['inizio'].year, x['inizio'].month))
         ]
         
         return jsonify(date_valide)

@@ -46,11 +46,27 @@ document.addEventListener('DOMContentLoaded', function() {
       <ul class="navbar-nav">
         <li><a href="/oh-issa/">Dashboard</a></li>
         <li><a href="/oh-issa/import-export.html">Import/Export Dati</a></li>
-        <li><a href="/oh-issa/gestioneDate.html">Gestione Date</a></li>
-        <li><a href="/oh-issa/gestioneInsegnamenti.html">Gestione Insegnamenti</a></li>
-        <li><a href="/oh-issa/gestioneUtenti.html">Gestione Utenti</a></li>
-        <li><a href="/oh-issa/calendarioEsami.html">Calendario Esami</a></li>
-        <li><a href="/oh-issa/controlloEsamiMinimi.html">Controllo Esami Minimi</a></li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle">Gestione Didattica <span class="dropdown-arrow">▼</span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/oh-issa/gestioneUtenti.html">Gestione Utenti</a></li>
+            <li><a href="/oh-issa/gestioneInsegnamenti.html">Gestione Insegnamenti</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle">Gestione Date <span class="dropdown-arrow">▼</span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/oh-issa/gestioneDate.html">Gestione Date per CdS</a></li>
+            <li><a href="/oh-issa/gestioneDateGlobali.html">Gestione Date Globali</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle">Reports <span class="dropdown-arrow">▼</span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/oh-issa/calendarioEsami.html">Calendario Esami</a></li>
+            <li><a href="/oh-issa/controlloEsamiMinimi.html">Controllo Esami Minimi</a></li>
+          </ul>
+        </li>
         <li id="loginLogoutItem" class="nav-right">
           <!-- Il link di login/logout verrà aggiunto qui dinamicamente -->
         </li>

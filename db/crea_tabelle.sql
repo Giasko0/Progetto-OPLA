@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS aule CASCADE;
 DROP TABLE IF EXISTS cds CASCADE;
 DROP TABLE IF EXISTS sessioni CASCADE;
 DROP TABLE IF EXISTS vacanze CASCADE;
+DROP TABLE IF EXISTS configurazioni_globali CASCADE;
 DROP TABLE IF EXISTS insegnamenti CASCADE;
 DROP TABLE IF EXISTS insegnamenti_cds CASCADE;
 DROP TABLE IF EXISTS utenti CASCADE;
@@ -37,9 +38,17 @@ CREATE TABLE cds (
     nome_corso TEXT NOT NULL,            -- Nome del corso di studio (INFORMATICA)
     curriculum_codice TEXT NOT NULL,     -- Codice del curriculum (GEN, E01, etc.)
     curriculum_nome TEXT NOT NULL,       -- Nome del curriculum (CORSO GENERICO, CYBERSECURITY, etc.)
-    target_esami INTEGER,                -- Numero target di esami per il corso di studio
     PRIMARY KEY (codice, anno_accademico, curriculum_codice),
     CONSTRAINT check_anno_accademico CHECK (anno_accademico >= 1900 AND anno_accademico <= 2100)
+);
+
+-- Tabella per le configurazioni globali che si applicano a tutto l'ateneo
+CREATE TABLE configurazioni_globali (
+    anno_accademico INTEGER PRIMARY KEY,     -- Anno accademico (2025 per 2025/2026)
+    target_esami_default INTEGER,            -- Numero target di esami di default per i corsi
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_anno_accademico_global CHECK (anno_accademico >= 1900 AND anno_accademico <= 2100)
 );
 
 -- Tabella "sessioni"
@@ -59,20 +68,18 @@ CREATE TABLE sessioni (
     ))
 );
 
--- Tabella 'vacanze' per gestire i periodi di vacanza per ogni CdS
+-- Tabella 'vacanze' per gestire i periodi di vacanza globali che si applicano a tutto l'ateneo
 CREATE TABLE vacanze (
     id SERIAL PRIMARY KEY,
-    cds TEXT NOT NULL,
     anno_accademico INTEGER NOT NULL,
-    curriculum_codice TEXT NOT NULL DEFAULT 'GEN',
     descrizione TEXT NOT NULL,
     inizio DATE NOT NULL,
     fine DATE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (cds, anno_accademico, curriculum_codice) 
-        REFERENCES cds(codice, anno_accademico, curriculum_codice) 
+    FOREIGN KEY (anno_accademico) 
+        REFERENCES configurazioni_globali(anno_accademico) 
         ON DELETE CASCADE,
     
     -- Vincolo per verificare che la data di inizio sia precedente alla data di fine
@@ -217,9 +224,11 @@ CREATE INDEX idx_cds_anno ON cds(anno_accademico);
 CREATE INDEX idx_cds_nome ON cds(nome_corso);
 
 -- Indici per la tabella 'vacanze'
-CREATE INDEX idx_vacanze_cds_anno ON vacanze(cds, anno_accademico, curriculum_codice);
-CREATE INDEX idx_vacanze_date_range ON vacanze(inizio, fine);
 CREATE INDEX idx_vacanze_anno ON vacanze(anno_accademico);
+CREATE INDEX idx_vacanze_date_range ON vacanze(inizio, fine);
+
+-- Indici per la tabella 'configurazioni_globali'
+CREATE INDEX idx_configurazioni_globali_anno ON configurazioni_globali(anno_accademico);
 
 -- Inserimento dell'utente 'admin' con permessi di amministratore
 INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', 'password', true);
@@ -228,12 +237,21 @@ INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin
 INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum_codice, curriculum_nome) VALUES
 ('L062', 2024, 'INFORMATICA', 'GEN', 'CORSO GENERICO');
 
+-- Inserimento delle configurazioni globali di default
+INSERT INTO configurazioni_globali (anno_accademico, target_esami_default) VALUES
+(2024, 8);
+
+-- Inserimento di alcune vacanze globali di esempio
+INSERT INTO vacanze (anno_accademico, descrizione, inizio, fine) VALUES
+(2024, 'Vacanze Natalizie', '2024-12-24', '2025-01-06'),
+(2024, 'Vacanze Pasquali', '2025-04-20', '2025-04-25');
+
 -- Inserimento delle sessioni di prova
 INSERT INTO sessioni (cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre) VALUES
-('L062', 2024, 'GEN', 'anticipata', '2025-01-07', '2025-02-22', 2, 0),
+('L062', 2024, 'GEN', 'anticipata', '2024-12-22', '2025-02-22', 2, 0),
 ('L062', 2024, 'GEN', 'estiva', '2025-06-10', '2025-07-25', 2, 3),
 ('L062', 2024, 'GEN', 'autunnale', '2025-09-01', '2025-9-30', 2, 2),
-('L062', 2024, 'GEN', 'invernale', '2026-01-10', '2026-02-25', 2, 3);
+('L062', 2024, 'GEN', 'invernale', '2025-12-22', '2026-02-25', 2, 3);
 
 -- Inserimento delle aule
 INSERT INTO aule (nome, codice_esse3, codice_easyacademy, sede, edificio, posti) VALUES

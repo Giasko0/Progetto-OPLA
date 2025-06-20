@@ -5,8 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Gestione delle Date di Sessioni d'Esame nel sistema OH-ISSA dell'Università degli Studi di Perugia. Configura date dei semestri, pause didattiche e sessioni d'esame per ogni corso.">
-  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
   <title>Gestione Date - OH-ISSA</title>
+  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
   <link rel="stylesheet" href="static/styles/admin.css">
   <script src="static/scripts/authCheck.js"></script>
   <script src="static/scripts/navbarAdmin.js"></script>
@@ -18,7 +19,7 @@
   <div id="navbar"></div>
 
   <main>
-    <h1>Gestione Date</h1>
+    <h1>Gestione Date per Corso di Studio</h1>
 
     <!-- Sezione per selezionare anno e corso in due colonne -->
     <section class="selector-section">
@@ -53,16 +54,6 @@
         <input type="hidden" id="codice" name="codice_cds">
         <input type="hidden" id="anno_accademico" name="anno_accademico">
         <input type="hidden" id="nome_corso" name="nome_corso">
-
-        <!-- Campo Target Esami -->
-        <fieldset>
-          <legend>Configurazione Corso</legend>
-          <div class="form-group">
-            <label for="target_esami">Numero Target Esami:</label>
-            <input type="number" id="target_esami" name="target_esami" min="0" placeholder="Numero totale esami per il corso">
-            <small class="form-text">Numero indicativo del totale di esami previsti per questo corso di studio</small>
-          </div>
-        </fieldset>
 
         <!-- Sessioni d'esame -->
         <fieldset>
@@ -154,20 +145,6 @@
           </div>
         </fieldset>
 
-        <!-- Periodi di Vacanza -->
-        <fieldset>
-          <legend>Periodi di Vacanza</legend>
-          <p class="form-text">Definisci i periodi in cui non è possibile programmare esami (vacanze natalizie, pasquali, etc.)</p>
-          
-          <div id="vacanze-container">
-            <!-- Le vacanze verranno aggiunte dinamicamente qui -->
-          </div>
-          
-          <div class="vacanza-actions">
-            <button type="button" id="addVacanzaBtn" class="btn">+ Aggiungi Periodo di Vacanza</button>
-          </div>
-        </fieldset>
-
         <div class="actions">
           <button type="submit" class="btn primary">Salva</button>
           <button type="button" id="resetForm" class="btn">Reset</button>
@@ -222,32 +199,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Template per i periodi di vacanza (nascosto) -->
-  <template id="vacanza-template">
-    <div class="vacanza-item">
-      <div class="vacanza-header">
-        <h5>Periodo di Vacanza</h5>
-        <button type="button" class="btn danger small remove-vacanza">Rimuovi</button>
-      </div>
-      <div class="vacanza-content">
-        <div class="form-group">
-          <label>Descrizione:</label>
-          <input type="text" class="vacanza-descrizione" placeholder="es. Vacanze Natalizie, Vacanze Pasquali">
-        </div>
-        <div class="vacanza-dates">
-          <div>
-            <label>Data Inizio:</label>
-            <input type="date" class="vacanza-inizio">
-          </div>
-          <div>
-            <label>Data Fine:</label>
-            <input type="date" class="vacanza-fine">
-          </div>
-        </div>
-      </div>
-    </div>
-  </template>
 </body>
 
 </html>
