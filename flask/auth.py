@@ -22,6 +22,9 @@ def require_auth(f):
   def decorated(*args, **kwargs):
     if not session.get('authenticated'):
       next_url = request.url
+      # Se il next_url è login, redirecta alla index per evitare loop
+      if '/login' in next_url:
+        return redirect('/login.html?next=/')
       return redirect(f'/login.html?next={next_url}')
     return f(*args, **kwargs)
   return decorated
@@ -32,30 +35,30 @@ def init_saml_auth(req):
   return OneLogin_Saml2_Auth(req, custom_base_path=saml_path)
 
 def prepare_flask_request(request):
-    return {
-        'https': 'on' if request.is_secure else 'off',
-        'http_host': request.host,
-        'script_name': request.path,
-        'get_data': request.args.copy(),
-        'post_data': request.form.copy(),
-        'server_port': request.environ.get('SERVER_PORT', '80')
-    }
+  return {
+    'https': 'on',
+    'http_host': request.host,
+    'server_port': '443',
+    'script_name': request.path,
+    'get_data': request.args.copy(),
+    'post_data': request.form.copy(),
+}
 
 def get_user_attributes_from_saml(auth):
   attributes = auth.get_attributes()
   if not attributes:
     raise ValueError("Nessun attributo SAML ricevuto")
   
-  def safe_get_attr(attr_name, default=''):
+  def safe_get_attr(attr_name):
     attr_list = attributes.get(attr_name, [])
-    return (attr_list[0].strip() if attr_list and attr_list[0] else default)
+    return attr_list[0].strip() if attr_list and attr_list[0] else ''
   
   user_attrs = {
-    'username': safe_get_attr('uid'),
-    'nome': safe_get_attr('givenName'),
-    'cognome': safe_get_attr('sn'),
-    'matricola': safe_get_attr('matricolaDocente'),
-    'matricolaStudente': safe_get_attr('matricolaStudente')
+    'username': safe_get_attr('urn:oid:0.9.2342.19200300.100.1.1'),
+    'nome': safe_get_attr('urn:oid:2.5.4.42'),
+    'cognome': safe_get_attr('urn:oid:2.5.4.4'),
+    'matricola': safe_get_attr('1.3.6.1.4.1.27287.2.1.3'),
+    'matricolaStudente': safe_get_attr('1.3.6.1.4.1.27287.2.1.4')
   }
   
   if not user_attrs['username']:
@@ -127,12 +130,13 @@ def logout():
 def get_user_data():
   if not session.get('authenticated'):
     return jsonify({'authenticated': False, 'user_data': None})
+  
   user_data = {
     'username': session.get('username'),
     'matricola': session.get('matricola'),
     'nome': session.get('nome'),
     'cognome': session.get('cognome'),
-    'permessi_admin': bool(session.get('permessi_admin', False))
+    'permessi_admin': session.get('permessi_admin')
   }
   return jsonify({'authenticated': True, 'user_data': user_data})
 

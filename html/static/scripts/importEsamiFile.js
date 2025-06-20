@@ -278,7 +278,7 @@ const ExamFileImporter = {
     const bypassButton = document.getElementById('bypassCheckBox');
     
     if (isAdmin && bypassButton) {
-      bypassButton.style.display = 'block';
+      bypassButton.style.display = 'inherit';
       bypassButton.addEventListener('click', () => {
         this.toggleBypass(bypassButton);
       });

@@ -50,6 +50,21 @@
   background-color: var(--color-blue);
 }
 
+/* Pulsanti filtri (Sessioni e Insegnamenti) */
+.fc-pulsanteSessioni-button,
+.fc-pulsanteInsegnamenti-button {
+  background-color: var(--color-blue) !important;
+  border-color: var(--color-blue) !important;
+  color: white !important;
+}
+
+/* Pulsanti azione (Importa da file) */
+.fc-aggiungiEsame-button {
+  background-color: var(--color-success)  !important;
+  border-color: var(--color-success) !important;
+  color: white !important;
+}
+
 .fc-daygrid-day {
   background-color: var(--table-cell);
   cursor: pointer;

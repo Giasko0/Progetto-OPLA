@@ -302,6 +302,7 @@ def escludi_vacanze_da_sessioni(sessions, vacanze):
         for i, periodo in enumerate(periodi_validi):
             if periodo['inizio'] <= periodo['fine']:  # Solo periodi validi
                 nome_sessione = session['nome']
+                nome_base = session['nome']  # Nome originale senza parti
                 if len(periodi_validi) > 1:
                     nome_sessione += f" (Parte {i + 1})"
                 
@@ -309,7 +310,11 @@ def escludi_vacanze_da_sessioni(sessions, vacanze):
                     'tipo': session['tipo'],
                     'inizio': periodo['inizio'],
                     'fine': periodo['fine'],
-                    'nome': nome_sessione
+                    'nome': nome_sessione,
+                    'nome_base': nome_base,  # Aggiungiamo il nome base per l'unificazione
+                    'sessione_id': f"{session['tipo']}_{session['inizio'].isoformat()}",  # ID univoco della sessione originale
+                    'parte_numero': i + 1 if len(periodi_validi) > 1 else None,
+                    'totale_parti': len(periodi_validi) if len(periodi_validi) > 1 else None
                 })
     
     return sorted(result, key=lambda x: x['inizio'])
@@ -352,3 +357,50 @@ def ottieni_unione_sessioni_cds(cds_list, year):
             cursor.close()
         if 'conn' in locals() and conn:
             release_connection(conn)
+
+def unifica_sessioni_divise(sessions):
+    """Unifica le sessioni che sono state divise dalle vacanze per la visualizzazione nel frontend"""
+    if not sessions:
+        return []
+    
+    # Raggruppa le sessioni per sessione_id (sessioni originali divise)
+    sessioni_raggruppate = {}
+    
+    for session in sessions:
+        sessione_id = session.get('sessione_id')
+        if not sessione_id:
+            # Se non ha sessione_id, è una sessione non divisa
+            sessioni_raggruppate[f"single_{session['tipo']}_{session['inizio'].isoformat()}"] = [session]
+        else:
+            if sessione_id not in sessioni_raggruppate:
+                sessioni_raggruppate[sessione_id] = []
+            sessioni_raggruppate[sessione_id].append(session)
+    
+    # Unifica le sessioni raggruppate
+    result = []
+    for sessione_id, parti in sessioni_raggruppate.items():
+        if len(parti) == 1:
+            # Sessione non divisa, mantieni così com'è ma rimuovi il "(Parte 1)" se presente
+            sessione = parti[0].copy()
+            if sessione.get('totale_parti') == 1:
+                sessione['nome'] = sessione.get('nome_base', sessione['nome'])
+            result.append(sessione)
+        else:
+            # Sessione divisa, unifica
+            parti_ordinate = sorted(parti, key=lambda x: x['inizio'])
+            prima_parte = parti_ordinate[0]
+            ultima_parte = parti_ordinate[-1]
+            
+            sessione_unificata = {
+                'tipo': prima_parte['tipo'],
+                'inizio': prima_parte['inizio'],
+                'fine': ultima_parte['fine'],
+                'nome': prima_parte.get('nome_base', prima_parte['nome'].split(' (Parte')[0]),
+                'nome_base': prima_parte.get('nome_base', prima_parte['nome'].split(' (Parte')[0]),
+                'sessione_id': prima_parte['sessione_id'],
+                'parti': parti_ordinate,  # Mantieni le parti originali per referenza
+                'numero_parti': len(parti_ordinate)
+            }
+            result.append(sessione_unificata)
+    
+    return sorted(result, key=lambda x: x['inizio'])

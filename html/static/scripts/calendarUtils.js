@@ -126,7 +126,15 @@ export async function loadDateValide(docente, insegnamenti = null) {
       throw new Error(`HTTP error ${response.status}`);
     }
     const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    const dateValide = Array.isArray(data) ? data : [];
+    
+    // Unifica le sessioni divise per la visualizzazione nel frontend
+    const { sessioni, partiOriginali } = unificaSessioniDivise(dateValide);
+    
+    // Conserva le parti originali per la validazione
+    window.sessioniPartiOriginali = partiOriginali;
+    
+    return sessioni;
   } catch (error) {
     return [];
   }
@@ -303,7 +311,7 @@ export function formatDateForInput(date) {
   return `${year}-${month}-${day}`;
 }
 
-// Valida una data selezionata (semplificata)
+// Valida una data selezionata contro le parti originali divise
 export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
   const selDate = new Date(selectedDate);
   selDate.setHours(0, 0, 0, 0);
@@ -349,8 +357,9 @@ export function isDateValid(selectedDate, dateValide, provisionalDates = []) {
     }
   }
 
-  // Controlla se la data è in una sessione valida
-  const isInSession = dateValide.some(([start, end]) => {
+  // Usa le parti originali (divise) per la validazione effettiva, escludendo le vacanze
+  const partiOriginali = window.sessioniPartiOriginali || dateValide;
+  const isInSession = partiOriginali.some(([start, end]) => {
     const startDate = new Date(start);
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(end);
@@ -412,9 +421,71 @@ export function scrollToPrimaDataValida(dateValide) {
   }
 }
 
+// Unifica le sessioni divise dalle vacanze per la visualizzazione
+export function unificaSessioniDivise(dateValide) {
+  if (!Array.isArray(dateValide) || dateValide.length === 0) {
+    return { sessioni: dateValide, partiOriginali: dateValide };
+  }
+
+  // Raggruppa le sessioni per sessione_id
+  const sessioniRaggruppate = {};
+  const partiOriginali = [];
+  
+  dateValide.forEach(([start, end, nome, sessioneId, nomeBase, parteNumero, totaleParts]) => {
+    // Conserva tutte le parti originali per la validazione
+    partiOriginali.push([start, end, nome]);
+    
+    // Se non ha sessioneId o è vuoto, crea un ID unico
+    const id = sessioneId || `single_${start}_${nome}`;
+    
+    if (!sessioniRaggruppate[id]) {
+      sessioniRaggruppate[id] = [];
+    }
+    
+    sessioniRaggruppate[id].push({
+      start,
+      end,
+      nome,
+      sessioneId,
+      nomeBase: nomeBase || nome.split(' (Parte')[0],
+      parteNumero,
+      totaleParts
+    });
+  });
+
+  // Unifica le sessioni raggruppate
+  const sessioniUnificate = [];
+  
+  Object.values(sessioniRaggruppate).forEach(parti => {
+    if (parti.length === 1) {
+      // Sessione non divisa, mantieni così com'è ma usa il nome base se disponibile
+      const sessione = parti[0];
+      const nomeUnificato = sessione.nomeBase || sessione.nome.split(' (Parte')[0];
+      sessioniUnificate.push([sessione.start, sessione.end, nomeUnificato]);
+    } else {
+      // Sessione divisa, unifica per la visualizzazione
+      const partiOrdinate = parti.sort((a, b) => new Date(a.start) - new Date(b.start));
+      const primaParte = partiOrdinate[0];
+      const ultimaParte = partiOrdinate[partiOrdinate.length - 1];
+      
+      const nomeUnificato = primaParte.nomeBase || primaParte.nome.split(' (Parte')[0];
+      sessioniUnificate.push([primaParte.start, ultimaParte.end, nomeUnificato]);
+    }
+  });
+
+  // Ordina per data di inizio
+  const sessioni = sessioniUnificate.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+  
+  return { 
+    sessioni: sessioni,
+    partiOriginali: partiOriginali.sort((a, b) => new Date(a[0]) - new Date(b[0]))
+  };
+}
+
 // Esporta le funzioni del calendario
 if (typeof window !== 'undefined') {
   window.formatDateForInput = formatDateForInput;
   window.isDateValid = isDateValid;
   window.scrollToPrimaDataValida = scrollToPrimaDataValida;
+  window.unificaSessioniDivise = unificaSessioniDivise;
 }

@@ -276,7 +276,7 @@ def get_date_valide():
         sessions_senza_vacanze = escludi_vacanze_da_sessioni(sessions, vacanze)
 
         date_valide = [
-            [session['inizio'].isoformat(), session['fine'].isoformat(), session['nome']]
+            [session['inizio'].isoformat(), session['fine'].isoformat(), session['nome'], session.get('sessione_id', ''), session.get('nome_base', session['nome']), session.get('parte_numero'), session.get('totale_parti')]
             for session in sorted(sessions_senza_vacanze, key=lambda x: (x['inizio'].year, x['inizio'].month))
         ]
         
