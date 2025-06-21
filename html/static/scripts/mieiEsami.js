@@ -27,40 +27,35 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // Carica gli esami dell'utente e li visualizza
-function fetchAndDisplayEsami() {
+async function fetchAndDisplayEsami() {
   const contenitoreEsami = document.getElementById("contenitoreEsami");
   
-  window.getUserData()
-    .then((data) => {
-      const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
-      
-      if (!selectedYear) {
-        contenitoreEsami.innerHTML = '<div class="error-message">Seleziona un anno accademico per visualizzare gli esami</div>';
-        return;
-      }
+  try {
+    const userData = await window.getUserData();
+    const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
+    
+    if (!selectedYear) {
+      contenitoreEsami.innerHTML = '<div class="error-message">Seleziona un anno accademico per visualizzare gli esami</div>';
+      return;
+    }
 
-      const params = new URLSearchParams({
-        docente: data.user_data.username,
-        anno: selectedYear
-      });
-
-      Promise.all([
-        fetch(`/api/get-insegnamenti-docente?${params}`).then(r => r.json()),
-        fetch(`/api/get-esami?${params}`).then(r => r.json())
-      ])
-      .then(([insegnamentiResponse, esamiData]) => {
-        const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, data.user_data.username);
-        displayEsamiData(processedData);
-      })
-      .catch((error) => {
-        console.error("Errore:", error);
-        contenitoreEsami.innerHTML = `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
-      });
-    })
-    .catch((error) => {
-      console.error("Errore nell'ottenimento dati utente:", error);
-      contenitoreEsami.innerHTML = `<div class="error-message">Si è verificato un errore nell'ottenimento dei dati: ${error.message}</div>`;
+    const params = new URLSearchParams({
+      docente: userData.user_data.username,
+      anno: selectedYear
     });
+
+    const [insegnamentiResponse, esamiData, targetEsami] = await Promise.all([
+      fetch(`/api/get-insegnamenti-docente?${params}`).then(r => r.json()),
+      fetch(`/api/get-esami?${params}`).then(r => r.json()),
+      getTargetEsami(selectedYear)
+    ]);
+
+    const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.user_data.username);
+    displayEsamiData(processedData, targetEsami);
+  } catch (error) {
+    console.error("Errore:", error);
+    contenitoreEsami.innerHTML = `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
+  }
 }
 
 // Processa i dati per mantenerli compatibili con il formato esistente
@@ -142,7 +137,7 @@ function determinaSessioneEsame(dataEsame) {
 }
 
 // Visualizza i dati usando la logica esistente
-function displayEsamiData(data) {
+function displayEsamiData(data, targetEsami) {
   const tabsHeader = document.getElementById("tabsHeader");
   const container = document.getElementById("contenitoreEsami");
   const allExamsButton = document.getElementById("allExamsButton");
@@ -166,7 +161,7 @@ function displayEsamiData(data) {
     tabContent.style.display = "none";
     tabContent.id = `tab-${insegnamento.replace(/\s+/g, "-")}`;
 
-    displaySessioniEsami(data, insegnamento, tabContent);
+    displaySessioniEsami(data, insegnamento, tabContent, targetEsami);
     displayTabelleEsami(data, insegnamento, tabContent);
 
     container.appendChild(tabContent);
@@ -177,7 +172,7 @@ function displayEsamiData(data) {
   allExamsTab.className = "tab-content";
   allExamsTab.id = "tab-all-exams";
   allExamsTab.style.display = "none";
-  displayAllExams(data, allExamsTab);
+  displayAllExams(data, allExamsTab, targetEsami);
   container.appendChild(allExamsTab);
 
   // Gestione parametri URL per mostrare il tab corretto
@@ -298,7 +293,7 @@ function displayTabelleEsami(data, insegnamento, container) {
   container.appendChild(section);
 }
 
-function displaySessioniEsami(data, insegnamento, container) {
+function displaySessioniEsami(data, insegnamento, container, targetEsami) {
   const section = document.createElement("div");
   section.className = "exam-section";
 
@@ -333,7 +328,7 @@ function displaySessioniEsami(data, insegnamento, container) {
   container.appendChild(section);
 }
 
-function displayAllExams(data, container) {
+function displayAllExams(data, container, targetEsami) {
   // Sezione riepilogo insegnamenti
   const sessionsSection = document.createElement("div");
   sessionsSection.className = "exam-section";
@@ -350,11 +345,11 @@ function displayAllExams(data, container) {
     const totaleEsami = Object.values(sessioni).reduce((sum, val) => sum + (val || 0), 0);
 
     const cardElement = document.createElement("div");
-    cardElement.className = `session-card ${totaleEsami < 8 ? 'warning-card' : 'success-card'}`;
+    cardElement.className = `session-card ${totaleEsami < targetEsami ? 'warning-card' : 'success-card'}`;
     cardElement.innerHTML = `
       <h4>${insegnamento}</h4>
       <p>${totaleEsami} esami inseriti</p>
-      <p class="exams-requirement">Min: 8 - Max: 13</p>
+      <p class="exams-requirement">Minimo necessario: ${targetEsami}</p>
     `;
 
     cardElement.addEventListener("click", () => {
@@ -470,3 +465,18 @@ function formatDurata(durataMinuti) {
 
 // Espone funzioni necessarie per l'HTML
 window.sortTable = sortTable;
+
+// Funzione per recuperare il target di esami dalle configurazioni globali
+async function getTargetEsami(anno) {
+  try {
+    const response = await fetch(`/api/oh-issa/get-global-dates?anno=${anno}`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.target_esami_default || 8; // Fallback a 8
+    }
+    return 8;
+  } catch (error) {
+    console.error('Errore nel recupero del target esami:', error);
+    return 8;
+  }
+}

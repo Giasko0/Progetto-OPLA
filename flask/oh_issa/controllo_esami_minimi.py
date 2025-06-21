@@ -69,6 +69,16 @@ def controlla_esami_minimi():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=DictCursor)
         
+        # Ottieni il target di esami dalle configurazioni globali
+        cursor.execute("""
+            SELECT COALESCE(target_esami_default, 8) as target_esami
+            FROM configurazioni_globali 
+            WHERE anno_accademico = %s
+        """, (anno,))
+        
+        target_result = cursor.fetchone()
+        target_esami = target_result['target_esami'] if target_result else 8  # Default fallback
+        
         # Query base per ottenere tutti gli insegnamenti dell'anno
         base_query = """
             SELECT 
@@ -150,13 +160,14 @@ def controlla_esami_minimi():
         
         # Statistiche
         total = len(insegnamenti)
-        conformi = len([ins for ins in insegnamenti if ins['numero_esami'] >= 8])
+        conformi = len([ins for ins in insegnamenti if ins['numero_esami'] >= target_esami])
         non_conformi = total - conformi
         
         result = {
             'anno_accademico': anno,
             'cds_filter': cds_filter,
             'docente_filter': docente_filter,
+            'target_esami': target_esami,
             'statistiche': {
                 'totale_insegnamenti': total,
                 'conformi': conformi,

@@ -165,7 +165,9 @@ function createCdsReportSection(cdsName, insegnamenti) {
     const section = document.createElement('div');
     section.className = 'cds-report-section';
     
-    const conformi = insegnamenti.filter(ins => ins.numero_esami >= 8).length;
+    // Ottieni il target dal server
+    const targetEsami = reportData.target_esami;
+    const conformi = insegnamenti.filter(ins => ins.numero_esami >= targetEsami).length;
     const nonConformi = insegnamenti.length - conformi;
     
     section.innerHTML = `
@@ -204,7 +206,7 @@ function createCdsReportSection(cdsName, insegnamenti) {
     });
     
     insegnamenti.forEach(ins => {
-        const row = createInsegnamentoRow(ins);
+        const row = createInsegnamentoRow(ins, targetEsami);
         tbody.appendChild(row);
     });
     
@@ -212,9 +214,9 @@ function createCdsReportSection(cdsName, insegnamenti) {
 }
 
 // Crea riga per insegnamento
-function createInsegnamentoRow(insegnamento) {
+function createInsegnamentoRow(insegnamento, targetEsami) {
     const row = document.createElement('tr');
-    const isConforme = insegnamento.numero_esami >= 8;
+    const isConforme = insegnamento.numero_esami >= targetEsami;
     row.className = isConforme ? 'conforme' : 'non-conforme';
     
     const docentiText = insegnamento.docenti.length > 0 
@@ -222,7 +224,7 @@ function createInsegnamentoRow(insegnamento) {
         : 'Nessun docente assegnato';
     
     const statusText = isConforme ? '✓ Conforme' : '⚠ Non conforme';
-    const mancantiText = isConforme ? '-' : (8 - insegnamento.numero_esami).toString();
+    const mancantiText = isConforme ? '-' : (targetEsami - insegnamento.numero_esami).toString();
     
     row.innerHTML = `
         <td>
@@ -242,12 +244,17 @@ function createInsegnamentoRow(insegnamento) {
 
 // Aggiorna statistiche
 function updateStatistiche(data) {
-    const conformi = data.insegnamenti.filter(ins => ins.numero_esami >= 8).length;
+    const targetEsami = data.target_esami;
+    const conformi = data.insegnamenti.filter(ins => ins.numero_esami >= targetEsami).length;
     const nonConformi = data.insegnamenti.length - conformi;
     
     document.getElementById('totalInsegnamenti').textContent = data.insegnamenti.length;
     document.getElementById('insegnamentiConformi').textContent = conformi;
     document.getElementById('insegnamentiNonConformi').textContent = nonConformi;
+    
+    // Aggiorna le etichette con il valore del target dinamico
+    document.getElementById('targetEsamiLabel').textContent = targetEsami;
+    document.getElementById('targetEsamiLabel2').textContent = targetEsami;
 }
 
 // Applica filtri
@@ -256,6 +263,7 @@ function applyFilters() {
     
     const searchQuery = document.getElementById('searchInsegnamento').value.toLowerCase();
     const filterType = document.querySelector('input[name="filterType"]:checked').value;
+    const targetEsami = reportData.target_esami;
     
     let filtered = reportData.insegnamenti.filter(ins => {
         // Filtro di ricerca
@@ -266,9 +274,9 @@ function applyFilters() {
         // Filtro tipo
         let matchesType = true;
         if (filterType === 'conformi') {
-            matchesType = ins.numero_esami >= 8;
+            matchesType = ins.numero_esami >= targetEsami;
         } else if (filterType === 'non-conformi') {
-            matchesType = ins.numero_esami < 8;
+            matchesType = ins.numero_esami < targetEsami;
         }
         
         return matchesSearch && matchesType;

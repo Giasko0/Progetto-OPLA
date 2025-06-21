@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="checkbox" id="mostra_nel_calendario_COUNTER_PLACEHOLDER" name="mostra_nel_calendario[]" class="form-checkbox" checked>
                 <span class="tooltip">
                   <span class="material-symbols-outlined">help</span>
-                  <span class="tooltiptext">Spunta quest'opzione se questo appello finirà sul calendario. Se l'opzione è spuntata l'esame conterà per il numero minimo (8) di esami annuali.</span>
+                  <span class="tooltiptext">Spunta quest'opzione se questo appello finirà sul calendario. Se l'opzione è spuntata l'esame conterà per il numero minimo di esami annuali.</span>
                 </span>
               </div>
             </div>

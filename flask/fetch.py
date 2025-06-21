@@ -376,6 +376,16 @@ def check_esami_minimi():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Ottieni il target di esami dalle configurazioni globali
+        cursor.execute("""
+            SELECT target_esami_default 
+            FROM configurazioni_globali 
+            WHERE anno_accademico = %s
+        """, (anno,))
+        
+        target_result = cursor.fetchone()
+        target_esami = target_result[0] if target_result and target_result[0] else 8  # Default fallback
+        
         cursor.execute("""
             SELECT i.id, i.titolo, COUNT(e.id) AS conteggio_esami,
                    STRING_AGG(DISTINCT icds.cds, ', ' ORDER BY icds.cds) AS codici_cds
@@ -385,23 +395,36 @@ def check_esami_minimi():
             JOIN insegnamenti_cds icds ON i.id = icds.insegnamento AND icds.anno_accademico = %s
             WHERE i.id = ANY(%s)
             GROUP BY i.id, i.titolo
-            HAVING COUNT(e.id) < 8
+            HAVING COUNT(e.id) < %s
             ORDER BY COUNT(e.id) ASC, i.titolo ASC
-        """, (docente, anno, list(insegnamenti.keys())))
+        """, (docente, anno, list(insegnamenti.keys()), target_esami))
         
         insegnamenti_pochi_esami = [
-            {'id': row[0], 'titolo': row[1], 'esami_inseriti': row[2], 'codici_cds': row[3]}
+            {
+                'id': row[0], 
+                'titolo': row[1], 
+                'esami_inseriti': row[2], 
+                'codici_cds': row[3],
+                'target_esami': target_esami
+            }
             for row in cursor.fetchall()
         ]
         
         if not insegnamenti_pochi_esami:
-            return jsonify({'status': 'success', 'nessun_problema': True, 'message': 'Tutti gli insegnamenti hanno almeno 8 esami.'})
+            return jsonify({
+                'status': 'success', 
+                'nessun_problema': True, 
+                'message': f'Tutti gli insegnamenti hanno almeno {target_esami} esami.',
+                'target_esami': target_esami
+            })
         
         return jsonify({
-            'status': 'warning', 'nessun_problema': False,
+            'status': 'warning', 
+            'nessun_problema': False,
             'insegnamenti': [i['titolo'] for i in insegnamenti_pochi_esami],
-            'esami_mancanti': [8 - i['esami_inseriti'] for i in insegnamenti_pochi_esami],
-            'insegnamenti_sotto_minimo': insegnamenti_pochi_esami
+            'esami_mancanti': [target_esami - i['esami_inseriti'] for i in insegnamenti_pochi_esami],
+            'insegnamenti_sotto_minimo': insegnamenti_pochi_esami,
+            'target_esami': target_esami
         })
         
     except Exception as e:

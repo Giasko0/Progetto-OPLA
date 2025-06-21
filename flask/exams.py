@@ -156,6 +156,15 @@ def controlla_vincoli(dati_esame, aula_originale=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    cursor.execute("""
+        SELECT target_esami_default 
+        FROM configurazioni_globali 
+        WHERE anno_accademico = %s
+    """, (dati_esame['anno_accademico'],))
+    
+    target_result = cursor.fetchone()
+    target_esami = target_result[0]
+    
     insegnamenti = dati_esame['insegnamenti']
     sezioni_appelli = dati_esame['sezioni_appelli']
     anno_accademico = dati_esame['anno_accademico']
@@ -172,7 +181,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         if data_esame.weekday() >= 5:
             cursor.close()
             release_connection(conn)
-            return False, f'Non è possibile inserire esami di sabato o domenica ({data_appello})'
+            return False, f'Non è possibile inserire esami nel weekend: {data_appello}'
         
         # Controllo conflitti aula - salta se è la stessa aula dell'esame originale
         if aula != "Studio docente DMI":
@@ -183,7 +192,8 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 if exam_id_to_exclude:
                     cursor.execute("""
                         SELECT COUNT(*) FROM esami 
-                        WHERE aula = %s AND data_appello = %s AND periodo = %s AND id != %s
+                        WHERE aula = %s AND data_appello = %s AND periodo = %s 
+                        AND id != %s
                     """, (aula, data_appello, periodo, exam_id_to_exclude))
                 else:
                     cursor.execute("""
@@ -194,7 +204,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 if cursor.fetchone()[0] > 0:
                     cursor.close()
                     release_connection(conn)
-                    return False, f'Aula {aula} già occupata in questo periodo per la data {data_appello}'
+                    return False, f'Conflitto aula: {aula} già occupata il {data_appello} nel periodo {"pomeriggio" if periodo == 1 else "mattina"}'
         
         # Controllo vincolo 14 giorni per ogni insegnamento
         if mostra_nel_calendario:
@@ -204,47 +214,73 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 if not result:
                     cursor.close()
                     release_connection(conn)
-                    return False, f"Insegnamento {insegnamento} non trovato"
+                    return False, f'Insegnamento {insegnamento} non trovato'
                 
                 insegnamento_id, titolo_insegnamento = result
                 
                 # Verifica esistenza insegnamento per l'anno
                 cursor.execute("""
-                    SELECT ic.cds FROM insegnamenti_cds ic
-                    WHERE ic.insegnamento = %s AND ic.anno_accademico = %s
+                    SELECT 1 FROM insegnamenti_cds 
+                    WHERE insegnamento = %s AND anno_accademico = %s LIMIT 1
                 """, (insegnamento_id, anno_accademico))
                 
                 if not cursor.fetchone():
                     cursor.close()
                     release_connection(conn)
-                    return False, f"Insegnamento {titolo_insegnamento} non trovato per l'anno accademico {anno_accademico}"
+                    return False, f'Insegnamento {titolo_insegnamento} non trovato per l\'anno accademico {anno_accademico}'
                 
-                # Controllo 14 giorni
-                data_min = data_esame - timedelta(days=13)
-                data_max = data_esame + timedelta(days=13)
+                # Controllo vincolo 14 giorni
+                query_14_giorni = """
+                    SELECT data_appello FROM esami 
+                    WHERE insegnamento = %s AND anno_accademico = %s 
+                    AND mostra_nel_calendario = true
+                    AND ABS(EXTRACT(EPOCH FROM (data_appello - %s::date)) / 86400) <= 13
+                """
+                
+                params_14_giorni = [insegnamento_id, anno_accademico, data_appello]
                 
                 if exam_id_to_exclude:
-                    cursor.execute("""
-                        SELECT data_appello FROM esami e
-                        WHERE e.insegnamento = %s 
-                        AND e.data_appello BETWEEN %s AND %s
-                        AND e.id != %s 
-                        AND e.mostra_nel_calendario = TRUE
-                    """, (insegnamento_id, data_min, data_max, exam_id_to_exclude))
-                else:
-                    cursor.execute("""
-                        SELECT data_appello FROM esami e
-                        WHERE e.insegnamento = %s 
-                        AND e.data_appello BETWEEN %s AND %s
-                        AND e.mostra_nel_calendario = TRUE
-                    """, (insegnamento_id, data_min, data_max))
+                    query_14_giorni += " AND id != %s"
+                    params_14_giorni.append(exam_id_to_exclude)
                 
-                esami_vicini = cursor.fetchall()
-                if esami_vicini:
-                    date_esami = [e[0].strftime('%d/%m/%Y') for e in esami_vicini]
+                cursor.execute(query_14_giorni, params_14_giorni)
+                conflicting_dates = cursor.fetchall()
+                
+                if conflicting_dates:
+                    conflicting_date = conflicting_dates[0][0]
                     cursor.close()
                     release_connection(conn)
-                    return False, f"Vincolo 14 giorni violato per {titolo_insegnamento} il {data_appello}. Esami esistenti: {', '.join(date_esami)}"
+                    return False, f'Vincolo 14 giorni violato per {titolo_insegnamento}: esiste già un esame il {conflicting_date}'
+                
+                # Controllo minimo esami per insegnamento se richiesto dal target
+                if target_esami > 0:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM esami 
+                        WHERE insegnamento = %s AND anno_accademico = %s 
+                        AND mostra_nel_calendario = true AND tipo_appello != 'PP'
+                    """, (insegnamento_id, anno_accademico))
+                    
+                    esami_esistenti = cursor.fetchone()[0]
+                    
+                    # Se stiamo aggiornando un esame, non contarlo nel totale
+                    if exam_id_to_exclude:
+                        cursor.execute("""
+                            SELECT COUNT(*) FROM esami 
+                            WHERE id = %s AND insegnamento = %s AND mostra_nel_calendario = true AND tipo_appello != 'PP'
+                        """, (exam_id_to_exclude, insegnamento_id))
+                        if cursor.fetchone()[0] > 0:
+                            esami_esistenti -= 1
+                    
+                    # Aggiungi 1 per l'esame che stiamo inserendo (se mostra nel calendario e non è PP)
+                    if mostra_nel_calendario and sezione.get('tipo_appello', 'PF') != 'PP':
+                        esami_esistenti += 1
+                    
+                    # Verifica che non si superi eccessivamente il target (massimo target + 5)
+                    max_esami = target_esami + 5
+                    if esami_esistenti > max_esami:
+                        cursor.close()
+                        release_connection(conn)
+                        return False, f'Superato il numero massimo di esami per {titolo_insegnamento}: {esami_esistenti}/{max_esami} (target: {target_esami})'
     
     cursor.close()
     release_connection(conn)
@@ -451,6 +487,24 @@ def update_esame():
         insegnamento_result = cursor.fetchone()
 
         # Prepara dati per controllo vincoli
+        dati_per_vincoli = {
+            'insegnamenti': [insegnamento_result[0]],
+            'sezioni_appelli': [{
+                'data_appello': data.get('data_appello'),
+                'aula': data.get('aula'),
+                'periodo': data.get('periodo'),
+                'mostra_nel_calendario': data.get('mostra_nel_calendario', True),
+                'tipo_appello': data.get('tipo_appello', 'PF')
+            }],
+            'anno_accademico': esame_dict['anno_accademico'],
+            'exam_id': exam_id
+        }
+        
+        vincoli_ok, errore_vincoli = controlla_vincoli(dati_per_vincoli, esame_dict['aula'])
+        if not vincoli_ok:
+            cursor.close()
+            release_connection(conn)
+            return jsonify({'success': False, 'message': errore_vincoli}), 400
         dati_controllo = {
             'exam_id': exam_id,
             'insegnamenti': [insegnamento_result[0]],
