@@ -442,6 +442,16 @@ const ExamFileImporter = {
     
     if (data.success) {
       window.showMessage(data.message, "Importazione Completata", "success");
+      
+      // Ricarica gli eventi del calendario se disponibile
+      if (window.forceCalendarRefresh) {
+        window.forceCalendarRefresh();
+      }
+      
+      // Ricarica anche il controllo degli esami minimi se disponibile
+      if (window.checkEsamiMinimi) {
+        window.checkEsamiMinimi();
+      }
     } else {
       window.showMessage(data.message, "Importazione Fallita", "error");
     }
