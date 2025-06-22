@@ -7,7 +7,7 @@ import os
 from db import init_db
 
 # Import dei blueprint
-from auth import auth_bp, require_auth
+from auth import auth_bp
 from fetch import fetch_bp
 from exams import exam_bp
 from user_preferences import preferences_bp

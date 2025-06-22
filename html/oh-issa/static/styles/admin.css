@@ -86,7 +86,6 @@ section {
 
 .navbar-nav .divider {
   display: inline-block;
-  height: 24px;
   width: 1px;
   background-color: #ccc;
   margin: 0 0 0 15px;

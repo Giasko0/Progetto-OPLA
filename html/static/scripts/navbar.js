@@ -56,12 +56,9 @@ document.addEventListener("DOMContentLoaded", function () {
           calendarLink.href = "calendario.html";
           examsLink.href = "mieiEsami.html";
         } else {
-          calendarLink.href = `login.html?redirect=${encodeURIComponent(
-            "/calendario.html"
-          )}`;
-          examsLink.href = `login.html?redirect=${encodeURIComponent(
-            "/mieiEsami.html"
-          )}`;
+          // Se non autenticato reindirizza al login
+          calendarLink.href = "/saml/login";
+          examsLink.href = "/saml/login";
         }
 
         // Inserisci i link nella navbar
@@ -86,8 +83,8 @@ document.addEventListener("DOMContentLoaded", function () {
             link.innerHTML = `Esci <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>logout</span>`;
           }
         } else {
-          // Utente non autenticato
-          link.href = "login.html";
+          // Utente non autenticato reindirizzato al login
+          link.href = "/saml/login";
           link.innerHTML =
             "Accedi <span class='material-symbols-outlined icon' style='vertical-align: text-bottom;'>login</span>";
         }

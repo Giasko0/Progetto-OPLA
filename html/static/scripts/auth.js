@@ -65,8 +65,8 @@ async function checkAuthAndRedirect() {
 
   const data = await getUserData();
   if (!data || !data.authenticated) {
-    const currentURL = encodeURIComponent(window.location.pathname);
-    window.location.href = `login.html?redirect=${currentURL}`;
+    // Reindirizza sempre al SAML, l'utente verrà poi portato alla index
+    window.location.href = "/saml/login";
   }
 }
 
@@ -245,11 +245,9 @@ function handleIndexCTA() {
         if (loginMessage) loginMessage.style.display = "block";
         if (buttonsContainer) buttonsContainer.style.display = "none";
 
-        // Configura il pulsante per andare al login con redirect
+        // Configura il pulsante per andare al login
         if (ctaButton) {
-          ctaButton.href = `login.html?redirect=${encodeURIComponent(
-            "/calendario.html"
-          )}`;
+          ctaButton.href = "/saml/login";
           ctaButton.textContent = "Accedi ora";
         }
       }
@@ -260,9 +258,7 @@ function handleIndexCTA() {
       if (loginMessage) loginMessage.style.display = "block";
       if (buttonsContainer) buttonsContainer.style.display = "none";
       if (ctaButton) {
-        ctaButton.href = `login.html?redirect=${encodeURIComponent(
-          "/calendario.html"
-        )}`;
+        ctaButton.href = "/saml/login";
       }
     });
 }

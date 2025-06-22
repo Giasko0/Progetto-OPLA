@@ -101,18 +101,18 @@ document.addEventListener('DOMContentLoaded', function() {
           logoutLink.innerHTML = 'Logout';
           loginLogoutItem.appendChild(logoutLink);
         } else {
-          // Utente non admin, mostra il link di login
+          // Utente non admin, mostra il link di login SAML
           const loginLink = document.createElement('a');
-          loginLink.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+          loginLink.href = '/saml/login';
           loginLink.innerHTML = 'Login';
           loginLogoutItem.appendChild(loginLink);
         }
       })
       .catch((error) => {
         console.error("Errore nel controllo dell'autenticazione:", error);
-        // In caso di errore, mostra il link di login
+        // In caso di errore, mostra il link di login SAML
         const loginLink = document.createElement('a');
-        loginLink.href = '/login.html';
+        loginLink.href = '/saml/login';
         loginLink.innerHTML = 'Login';
         loginLogoutItem.appendChild(loginLink);
       });

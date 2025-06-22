@@ -21,11 +21,7 @@ def require_auth(f):
   @wraps(f)
   def decorated(*args, **kwargs):
     if not session.get('authenticated'):
-      next_url = request.url
-      # Se il next_url è login, redirecta alla index per evitare loop
-      if '/login' in next_url:
-        return redirect('/login.html?next=/')
-      return redirect(f'/login.html?next={next_url}')
+      return redirect('/saml/login')
     return f(*args, **kwargs)
   return decorated
 
@@ -167,56 +163,39 @@ def login_saml():
 
 @auth_bp.route('/saml/acs', methods=['POST'])
 def saml_acs():
-  current_app.logger.info("Inizio autenticazione")
   req = prepare_flask_request(request)
   auth = init_saml_auth(req)
-  current_app.logger.info("Auth inizializzato")
   
   auth.process_response()
   errors = auth.get_errors()
-  current_app.logger.info(f"Response processata, errori trovati: {len(errors)}")
   
   if not errors:
     try:
-      current_app.logger.info("Nessun errore, recupero attributi utente")
       user_attrs = get_user_attributes_from_saml(auth)
-      current_app.logger.info(f"Attributi recuperati per utente: {user_attrs.get('username', 'N/A')}")
       
       if not user_attrs['matricola']:
-        current_app.logger.warning(f"Matricola docente vuota per utente {user_attrs.get('username', 'N/A')}")
         # Eccezione per la mia matricola (342804)
         matricola_studente = user_attrs.get('matricolaStudente', '')
-        current_app.logger.info("Controllo matricola studente")
         if matricola_studente == '342804':
           user_attrs['matricola'] = matricola_studente
-          current_app.logger.info("Ciao Amedeo")
         else:
-          current_app.logger.warning("Solo i docenti possono accedere")
           return "Accesso negato: solo i docenti possono accedere", 403
-      else:
-        current_app.logger.info(f"Matricola docente trovata: {user_attrs['matricola']}")
       
-      current_app.logger.info("Controllo utente nel database")
       create_user_if_not_exists(user_attrs)
-      current_app.logger.info(f"Utente {user_attrs['username']} autenticato con successo")
       
       self_url = OneLogin_Saml2_Utils.get_self_url(req)
       if 'RelayState' in request.form and self_url != request.form['RelayState']:
         relay_state = request.form['RelayState']
-        current_app.logger.info(f"Redirect a RelayState: {relay_state}")
         return redirect(auth.redirect_to(relay_state))
         
-      current_app.logger.info("Redirect alla index")
+      # Dopo il login l'utente viene reindirizzato alla index
       return redirect('/')
     except ValueError as e:
-      current_app.logger.error(f"Errore: {str(e)}")
       return f"Errore: {str(e)}", 400
     except Exception as e:
-      current_app.logger.error(f"Errore exception: {str(e)}")
       return f"Errore interno: {str(e)}", 500
   else:
     error_reason = auth.get_last_error_reason() if hasattr(auth, 'get_last_error_reason') else ""
-    current_app.logger.error(f"SAML authentication error: {', '.join(errors)} - {error_reason}")
     return f"Errore autenticazione SAML: {', '.join(errors)}", 400
 
 @auth_bp.route('/saml/sls')
@@ -231,5 +210,4 @@ def saml_sls():
     return redirect(url) if url else redirect('/')
   else:
     error_reason = auth.get_last_error_reason()
-    current_app.logger.error(f"SAML SLS error: {', '.join(errors)} - {error_reason}")
     return f"Errore SAML SLS: {error_reason}", 400
