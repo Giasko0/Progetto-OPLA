@@ -252,6 +252,34 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     cursor.close()
                     release_connection(conn)
                     return False, f'Vincolo 14 giorni violato per {titolo_insegnamento}: esiste già un esame il {conflicting_date}'
+                
+                # Controllo conflitto orario con materie dello stesso CDS/anno/semestre
+                cursor.execute("""
+                    SELECT DISTINCT i.titolo, e.ora_appello
+                    FROM esami e
+                    JOIN insegnamenti i ON e.insegnamento = i.id
+                    JOIN insegnamenti_cds ic1 ON e.insegnamento = ic1.insegnamento AND e.anno_accademico = ic1.anno_accademico
+                    JOIN insegnamenti_cds ic2 ON ic2.insegnamento = %s AND ic2.anno_accademico = %s
+                    WHERE e.data_appello = %s
+                    AND e.ora_appello = %s
+                    AND e.mostra_nel_calendario = true
+                    AND e.insegnamento != %s
+                    AND ic1.cds = ic2.cds
+                    AND ic1.anno_corso = ic2.anno_corso
+                    AND ic1.semestre = ic2.semestre
+                    AND e.anno_accademico = %s
+                """ + (" AND e.id != %s" if exam_id_to_exclude else ""),
+                [insegnamento_id, anno_accademico, data_appello, sezione['ora_appello'], 
+                 insegnamento_id, anno_accademico] + 
+                ([exam_id_to_exclude] if exam_id_to_exclude else []))
+                
+                conflicting_exams = cursor.fetchall()
+                
+                if conflicting_exams:
+                    conflicting_title, conflicting_time = conflicting_exams[0]
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Conflitto orario: {conflicting_title} ha già un esame il {data_appello} alle {conflicting_time} per lo stesso CDS/anno/semestre di {titolo_insegnamento}'
     
     cursor.close()
     release_connection(conn)
