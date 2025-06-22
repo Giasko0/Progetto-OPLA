@@ -307,7 +307,7 @@ const ExamFileImporter = {
   // Download template Excel
   async downloadTemplate() {
     const username = window.currentUsername;
-    const anno = window.AnnoAccademicoManager?.getSelectedAcademicYear() || new Date().getFullYear();
+    const anno = window.AnnoAccademicoManager?.getSelectedAcademicYear();
     
     if (!username) {
       window.showMessage("Devi effettuare il login per scaricare il template", "Attenzione", "error");
@@ -408,9 +408,10 @@ const ExamFileImporter = {
     const formData = new FormData();
     const bypassButton = document.getElementById('bypassCheckBox');
     const bypassChecks = bypassButton?.classList.contains('active');
+    const anno = window.AnnoAccademicoManager?.getSelectedAcademicYear();
     
     formData.append('file', file);
-    formData.append('anno_accademico', window.AnnoAccademicoManager?.getSelectedAcademicYear() || new Date().getFullYear());
+    formData.append('anno_accademico', anno);
     
     if (bypassChecks) {
       formData.append('bypass_checks', 'true');

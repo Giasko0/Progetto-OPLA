@@ -4,14 +4,19 @@ async function checkEsamiMinimi() {
     // Ottieni i dati dell'utente autenticato
     const userData = await window.getUserData();
     if (!userData || !userData.authenticated || !userData.user_data) {
-      console.error("Utente non autenticato per il controllo esami minimi");
+      return;
+    }
+
+    // Assicurati che l'anno accademico sia inizializzato
+    const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
+    if (!selectedYear) {
       return;
     }
 
     // Costruisci i parametri per includere l'anno selezionato
     let params = new URLSearchParams();
     
-    params.append('anno', window.AnnoAccademicoManager?.getSelectedAcademicYear());
+    params.append('anno', selectedYear);
     params.append('docente', userData.user_data.username);
     
     const url = `/api/check-esami-minimi?${params.toString()}`;
@@ -64,7 +69,8 @@ async function checkEsamiMinimi() {
 
 window.checkEsamiMinimi = checkEsamiMinimi;
 
-document.addEventListener("DOMContentLoaded", function () {
-  // Controlla gli esami minimi all'avvio della pagina
+document.addEventListener("DOMContentLoaded", async function () {
+  // Assicurati che l'anno accademico sia caricato prima di controllare gli esami minimi
+  await window.AnnoAccademicoManager.initSelectedAcademicYear();
   checkEsamiMinimi();
 });

@@ -3,6 +3,7 @@ class AnnoAccademicoManager {
   constructor() {
     this.selectedYear = null;
     this.callbacks = [];
+    this.initialized = false;
   }
 
   // Funzioni per gestire i cookie
@@ -44,14 +45,50 @@ class AnnoAccademicoManager {
     });
   }
 
-  // Inizializza l'anno dai cookie
-  initSelectedAcademicYear() {
+  // Inizializza l'anno dai cookie o determina quello corrente
+  async initSelectedAcademicYear() {
+    if (this.initialized) return this.selectedYear;
+    
+    // Prima controlla se c'è un anno salvato
     const savedYear = this.getCookie('selectedAcademicYear');
     if (savedYear) {
       this.selectedYear = savedYear;
       window.selectedAcademicYear = savedYear;
+      this.initialized = true;
+      return savedYear;
     }
-    return savedYear;
+    
+    // Se non c'è un anno salvato, carica gli anni disponibili e seleziona quello corrente
+    try {
+      const response = await fetch('/api/get-anni-accademici');
+      const availableYears = await response.json();
+      
+      // Determina l'anno corrente
+      const now = new Date();
+      const currentYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+      
+      // Usa l'anno corrente se disponibile, altrimenti l'ultimo disponibile
+      const yearToSelect = availableYears.includes(currentYear) ? currentYear : availableYears[availableYears.length - 1];
+      
+      if (yearToSelect) {
+        this.setSelectedAcademicYear(yearToSelect.toString());
+        this.initialized = true;
+        return yearToSelect.toString();
+      }
+    } catch (error) {
+      // Se c'è un errore, usa l'anno corrente calcolato
+      const now = new Date();
+      const currentYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+      this.setSelectedAcademicYear(currentYear.toString());
+      this.initialized = true;
+      return currentYear.toString();
+    }
+  }
+
+  // Funzione di utilità per attendere l'inizializzazione
+  async waitForInit() {
+    if (this.initialized) return this.selectedYear;
+    return await this.initSelectedAcademicYear();
   }
 
   // Registra un callback per il cambio anno

@@ -286,7 +286,7 @@ const FormEsameData = (function() {
     const docenteField = document.getElementById('docente');
     formData.append('docente', docenteField.value);
     
-    const annoAccademico = window.AnnoAccademicoManager?.getSelectedAcademicYear() || new Date().getFullYear().toString();
+    const annoAccademico = window.AnnoAccademicoManager?.getSelectedAcademicYear();
     formData.append('anno_accademico', annoAccademico);
     
     // Insegnamenti

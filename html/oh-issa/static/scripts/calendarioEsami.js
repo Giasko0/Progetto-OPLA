@@ -1,10 +1,13 @@
 // Script per la gestione del calendario esami
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Elementi DOM
     const btnGeneraCalendario = document.getElementById('btnGeneraCalendario');
     const btnEsportaXLSX = document.getElementById('btnEsportaXLSX');
     
-    // Inizializza i selettori
+    // Prima inizializza l'anno accademico
+    await window.AnnoAccademicoManager.initSelectedAcademicYear();
+    
+    // Poi carica gli anni accademici
     loadAnniAccademici();
     
     // Event listeners

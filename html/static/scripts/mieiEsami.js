@@ -1,21 +1,17 @@
 // Script per la gestione della pagina "I miei esami"
 
 // Quando il documento è pronto
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   window.preloadUserData();
   
-  // Inizializza il dropdown dell'anno accademico
-  window.AnnoAccademicoManager.initSelectedAcademicYear();
+  // Prima inizializza l'anno accademico
+  await window.AnnoAccademicoManager.initSelectedAcademicYear();
   
-  window.AnnoAccademicoManager.createDropdownHTML('annoAccademicoContainer', 'annoAccademicoSelect')
-    .then(() => {
-      window.AnnoAccademicoManager.onYearChange(fetchAndDisplayEsami);
-      fetchAndDisplayEsami();
-    })
-    .catch(error => {
-      console.error('Errore nella creazione del dropdown anno:', error);
-      fetchAndDisplayEsami();
-    });
+  // Poi crea il dropdown e configura i callback
+  await window.AnnoAccademicoManager.createDropdownHTML('annoAccademicoContainer', 'annoAccademicoSelect');
+  
+  window.AnnoAccademicoManager.onYearChange(fetchAndDisplayEsami);
+  fetchAndDisplayEsami();
   
   window.updatePageTitle();
   

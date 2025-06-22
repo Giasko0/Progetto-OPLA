@@ -12,9 +12,11 @@ import {
   scrollToPrimaDataValida
 } from "./calendarUtils.js";
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   window.preloadUserData();
-  window.AnnoAccademicoManager.initSelectedAcademicYear();
+  
+  // Prima inizializza l'anno accademico
+  await window.AnnoAccademicoManager.initSelectedAcademicYear();
 
   const calendarEl = document.getElementById("calendar");
   let userData = null;
@@ -80,35 +82,39 @@ document.addEventListener("DOMContentLoaded", function () {
   window.deleteEsame = deleteEsame;
 
   // Inizializza calendario
-  window.getUserData().then(data => {
+  window.getUserData().then(async data => {
     userData = data;
     currentUsername = data?.user_data?.username;
     isAdmin = data?.authenticated && data?.user_data?.permessi_admin;
     window.currentUsername = currentUsername;
 
-    Promise.all([
-      loadDateValide(currentUsername),
-      window.InsegnamentiManager?.loadInsegnamenti(currentUsername) || Promise.resolve([])
-    ])
-      .then(([dateValideResponse]) => {
-        dateValide = dateValideResponse;
-        dropdowns.sessioni = createDropdown("sessioni");
-        dropdowns.insegnamenti = createDropdown("insegnamenti");
-        updateSessioniDropdown(dropdowns.sessioni, dateValide);
+    // Crea dropdown anno accademico
+    await window.AnnoAccademicoManager.createDropdownHTML('annoAccademicoContainer', 'annoAccademicoSelect');
+    
+    // Configura callback per cambio anno
+    window.AnnoAccademicoManager.onYearChange((newYear) => {
+      if (calendar) {
+        calendar.gotoDate(`${newYear}-12-01`);
+        window.forceCalendarRefresh?.();
+      }
+    });
 
-        // Gestione anno accademico semplificata
-        window.AnnoAccademicoManager.createDropdownHTML('annoAccademicoContainer', 'annoAccademicoSelect')
-          .then(() => {
-            window.AnnoAccademicoManager.onYearChange((newYear) => {
-              if (calendar) {
-                calendar.gotoDate(`${newYear}-12-01`);
-                window.forceCalendarRefresh?.();
-              }
-            });
-          });
+    // Inizializza il calendario
+    initializeCalendarWithData();
 
-        // Configurazione calendario semplificata
-        const calendarConfig = {
+    function initializeCalendarWithData() {
+      Promise.all([
+        loadDateValide(currentUsername),
+        window.InsegnamentiManager?.loadInsegnamenti(currentUsername) || Promise.resolve([])
+      ])
+        .then(([dateValideResponse]) => {
+          dateValide = dateValideResponse;
+          dropdowns.sessioni = createDropdown("sessioni");
+          dropdowns.insegnamenti = createDropdown("insegnamenti");
+          updateSessioniDropdown(dropdowns.sessioni, dateValide);
+
+          // Configurazione calendario semplificata
+          const calendarConfig = {
           locale: "it",
           initialView: 'multiMonthGrid',
           duration: { months: 15 },
@@ -310,13 +316,15 @@ document.addEventListener("DOMContentLoaded", function () {
             }, 300);
           });
         }
-      })
-      .catch(error => {
-        console.error("Errore inizializzazione calendario:", error);
-        if (calendarEl) {
-          calendarEl.innerHTML = '<div class="error-message">Errore durante il caricamento del calendario.</div>';
-        }
-      });
+        })
+        .catch(error => {
+          console.error("Errore inizializzazione calendario:", error);
+          if (calendarEl) {
+            calendarEl.innerHTML = '<div class="error-message">Errore durante il caricamento del calendario.</div>';
+          }
+        });
+    }
+
   });
 
   setupCloseHandlers(calendar);

@@ -116,9 +116,12 @@ export async function loadDateValide(docente, insegnamenti = null) {
 
   // Aggiungi l'anno accademico selezionato usando AnnoAccademicoManager
   const selectedYear = window.AnnoAccademicoManager?.getSelectedAcademicYear();
-  if (selectedYear) {
-    params.append("anno", selectedYear);
+  if (!selectedYear) {
+    console.warn("Anno accademico non ancora disponibile, date valide non caricate");
+    return [];
   }
+  
+  params.append("anno", selectedYear);
 
   try {
     const response = await fetch("/api/get-date-valide?" + params.toString());

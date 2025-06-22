@@ -231,7 +231,7 @@ CREATE INDEX idx_vacanze_date_range ON vacanze(inizio, fine);
 CREATE INDEX idx_configurazioni_globali_anno ON configurazioni_globali(anno_accademico);
 
 -- Inserimento dell'utente 'admin' con permessi di amministratore
-INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('admin', '012345', 'Admin', 'Bello', 'password', true);
+INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('ad020022', '342804', 'Amedeo', 'Di Biase', 'password', true);
 
 -- Inserimento dei corsi di studio default
 INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum_codice, curriculum_nome) VALUES
