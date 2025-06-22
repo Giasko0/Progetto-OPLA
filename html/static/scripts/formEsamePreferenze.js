@@ -245,17 +245,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const ora_h = document.getElementById("ora_h");
         const ora_m = document.getElementById("ora_m");
         
-        if (ora_h && ora_m && preference.oraAppello) {
-          // Dividi l'ora in ore e minuti e assicurati che ci siano entrambi
-          const [hours, minutes] = preference.oraAppello.split(":").map(val => val.padStart(2, '0'));
-          if (hours) {
-            ora_h.value = hours;
-          }
-          if (minutes) {
-            ora_m.value = minutes;
-          }
+        if (ora_h && ora_m) {
+          const [hours, minutes] = preference.oraAppello.split(":");
+          ora_h.value = hours;
+          ora_m.value = minutes;
           
-          // Combina i valori per aggiornare il campo nascosto usando FormEsameData
+          // Combina i valori per aggiornare il campo nascosto
           combineTimeValues();
           oraImpostata = true;
         }
@@ -292,18 +287,16 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Se è stata impostata l'ora, aggiorna le aule disponibili per la prima sezione
       if (oraImpostata) {
-        // Attendiamo un piccolo delay per essere sicuri che tutti i valori siano stati aggiornati
         setTimeout(() => {
-          // Trova la prima sezione disponibile e aggiorna le aule
           const firstOraH = document.querySelector('[id^="ora_h_"]');
           if (firstOraH) {
             const sectionCounter = firstOraH.id.split('_')[2];
-            // Chiama la funzione del modulo EsameAppelli se disponibile
+            
             if (window.EsameAppelli && window.EsameAppelli.updateAuleForSection) {
               window.EsameAppelli.updateAuleForSection(sectionCounter);
             }
           }
-        }, 50);
+        }, 200);
       }
     }
 

@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
               if (Array.from(aulaSelect.options).some(opt => opt.value === examData.aula)) {
                 aulaSelect.value = examData.aula;
               } else {
-                console.warn(`Aula "${examData.aula}" non trovata nell'elenco per la sezione ${sectionCounter}. Aggiunta come opzione.`);
+                console.warn(`Aula "${examData.aula}" non trovata nell'elenco per l'Appello ${sectionCounter}. Aggiunta come opzione.`);
                 const newOption = document.createElement('option');
                 newOption.value = examData.aula;
                 newOption.textContent = examData.aula + " (salvata)";
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
               }
             }
           } catch (error) {
-            console.error(`Errore durante l'aggiornamento delle aule per la sezione ${sectionCounter}:`, error);
+            console.error(`Errore durante l'aggiornamento delle aule per l'Appello ${sectionCounter}:`, error);
           }
         }
       }

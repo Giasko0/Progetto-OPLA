@@ -684,36 +684,29 @@ document.addEventListener('DOMContentLoaded', function() {
       const dataField = document.getElementById(`dataora_${sectionCounter}`);
       const oraH = document.getElementById(`ora_h_${sectionCounter}`);
       const oraM = document.getElementById(`ora_m_${sectionCounter}`);
-      const durataH = document.getElementById(`durata_h_${sectionCounter}`);
-      const durataM = document.getElementById(`durata_m_${sectionCounter}`);
 
-      if (!dataField.value || !oraH.value || oraH.value === "") {
-        let message = "Seleziona prima la data e l'ora";
-        if (!dataField.value) message = "Seleziona prima la data";
-        else if (!oraH.value || oraH.value === "") message = "Seleziona prima l'ora";
-        
-        populateAulaSelect(sectionCounter, [], message, true);
+      if (!aulaSelect) {
+        return;
+      }
+
+      if (!dataField?.value || !oraH?.value) {
+        aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
         return;
       }
 
       const data = dataField.value;
-      const ora = `${oraH.value}:${oraM.value}`;
-      const durata = `${durataH.value}:${durataM.value}`;
-
-      // Caricamento aule
-      aulaSelect.innerHTML = '<option value="" disabled selected hidden>Caricamento aule in corso...</option>';
-      
       const periodo = parseInt(oraH.value) >= 14 ? 1 : 0;
+
+      aulaSelect.innerHTML = '<option value="" disabled selected hidden>Caricamento aule in corso</option>';
       
-      loadAuleForDateTime(data, periodo)
-        .then(aule => {
-          populateAulaSelect(aulaSelect, aule);
-          setupAulaChangeListener(aulaSelect, data);
-        })
-        .catch(error => {
-          console.error(`Errore nel caricamento aule per la sezione ${sectionCounter}:`, error);
-          aulaSelect.innerHTML = '<option value="" disabled selected hidden>Errore nel caricamento aule</option>';
-        });
+      try {
+        const aule = await loadAuleForDateTime(data, periodo);
+        populateAulaSelect(aulaSelect, aule);
+        setupAulaChangeListener(aulaSelect, data);
+      } catch (error) {
+        console.error(`Errore nel caricamento aule per l'Appello ${sectionCounter}:`, error);
+        aulaSelect.innerHTML = '<option value="" disabled selected hidden>Errore nel caricamento aule</option>';
+      }
     }
 
     // Funzione helper per setup listener aula

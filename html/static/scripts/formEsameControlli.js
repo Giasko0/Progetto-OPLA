@@ -74,21 +74,18 @@ const FormEsameControlli = (function() {
   // Helper functions per la validazione - aggiornate per sezioni modulari
   function getFirstDateValue() {
     const firstDateInput = document.querySelector('[id^="dataora_"]');
-    return firstDateInput ? firstDateInput.value : null;
+    return firstDateInput.value;
   }
 
   function getFirstTimeValue() {
     const firstOraH = document.querySelector('[id^="ora_h_"]');
     const firstOraM = document.querySelector('[id^="ora_m_"]');
-    if (firstOraH && firstOraM && firstOraH.value && firstOraM.value) {
-      return `${firstOraH.value}:${firstOraM.value}`;
-    }
-    return null;
+    return `${firstOraH.value}:${firstOraM.value}`;
   }
 
   function getDurationValue() {
     const firstDurataField = document.querySelector('[id^="durata_"]');
-    return firstDurataField ? firstDurataField.value : null;
+    return firstDurataField.value;
   }
 
   // Controlla se l'utente è un amministratore
@@ -132,16 +129,23 @@ const FormEsameControlli = (function() {
     return validateInsegnamenti();
   }
 
+  // Validazione che la data sia in una sessione valida
+  function isDateInSession(dateStr) {
+    if (!window.isDateValid) return true; // fallback se non disponibile
+    const result = window.isDateValid(dateStr, window.sessioniPartiOriginali || []);
+    return result && result.isValid;
+  }
+
   // Funzione helper per validare i campi di una sezione
   function validateSectionFields(section, sectionNumber) {
     const fields = {
-      descrizione: section.querySelector(`[id^="descrizione_"]`)?.value,
-      dataora: section.querySelector(`[id^="dataora_"]`)?.value,
-      ora_h: section.querySelector(`[id^="ora_h_"]`)?.value,
-      ora_m: section.querySelector(`[id^="ora_m_"]`)?.value,
-      aula: section.querySelector(`[id^="aula_"]`)?.value,
-      durata_h: section.querySelector(`[id^="durata_h_"]`)?.value,
-      durata_m: section.querySelector(`[id^="durata_m_"]`)?.value
+      descrizione: section.querySelector(`[id^="descrizione_"]`).value,
+      dataora: section.querySelector(`[id^="dataora_"]`).value,
+      ora_h: section.querySelector(`[id^="ora_h_"]`).value,
+      ora_m: section.querySelector(`[id^="ora_m_"]`).value,
+      aula: section.querySelector(`[id^="aula_"]`).value,
+      durata_h: section.querySelector(`[id^="durata_h_"]`).value,
+      durata_m: section.querySelector(`[id^="durata_m_"]`).value
     };
 
     // Verifica campi obbligatori
@@ -154,7 +158,7 @@ const FormEsameControlli = (function() {
     ];
 
     for (const { field, message } of requiredFields) {
-      if (!fields[field] || !fields[field].trim()) {
+      if (!fields[field].trim()) {
         showValidationError(`Appello ${sectionNumber}: ${message}`);
         return false;
       }
@@ -174,12 +178,18 @@ const FormEsameControlli = (function() {
     }
 
     // Validazione durata
-    const durataH = parseInt(fields.durata_h) || 0;
-    const durataM = parseInt(fields.durata_m) || 0;
+    const durataH = parseInt(fields.durata_h);
+    const durataM = parseInt(fields.durata_m);
     const durataTotale = (durataH * 60) + durataM;
     
     if (durataTotale < 30 || durataTotale > 720) {
       showValidationError(`Appello ${sectionNumber}: La durata deve essere tra 30 minuti e 12 ore`);
+      return false;
+    }
+
+    // La data deve essere in una sessione valida
+    if (!isDateInSession(fields.dataora)) {
+      showValidationError(`Appello ${sectionNumber}: La data non è all'interno di una sessione valida.`);
       return false;
     }
 
@@ -193,12 +203,10 @@ const FormEsameControlli = (function() {
       insegnamentiSelected = window.InsegnamentiManager.getSelectedInsegnamenti();
     } else {
       const insegnamentoSelect = document.getElementById('insegnamento');
-      if (insegnamentoSelect?.selectedOptions) {
-        insegnamentiSelected = Array.from(insegnamentoSelect.selectedOptions).map(option => option.value);
-      }
+      insegnamentiSelected = Array.from(insegnamentoSelect.selectedOptions).map(option => option.value);
     }
     
-    if (!insegnamentiSelected?.length) {
+    if (!insegnamentiSelected.length) {
       showValidationError("Seleziona almeno un insegnamento");
       return false;
     }
@@ -271,10 +279,10 @@ const FormEsameControlli = (function() {
       return false;
     }
 
-    const dataora = firstSection.querySelector('[id^="dataora_"]')?.value;
-    const ora_h = firstSection.querySelector('[id^="ora_h_"]')?.value;
-    const ora_m = firstSection.querySelector('[id^="ora_m_"]')?.value;
-    const aula = firstSection.querySelector('[id^="aula_"]')?.value;
+    const dataora = firstSection.querySelector('[id^="dataora_"]').value;
+    const ora_h = firstSection.querySelector('[id^="ora_h_"]').value;
+    const ora_m = firstSection.querySelector('[id^="ora_m_"]').value;
+    const aula = firstSection.querySelector('[id^="aula_"]').value;
 
     if (!dataora || !ora_h || !ora_m || !aula) {
       showValidationError("Compila almeno i campi obbligatori");
