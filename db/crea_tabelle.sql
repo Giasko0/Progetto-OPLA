@@ -251,7 +251,7 @@ INSERT INTO sessioni (cds, anno_accademico, curriculum_codice, tipo_sessione, in
 ('L062', 2024, 'GEN', 'anticipata', '2024-12-22', '2025-02-22', 2, 0),
 ('L062', 2024, 'GEN', 'estiva', '2025-06-10', '2025-07-25', 2, 3),
 ('L062', 2024, 'GEN', 'autunnale', '2025-09-01', '2025-9-30', 2, 2),
-('L062', 2024, 'GEN', 'invernale', '2025-12-22', '2026-02-25', 2, 3);
+('L062', 2024, 'GEN', 'invernale', '2026-01-10', '2026-02-25', 2, 3);
 
 -- Inserimento delle aule
 INSERT INTO aule (nome, codice_esse3, codice_easyacademy, sede, edificio, posti) VALUES
