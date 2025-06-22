@@ -293,16 +293,16 @@ const EsameForm = (function() {
       const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
       
       if (ora_h && ora_m) {
-        const oraField = section.querySelector(`[id^="ora_"][type="hidden"]`);
-        if (oraField) oraField.value = `${ora_h}:${ora_m}`;
+        let oraField = section.querySelector(`[id^="ora_"][type="hidden"]`);
+        oraField.value = `${ora_h}:${ora_m}`;
       }
       
       const durata_h = parseInt(section.querySelector(`[id^="durata_h_"]`)?.value) || 0;
       const durata_m = parseInt(section.querySelector(`[id^="durata_m_"]`)?.value) || 0;
       const durata_totale = (durata_h * 60) + durata_m;
       
-      const durataField = section.querySelector(`[id^="durata_"][type="hidden"]`);
-      if (durataField) durataField.value = durata_totale.toString();
+      let durataField = section.querySelector(`[id^="durata_"][type="hidden"]`);
+      durataField.value = durata_totale.toString();
     });
   }
 

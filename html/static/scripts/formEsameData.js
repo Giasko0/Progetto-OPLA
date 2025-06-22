@@ -359,7 +359,7 @@ const FormEsameData = (function() {
       const durataH = parseInt(fields.durata_h) || 0;
       const durataM = parseInt(fields.durata_m) || 0;
       fields.durata = ((durataH * 60) + durataM).toString();
-      fields.ora = `${fields.ora_h}:${fields.ora_m}`;
+      fields.ora = `${fields.ora_h.padStart(2, '0')}:${fields.ora_m.padStart(2, '0')}`;
     }
     
     return { fields, isValid };

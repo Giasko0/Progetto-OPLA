@@ -254,6 +254,12 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     return False, f'Vincolo 14 giorni violato per {titolo_insegnamento}: esiste già un esame il {conflicting_date}'
                 
                 # Controllo conflitto orario con materie dello stesso CDS/anno/semestre
+                ora_appello = sezione.get('ora_appello')
+                if not ora_appello:
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Ora appello mancante per la validazione dei vincoli'
+                
                 cursor.execute("""
                     SELECT DISTINCT i.titolo, e.ora_appello
                     FROM esami e
@@ -269,7 +275,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     AND ic1.semestre = ic2.semestre
                     AND e.anno_accademico = %s
                 """ + (" AND e.id != %s" if exam_id_to_exclude else ""),
-                [insegnamento_id, anno_accademico, data_appello, sezione['ora_appello'], 
+                [insegnamento_id, anno_accademico, data_appello, ora_appello, 
                  insegnamento_id, anno_accademico] + 
                 ([exam_id_to_exclude] if exam_id_to_exclude else []))
                 
@@ -497,6 +503,7 @@ def update_esame():
             'insegnamenti': [insegnamento_result[0]],
             'sezioni_appelli': [{
                 'data_appello': data.get('data_appello'),
+                'ora_appello': data.get('ora_appello'),
                 'aula': data.get('aula'),
                 'periodo': data.get('periodo'),
                 'mostra_nel_calendario': data.get('mostra_nel_calendario', True),
