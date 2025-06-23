@@ -183,12 +183,6 @@ def saml_acs():
       
       create_user_if_not_exists(user_attrs)
       
-      self_url = OneLogin_Saml2_Utils.get_self_url(req)
-      if 'RelayState' in request.form and self_url != request.form['RelayState']:
-        relay_state = request.form['RelayState']
-        return redirect(auth.redirect_to(relay_state))
-        
-      # Dopo il login l'utente viene reindirizzato alla index
       return redirect('/')
     except ValueError as e:
       return f"Errore: {str(e)}", 400
