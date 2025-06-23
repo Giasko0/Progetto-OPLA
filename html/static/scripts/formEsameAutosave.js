@@ -71,7 +71,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Carica i dati salvati e li applica al form
     function loadSavedData() {
       const savedDataStr = getCookie(AUTOSAVE_COOKIE_KEY);
-      const savedData = JSON.parse(savedDataStr);
+      if (!savedDataStr) return false;
+      let savedData;
+      try {
+        savedData = JSON.parse(savedDataStr);
+      } catch (e) {
+        deleteCookie(AUTOSAVE_COOKIE_KEY);
+        return false;
+      }
+      if (!savedData || !savedData.timestamp) return false;
       
       // Verifica che i dati non siano troppo vecchi
       const now = new Date().getTime();
@@ -118,15 +126,11 @@ document.addEventListener('DOMContentLoaded', function() {
       });
 
       // Ora
-      if (data.ora_h) {
-        const oraH = section.querySelector('[id^="ora_h_"]');
-        oraH.value = data.ora_h;
+      if (data.ora_h && data.ora_m) {
+        if (window.FormEsameData?.setTimeFieldsFromString) {
+          window.FormEsameData.setTimeFieldsFromString(`${data.ora_h}:${data.ora_m}`, section.id.split('_')[1]);
+        }
       }
-      if (data.ora_m) {
-        const oraM = section.querySelector('[id^="ora_m_"]');
-        oraM.value = data.ora_m;
-      }
-
       // Durata
       if (data.durata_h !== undefined) {
         const durataH = section.querySelector('[id^="durata_h_"]');

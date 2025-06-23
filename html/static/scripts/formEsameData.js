@@ -4,7 +4,7 @@ const FormEsameData = (function() {
   // Funzioni per impostare valori degli elementi
   function setElementValue(id, value) {
     const element = document.getElementById(id);
-    element.value = value;
+    if (element) element.value = value;
   }
 
   function setRadioValue(name, value) {
@@ -28,19 +28,39 @@ const FormEsameData = (function() {
     setElementValue("durata", durata.toString());
   }
 
-  function combineTimeValues() {
-    const ora_h = document.getElementById('ora_h').value;
-    const ora_m = document.getElementById('ora_m').value;
-    setElementValue('ora', `${ora_h}:${ora_m}`);
-    
-    const durata_h = parseInt(document.getElementById('durata_h').value);
-    const durata_m = parseInt(document.getElementById('durata_m').value);
-    const durata_totale = (durata_h * 60) + durata_m;
-    
-    setElementValue('durata', durata_totale.toString());
+  // Imposta ora_h e ora_m a partire da una stringa "HH:MM" (solo questa modalità, senza fallback)
+  function setTimeFieldsFromString(timeString, sectionCounter = '1') {
+    if (!timeString) return;
+    const [hours, minutes] = timeString.split(':');
+    const oraH = document.querySelector(`[id^="ora_h_${sectionCounter}"]`);
+    const oraM = document.querySelector(`[id^="ora_m_${sectionCounter}"]`);
+    if (oraH) oraH.value = hours;
+    if (oraM) oraM.value = minutes;
+    const oraField = document.querySelector(`[id^="ora_${sectionCounter}"][type="hidden"]`);
+    if (oraField) oraField.value = `${hours}:${minutes}`;
   }
 
-  // Parsing del tempo
+  // Combina i valori ora_h e ora_m in un unico campo ora (stringa "HH:MM") per tutte le sezioni (solo questa modalità)
+  function combineTimeValuesForAllSections() {
+    document.querySelectorAll('.date-appello-section').forEach((section) => {
+      const sectionIdMatch = section.id.match(/_(\d+)$/);
+      const counter = sectionIdMatch ? sectionIdMatch[1] : '1';
+      const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
+      const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
+      if (ora_h && ora_m) {
+        let oraField = section.querySelector(`[id^="ora_"][type="hidden"]`);
+        if (oraField) oraField.value = `${ora_h}:${ora_m}`;
+      }
+      // ...gestione durata come prima...
+      const durata_h = parseInt(section.querySelector(`[id^="durata_h_"]`)?.value) || 0;
+      const durata_m = parseInt(section.querySelector(`[id^="durata_m_"]`)?.value) || 0;
+      const durata_totale = (durata_h * 60) + durata_m;
+      let durataField = section.querySelector(`[id^="durata_"][type="hidden"]`);
+      if (durataField) durataField.value = durata_totale.toString();
+    });
+  }
+
+  // Parsing del tempo solo da stringa "HH:MM"
   function parseTimeString(timeString) {
     const [hours, minutes] = timeString.split(':');
     return { hours, minutes };
@@ -56,17 +76,9 @@ const FormEsameData = (function() {
     
     // Ora appello  
     if (data.ora_appello) {
-      const oraParts = parseTimeString(data.ora_appello);
-      if (oraParts && oraParts.hours) {
-        const oraH = document.querySelector(`[id^="ora_h_${sectionCounter}"]`);
-        const oraM = document.querySelector(`[id^="ora_m_${sectionCounter}"]`);
-        
-        if (oraH) oraH.value = oraParts.hours;
-        if (oraM) oraM.value = oraParts.minutes;
-        
-        // Trigger update aule per la sezione
-        window.EsameAppelli.updateAuleForSection(sectionCounter);
-      }
+      setTimeFieldsFromString(data.ora_appello, sectionCounter);
+      // Aggiorna aule per la sezione
+      window.EsameAppelli.updateAuleForSection(sectionCounter);
     }
     
     // Aula
@@ -167,6 +179,11 @@ const FormEsameData = (function() {
 
     if (data.hasOwnProperty('mostra_nel_calendario')) {
       setCheckboxValue('mostra_nel_calendario', data.mostra_nel_calendario);
+    }
+
+    // Ora appello
+    if (data.ora_appello) {
+      setTimeFieldsFromString(data.ora_appello, '1');
     }
   }
 
@@ -344,9 +361,7 @@ const FormEsameData = (function() {
       mostra_nel_calendario: section.querySelector(`[id^="mostra_nel_calendario_"]`)?.checked,
       tipo_appello_radio: section.querySelector(`input[name^="tipo_appello_radio_"]:checked`)?.value
     };
-    
     const isValid = fields.descrizione && fields.dataora && fields.ora_h && fields.ora_m && fields.aula;
-    
     if (isValid) {
       // Calcola date se mancanti
       if (!fields.inizioIscrizione || !fields.fineIscrizione) {
@@ -354,14 +369,12 @@ const FormEsameData = (function() {
         fields.inizioIscrizione = fields.inizioIscrizione || dates.inizio;
         fields.fineIscrizione = fields.fineIscrizione || dates.fine;
       }
-      
       // Calcola durata e ora
       const durataH = parseInt(fields.durata_h) || 0;
       const durataM = parseInt(fields.durata_m) || 0;
       fields.durata = ((durataH * 60) + durataM).toString();
       fields.ora = `${fields.ora_h.padStart(2, '0')}:${fields.ora_m.padStart(2, '0')}`;
     }
-    
     return { fields, isValid };
   }
 
@@ -416,7 +429,9 @@ const FormEsameData = (function() {
     setCheckboxValue,
     setDurationFromMinutes,
     setDurationForSection,
-    combineTimeValues,
+    combineTimeValues: combineTimeValuesForAllSections,
+    combineTimeValuesForAllSections,
+    setTimeFieldsFromString,
     parseTimeString,
     calculateAndSetInscriptionDates,
     calculateAndSetInscriptionDatesForSection

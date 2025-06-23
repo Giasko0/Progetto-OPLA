@@ -242,18 +242,11 @@ document.addEventListener('DOMContentLoaded', function() {
       let oraImpostata = false;
       // Imposta ora appello
       if (preference.oraAppello) {
-        const ora_h = document.getElementById("ora_h");
-        const ora_m = document.getElementById("ora_m");
-        
-        if (ora_h && ora_m) {
-          const [hours, minutes] = preference.oraAppello.split(":");
-          ora_h.value = hours;
-          ora_m.value = minutes;
-          
-          // Combina i valori per aggiornare il campo nascosto
-          combineTimeValues();
-          oraImpostata = true;
+        // Usa la funzione centralizzata per tutte le sezioni (qui solo la prima)
+        if (window.FormEsameData?.setTimeFieldsFromString) {
+          window.FormEsameData.setTimeFieldsFromString(preference.oraAppello, '1');
         }
+        oraImpostata = true;
       }
       
       // Imposta durata usando FormEsameData

@@ -288,22 +288,7 @@ const EsameForm = (function() {
 
   // Combina valori tempo per tutte le sezioni
   function combineTimeValuesForAllSections() {
-    document.querySelectorAll('.date-appello-section').forEach((section, index) => {
-      const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
-      const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
-      
-      if (ora_h && ora_m) {
-        let oraField = section.querySelector(`[id^="ora_"][type="hidden"]`);
-        oraField.value = `${ora_h}:${ora_m}`;
-      }
-      
-      const durata_h = parseInt(section.querySelector(`[id^="durata_h_"]`)?.value) || 0;
-      const durata_m = parseInt(section.querySelector(`[id^="durata_m_"]`)?.value) || 0;
-      const durata_totale = (durata_h * 60) + durata_m;
-      
-      let durataField = section.querySelector(`[id^="durata_"][type="hidden"]`);
-      durataField.value = durata_totale.toString();
-    });
+    window.FormEsameData?.combineTimeValuesForAllSections();
   }
 
   // Configura pulsanti del form

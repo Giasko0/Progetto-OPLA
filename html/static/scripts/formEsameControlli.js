@@ -141,8 +141,13 @@ const FormEsameControlli = (function() {
     const fields = {
       descrizione: section.querySelector(`[id^="descrizione_"]`).value,
       dataora: section.querySelector(`[id^="dataora_"]`).value,
-      ora_h: section.querySelector(`[id^="ora_h_"]`).value,
-      ora_m: section.querySelector(`[id^="ora_m_"]`).value,
+      ora_h: section.querySelector(`[id^="ora_h_"]`)?.value,
+      ora_m: section.querySelector(`[id^="ora_m_"]`)?.value,
+      ora: (() => {
+        const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
+        const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
+        return (ora_h && ora_m) ? `${ora_h}:${ora_m}` : "";
+      })(),
       aula: section.querySelector(`[id^="aula_"]`).value,
       durata_h: section.querySelector(`[id^="durata_h_"]`).value,
       durata_m: section.querySelector(`[id^="durata_m_"]`).value
@@ -158,7 +163,7 @@ const FormEsameControlli = (function() {
     ];
 
     for (const { field, message } of requiredFields) {
-      if (!fields[field].trim()) {
+      if (typeof fields[field] === "undefined" || !fields[field] || (typeof fields[field] === "string" && fields[field].trim() === "")) {
         showValidationError(`Appello ${sectionNumber}: ${message}`);
         return false;
       }
@@ -167,7 +172,7 @@ const FormEsameControlli = (function() {
     // Validazione regole specifiche
     const validationResults = {
       giorno_settimana: validateFormField('giorno_settimana', fields.dataora, formValidationRules),
-      ora_appello: validateFormField('ora_appello', `${fields.ora_h}:${fields.ora_m}`, formValidationRules)
+      ora_appello: validateFormField('ora_appello', fields.ora, formValidationRules)
     };
 
     for (const [field, result] of Object.entries(validationResults)) {

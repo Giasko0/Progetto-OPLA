@@ -186,6 +186,46 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         mostra_nel_calendario = sezione['mostra_nel_calendario']
         data_esame = datetime.fromisoformat(data_appello)
         
+        # Per ogni insegnamento, controlla se la data cade in sessione anticipata e se è secondo semestre
+        for insegnamento in insegnamenti:
+            # Ottieni ID insegnamento
+            cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+            result = cursor.fetchone()
+            if not result:
+                cursor.close()
+                release_connection(conn)
+                return False, f'Insegnamento {insegnamento} non trovato'
+            insegnamento_id, titolo_insegnamento = result
+
+            # Ottieni info insegnamento_cds (serve semestre)
+            cursor.execute("""
+                SELECT semestre FROM insegnamenti_cds 
+                WHERE insegnamento = %s AND anno_accademico = %s LIMIT 1
+            """, (insegnamento_id, anno_accademico))
+            cds_info = cursor.fetchone()
+            if not cds_info:
+                cursor.close()
+                release_connection(conn)
+                return False, f'Insegnamento {titolo_insegnamento} non trovato per l\'anno accademico {anno_accademico}'
+            semestre = cds_info[0]
+
+            # Controlla se la data cade in una sessione anticipata
+            cursor.execute("""
+                SELECT inizio, fine FROM sessioni 
+                WHERE cds IN (
+                    SELECT cds FROM insegnamenti_cds WHERE insegnamento = %s AND anno_accademico = %s
+                )
+                AND anno_accademico = %s
+                AND tipo_sessione = 'anticipata'
+            """, (insegnamento_id, anno_accademico, anno_accademico))
+            sessioni_anticipate = cursor.fetchall()
+            for inizio, fine in sessioni_anticipate:
+                if inizio and fine and inizio <= data_esame.date() <= fine:
+                    if semestre == 2:
+                        cursor.close()
+                        release_connection(conn)
+                        return False, f"Non è possibile inserire esami nella sessione anticipata per l'insegnamento '{titolo_insegnamento}' di secondo semestre."
+
         # Controllo weekend
         if data_esame.weekday() >= 5:
             cursor.close()

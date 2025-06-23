@@ -361,6 +361,16 @@ document.addEventListener('DOMContentLoaded', function() {
       if (showInCalendarCheckbox && !showInCalendarCheckbox.hasAttribute('data-user-modified')) {
         showInCalendarCheckbox.checked = true;
       }
+
+      // Aggiorna il campo ora nascosto ogni volta che cambia ora_h o ora_m
+      function updateOraField() {
+        if (oraH && oraM) {
+          const oraField = section.querySelector(`#ora_${counter}`);
+          if (oraField) oraField.value = `${oraH.value}:${oraM.value}`;
+        }
+      }
+      if (oraH) oraH.addEventListener('change', updateOraField);
+      if (oraM) oraM.addEventListener('change', updateOraField);
     }
 
     // Funzione helper per autosave
