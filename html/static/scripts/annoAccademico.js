@@ -201,5 +201,3 @@ if (document.readyState === 'loading') {
 
 // Esporta solo nel namespace globale
 window.AnnoAccademicoManager = annoAccademico;
-
-export default annoAccademico;
