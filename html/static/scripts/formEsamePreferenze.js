@@ -1,439 +1,295 @@
 document.addEventListener('DOMContentLoaded', function() {
-  // Script per la gestione delle preferenze del form esame
+  // Gestione delle preferenze
   const EsamePreferenze = (function() {
-    // Verifica che le dipendenze siano caricate
-    if (!window.FormEsameData) {
-      throw new Error('FormEsameData non è caricato. Assicurati che formEsameData.js sia incluso prima di formEsamePreferenze.js');
-    }
-    if (!window.FormEsameControlli) {
-      throw new Error('FormEsameControlli non è caricato. Assicurati che formEsameControlli.js sia incluso prima di formEsamePreferenze.js');
-    }
-
-    // Importa utilità dai moduli appropriati
-    const {
-      setElementValue,
-      setCheckboxValue,
-      setDurationFromMinutes,
-      combineTimeValues
-    } = window.FormEsameData;
-
-    const { showValidationError } = window.FormEsameControlli;
-
-    // Funzioni per la gestione delle preferenze API
-    function saveFormPreference(username, formType, preferenceName, preferences) {
-      return fetch('/api/salva-preferenza-form', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username: username,
-          form_type: formType,
-          name: preferenceName,
-          preferences: preferences
-        })
-      })
-      .then(response => response.json());
-    }
-
-    function loadFormPreferences(username, formType) {
-      return fetch(`/api/get-preferenze-form?username=${encodeURIComponent(username)}&form_type=${formType}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Errore nella risposta del server: ${response.status}`);
-          }
-          return response.json();
-        });
-    }
-
-    function deleteFormPreference(username, id) {
-      return fetch('/api/elimina-preferenza-form', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username: username,
-          id: id
-        })
-      })
-      .then(response => response.json());
-    }
-
     let currentUsername = null;
     let userPreferences = [];
 
-    // Carica le preferenze dell'utente
-    function loadUserPreferences() {
-      if (!currentUsername) {
-        currentUsername = document.getElementById("docente")?.value;
-        if (!currentUsername) {
-          console.error("Username non trovato, impossibile caricare le preferenze");
-          return;
-        }
-      }
-      
-      // Usa la funzione centralizzata se disponibile
-      if (window.getUserData) {
-        window.getUserData()
-          .then(data => {
-            if (data.authenticated && data.user_data) {
-              currentUsername = data.user_data.username;
-              window.EsamePreferenze.setCurrentUsername(currentUsername);
-              loadFormPreferences(currentUsername, 'esame')
-                .then(data => {
-                  if (data.status === 'success' && data.preferences) {
-                    userPreferences = data.preferences;
-                    updatePreferencesMenu();
-                  } else {
-                    console.error("Errore nel caricamento delle preferenze:", data.message);
-                  }
-                })
-                .catch(error => {
-                  console.error('Errore nel caricamento delle preferenze:', error);
-                });
-            }
-          })
-          .catch(error => {
-            console.error('Errore nel caricamento delle preferenze:', error);
-          });
-      } else {
-        // Fallback al metodo originale
-        loadFormPreferences(currentUsername, 'esame')
-          .then(data => {
-            if (data.status === 'success' && data.preferences) {
-              userPreferences = data.preferences;
-              updatePreferencesMenu();
-            } else {
-              console.error("Errore nel caricamento delle preferenze:", data.message);
-            }
-          })
-          .catch(error => {
-            console.error('Errore nel caricamento delle preferenze:', error);
-          });
-      }
+    // === FUNZIONI API ===
+    async function salvaPreferenza(name, preferences) {
+      const response = await fetch('/api/preferenze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: currentUsername,
+          name: name,
+          preferences: preferences
+        })
+      });
+      return response.json();
     }
 
-    // Salva le preferenze correnti
-    function saveCurrentPreference(preferenceName) {
-      if (!currentUsername) {
-        currentUsername = document.getElementById("docente")?.value;
-        if (!currentUsername) {
-          showValidationError("Errore: nessun utente identificato");
-          return;
-        }
-      }
-      
-      // Ottieni gli insegnamenti selezionati direttamente dall'elemento select nascosto
-      let selectedInsegnamenti = [];
-      try {
-        const insegnamentoSelect = document.getElementById("insegnamento");
-        if (insegnamentoSelect && insegnamentoSelect.options) {
-          for (let i = 0; i < insegnamentoSelect.options.length; i++) {
-            if (insegnamentoSelect.options[i].selected) {
-              selectedInsegnamenti.push({
-                codice: insegnamentoSelect.options[i].value,
-                titolo: insegnamentoSelect.options[i].textContent
-              });
-            }
+    async function caricaPreferenze() {
+      const response = await fetch(`/api/preferenze?username=${encodeURIComponent(currentUsername)}`);
+      return response.json();
+    }
+
+    async function eliminaPreferenza(id) {
+      const response = await fetch(`/api/preferenze/${id}?username=${encodeURIComponent(currentUsername)}`, {
+        method: 'DELETE'
+      });
+      return response.json();
+    }
+
+    // === FUNZIONI RACCOLTA DATI ===
+    function raccogliDatiPrimaSezione() {
+      const firstSection = document.querySelector('.date-appello-section');
+      if (!firstSection) return null;
+
+      const getValue = (selector) => firstSection.querySelector(selector)?.value || '';
+      const getChecked = (selector) => firstSection.querySelector(selector)?.checked || false;
+      const getRadio = (name) => firstSection.querySelector(`input[name^="${name}"]:checked`)?.value || '';
+
+      // Ora
+      const ora_h = getValue('[id^="ora_h_"]');
+      const ora_m = getValue('[id^="ora_m_"]');
+      const oraAppello = (ora_h && ora_m) ? `${ora_h}:${ora_m}` : '';
+
+      // Durata
+      const durata_h = parseInt(getValue('[id^="durata_h_"]')) || 0;
+      const durata_m = parseInt(getValue('[id^="durata_m_"]')) || 0;
+      const durata = ((durata_h * 60) + durata_m).toString();
+
+      // Insegnamenti
+      const insegnamenti = [];
+      if (window.InsegnamentiManager?.getSelectedInsegnamenti) {
+        const selected = window.InsegnamentiManager.getSelectedInsegnamenti();
+        selected.forEach(codice => {
+          const option = document.querySelector(`#insegnamento option[value="${codice}"]`);
+          if (option) {
+            insegnamenti.push({ codice, titolo: option.textContent });
           }
-        }
-        
-        // Alternativa - recupera i tag dal box se il select è vuoto
-        if (selectedInsegnamenti.length === 0) {
-          const tags = document.querySelectorAll('#insegnamentoBox .multi-select-tag');
-          tags.forEach(tag => {
-            const cdsMatch = tag.textContent.match(/\s+\(([A-Z0-9]+)\)/);
-            if (cdsMatch && cdsMatch[1]) {
-              const codice = cdsMatch[1];
-              const titolo = tag.textContent.replace(/\s+\([A-Z0-9]+\)\s*×?$/, '').trim();
-              selectedInsegnamenti.push({ codice, titolo });
-            }
-          });
-        }
-      } catch (error) {
-        console.error("Errore nel recupero degli insegnamenti selezionati:", error);
+        });
       }
-          
-      // Raccogli i valori comuni del form escludendo i campi specifici dell'esame
-      const preferences = {
-        mostra_nel_calendario: document.getElementById("mostra_nel_calendario")?.checked || false,
-        descrizione: document.getElementById("descrizione")?.value,
-        insegnamenti: selectedInsegnamenti,
-        tipoEsame: document.getElementById("tipoEsame")?.value,
-        verbalizzazione: document.getElementById("verbalizzazione")?.value,
-        oraAppello: document.getElementById("ora")?.value,
-        durata: document.getElementById("durata")?.value,
-        tipo_appello: document.querySelector('input[name="tipo_appello_radio"]:checked')?.value,
-        note: document.getElementById("note")?.value
+
+      return {
+        descrizione: getValue('[id^="descrizione_"]'),
+        tipoEsame: getValue('[id^="tipoEsame_"]'),
+        verbalizzazione: getValue('[id^="verbalizzazione_"]'),
+        oraAppello,
+        durata,
+        tipo_appello: getRadio('tipo_appello_radio'),
+        mostra_nel_calendario: getChecked('[id^="mostra_nel_calendario_"]'),
+        note: getValue('[id^="note_"]'),
+        insegnamenti
       };
-      
-      saveFormPreference(currentUsername, 'esame', preferenceName, preferences)
-        .then(data => {
-          if (data.status === 'success') {
-            window.showMessage(data.message, "Preferenze salvate", "success");
-            loadUserPreferences();
-          } else {
-            showValidationError(data.message);
-          }
-        })
-        .catch(error => {
-          console.error('Errore nel salvataggio delle preferenze:', error);
-          showValidationError("Errore nel salvataggio delle preferenze");
-        });
     }
 
-    // Applica una preferenza
-    function applyPreference(preference) {
-      // Imposta descrizione
-      if (preference.descrizione) {
-        const descrizione = document.getElementById("descrizione");
-        if (descrizione) descrizione.value = preference.descrizione;
-      }
+    // === FUNZIONI APPLICAZIONE ===
+    function applicaATutteLeSezioni(preferences) {
+      const sections = document.querySelectorAll('.date-appello-section');
       
-      // Imposta insegnamenti
-      if (preference.insegnamenti && preference.insegnamenti.length > 0 && window.InsegnamentiManager) {
-        // Pulisci selezioni precedenti
+      sections.forEach((section, index) => {
+        const counter = (index + 1).toString();
+        applicaASezione(preferences, section, counter);
+      });
+      
+      // Applica insegnamenti (globale)
+      if (preferences.insegnamenti?.length && window.InsegnamentiManager) {
         window.InsegnamentiManager.clearSelection();
+        const codes = preferences.insegnamenti.map(ins => ins.codice);
         
-        // Carica gli insegnamenti selezionati
-        const username = document.getElementById("docente")?.value;
-        if (username) {
-          const insegnamentoCodes = preference.insegnamenti.map(ins => ins.codice);
+        window.InsegnamentiManager.loadInsegnamenti(currentUsername, { filter: codes }, data => {
+          data.forEach(ins => {
+            window.InsegnamentiManager.selectInsegnamento(ins.codice, {
+              semestre: ins.semestre || 1,
+              anno_corso: ins.anno_corso || 1,
+              cds: ins.cds_codice || ""
+            });
+          });
           
-          // Ora usiamo solo il filtro per selezionare gli insegnamenti dalla lista completa
-          window.InsegnamentiManager.loadInsegnamenti(
-            username, 
-            { 
-              filter: insegnamentoCodes
-            },
-            data => {
-              if (data.length > 0) {
-                data.forEach(ins => {
-                  window.InsegnamentiManager.selectInsegnamento(ins.codice, {
-                    semestre: ins.semestre || 1,
-                    anno_corso: ins.anno_corso || 1,
-                    cds: ins.cds_codice || ""
-                  });
-                });
-                
-                const multiSelectBox = document.getElementById("insegnamentoBox");
-                if (multiSelectBox) {
-                  window.InsegnamentiManager.syncUI(multiSelectBox, data);
-                }
-              }
+          const box = document.getElementById("insegnamentoBox");
+          if (box) window.InsegnamentiManager.syncUI(box, data);
+        });
+      }
+    }
+
+    function applicaASezione(preferences, section, counter) {
+      const setValue = (selector, value) => {
+        const el = section.querySelector(selector);
+        if (el && value) el.value = value;
+      };
+
+      const setChecked = (selector, value) => {
+        const el = section.querySelector(selector);
+        if (el) el.checked = value;
+      };
+
+      // Campi di testo
+      setValue('[id^="descrizione_"]', preferences.descrizione);
+      setValue('[id^="tipoEsame_"]', preferences.tipoEsame);
+      setValue('[id^="verbalizzazione_"]', preferences.verbalizzazione);
+      setValue('[id^="note_"]', preferences.note);
+
+      // Checkbox
+      setChecked('[id^="mostra_nel_calendario_"]', preferences.mostra_nel_calendario);
+
+      // Ora
+      if (preferences.oraAppello && window.FormEsameData?.setTimeFieldsFromString) {
+        window.FormEsameData.setTimeFieldsFromString(preferences.oraAppello, counter);
+      }
+
+      // Durata
+      if (preferences.durata && window.FormEsameData?.setDurationForSection) {
+        window.FormEsameData.setDurationForSection(preferences.durata, counter);
+      }
+
+      // Radio button
+      if (preferences.tipo_appello) {
+        const radioId = `tipoAppello${preferences.tipo_appello}_${counter}`;
+        const radio = document.getElementById(radioId);
+        if (radio) {
+          radio.checked = true;
+          
+          // Aggiorna verbalizzazione
+          setTimeout(() => {
+            if (window.EsameAppelli?.aggiornaVerbalizzazioneForSection) {
+              window.EsameAppelli.aggiornaVerbalizzazioneForSection(counter);
             }
-          );
-        }
-      }
-      
-      // Imposta tipo esame
-      if (preference.tipoEsame) {
-        const tipoEsame = document.getElementById("tipoEsame");
-        if (tipoEsame) tipoEsame.value = preference.tipoEsame;
-      }
-      
-      // Imposta verbalizzazione
-      if (preference.verbalizzazione) {
-        const verbalizzazione = document.getElementById("verbalizzazione");
-        if (verbalizzazione) verbalizzazione.value = preference.verbalizzazione;
-      }
-      
-      let oraImpostata = false;
-      // Imposta ora appello
-      if (preference.oraAppello) {
-        // Usa la funzione centralizzata per tutte le sezioni (qui solo la prima)
-        if (window.FormEsameData?.setTimeFieldsFromString) {
-          window.FormEsameData.setTimeFieldsFromString(preference.oraAppello, '1');
-        }
-        oraImpostata = true;
-      }
-      
-      // Imposta durata usando FormEsameData
-      if (preference.durata) {
-        setDurationFromMinutes(preference.durata);
-      }
-      
-      // Gestione tipo appello (radio button)
-      if (preference.hasOwnProperty('tipo_appello')) {
-        if (preference.tipo_appello === 'PP') {
-          document.getElementById('tipoAppelloPP').checked = true;
-        } else {
-          document.getElementById('tipoAppelloPF').checked = true;
-        }
-        // Aggiorna verbalizzazione chiamando la funzione nel form esame
-        if (window.EsameForm && window.EsameForm.aggiornaVerbalizzazione) {
-          window.EsameForm.aggiornaVerbalizzazione();
+            // Ri-applica verbalizzazione
+            if (preferences.verbalizzazione) {
+              setValue('[id^="verbalizzazione_"]', preferences.verbalizzazione);
+            }
+          }, 50);
         }
       }
 
-      // Imposta mostra_nel_calendario usando FormEsameData
-      if (preference.hasOwnProperty('mostra_nel_calendario')) {
-        setCheckboxValue('mostra_nel_calendario', preference.mostra_nel_calendario);
-      }
-      
-      // Imposta note
-      if (preference.note) {
-        const note = document.getElementById("note");
-        if (note) note.value = preference.note;
-      }
-      
-      // Se è stata impostata l'ora, aggiorna le aule disponibili per la prima sezione
-      if (oraImpostata) {
+      // Aggiorna aule
+      if (preferences.oraAppello) {
         setTimeout(() => {
-          const firstOraH = document.querySelector('[id^="ora_h_"]');
-          if (firstOraH) {
-            const sectionCounter = firstOraH.id.split('_')[2];
-            
-            if (window.EsameAppelli && window.EsameAppelli.updateAuleForSection) {
-              window.EsameAppelli.updateAuleForSection(sectionCounter);
-            }
+          if (window.EsameAppelli?.updateAuleForSection) {
+            window.EsameAppelli.updateAuleForSection(counter);
           }
-        }, 200);
+        }, 100);
       }
     }
 
-    // Aggiorna il menu delle preferenze
-    function updatePreferencesMenu() {
-      const preferencesMenu = document.getElementById("preferencesMenu");
-      if (!preferencesMenu) return;
+    // === FUNZIONI UI ===
+    async function caricaEMostraPreferenze() {
+      if (!currentUsername) return;
       
-      // Svuota il menu
-      preferencesMenu.innerHTML = "";
-      
-      if (userPreferences.length === 0) {
-        preferencesMenu.innerHTML = "<div class='preference-item'>Nessuna preferenza salvata</div>";
-        return;
+      try {
+        userPreferences = await caricaPreferenze();
+        aggiornaMenu();
+      } catch (error) {
+        console.error('Errore caricamento preferenze:', error);
       }
-      
-      // Crea un elemento per ogni preferenza
-      userPreferences.forEach(pref => {
-        const item = document.createElement("div");
-        item.className = "preference-item";
-        item.innerHTML = `
-          <span>${pref.name}</span>
-          <span class="delete-btn" data-id="${pref.id}" title="Elimina"><span class="material-symbols-outlined">delete</span></span>
-        `;
-        
-        // Event listener per caricare la preferenza
-        item.addEventListener("click", (e) => {
-          // Se il click è sulla X, non caricare la preferenza
-          if (e.target.classList.contains("delete-btn")) return;
-          
-          applyPreference(pref.preferences);
-          togglePreferencesMenu();
-        });
-        
-        preferencesMenu.appendChild(item);
-      });
-      
-      // Event listener per eliminare le preferenze
-      preferencesMenu.querySelectorAll(".delete-btn").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          deletePreference(btn.dataset.id);
-        });
-      });
     }
 
-    // Elimina una preferenza
-    function deletePreference(id) {
-      if (!confirm("Sei sicuro di voler eliminare questa preferenza?")) return;
-      
-      deleteFormPreference(currentUsername, id)
-        .then(data => {
-          if (data.status === 'success') {
-            window.showMessage(data.message, "Preferenze", "success");
-            loadUserPreferences();
-          } else {
-            showValidationError(data.message);
-          }
-        })
-        .catch(error => {
-          console.error('Errore nell\'eliminazione della preferenza:', error);
-          showValidationError("Errore nell'eliminazione della preferenza");
-        });
-    }
-
-    // Mostra/nasconde il form per salvare le preferenze
-    function toggleSavePreferenceForm() {
-      const saveForm = document.getElementById("savePreferenceForm");
+    function aggiornaMenu() {
       const menu = document.getElementById("preferencesMenu");
-      
-      if (!saveForm) return;
-       
-      const isVisible = saveForm.style.display === "flex";
-      saveForm.style.display = isVisible ? "none" : "flex";
-      
-      // Nascondi il menu se è visibile
-      if (menu && menu.style.display === "block") {
-        menu.style.display = "none";
-      }
-      
-      // Imposta il focus sul campo di input
-      if (!isVisible) {
-        document.getElementById("preferenceNameInput")?.focus();
-      }
-    }
-
-    // Mostra/nasconde il menu delle preferenze
-    function togglePreferencesMenu() {
-      const menu = document.getElementById("preferencesMenu");
-      const saveForm = document.getElementById("savePreferenceForm");
-      
       if (!menu) return;
       
-      const isVisible = menu.style.display === "block";
-      menu.style.display = isVisible ? "none" : "block";
+      menu.innerHTML = userPreferences.length === 0 
+        ? "<div class='preference-item'>Nessuna preferenza salvata</div>"
+        : userPreferences.map(pref => `
+            <div class="preference-item" data-pref='${JSON.stringify(pref.preferences)}'>
+              <span>${pref.name}</span>
+              <span class="delete-btn" data-id="${pref.id}">
+                <span class="material-symbols-outlined">delete</span>
+              </span>
+            </div>
+          `).join('');
       
-      // Nascondi il form di salvataggio se è visibile
-      if (saveForm && saveForm.style.display === "flex") {
-        saveForm.style.display = "none";
+      // Event listeners
+      menu.querySelectorAll('.preference-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.delete-btn')) return;
+          const prefs = JSON.parse(item.dataset.pref);
+          applicaATutteLeSezioni(prefs);
+          nascondiMenu();
+        });
+      });
+      
+      menu.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (confirm('Eliminare questa preferenza?')) {
+            try {
+              await eliminaPreferenza(btn.dataset.id);
+              caricaEMostraPreferenze();
+            } catch (error) {
+              alert('Errore eliminazione preferenza');
+            }
+          }
+        });
+      });
+    }
+
+    function mostraMenu() {
+      const menu = document.getElementById("preferencesMenu");
+      const form = document.getElementById("savePreferenceForm");
+      if (menu) menu.style.display = "block";
+      if (form) form.style.display = "none";
+    }
+
+    function nascondiMenu() {
+      const menu = document.getElementById("preferencesMenu");
+      if (menu) menu.style.display = "none";
+    }
+
+    function mostraFormSalvataggio() {
+      const menu = document.getElementById("preferencesMenu");
+      const form = document.getElementById("savePreferenceForm");
+      const input = document.getElementById("preferenceNameInput");
+      
+      if (form) form.style.display = "flex";
+      if (menu) menu.style.display = "none";
+      if (input) {
+        input.value = '';
+        input.focus();
       }
     }
 
-    // Gestisce il salvataggio di una preferenza
-    function handleSavePreference() {
-      const preferenceNameInput = document.getElementById("preferenceNameInput");
-      if (!preferenceNameInput) return;
+    function nascondiFormSalvataggio() {
+      const form = document.getElementById("savePreferenceForm");
+      if (form) form.style.display = "none";
+    }
+
+    async function salvaNuovaPreferenza() {
+      const input = document.getElementById("preferenceNameInput");
+      const name = input?.value?.trim();
       
-      const preferenceName = preferenceNameInput.value.trim();
-      if (!preferenceName) {
-        window.showMessage("Inserisci un nome per la preferenza", "Attenzione", "warning");
+      if (!name) {
+        alert('Inserisci un nome per la preferenza');
         return;
       }
       
-      // Verifica se esiste già una preferenza con questo nome
-      const exists = userPreferences.some(p => p.name === preferenceName);
-      if (exists) {
-        if (!confirm(`Esiste già una preferenza chiamata "${preferenceName}". Vuoi sovrascriverla?`)) {
-          return;
-        }
+      const preferences = raccogliDatiPrimaSezione();
+      if (!preferences) {
+        alert('Nessun dato da salvare');
+        return;
       }
       
-      saveCurrentPreference(preferenceName);
-      toggleSavePreferenceForm();
+      try {
+        await salvaPreferenza(name, preferences);
+        nascondiFormSalvataggio();
+        caricaEMostraPreferenze();
+        if (window.showMessage) {
+          window.showMessage(`Preferenza "${name}" salvata`, "Successo", "success");
+        }
+      } catch (error) {
+        alert('Errore salvataggio preferenza');
+      }
     }
 
-    // Imposta l'username corrente
-    function setCurrentUsername(username) {
-      currentUsername = username;
-    }
-
-    // Interfaccia pubblica
+    // === INTERFACCIA PUBBLICA ===
     return {
-      loadUserPreferences,
-      saveCurrentPreference,
-      applyPreference,
-      updatePreferencesMenu,
-      deletePreference,
-      toggleSavePreferenceForm,
-      togglePreferencesMenu,
-      handleSavePreference,
-      setCurrentUsername
+      setCurrentUsername: (username) => { currentUsername = username; },
+      loadUserPreferences: caricaEMostraPreferenze,
+      togglePreferencesMenu: () => {
+        const menu = document.getElementById("preferencesMenu");
+        const isVisible = menu?.style.display === "block";
+        if (isVisible) nascondiMenu(); else { caricaEMostraPreferenze(); mostraMenu(); }
+      },
+      toggleSavePreferenceForm: () => {
+        const form = document.getElementById("savePreferenceForm");
+        const isVisible = form?.style.display === "flex";
+        if (isVisible) nascondiFormSalvataggio(); else mostraFormSalvataggio();
+      },
+      handleSavePreference: salvaNuovaPreferenza,
+      applyPreferenceToSection: applicaASezione // Per nuove sezioni
     };
   }());
 
-  // Espone il modulo globalmente
   window.EsamePreferenze = EsamePreferenze;
 });
