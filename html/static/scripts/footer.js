@@ -12,11 +12,11 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <div class="footer-section">
           <p>OPLÀ - Portale Online per Prenotare Laboratori e Aule</p>
-          <p>Versione 1.0</p>
+          <p>Versione 1.1</p>
         </div>
         <div class="footer-section">
           <p>Stai riscontrando problemi?</p>
-          <p>Invia un'email a <a class="email-link" href="mailto:opla.dmi@unipg.it">opla.dmi@unipg.it</a></p>
+          <p>Invia un'email a <a class="email-link" href="mailto:opla.dmi.unipg@gmail.com">opla.dmi.unipg@gmail.com</a></p>
         </div>
       </div>
     `;
