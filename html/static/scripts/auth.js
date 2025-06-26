@@ -2,7 +2,7 @@
 let authCache = {
   data: null,
   timestamp: null,
-  expiresIn: 5 * 60 * 1000, // 5 minuti in millisecondi
+  expiresIn: 60 * 60 * 1000, // Un'ora in millisecondi
 };
 
 // Stato globale dell'utente
