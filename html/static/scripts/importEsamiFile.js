@@ -456,7 +456,7 @@ const ExamFileImporter = {
       window.showMessage(data.message, "Importazione Fallita", "error");
     }
     
-    this.displayErrors(data);
+    this.displayDetailedErrors(data);
     uploadBtn.disabled = false;
   },
 
@@ -473,44 +473,49 @@ const ExamFileImporter = {
   },
 
   // Mostra errori dettagliati
-  displayErrors(data) {
-    // Errori specifici
-    ['errors', 'validationErrors', 'insertionErrors'].forEach(errorType => {
-      if (data[errorType]?.length > 0) {
-        const messageType = errorType === 'validationErrors' ? 'warning' : 'error';
-        const title = this.getErrorTitle(errorType);
-        
-        data[errorType].forEach(error => {
-          window.showMessage(error, title, messageType);
-        });
-      }
-    });
-    
-    // Riepilogo se troppi errori
-    if (data.totalErrors > 5) {
-      this.showErrorSummary(data);
+  displayDetailedErrors(data) {
+    if (!data.totalErrors || data.totalErrors === 0) return;
+
+    const formatErrors = data.formatErrors || [];
+    const insertionErrors = data.insertionErrors || [];
+    const totalErrors = data.totalErrors || 0;
+
+    // Se ci sono più di 5 errori, mostra solo il riepilogo
+    if (totalErrors > 5) {
+      this.showErrorSummary(totalErrors, formatErrors.length, insertionErrors.length);
+    } else {
+      // Mostra errori specifici per ogni categoria
+      this.showSpecificErrors(formatErrors, "Errori di Formato", "error");
+      this.showSpecificErrors(insertionErrors, "Errori di Inserimento", "warning");
     }
   },
 
-  // Ottiene titolo errore
-  getErrorTitle(errorType) {
-    const titles = {
-      'errors': 'Errore Formato',
-      'validationErrors': 'Errore Validazione',
-      'insertionErrors': 'Errore Inserimento'
-    };
-    return titles[errorType] || 'Errore';
+  // Mostra errori specifici per categoria
+  showSpecificErrors(errors, title, type) {
+    if (!errors || errors.length === 0) return;
+
+    errors.forEach((error, index) => {
+      // Aggiungi un piccolo delay per evitare spam di notifiche
+      setTimeout(() => {
+        window.showMessage(error, title, type);
+      }, index * 100);
+    });
   },
 
-  // Mostra riepilogo errori
-  showErrorSummary(data) {
-    const riepilogo = `
-      Errori formato: ${data.errorCount || 0}
-      Errori validazione: ${data.validationErrorCount || 0}
-      Errori inserimento: ${data.insertionErrorCount || 0}
-      Totale errori: ${data.totalErrors}
+  // Mostra riepilogo errori quando sono troppi
+  showErrorSummary(totalErrors, formatErrorCount, insertionErrorCount) {
+    const summaryMessage = `
+      Rilevati ${totalErrors} errori totali durante l'importazione:
+      • ${formatErrorCount} errori di formato/validazione
+      • ${insertionErrorCount} errori di inserimento
+      
+      Suggerimento: Prova a importare meno esami per volta o controlla il formato del file.
     `;
-    window.showMessage(riepilogo, "Riepilogo Errori", "warning");
+    
+    window.showMessage(summaryMessage, "Troppi Errori Rilevati", "warning", {
+      html: true,
+      timeout: 10000 // 10 secondi per il riepilogo
+    });
   }
 };
 

@@ -453,7 +453,8 @@ def import_exams_from_file():
             return jsonify({
                 "success": False,
                 "message": f"Nessun esame valido trovato. {len(errori)} errori rilevati.",
-                "details": "\n".join(errori[:10])  # Mostra solo primi 10 errori
+                "formatErrors": errori,
+                "totalErrors": len(errori)
             }), 400
         
         # Inserisci esami
@@ -465,21 +466,36 @@ def import_exams_from_file():
                 inserisci_esami(esame)
                 successi += 1
             except Exception as e:
-                fallimenti.append(f"{esame['insegnamenti'][0]}: {e}")
+                # Trova il nome dell'insegnamento per un errore più chiaro
+                try:
+                    conn_temp = get_db_connection()
+                    cursor_temp = conn_temp.cursor()
+                    cursor_temp.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (esame['insegnamenti'][0],))
+                    result = cursor_temp.fetchone()
+                    titolo = result[0] if result else esame['insegnamenti'][0]
+                    cursor_temp.close()
+                    release_connection(conn_temp)
+                except:
+                    titolo = esame['insegnamenti'][0]
+                
+                fallimenti.append(f"Inserimento {titolo}: {str(e)}")
         
-        tutti_errori = errori + fallimenti
+        # Prepara risposta con errori categorizzati
         message = f"{successi} esami inseriti con successo"
         if bypass:
             message += " (controlli bypassati)"
-        if tutti_errori:
-            message += f", {len(tutti_errori)} errori rilevati"
+        
+        total_errors = len(errori) + len(fallimenti)
+        if total_errors > 0:
+            message += f", {total_errors} errori rilevati"
         
         return jsonify({
             "success": successi > 0,
             "message": message,
             "importedCount": successi,
-            "totalErrors": len(tutti_errori),
-            "details": "\n".join(tutti_errori[:20]) if tutti_errori else None  # Max 20 errori
+            "totalErrors": total_errors,
+            "formatErrors": errori,
+            "insertionErrors": fallimenti
         })
     
     except Exception as e:
