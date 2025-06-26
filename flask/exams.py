@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, session
 from datetime import datetime, timedelta, date, time
 from db import get_db_connection, release_connection
 from auth import require_auth
+from utils.sessions import ottieni_intersezione_sessioni_docente, ottieni_vacanze, escludi_vacanze_da_sessioni
 
 exam_bp = Blueprint('exam_bp', __name__)
 
@@ -39,21 +40,30 @@ def get_user_admin_status(username):
     return bool(result and result[0])
 
 def is_date_in_session(data_appello, docente, anno_accademico):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT inizio, fine FROM sessioni s
-        JOIN insegnamenti_cds ic ON s.cds = ic.cds AND s.anno_accademico = ic.anno_accademico
-        JOIN insegnamento_docente idoc ON ic.insegnamento = idoc.insegnamento AND ic.anno_accademico = idoc.annoaccademico
-        WHERE idoc.docente = %s AND s.anno_accademico = %s
-    """, (docente, anno_accademico))
-    sessioni = cursor.fetchall()
-    cursor.close()
-    release_connection(conn)
-    for inizio, fine in sessioni:
-        if inizio and fine and inizio <= data_appello <= fine:
-            return True
-    return False
+    """Verifica se la data dell'appello è all'interno di una sessione valida per il docente."""
+    try:
+        # Ottieni le sessioni del docente (con intersezione tra CdS)
+        sessioni = ottieni_intersezione_sessioni_docente(docente, anno_accademico)
+        
+        if not sessioni:
+            return False
+        
+        # Ottieni le vacanze per l'anno accademico
+        vacanze = ottieni_vacanze(anno_accademico)
+        
+        # Escludi le vacanze dalle sessioni
+        sessioni_valide = escludi_vacanze_da_sessioni(sessioni, vacanze)
+        
+        # Controlla se la data è all'interno di almeno una sessione valida
+        for sessione in sessioni_valide:
+            if sessione['inizio'] <= data_appello <= sessione['fine']:
+                return True
+        
+        return False
+        
+    except Exception as e:
+        print(f"Errore in is_date_in_session: {e}")
+        return False
 
 # ================== Funzioni per la gestione dei dati degli esami ==================
 
@@ -98,21 +108,10 @@ def genera_dati_esame():
         if not all([date_appello[i], ore_h[i], ore_m[i], aule[i]]):
             continue
             
-        # Validazione ora (8-18)
-        ora_int = int(ore_h[i])
-        if not (8 <= ora_int <= 18):
-            return {'status': 'error', 'message': f'Ora non valida per appello {i+1}: deve essere tra 08:00 e 18:00'}
-        
-        # Validazione durata (30-720 minuti)
-        durata_appello = int(durate[i] if i < len(durate) else '120')
-        if not (30 <= durata_appello <= 720):
-            return {'status': 'error', 'message': f'Durata deve essere tra 30 e 720 minuti per appello {i+1}'}
-            
-        # Costruzione sezione
+        # Costruzione sezione - validazioni delegate a controlla_vincoli
         data_esame = datetime.fromisoformat(date_appello[i])
-        # Controllo che la data sia in una sessione valida
-        if not is_date_in_session(data_esame.date(), docente, anno_accademico):
-            return {'status': 'error', 'message': f'La data {date_appello[i]} non è all\'interno di una sessione valida'}
+        ora_int = int(ore_h[i])
+        durata_appello = int(durate[i] if i < len(durate) else '120')
         sezione = {
             'descrizione': descrizioni[i],
             'data_appello': date_appello[i],
@@ -173,10 +172,15 @@ def controlla_vincoli(dati_esame, aula_originale=None):
     target_result = cursor.fetchone()
     target_esami = target_result[0]
     
+    # Carica aule valide per validazione
+    cursor.execute("SELECT nome FROM aule")
+    aule_valide = {row[0] for row in cursor.fetchall()}
+    
     # Estrai parametri principali
     insegnamenti = dati_esame['insegnamenti']
     sezioni_appelli = dati_esame['sezioni_appelli']
     anno_accademico = dati_esame['anno_accademico']
+    docente = dati_esame.get('docente')
     exam_id_to_exclude = dati_esame.get('exam_id')
     
     for sezione in sezioni_appelli:
@@ -185,6 +189,52 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         periodo = sezione['periodo']
         mostra_nel_calendario = sezione['mostra_nel_calendario']
         data_esame = datetime.fromisoformat(data_appello)
+        
+        # CONTROLLO SESSIONI: Verifica che la data sia all'interno di una sessione valida
+        if docente and not is_date_in_session(data_esame.date(), docente, anno_accademico):
+            cursor.close()
+            release_connection(conn)
+            return False, f'La data {data_appello} non è all\'interno di una sessione valida.'
+        
+        # Controllo weekend
+        if data_esame.weekday() >= 5:
+            cursor.close()
+            release_connection(conn)
+            return False, f'Non è possibile inserire esami nel weekend: {data_appello}'
+        
+        # Controllo aula valida
+        if aula not in aule_valide:
+            cursor.close()
+            release_connection(conn)
+            return False, f'Aula non valida: {aula}'
+        
+        # Controllo orario valido (8-18)
+        ora_appello = sezione.get('ora_appello')
+        if ora_appello:
+            try:
+                ora_h = int(ora_appello.split(':')[0])
+                if ora_h < 8 or ora_h > 18:
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Orario non valido: {ora_appello}. Deve essere tra le 08:00 e le 18:00'
+            except (ValueError, IndexError):
+                cursor.close()
+                release_connection(conn)
+                return False, f'Formato orario non valido: {ora_appello}'
+        
+        # Controllo durata valida (30-720 minuti)
+        durata_appello = sezione.get('durata_appello')
+        if durata_appello:
+            try:
+                durata = int(durata_appello)
+                if durata < 30 or durata > 720:
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Durata non valida: {durata} minuti. Deve essere tra 30 e 720 minuti'
+            except (ValueError, TypeError):
+                cursor.close()
+                release_connection(conn)
+                return False, f'Formato durata non valido: {durata_appello}'
         
         # Per ogni insegnamento, controlla se la data cade in sessione anticipata e se è secondo semestre
         for insegnamento in insegnamenti:
@@ -196,6 +246,12 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 release_connection(conn)
                 return False, f'Insegnamento {insegnamento} non trovato'
             insegnamento_id, titolo_insegnamento = result
+
+            # CONTROLLO SESSIONI AGGIUNTIVO: Verifica che la data sia nelle sessioni specifiche dell'insegnamento
+            if not is_date_in_session(data_esame.date(), docente, anno_accademico):
+                cursor.close()
+                release_connection(conn)
+                return False, f'La data {data_appello} non è all\'interno di una sessione valida per l\'insegnamento {titolo_insegnamento}'
 
             # Ottieni info insegnamento_cds (serve semestre)
             cursor.execute("""
@@ -225,6 +281,12 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                         cursor.close()
                         release_connection(conn)
                         return False, f"Non è possibile inserire esami nella sessione anticipata per l'insegnamento '{titolo_insegnamento}' di secondo semestre."
+
+        # Controllo weekend
+        if data_esame.weekday() >= 5:
+            cursor.close()
+            release_connection(conn)
+            return False, f'Non è possibile inserire esami nel weekend: {data_appello}'
 
         # Controllo weekend
         if data_esame.weekday() >= 5:
@@ -537,10 +599,18 @@ def update_esame():
         cursor.execute("SELECT codice FROM insegnamenti WHERE id = %s", (esame_dict['insegnamento'],))
         insegnamento_result = cursor.fetchone()
 
+        # Controllo sessioni sempre attivo (anche con bypass parziale)
+        nuova_data_obj = datetime.strptime(data.get('data_appello'), '%Y-%m-%d')
+        if not is_date_in_session(nuova_data_obj.date(), username, esame_dict['anno_accademico']):
+            cursor.close()
+            release_connection(conn)
+            return jsonify({'success': False, 'message': f'La data {data.get("data_appello")} non è all\'interno di una sessione valida'}), 400
+
         # Prepara dati per controllo vincoli
         dati_controllo = {
             'exam_id': exam_id,
             'insegnamenti': [insegnamento_result[0]],
+            'docente': username,
             'sezioni_appelli': [{
                 'data_appello': data.get('data_appello'),
                 'ora_appello': data.get('ora_appello'),
@@ -558,6 +628,7 @@ def update_esame():
             cursor.close()
             release_connection(conn)
             return jsonify({'success': False, 'message': errore}), 400
+    # Con bypass completo, salta tutti i controlli
 
     # Aggiornamento
     cursor.execute("""

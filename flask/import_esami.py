@@ -8,7 +8,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from db import get_db_connection, release_connection
 from auth import require_auth
-from exams import controlla_vincoli, inserisci_esami
+from exams import controlla_vincoli, inserisci_esami, is_date_in_session
 
 import_bp = Blueprint('import_bp', __name__)
 
@@ -262,14 +262,6 @@ def import_exams_from_file():
             "Prova parziale con pubblicazione": "PP"
         }
         
-        # Carica aule valide
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT nome FROM aule")
-        aule_valide = {row[0] for row in cursor.fetchall()}
-        cursor.close()
-        release_connection(conn)
-        
         # Processa Excel
         wb = load_workbook(io.BytesIO(file.read()))
         rows = list(wb.active.rows)[1:]  # Salta header
@@ -302,12 +294,9 @@ def import_exams_from_file():
                 codice_insegnamento = values[12] if len(values) > 12 else None
                 codice_cds = values[13] if len(values) > 13 else None
                 
+                # Controlli minimi per parsing (solo per evitare errori fatali)
                 if not all([cds_nome, insegnamento_nome, data, ora, aula]):
                     errori.append(f"Riga {i}: dati obbligatori mancanti")
-                    continue
-                
-                if aula not in aule_valide:
-                    errori.append(f"Riga {i}: aula '{aula}' non valida")
                     continue
                 
                 # Parse e validazione data (supporta sia DD-MM-YYYY che YYYY-MM-DD)
@@ -350,8 +339,8 @@ def import_exams_from_file():
                 else:
                     try:
                         durata = int(durata)
-                        if durata < 30 or durata > 720:
-                            errori.append(f"Riga {i}: durata deve essere tra 30 e 720 minuti")
+                        if durata <= 0:
+                            errori.append(f"Riga {i}: durata deve essere un numero positivo")
                             continue
                     except:
                         errori.append(f"Riga {i}: durata deve essere un numero")
@@ -437,7 +426,7 @@ def import_exams_from_file():
                     }]
                 }
                 
-                # Controlli opzionali
+                # Controllo vincoli tramite funzione centralizzata
                 if not bypass:
                     ok, msg = controlla_vincoli(esame)
                     if not ok:

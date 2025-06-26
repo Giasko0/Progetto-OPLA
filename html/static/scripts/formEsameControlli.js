@@ -1,4 +1,3 @@
-// filepath: /home/giasko/Scrivania/UniPG/Tesi/Progetto-OPLA/html/static/scripts/formEsameControlli.js
 // Modulo per la gestione della validazione e controlli del form esame
 const FormEsameControlli = (function() {
 
@@ -7,7 +6,7 @@ const FormEsameControlli = (function() {
     oraAppello: (ora) => {
       if (!ora) return false;
       const [hours] = ora.split(":").map(Number);
-      return hours >= 8 && hours <= 23;
+      return hours >= 8 && hours <= 18;
     },
     
     durataEsame: (durataMinuti) => {
@@ -28,7 +27,7 @@ const FormEsameControlli = (function() {
         required: true,
         validator: validators.oraAppello,
         requiredMessage: "L'ora dell'appello è obbligatoria",
-        invalidMessage: "L'ora dell'appello deve essere compresa tra le 08:00 e le 23:00"
+        invalidMessage: "L'ora dell'appello deve essere compresa tra le 08:00 e le 18:00"
       },
       durata_esame: {
         required: true,
@@ -192,6 +191,13 @@ const FormEsameControlli = (function() {
       return false;
     }
 
+    // Validazione ora specifica (8-18) come nel backend
+    const oraH = parseInt(fields.ora_h);
+    if (oraH < 8 || oraH > 18) {
+      showValidationError(`Appello ${sectionNumber}: L'ora deve essere compresa tra le 08:00 e le 18:00`);
+      return false;
+    }
+
     // La data deve essere in una sessione valida
     if (!isDateInSession(fields.dataora)) {
       showValidationError(`Appello ${sectionNumber}: La data non è all'interno di una sessione valida.`);
@@ -234,18 +240,28 @@ const FormEsameControlli = (function() {
       return false;
     }
 
-    // Controllo minimo per bypass
-    const hasMinimalData = Array.from(dateSections).some(section => {
+    // Controllo minimo per bypass - solo campi obbligatori e weekend
+    for (let i = 0; i < dateSections.length; i++) {
+      const section = dateSections[i];
+      const sectionNumber = i + 1;
+      
       const dataora = section.querySelector(`[id^="dataora_"]`)?.value;
       const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
       const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
       const aula = section.querySelector(`[id^="aula_"]`)?.value;
-      return dataora && ora_h && ora_m && aula;
-    });
-
-    if (!hasMinimalData) {
-      showValidationError("Compila almeno i campi obbligatori per una sezione di appello");
-      return false;
+      
+      // Campi obbligatori sempre necessari
+      if (!dataora || !ora_h || !ora_m || !aula) {
+        showValidationError(`Appello ${sectionNumber}: Compila almeno i campi obbligatori (data, ora, aula)`);
+        return false;
+      }
+      
+      // Weekend sempre bloccato anche con bypass
+      const bypassValidationResult = validateFormField('giorno_settimana', dataora, formValidationRules);
+      if (!bypassValidationResult.isValid) {
+        showValidationError(`Appello ${sectionNumber}: ${bypassValidationResult.message}`);
+        return false;
+      }
     }
 
     return validateInsegnamenti();
@@ -269,7 +285,7 @@ const FormEsameControlli = (function() {
     return validateSectionFields(firstSection, 1);
   }
 
-  // Validazione bypass per modifica semplificata
+  // Validazione bypass per modifica
   function validateFormForEditWithBypass() {
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
@@ -291,6 +307,13 @@ const FormEsameControlli = (function() {
 
     if (!dataora || !ora_h || !ora_m || !aula) {
       showValidationError("Compila almeno i campi obbligatori");
+      return false;
+    }
+
+    // Weekend sempre bloccato anche con bypass
+    const editBypassValidationResult = validateFormField('giorno_settimana', dataora, formValidationRules);
+    if (!editBypassValidationResult.isValid) {
+      showValidationError(editBypassValidationResult.message);
       return false;
     }
 
