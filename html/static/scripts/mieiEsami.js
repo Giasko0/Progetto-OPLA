@@ -34,14 +34,14 @@ async function fetchAndDisplayEsami() {
       anno: selectedYear
     });
 
-    const [insegnamentiResponse, esamiData, targetEsami] = await Promise.all([
+    const [insegnamentiResponse, esamiData, targetEsamiData] = await Promise.all([
       fetch(`/api/get-insegnamenti-docente?${params}`).then(r => r.json()),
       fetch(`/api/get-esami?${params}`).then(r => r.json()),
-      getTargetEsami(selectedYear)
+      getTargetEsamiESessioni(userData.user_data.username, selectedYear)
     ]);
 
     const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.user_data.username);
-    displayEsamiData(processedData, targetEsami);
+    displayEsamiData(processedData, targetEsamiData.target_esami_default, targetEsamiData.sessioni);
   } catch (error) {
     console.error("Errore:", error);
     contenitoreEsami.innerHTML = `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
@@ -68,10 +68,10 @@ function processDataForDisplay(cdsData, esamiData, username) {
       // Inizializza il conteggio esami per ogni insegnamento
       if (!insegnamenti[ins.titolo]) {
         insegnamenti[ins.titolo] = {
-          'Anticipata': 0,
-          'Estiva': 0, 
-          'Autunnale': 0,
-          'Invernale': 0
+          'Anticipata': { ufficiali: 0, totali: 0 },
+          'Estiva': { ufficiali: 0, totali: 0 }, 
+          'Autunnale': { ufficiali: 0, totali: 0 },
+          'Invernale': { ufficiali: 0, totali: 0 }
         };
       }
     });
@@ -100,9 +100,15 @@ function processDataForDisplay(cdsData, esamiData, username) {
       
       esamiProcessed.push(esameFormatted);
       
-      // Conta gli esami per sessione (escludi prove parziali)
-      if (esame.extendedProps.tipo_appello !== 'PP' && sessione && insegnamenti[esame.title]) {
-        insegnamenti[esame.title][sessione]++;
+      // Conta gli esami per sessione
+      if (sessione && insegnamenti[esame.title]) {
+        // Conta sempre nel totale
+        insegnamenti[esame.title][sessione].totali++;
+        
+        // Conta negli ufficiali solo se mostra_nel_calendario è true
+        if (esame.extendedProps.mostra_nel_calendario) {
+          insegnamenti[esame.title][sessione].ufficiali++;
+        }
       }
     }
   });
@@ -128,7 +134,7 @@ function determinaSessioneEsame(dataEsame) {
 }
 
 // Visualizza i dati usando la logica esistente
-function displayEsamiData(data, targetEsami) {
+function displayEsamiData(data, targetEsami, sessioniInfo) {
   const container = document.getElementById("contenitoreEsami");
   const insegnamentoSelect = document.getElementById("insegnamentoSelect");
   
@@ -169,7 +175,7 @@ function displayEsamiData(data, targetEsami) {
     tabContent.style.display = "none";
     tabContent.id = `tab-${insegnamento.replace(/\s+/g, "-")}`;
 
-    displaySessioniEsami(data, insegnamento, tabContent, targetEsami);
+    displaySessioniEsami(data, insegnamento, tabContent, targetEsami, sessioniInfo);
     displayTabelleEsami(data, insegnamento, tabContent);
 
     container.appendChild(tabContent);
@@ -180,7 +186,7 @@ function displayEsamiData(data, targetEsami) {
   allExamsTab.className = "tab-content";
   allExamsTab.id = "tab-all-exams";
   allExamsTab.style.display = "none";
-  displayAllExams(data, allExamsTab, targetEsami);
+  displayAllExams(data, allExamsTab, targetEsami, sessioniInfo);
   container.appendChild(allExamsTab);
 
   // Gestione parametri URL per mostrare il tab corretto
@@ -290,7 +296,7 @@ function displayTabelleEsami(data, insegnamento, container) {
   container.appendChild(section);
 }
 
-function displaySessioniEsami(data, insegnamento, container, targetEsami) {
+function displaySessioniEsami(data, insegnamento, container, targetEsami, sessioniInfo) {
   const section = document.createElement("div");
   section.className = "exam-section";
 
@@ -308,10 +314,10 @@ function displaySessioniEsami(data, insegnamento, container, targetEsami) {
   gridContainer.className = "sessions-grid";
 
   const sessioniDaVisualizzare = [
-    { nome: "Sessione Anticipata", periodo: `Gen/Feb ${selectedYear}`, count: sessioni.Anticipata || 0, max: 3 },
-    { nome: "Sessione Estiva", periodo: `Giu/Lug ${selectedYear}`, count: sessioni.Estiva || 0, max: 3 },
-    { nome: "Sessione Autunnale", periodo: `Set ${selectedYear}`, count: sessioni.Autunnale || 0, max: 2 },
-    { nome: "Sessione Invernale", periodo: `Gen/Feb ${selectedYear + 1}`, count: sessioni.Invernale || 0, max: 3 }
+    { nome: "Sessione Anticipata", periodo: `Gen/Feb ${selectedYear}`, count: sessioni.Anticipata || { ufficiali: 0, totali: 0 }, max: sessioniInfo.anticipata.max },
+    { nome: "Sessione Estiva", periodo: `Giu/Lug ${selectedYear}`, count: sessioni.Estiva || { ufficiali: 0, totali: 0 }, max: sessioniInfo.estiva.max },
+    { nome: "Sessione Autunnale", periodo: `Set ${selectedYear}`, count: sessioni.Autunnale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.autunnale.max },
+    { nome: "Sessione Invernale", periodo: `Gen/Feb ${selectedYear + 1}`, count: sessioni.Invernale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.invernale.max }
   ];
 
   sessioniDaVisualizzare.forEach((sessione) => {
@@ -319,7 +325,8 @@ function displaySessioniEsami(data, insegnamento, container, targetEsami) {
     card.className = "session-card static";
     card.innerHTML = `
       <h4>${sessione.nome} (${sessione.periodo})</h4>
-      <p>${sessione.count}/${sessione.max} esami</p>
+      <p>${sessione.count.ufficiali}/${sessione.max} appelli ufficiali</p>
+      <p>${sessione.count.totali} appelli totali</p>
     `;
     gridContainer.appendChild(card);
   });
@@ -328,7 +335,7 @@ function displaySessioniEsami(data, insegnamento, container, targetEsami) {
   container.appendChild(section);
 }
 
-function displayAllExams(data, container, targetEsami) {
+function displayAllExams(data, container, targetEsami, sessioniInfo) {
   // Sezione riepilogo insegnamenti
   const sessionsSection = document.createElement("div");
   sessionsSection.className = "exam-section";
@@ -342,14 +349,15 @@ function displayAllExams(data, container, targetEsami) {
 
   Object.keys(data.insegnamenti).forEach((insegnamento) => {
     const sessioni = data.insegnamenti[insegnamento];
-    const totaleEsami = Object.values(sessioni).reduce((sum, val) => sum + (val || 0), 0);
+    const totaleEsamiUfficiali = Object.values(sessioni).reduce((sum, val) => sum + (val.ufficiali || 0), 0);
+    const totaleEsamiTotali = Object.values(sessioni).reduce((sum, val) => sum + (val.totali || 0), 0);
 
     const cardElement = document.createElement("div");
-    cardElement.className = `session-card ${totaleEsami < targetEsami ? 'warning-card' : 'success-card'}`;
+    cardElement.className = `session-card ${totaleEsamiUfficiali < targetEsami ? 'warning-card' : 'success-card'}`;
     cardElement.innerHTML = `
       <h4>${insegnamento}</h4>
-      <p>${totaleEsami} esami ufficiali inseriti</p>
-      <p class="exams-requirement">Minimo necessario: ${targetEsami}</p>
+      <p>${totaleEsamiUfficiali}/${targetEsami} appelli ufficiali</p>
+      <p>${totaleEsamiTotali} appelli totali</p>
     `;
 
     cardElement.addEventListener("click", () => {
@@ -490,17 +498,12 @@ function formatDurata(durataMinuti) {
 // Espone funzioni necessarie per l'HTML
 window.sortTable = sortTable;
 
-// Funzione per recuperare il target di esami dalle configurazioni globali
-async function getTargetEsami(anno) {
-  try {
-    const response = await fetch(`/api/oh-issa/get-global-dates?anno=${anno}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data.target_esami_default || 8; // Fallback a 8
-    }
-    return 8;
-  } catch (error) {
-    console.error('Errore nel recupero del target esami:', error);
-    return 8;
+// Funzione per recuperare il target di esami e informazioni sessioni
+async function getTargetEsamiESessioni(docente, anno) {
+  const params = new URLSearchParams({ docente, anno });
+  const response = await fetch(`/api/get-target-esami-sessioni?${params}`);
+  if (!response.ok) {
+    throw new Error(`Errore nel recupero dei dati: ${response.status} ${response.statusText}`);
   }
+  return await response.json();
 }

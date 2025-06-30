@@ -132,7 +132,8 @@ def get_esami():
                    i.codice as insegnamento, i.titolo as insegnamento_titolo,
                    e.aula, e.data_appello, e.ora_appello, e.tipo_appello,
                    e.durata_appello, e.periodo,
-                   e.cds as codice_cds, c.nome_corso as nome_cds
+                   e.cds as codice_cds, c.nome_corso as nome_cds,
+                   e.mostra_nel_calendario
             FROM esami e
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.id
@@ -179,7 +180,8 @@ def get_esami():
                     'durata_appello': row['durata_appello'],
                     'periodo': row['periodo'],
                     'codice_cds': row['codice_cds'],
-                    'nome_cds': row['nome_cds']
+                    'nome_cds': row['nome_cds'],
+                    'mostra_nel_calendario': row['mostra_nel_calendario']
                 }
             })
         
@@ -353,8 +355,7 @@ def check_esami_minimi():
             WHERE anno_accademico = %s
         """, (anno,))
         
-        target_result = cursor.fetchone()
-        target_esami = target_result[0] if target_result and target_result[0] else 8  # Default fallback
+        target_esami = target_result[0]
         
         cursor.execute("""
             SELECT i.id, i.titolo, COUNT(e.id) AS conteggio_esami,
@@ -406,3 +407,108 @@ def check_esami_minimi():
             cursor.close()
         if 'conn' in locals() and conn:
             release_connection(conn)
+
+def ottieni_target_esami_e_sessioni(docente, anno_accademico):
+    """Ottiene il target di esami e i numeri per sessione per un docente"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Ottieni il target di esami default dalle configurazioni globali
+        cursor.execute("""
+            SELECT target_esami_default 
+            FROM configurazioni_globali 
+            WHERE anno_accademico = %s
+        """, (anno_accademico,))
+        
+        target_result = cursor.fetchone()
+        if not target_result or target_result[0] is None:
+            raise Exception(f"Configurazione globale non trovata per l'anno {anno_accademico}")
+        target_esami = target_result[0]
+        
+        # Ottieni i CdS del docente
+        cursor.execute("""
+            SELECT DISTINCT ic.cds, ic.curriculum_codice
+            FROM insegnamento_docente id
+            JOIN insegnamenti_cds ic ON id.insegnamento = ic.insegnamento
+            WHERE id.docente = %s AND id.annoaccademico = %s AND ic.anno_accademico = %s
+        """, (docente, anno_accademico, anno_accademico))
+        
+        cds_docente = cursor.fetchall()
+        
+        if not cds_docente:
+            raise Exception(f"Nessun CdS trovato per il docente {docente} nell'anno {anno_accademico}")
+        
+        # Ottieni le sessioni per i CdS del docente e calcola l'intersezione/unione
+        sessioni_info = {}
+        
+        for cds, curriculum in cds_docente:
+            cursor.execute("""
+                SELECT tipo_sessione, esami_primo_semestre, esami_secondo_semestre
+                FROM sessioni
+                WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s
+            """, (cds, anno_accademico, curriculum))
+            
+            for tipo_sessione, primo_sem, secondo_sem in cursor.fetchall():
+                if tipo_sessione not in sessioni_info:
+                    sessioni_info[tipo_sessione] = []
+                
+                # Calcola il massimo di esami per questa sessione
+                max_esami = max(primo_sem or 0, secondo_sem or 0)
+                sessioni_info[tipo_sessione].append(max_esami)
+        
+        # Calcola il risultato finale (usa il massimo tra tutti i CdS per ogni sessione)
+        sessioni_result = {}
+        for tipo_sessione, valori in sessioni_info.items():
+            if valori:
+                sessioni_result[tipo_sessione] = {'max': max(valori)}
+        
+        # Verifica che tutte le sessioni richieste siano presenti
+        sessioni_richieste = ['anticipata', 'estiva', 'autunnale', 'invernale']
+        sessioni_mancanti = [s for s in sessioni_richieste if s not in sessioni_result]
+        if sessioni_mancanti:
+            raise Exception(f"Sessioni mancanti per i CdS del docente: {', '.join(sessioni_mancanti)}")
+        
+        return {
+            'target_esami_default': target_esami,
+            'sessioni': sessioni_result
+        }
+        
+    except Exception as e:
+        print(f"Errore nell'ottenere target esami e sessioni: {str(e)}")
+        raise e
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            release_connection(conn)
+
+@fetch_bp.route('/api/get-target-esami-sessioni', methods=['GET'])
+def get_target_esami_sessioni():
+    """Endpoint per ottenere target esami e informazioni sessioni per un docente"""
+    try:
+        user_data = get_user_data().get_json()
+        if not user_data['authenticated']:
+            return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
+        
+        docente = request.args.get('docente')
+        anno = request.args.get('anno')
+        
+        if not docente or not anno:
+            return jsonify({'status': 'error', 'message': 'Parametri docente e anno obbligatori'}), 400
+        
+        try:
+            anno = int(anno)
+        except ValueError:
+            return jsonify({'status': 'error', 'message': 'Anno deve essere un numero intero'}), 400
+        
+        # Controlla autorizzazioni
+        is_admin_user = user_data['user_data']['permessi_admin']
+        if not is_admin_user and user_data['user_data']['username'] != docente:
+            return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 403
+        
+        result = ottieni_target_esami_e_sessioni(docente, anno)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
