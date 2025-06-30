@@ -137,7 +137,7 @@ def get_esami():
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.id
             LEFT JOIN cds c ON e.cds = c.codice AND e.anno_accademico = c.anno_accademico AND e.curriculum_codice = c.curriculum_codice
-            WHERE e.anno_accademico = %s AND e.mostra_nel_calendario = true
+            WHERE e.anno_accademico = %s
         """
         
         params = [anno]
