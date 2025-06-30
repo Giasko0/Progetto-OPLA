@@ -144,6 +144,10 @@
   }
 
   /* --------------- Miei Esami --------------- */
+  .insegnamento-dropdown {
+    width: 50%;
+  }
+
   .tab-content {
     width: 100%;
   }

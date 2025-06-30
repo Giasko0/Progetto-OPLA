@@ -189,7 +189,7 @@ body {
 }
 
 /* Bottoni */
-.cta-button, .tab-button, .all-exams-button {
+.cta-button {
   display: inline-block;
   padding: 10px 20px;
   margin: 0 10px;

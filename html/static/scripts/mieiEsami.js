@@ -14,12 +14,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   fetchAndDisplayEsami();
   
   window.updatePageTitle();
-  
-  // Configura il pulsante "Tutti gli appelli"
-  const allExamsButton = document.getElementById("allExamsButton");
-  if (allExamsButton) {
-    allExamsButton.onclick = () => window.location.href = window.location.pathname;
-  }
 });
 
 // Carica gli esami dell'utente e li visualizza
@@ -58,16 +52,18 @@ async function fetchAndDisplayEsami() {
 function processDataForDisplay(cdsData, esamiData, username) {
   const insegnamenti = {};
   const esamiProcessed = [];
+  const insegnamentiCdsInfo = new Map();
   
-  // Estrai tutti gli insegnamenti del docente con informazioni CdS
-  const insegnamentiDocente = new Map();
+  // Processa i dati CdS per creare le mappe di informazioni
   cdsData.forEach(cds => {
     cds.insegnamenti.forEach(ins => {
-      insegnamentiDocente.set(ins.titolo, {
-        codice: ins.codice,
-        cds_codice: ins.cds_codice || cds.codice,
-        cds_nome: ins.cds_nome || cds.nome
-      });
+      const cdsInfo = {
+        cds_codice: ins.cds_codice,
+        cds_nome: ins.cds_nome,
+        cds_info: `${ins.cds_nome} - ${ins.cds_codice}`
+      };
+      
+      insegnamentiCdsInfo.set(ins.titolo, cdsInfo);
       
       // Inizializza il conteggio esami per ogni insegnamento
       if (!insegnamenti[ins.titolo]) {
@@ -87,7 +83,6 @@ function processDataForDisplay(cdsData, esamiData, username) {
     if (esame.extendedProps.insegnamentoDocente && esame.extendedProps.docente === username) {
       const dataEsame = new Date(esame.start);
       const sessione = determinaSessioneEsame(dataEsame);
-      const insegnamentoInfo = insegnamentiDocente.get(esame.title) || {};
       
       // Formato compatibile con il codice esistente
       const esameFormatted = {
@@ -95,12 +90,12 @@ function processDataForDisplay(cdsData, esamiData, username) {
         docente: esame.extendedProps.docente,
         docenteNome: esame.extendedProps.docenteNome,
         insegnamento: esame.title,
-        aula: esame.aula || 'N/A',
+        aula: esame.aula,
         dataora: esame.start,
-        cds: esame.extendedProps.nome_cds || insegnamentoInfo.cds_nome || 'N/A',
-        codice_cds: esame.extendedProps.codice_cds || insegnamentoInfo.cds_codice || 'N/A',
-        durata_appello: esame.extendedProps.durata_appello || 120,
-        tipo_appello: esame.extendedProps.tipo_appello || 'F'
+        cds: esame.extendedProps.nome_cds,
+        codice_cds: esame.extendedProps.codice_cds,
+        durata_appello: esame.extendedProps.durata_appello,
+        tipo_appello: esame.extendedProps.tipo_appello
       };
       
       esamiProcessed.push(esameFormatted);
@@ -112,7 +107,7 @@ function processDataForDisplay(cdsData, esamiData, username) {
     }
   });
 
-  return { esami: esamiProcessed, insegnamenti };
+  return { esami: esamiProcessed, insegnamenti, insegnamentiCdsInfo };
 }
 
 // Determina la sessione in base alla data dell'esame
@@ -134,24 +129,41 @@ function determinaSessioneEsame(dataEsame) {
 
 // Visualizza i dati usando la logica esistente
 function displayEsamiData(data, targetEsami) {
-  const tabsHeader = document.getElementById("tabsHeader");
   const container = document.getElementById("contenitoreEsami");
-  const allExamsButton = document.getElementById("allExamsButton");
+  const insegnamentoSelect = document.getElementById("insegnamentoSelect");
   
   container.innerHTML = "";
-  tabsHeader.innerHTML = "";
-  tabsHeader.appendChild(allExamsButton);
 
   const insegnamenti = Object.keys(data.insegnamenti);
 
-  // Crea i pulsanti dei tabs e il contenuto
+  // Popola il dropdown degli insegnamenti
+  insegnamentoSelect.innerHTML = '<option value="">Tutti gli appelli</option>';
   insegnamenti.forEach((insegnamento) => {
-    const tabButton = document.createElement("button");
-    tabButton.className = "tab-button";
-    tabButton.textContent = insegnamento;
-    tabButton.onclick = () => window.location.href = `?insegnamento=${encodeURIComponent(insegnamento)}`;
-    tabsHeader.appendChild(tabButton);
+    const option = document.createElement("option");
+    option.value = insegnamento;
+    const cdsInfo = data.insegnamentiCdsInfo.get(insegnamento);
+    const displayText = cdsInfo ? `${insegnamento} (${cdsInfo.cds_info})` : insegnamento;
+    option.textContent = displayText;
+    insegnamentoSelect.appendChild(option);
+  });
 
+  // Mostra il dropdown se ci sono insegnamenti
+  if (insegnamenti.length > 0) {
+    insegnamentoSelect.style.display = "inline-block";
+  }
+
+  // Gestione cambio selezione dropdown
+  insegnamentoSelect.onchange = (event) => {
+    const selectedInsegnamento = event.target.value;
+    if (selectedInsegnamento) {
+      window.location.href = `?insegnamento=${encodeURIComponent(selectedInsegnamento)}`;
+    } else {
+      window.location.href = window.location.pathname;
+    }
+  };
+
+  // Crea i contenuti dei tab per ogni insegnamento
+  insegnamenti.forEach((insegnamento) => {
     const tabContent = document.createElement("div");
     tabContent.className = "tab-content";
     tabContent.style.display = "none";
@@ -181,18 +193,14 @@ function displayEsamiData(data, targetEsami) {
 
     if (tab) {
       tab.style.display = "block";
-      document.querySelectorAll(".tab-button").forEach((button) => {
-        if (button.textContent === insegnamentoParam) {
-          button.classList.add("active");
-        }
-      });
+      insegnamentoSelect.value = insegnamentoParam;
     } else {
       allExamsTab.style.display = "block";
-      allExamsButton.classList.add("active");
+      insegnamentoSelect.value = "";
     }
   } else {
     allExamsTab.style.display = "block";
-    allExamsButton.classList.add("active");
+    insegnamentoSelect.value = "";
   }
 }
 
@@ -211,37 +219,6 @@ function createTableStructure(tableId, headers) {
     </thead>
     <tbody class="esami-tbody"></tbody>
   `;
-}
-
-// Crea una riga della tabella
-function createTableRow(esame) {
-  const row = document.createElement("tr");
-  row.className = "esami-tr";
-  
-  const cellsData = [
-    { content: esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale", hideOnMobile: true },
-    { content: esame.cds, hideOnMobile: true },
-    { content: esame.insegnamento, hideOnMobile: false },
-    { content: esame.docenteNome, hideOnMobile: true },
-    { content: formatDateTime(esame.dataora), datetime: esame.dataora, hideOnMobile: false },
-    { content: esame.aula, hideOnMobile: false },
-    { content: formatDurata(esame.durata_appello), hideOnMobile: true }
-  ];
-
-  cellsData.forEach((cellData, index) => {
-    const cell = row.insertCell(index);
-    const hideClass = cellData.hideOnMobile ? 'col-responsive-hide' : '';
-    cell.className = `esami-td ${hideClass}`;
-    
-    if (cellData.datetime) {
-      cell.textContent = cellData.content;
-      cell.setAttribute("data-datetime", cellData.datetime);
-    } else {
-      cell.textContent = cellData.content;
-    }
-  });
-
-  return row;
 }
 
 // Funzione per visualizzare le tabelle degli esami
@@ -281,7 +258,31 @@ function displayTabelleEsami(data, insegnamento, container) {
   const tbody = table.querySelector("tbody");
 
   esamiInsegnamento.forEach(esame => {
-    tbody.appendChild(createTableRow(esame));
+    const row = document.createElement("tr");
+    row.className = "esami-tr";
+    
+    const cellsData = [
+      esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale",
+      esame.cds,
+      esame.insegnamento,
+      esame.docenteNome,
+      formatDateTime(esame.dataora),
+      esame.aula,
+      formatDurata(esame.durata_appello)
+    ];
+
+    cellsData.forEach((content, index) => {
+      const cell = row.insertCell(index);
+      const hideClass = (index === 0 || index === 1 || index === 3 || index === 6) ? 'col-responsive-hide' : '';
+      cell.className = `esami-td ${hideClass}`;
+      cell.textContent = content;
+      
+      if (index === 4) { // Data column
+        cell.setAttribute("data-datetime", esame.dataora);
+      }
+    });
+
+    tbody.appendChild(row);
   });
 
   tableContainer.appendChild(table);
@@ -294,7 +295,10 @@ function displaySessioniEsami(data, insegnamento, container, targetEsami) {
   section.className = "exam-section";
 
   const title = document.createElement("h2");
-  title.textContent = insegnamento;
+  // Aggiungi informazioni CdS al titolo tra parentesi
+  const cdsInfo = data.insegnamentiCdsInfo.get(insegnamento);
+  const titleText = cdsInfo ? `${insegnamento} (${cdsInfo.cds_info})` : insegnamento;
+  title.textContent = titleText;
   section.appendChild(title);
 
   const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
@@ -334,7 +338,7 @@ function displayAllExams(data, container, targetEsami) {
   sessionsSection.appendChild(sessionsTitle);
 
   const sessionsGrid = document.createElement("div");
-  sessionsGrid.className = "sessions-grid";
+  sessionsGrid.className = "teaching-grid";
 
   Object.keys(data.insegnamenti).forEach((insegnamento) => {
     const sessioni = data.insegnamenti[insegnamento];
@@ -344,7 +348,7 @@ function displayAllExams(data, container, targetEsami) {
     cardElement.className = `session-card ${totaleEsami < targetEsami ? 'warning-card' : 'success-card'}`;
     cardElement.innerHTML = `
       <h4>${insegnamento}</h4>
-      <p>${totaleEsami} esami inseriti</p>
+      <p>${totaleEsami} esami ufficiali inseriti</p>
       <p class="exams-requirement">Minimo necessario: ${targetEsami}</p>
     `;
 
@@ -394,7 +398,31 @@ function displayAllExams(data, container, targetEsami) {
   // Ordina per data e crea le righe
   const esamiOrdinati = [...data.esami].sort((a, b) => new Date(a.dataora) - new Date(b.dataora));
   esamiOrdinati.forEach(esame => {
-    tbody.appendChild(createTableRow(esame));
+    const row = document.createElement("tr");
+    row.className = "esami-tr";
+    
+    const cellsData = [
+      esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale",
+      esame.cds,
+      esame.insegnamento,
+      esame.docenteNome,
+      formatDateTime(esame.dataora),
+      esame.aula,
+      formatDurata(esame.durata_appello)
+    ];
+
+    cellsData.forEach((content, index) => {
+      const cell = row.insertCell(index);
+      const hideClass = (index === 0 || index === 1 || index === 3 || index === 6) ? 'col-responsive-hide' : '';
+      cell.className = `esami-td ${hideClass}`;
+      cell.textContent = content;
+      
+      if (index === 4) { // Data column
+        cell.setAttribute("data-datetime", esame.dataora);
+      }
+    });
+
+    tbody.appendChild(row);
   });
 
   tableContainer.appendChild(tableAllExams);

@@ -17,11 +17,10 @@ def ottieni_insegnamenti_docente(docente, anno_accademico):
         cursor.execute("""
             SELECT DISTINCT i.id, i.codice, i.titolo
             FROM insegnamenti i
-            JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
             JOIN insegnamento_docente id ON i.id = id.insegnamento
-            WHERE ic.anno_accademico = %s AND id.annoaccademico = %s AND id.docente = %s
+            WHERE id.annoaccademico = %s AND id.docente = %s
             ORDER BY i.codice
-        """, (anno_accademico, anno_accademico, docente))
+        """, (anno_accademico, docente))
         
         return {row[0]: {'codice': row[1], 'titolo': row[2]} for row in cursor.fetchall()}
         
@@ -58,7 +57,7 @@ def get_aule():
             # Recupera aule occupate da esami nel DB locale
             cursor.execute("""
                 SELECT DISTINCT e.aula FROM esami e
-                WHERE e.data_appello = %s AND e.periodo = %s
+                WHERE e.data_appello = %s AND e.periodo = %s AND e.aula IS NOT NULL
             """, (data, periodo))
             
             aule_occupate_db = {row[0] for row in cursor.fetchall()}
@@ -133,69 +132,41 @@ def get_esami():
                    i.codice as insegnamento, i.titolo as insegnamento_titolo,
                    e.aula, e.data_appello, e.ora_appello, e.tipo_appello,
                    e.durata_appello, e.periodo,
-                   ic.cds as codice_cds, c.nome_corso as nome_cds,
-                   a.edificio
+                   e.cds as codice_cds, c.nome_corso as nome_cds
             FROM esami e
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.id
-            LEFT JOIN insegnamenti_cds ic ON i.id = ic.insegnamento AND ic.anno_accademico = e.anno_accademico
-            LEFT JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
-            LEFT JOIN aule a ON e.aula = a.nome
+            LEFT JOIN cds c ON e.cds = c.codice AND e.anno_accademico = c.anno_accademico AND e.curriculum_codice = c.curriculum_codice
+            WHERE e.anno_accademico = %s AND e.mostra_nel_calendario = true
         """
         
-        params = []
-        where_conditions = []
+        params = [anno]
         
         if not is_admin_user:
             insegnamenti_docente = list(ottieni_insegnamenti_docente(docente, anno).keys())
             if insegnamenti_docente:
-                where_conditions.append("e.insegnamento = ANY(%s)")
+                base_query += " AND e.insegnamento = ANY(%s)"
                 params.append(insegnamenti_docente)
             else:
                 return jsonify([])
         
         if insegnamenti:
             insegnamenti_list = insegnamenti.split(',')
-            cursor.execute("""
-                SELECT DISTINCT i2.id
-                FROM insegnamenti i1
-                JOIN insegnamenti_cds ic1 ON i1.id = ic1.insegnamento
-                JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
-                    AND ic1.anno_corso = ic2.anno_corso 
-                    AND ic1.semestre = ic2.semestre
-                    AND ic1.anno_accademico = ic2.anno_accademico
-                JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
-                WHERE i1.codice = ANY(%s) AND ic1.anno_accademico = %s
-            """, (insegnamenti_list, anno))
-            
-            insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
-            if insegnamenti_correlati:
-                condition = "OR e.insegnamento = ANY(%s)" if where_conditions else "e.insegnamento = ANY(%s)"
-                where_conditions.append(condition)
-                params.append(insegnamenti_correlati)
+            base_query += " AND i.codice = ANY(%s)"
+            params.append(insegnamenti_list)
 
-        if where_conditions:
-            base_query += " WHERE " + " ".join(where_conditions)
         base_query += " ORDER BY e.data_appello, e.ora_appello"
 
         cursor.execute(base_query, tuple(params))
         
-        insegnamenti_docente_codes = []
-        if not is_admin_user:
-            insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, anno)
-            insegnamenti_docente_codes = [data['codice'] for data in insegnamenti_docente_dict.values()]
-        
         exams = []
         for row in cursor.fetchall():
-            esame_del_docente = True if is_admin_user else row['insegnamento'] in insegnamenti_docente_codes
-            
-            # Crea aula completa con edificio se disponibile
-            aula_completa = f"{row['aula']} ({row['edificio']})" if row['edificio'] and row['aula'] else (row['aula'] or 'N/A')
+            esame_del_docente = True if is_admin_user else row['docente'] == docente
             
             exams.append({
                 'id': str(row['id']),
                 'title': row['insegnamento_titolo'],
-                'aula': aula_completa,
+                'aula': row['aula'],
                 'start': f"{row['data_appello'].isoformat()}T{row['ora_appello']}" if row['ora_appello'] else row['data_appello'].isoformat(),
                 'description': row['descrizione'],
                 'allDay': False,
@@ -208,8 +179,7 @@ def get_esami():
                     'durata_appello': row['durata_appello'],
                     'periodo': row['periodo'],
                     'codice_cds': row['codice_cds'],
-                    'nome_cds': row['nome_cds'],
-                    'edificio': row['edificio']
+                    'nome_cds': row['nome_cds']
                 }
             })
         
@@ -230,10 +200,10 @@ def get_anni_accademici():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Recupera tutti gli anni accademici unici dal database
+    # Recupera tutti gli anni accademici
     cursor.execute("""
       SELECT DISTINCT anno_accademico 
-      FROM cds 
+      FROM configurazioni_globali 
       ORDER BY anno_accademico DESC
     """)
     
@@ -321,9 +291,9 @@ def get_insegnamenti_docente():
                 SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum_codice, 
                        ic.semestre, ic.anno_corso
                 FROM insegnamenti i
+                JOIN insegnamento_docente id ON i.id = id.insegnamento
                 JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
                 JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
-                JOIN insegnamento_docente id ON i.id = id.insegnamento
                 WHERE ic.anno_accademico = %s AND id.annoaccademico = %s AND id.docente = %s
                 ORDER BY ic.cds, i.codice
             """, (anno, anno, docente))
@@ -388,16 +358,18 @@ def check_esami_minimi():
         
         cursor.execute("""
             SELECT i.id, i.titolo, COUNT(e.id) AS conteggio_esami,
-                   STRING_AGG(DISTINCT icds.cds, ', ' ORDER BY icds.cds) AS codici_cds
+                   CONCAT(c.nome_corso, ' - ', ic.cds) AS codici_cds
             FROM insegnamenti i
+            JOIN insegnamento_docente id ON i.id = id.insegnamento
+            JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
+            LEFT JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
             LEFT JOIN esami e ON i.id = e.insegnamento AND e.docente = %s 
-                AND e.tipo_appello != 'PP' AND e.mostra_nel_calendario = true
-            JOIN insegnamenti_cds icds ON i.id = icds.insegnamento AND icds.anno_accademico = %s
-            WHERE i.id = ANY(%s)
-            GROUP BY i.id, i.titolo
+                AND e.anno_accademico = %s AND e.tipo_appello != 'PP' AND e.mostra_nel_calendario = true
+            WHERE id.docente = %s AND id.annoaccademico = %s AND ic.anno_accademico = %s
+            GROUP BY i.id, i.titolo, ic.cds, c.nome_corso
             HAVING COUNT(e.id) < %s
             ORDER BY COUNT(e.id) ASC, i.titolo ASC
-        """, (docente, anno, list(insegnamenti.keys()), target_esami))
+        """, (docente, anno, docente, anno, anno, target_esami))
         
         insegnamenti_pochi_esami = [
             {
