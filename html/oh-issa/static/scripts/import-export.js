@@ -70,7 +70,7 @@ function initializeAnnoSelector() {
     .then(years => {
       const select = document.getElementById('annoSelect');
       const currentValue = select.value; // Salva la selezione corrente
-      select.innerHTML = '<option value="">Seleziona anno accademico</option>';
+      select.innerHTML = '<option value="">Nuovo anno accademico</option>';
       
       years.forEach(year => {
         const option = document.createElement('option');
@@ -101,7 +101,7 @@ function initializeAnnoSelector() {
     if (selectedAnno) {
       checkProgrammazioneDidattica(selectedAnno);
     } else {
-      updateStatus('loading', 'Seleziona un anno accademico');
+      updateStatus('loading', 'Importa dati per nuovo anno accademico');
       updateButtonStates(false);
     }
   });

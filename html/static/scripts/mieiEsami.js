@@ -84,6 +84,10 @@ function processDataForDisplay(cdsData, esamiData, username) {
       const dataEsame = new Date(esame.start);
       const sessione = determinaSessioneEsame(dataEsame);
       
+      // Determina se l'esame è ufficiale (mostra_nel_calendario non è false e tipo_appello non è PP)
+      const isUfficiale = esame.extendedProps.mostra_nel_calendario !== false && 
+                         esame.extendedProps.tipo_appello !== 'PP';
+      
       // Formato compatibile con il codice esistente
       const esameFormatted = {
         id: esame.id,
@@ -95,7 +99,8 @@ function processDataForDisplay(cdsData, esamiData, username) {
         cds: esame.extendedProps.nome_cds,
         codice_cds: esame.extendedProps.codice_cds,
         durata_appello: esame.extendedProps.durata_appello,
-        tipo_appello: esame.extendedProps.tipo_appello
+        tipo_appello: esame.extendedProps.tipo_appello,
+        mostra_nel_calendario: esame.extendedProps.mostra_nel_calendario
       };
       
       esamiProcessed.push(esameFormatted);
@@ -105,8 +110,8 @@ function processDataForDisplay(cdsData, esamiData, username) {
         // Conta sempre nel totale
         insegnamenti[esame.title][sessione].totali++;
         
-        // Conta negli ufficiali solo se mostra_nel_calendario è true
-        if (esame.extendedProps.mostra_nel_calendario) {
+        // Conta negli ufficiali solo se è un esame ufficiale
+        if (isUfficiale) {
           insegnamenti[esame.title][sessione].ufficiali++;
         }
       }

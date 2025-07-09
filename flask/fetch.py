@@ -111,9 +111,6 @@ def get_aule():
 @fetch_bp.route('/api/get-esami', methods=['GET'])
 def get_esami():
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=DictCursor)
-        
         user_data = get_user_data().get_json()
         if not user_data['authenticated']:
             return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
@@ -126,48 +123,93 @@ def get_esami():
         if not docente or not anno:
             return jsonify({'status': 'error', 'message': 'Parametri mancanti'}), 400
 
-        base_query = """
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        
+        # Costruisci la lista degli insegnamenti autorizzati
+        insegnamenti_autorizzati = []
+        
+        if is_admin_user:
+            # Admin può vedere tutti gli esami
+            if insegnamenti:
+                # Se specificati insegnamenti, trova quelli correlati
+                insegnamenti_list = insegnamenti.split(',')
+                cursor.execute("""
+                    SELECT DISTINCT i2.id
+                    FROM insegnamenti i1
+                    JOIN insegnamenti_cds ic1 ON i1.id = ic1.insegnamento
+                    JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
+                        AND ic1.anno_corso = ic2.anno_corso 
+                        AND ic1.semestre = ic2.semestre
+                        AND ic1.anno_accademico = ic2.anno_accademico
+                    JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
+                    WHERE i1.codice = ANY(%s) AND ic1.anno_accademico = %s
+                """, (insegnamenti_list, anno))
+                insegnamenti_autorizzati = [row[0] for row in cursor.fetchall()]
+        else:
+            # Non admin: solo insegnamenti del docente
+            insegnamenti_docente = ottieni_insegnamenti_docente(docente, anno)
+            if not insegnamenti_docente:
+                return jsonify([])
+            
+            insegnamenti_autorizzati = list(insegnamenti_docente.keys())
+            
+            # Se specificati insegnamenti, aggiungi quelli correlati
+            if insegnamenti:
+                insegnamenti_list = insegnamenti.split(',')
+                cursor.execute("""
+                    SELECT DISTINCT i2.id
+                    FROM insegnamenti i1
+                    JOIN insegnamenti_cds ic1 ON i1.id = ic1.insegnamento
+                    JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
+                        AND ic1.anno_corso = ic2.anno_corso 
+                        AND ic1.semestre = ic2.semestre
+                        AND ic1.anno_accademico = ic2.anno_accademico
+                    JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
+                    WHERE i1.codice = ANY(%s) AND ic1.anno_accademico = %s
+                """, (insegnamenti_list, anno))
+                insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
+                insegnamenti_autorizzati.extend(insegnamenti_correlati)
+        
+        # Query principale
+        where_clause = "WHERE e.insegnamento = ANY(%s)" if insegnamenti_autorizzati else "WHERE 1=0"
+        
+        query = f"""
             SELECT e.id, e.descrizione, e.docente, 
                    CONCAT(u.nome, ' ', u.cognome) as docente_nome,
                    i.codice as insegnamento, i.titolo as insegnamento_titolo,
                    e.aula, e.data_appello, e.ora_appello, e.tipo_appello,
                    e.durata_appello, e.periodo,
-                   e.cds as codice_cds, c.nome_corso as nome_cds,
-                   e.mostra_nel_calendario
+                   ic.cds as codice_cds, c.nome_corso as nome_cds,
+                   a.edificio, e.mostra_nel_calendario
             FROM esami e
             JOIN utenti u ON e.docente = u.username
             JOIN insegnamenti i ON e.insegnamento = i.id
-            LEFT JOIN cds c ON e.cds = c.codice AND e.anno_accademico = c.anno_accademico AND e.curriculum_codice = c.curriculum_codice
-            WHERE e.anno_accademico = %s
+            LEFT JOIN insegnamenti_cds ic ON i.id = ic.insegnamento AND ic.anno_accademico = e.anno_accademico
+            LEFT JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
+            LEFT JOIN aule a ON e.aula = a.nome
+            {where_clause}
+            ORDER BY e.data_appello, e.ora_appello
         """
         
-        params = [anno]
+        cursor.execute(query, (insegnamenti_autorizzati,) if insegnamenti_autorizzati else ())
         
+        # Prepara i codici degli insegnamenti del docente per identificare i suoi esami
+        insegnamenti_docente_codes = []
         if not is_admin_user:
-            insegnamenti_docente = list(ottieni_insegnamenti_docente(docente, anno).keys())
-            if insegnamenti_docente:
-                base_query += " AND e.insegnamento = ANY(%s)"
-                params.append(insegnamenti_docente)
-            else:
-                return jsonify([])
+            insegnamenti_docente_dict = ottieni_insegnamenti_docente(docente, anno)
+            insegnamenti_docente_codes = [data['codice'] for data in insegnamenti_docente_dict.values()]
         
-        if insegnamenti:
-            insegnamenti_list = insegnamenti.split(',')
-            base_query += " AND i.codice = ANY(%s)"
-            params.append(insegnamenti_list)
-
-        base_query += " ORDER BY e.data_appello, e.ora_appello"
-
-        cursor.execute(base_query, tuple(params))
-        
+        # Costruisci la risposta
         exams = []
         for row in cursor.fetchall():
-            esame_del_docente = True if is_admin_user else row['docente'] == docente
+            esame_del_docente = is_admin_user or row['insegnamento'] in insegnamenti_docente_codes
+            aula_completa = f"{row['aula']} ({row['edificio']})" if row['edificio'] and row['aula'] else (row['aula'] or 'N/A')
             
             exams.append({
                 'id': str(row['id']),
                 'title': row['insegnamento_titolo'],
-                'aula': row['aula'],
+                'aula': aula_completa,
                 'start': f"{row['data_appello'].isoformat()}T{row['ora_appello']}" if row['ora_appello'] else row['data_appello'].isoformat(),
                 'description': row['descrizione'],
                 'allDay': False,
@@ -181,7 +223,8 @@ def get_esami():
                     'periodo': row['periodo'],
                     'codice_cds': row['codice_cds'],
                     'nome_cds': row['nome_cds'],
-                    'mostra_nel_calendario': row['mostra_nel_calendario']
+                    'edificio': row['edificio'],
+                    'mostra_nel_calendario': row['mostra_nel_calendario'],
                 }
             })
         
@@ -355,6 +398,7 @@ def check_esami_minimi():
             WHERE anno_accademico = %s
         """, (anno,))
         
+        target_result = cursor.fetchone()
         target_esami = target_result[0]
         
         cursor.execute("""

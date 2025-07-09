@@ -1047,20 +1047,19 @@ input[type="checkbox"], input[type="radio"] {
 #footer {
   background-color: #222;
   color: white;
-  padding: 20px 0;
   width: 100%;
-  text-align: center;
+  z-index: 1;
+  padding: 20px 0;
   margin-top: auto;
-  box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
-  flex-shrink: 0;
+  text-align: center;
 }
 
 .footer-content {
-  max-width: 1200px;
-  margin: 0 auto;
   display: flex;
   justify-content: space-between;
-  flex-wrap: wrap;
+  max-width: 90%;
+  margin: 0 auto;
+  padding: 0 20px;
 }
 
 .footer-section {

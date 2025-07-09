@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
       examDataFromForm.bypass_checks = bypassChecks;
 
       fetch('/api/update-esame', {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!confirm('Sei sicuro di voler eliminare questo esame?')) return;
 
       fetch('/api/delete-esame', {
-        method: 'POST',
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
         },
