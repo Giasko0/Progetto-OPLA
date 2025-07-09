@@ -53,8 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
           
           <div class="form-element">
             <label for="dataora_COUNTER_PLACEHOLDER">Data Appello*</label>
-            <input type="date" id="dataora_COUNTER_PLACEHOLDER" name="dataora[]" class="form-input" value="DATE_PLACEHOLDER" required 
-                   onchange="if(window.FormEsameData && window.FormEsameData.calculateAndSetInscriptionDates) { window.FormEsameData.calculateAndSetInscriptionDates(this.value); }">
+            <input type="date" id="dataora_COUNTER_PLACEHOLDER" name="dataora[]" class="form-input" value="DATE_PLACEHOLDER" required>
           </div>
           
           <div class="two-column-layout">

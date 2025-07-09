@@ -39,6 +39,12 @@ def get_aule():
     periodo = request.args.get('periodo')
     
     try:
+        user_data = get_user_data().get_json()
+        if not user_data['authenticated']:
+            return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
+        
+        docente = user_data['user_data']['username']
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -54,11 +60,11 @@ def get_aule():
                 inizio_fascia = '14:00:00'
                 fine_fascia = '19:00:00'
             
-            # Recupera aule occupate da esami nel DB locale
+            # Recupera aule occupate da esami nel DB locale, escludendo quelle del docente stesso
             cursor.execute("""
                 SELECT DISTINCT e.aula FROM esami e
-                WHERE e.data_appello = %s AND e.periodo = %s AND e.aula IS NOT NULL
-            """, (data, periodo))
+                WHERE e.data_appello = %s AND e.periodo = %s AND e.aula IS NOT NULL AND e.docente != %s
+            """, (data, periodo, docente))
             
             aule_occupate_db = {row[0] for row in cursor.fetchall()}
             
