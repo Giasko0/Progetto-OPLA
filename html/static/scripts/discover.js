@@ -15,19 +15,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gestione del modal video
     const videoModal = document.getElementById('videoModal');
     const videoItems = document.querySelectorAll('.video-item');
-    const modalVideo = document.getElementById('modalVideo');
+    const modalIframe = document.getElementById('modalIframe');
     const modalTitle = document.getElementById('modalTitle');
     const closeModal = document.querySelector('.video-modal-close');
     
     // Apri modal quando si clicca su un video
     videoItems.forEach(item => {
         item.addEventListener('click', function() {
-            const videoSrc = this.dataset.video;
+            const youtubeId = this.dataset.youtubeId;
             const videoTitle = this.dataset.title;
             
-            modalVideo.src = videoSrc;
-            modalTitle.textContent = videoTitle;
-            videoModal.style.display = 'flex';
+            if (youtubeId) {
+                const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`;
+                modalIframe.src = embedUrl;
+                modalTitle.textContent = videoTitle;
+                videoModal.style.display = 'flex';
+            }
         });
     });
     
@@ -54,7 +57,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function closeVideoModal() {
         videoModal.style.display = 'none';
-        modalVideo.pause();
-        modalVideo.src = '';
+        modalIframe.src = '';
     }
 });

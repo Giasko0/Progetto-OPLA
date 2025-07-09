@@ -50,23 +50,23 @@
       <p>Ecco dei video tutorial per utilizzare al meglio la piattaforma OPLÀ</p>
       <div class="video-container">
         <div class="video-list">
-          <div class="video-item" data-video="static/assets/tutorial/1-interfaccia.mp4" data-title="Presentazione dell'interfaccia">
-            <img src="static/assets/thumbnails/1.webp" alt="Tutorial 1" class="video-thumbnail">
+          <div class="video-item" data-youtube-id="7qQ0yEyrgzc" data-title="Presentazione dell'interfaccia">
+            <img src="https://img.youtube.com/vi/7qQ0yEyrgzc/mqdefault.jpg" alt="Tutorial 1" class="video-thumbnail">
           </div>
-          <div class="video-item" data-video="static/assets/tutorial/2-piu-appelli.mp4" data-title="Inserimento di più appelli">
-            <img src="static/assets/thumbnails/2.webp" alt="Tutorial 2" class="video-thumbnail">
+          <div class="video-item" data-youtube-id="bhqDWnhJOvQ" data-title="Inserimento di più appelli">
+            <img src="https://img.youtube.com/vi/bhqDWnhJOvQ/mqdefault.jpg" alt="Tutorial 2" class="video-thumbnail">
           </div>
-          <div class="video-item" data-video="static/assets/tutorial/3-conflitto-altri-docenti.mp4" data-title="Sovrapposizione di esami con altri docenti">
-            <img src="static/assets/thumbnails/3.webp" alt="Tutorial 3" class="video-thumbnail">
+          <div class="video-item" data-youtube-id="h7yeTXS1Hl0" data-title="Sovrapposizione di esami con altri docenti">
+            <img src="https://img.youtube.com/vi/h7yeTXS1Hl0/mqdefault.jpg" alt="Tutorial 3" class="video-thumbnail">
           </div>
-          <div class="video-item" data-video="static/assets/tutorial/4-prove-parziali.mp4" data-title="Inserimento prove parziali">
-            <img src="static/assets/thumbnails/4.webp" alt="Tutorial 4" class="video-thumbnail">
+          <div class="video-item" data-youtube-id="cylUrtbXuSQ" data-title="Inserimento prove parziali">
+            <img src="https://img.youtube.com/vi/cylUrtbXuSQ/mqdefault.jpg" alt="Tutorial 4" class="video-thumbnail">
           </div>
-          <div class="video-item" data-video="static/assets/tutorial/5-modifica-eliminazione.mp4" data-title="Modifica ed eliminazione di un appello">
-            <img src="static/assets/thumbnails/5.webp" alt="Tutorial 5" class="video-thumbnail">
+          <div class="video-item" data-youtube-id="Vd5rrl3qfb8" data-title="Modifica ed eliminazione di un appello">
+            <img src="https://img.youtube.com/vi/Vd5rrl3qfb8/mqdefault.jpg" alt="Tutorial 5" class="video-thumbnail">
           </div>
-          <div class="video-item" data-video="static/assets/tutorial/6-miei-esami.mp4" data-title="I miei esami">
-            <img src="static/assets/thumbnails/6.webp" alt="Tutorial 6" class="video-thumbnail">
+          <div class="video-item" data-youtube-id="IpWrqQ1AwPU" data-title="I miei esami">
+            <img src="https://img.youtube.com/vi/IpWrqQ1AwPU/mqdefault.jpg" alt="Tutorial 6" class="video-thumbnail">
           </div>
         </div>
       </div>
@@ -80,9 +80,10 @@
         <h3 id="modalTitle" class="video-modal-title">Titolo Video</h3>
         <button class="video-modal-close">&times;</button>
       </div>
-      <video id="modalVideo" class="video-modal-video" controls>
-        Il tuo browser non supporta il tag video.
-      </video>
+      <div class="video-modal-iframe-container">
+        <iframe id="modalIframe" class="video-modal-iframe" src="" frameborder="0" allowfullscreen>
+        </iframe>
+      </div>
     </div>
   </div>
   
