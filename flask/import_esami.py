@@ -64,7 +64,9 @@ def get_exam_template():
         # Headers aggiornati con formati specificati
         headers = [
             "CdS", 
-            "Insegnamento", 
+            "Insegnamento (Descrizione)", 
+            "Codice Insegnamento", # Colonna tecnica nascosta
+            "Codice CdS", # Colonna tecnica nascosta
             "Apertura Appelli",
             "Data (DD-MM-YYYY)", 
             "Ora (HH:MM)", 
@@ -84,12 +86,12 @@ def get_exam_template():
             cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
             cell.alignment = Alignment(horizontal="left", vertical="center")
             
-        # Imposta larghezza colonne ottimizzate per contenuto
-        column_widths = [35, 45, 18, 18, 12, 15, 20, 20, 20, 35, 18, 25]
+        # Larghezza colonne
+        column_widths = [30, 45, 0, 0, 18, 21, 14, 16, 20, 25, 25, 32, 15, 30]
         for col, width in enumerate(column_widths, 1):
             ws.column_dimensions[get_column_letter(col)].width = width
         
-        # Aggiungi righe con valori precompilati appropriati
+        # Righe con valori precompilati
         num_rows_to_add = len(insegnamenti)
         
         for row_idx in range(2, num_rows_to_add + 2):
@@ -109,22 +111,22 @@ def get_exam_template():
                 cell.font = Font(name="Arial")
                 cell.alignment = Alignment(horizontal="left")
                 
+                # Colonne nascoste (codici tecnici) subito dopo Insegnamento
+                ws.cell(row_idx, 3, codice_ins)  # Codice insegnamento (nascosto)
+                ws.cell(row_idx, 4, cds_codice)  # Codice CdS (nascosto)
+                
                 # Apertura Appelli (precompilato con "Sì")
-                cell = ws.cell(row_idx, 3, "Sì")
+                cell = ws.cell(row_idx, 5, "Sì")
                 cell.font = Font(name="Arial")
                 cell.alignment = Alignment(horizontal="left")
                 
                 # Verbalizzazione (precompilato)
-                cell = ws.cell(row_idx, 10, "Prova finale con pubblicazione")
+                cell = ws.cell(row_idx, 12, "Prova finale con pubblicazione")
                 cell.font = Font(name="Arial")
                 cell.alignment = Alignment(horizontal="left")
-                
-                # Nascondi colonne tecniche per elaborazione
-                ws.cell(row_idx, 13, codice_ins)  # Codice insegnamento (nascosto)
-                ws.cell(row_idx, 14, cds_codice)  # Codice CdS (nascosto)
             
             # Imposta stile per le celle vuote da compilare
-            empty_columns = [4, 5, 6, 7, 8, 9, 11, 12]  # Data, Ora, Durata, Aula, Date iscrizione, Tipo Esame, Note
+            empty_columns = [6, 7, 8, 9, 10, 11, 13, 14]  # Data, Ora, Durata, Aula, Date iscrizione, Tipo Esame, Note
             for col in empty_columns:
                 cell = ws.cell(row_idx, col)
                 cell.font = Font(name="Arial")
@@ -140,8 +142,8 @@ def get_exam_template():
                     cell.number_format = '0'  # Numero intero
         
         # Nascondi colonne tecniche
-        ws.column_dimensions['M'].hidden = True  # Codice insegnamento
-        ws.column_dimensions['N'].hidden = True  # Codice CdS
+        ws.column_dimensions['C'].hidden = True  # Codice insegnamento
+        ws.column_dimensions['D'].hidden = True  # Codice CdS
         
         # Aggiungi validazioni per facilitare la compilazione
         if num_rows_to_add > 0:
@@ -150,67 +152,126 @@ def get_exam_template():
             # Validazione Apertura Appelli
             apertura_values = "Sì,No"
             dv_apertura = DataValidation(type="list", formula1=f'"{apertura_values}"')
-            dv_apertura.add(f"C2:C{last_row}")
+            dv_apertura.add(f"E2:E{last_row}")
             ws.add_data_validation(dv_apertura)
             
             # Validazione aule
             if aule:
                 aule_list = ",".join(aule[:255])  # Limita per evitare errori Excel
                 dv_aule = DataValidation(type="list", formula1=f'"{aule_list}"')
-                dv_aule.add(f"G2:G{last_row}")
+                dv_aule.add(f"I2:I{last_row}")
                 ws.add_data_validation(dv_aule)
             
             # Validazione verbalizzazione (valori user-friendly)
             verb_values = "Prova finale,Prova finale con pubblicazione,Prova parziale,Prova parziale con pubblicazione"
             dv_verb = DataValidation(type="list", formula1=f'"{verb_values}"')
-            dv_verb.add(f"J2:J{last_row}")
+            dv_verb.add(f"L2:L{last_row}")
             ws.add_data_validation(dv_verb)
             
             # Validazione tipo esame
             tipo_values = "Scritto,Orale,Scritto e orale"
             dv_tipo = DataValidation(type="list", formula1=f'"{tipo_values}"')
-            dv_tipo.add(f"K2:K{last_row}")
+            dv_tipo.add(f"M2:M{last_row}")
             ws.add_data_validation(dv_tipo)
         
-        # Aggiungi istruzioni aggiornate in un foglio separato
-        ws_istruzioni = wb.create_sheet("Istruzioni")
+        # Istruzioni e legenda in foglio separato
+        ws_istruzioni = wb.create_sheet("Istruzioni e Legenda")
         istruzioni = [
             "ISTRUZIONI PER LA COMPILAZIONE DEL TEMPLATE ESAMI",
             "",
-            "CAMPI OBBLIGATORI:",
-            "• CdS e Insegnamento: precompilati automaticamente",
-            "• Apertura Appelli: precompilato con Sì (modificabile)",
-            "• Data: formato DD-MM-YYYY (esempio: 15-06-2025)",
-            "• Ora: formato HH:MM (esempio: 09:00, 14:30)",
-            "• Durata: solo il numero di minuti (esempio: 120)",
+            "PASSAGGI:",
+            "1. Compilare una riga per ogni esame da inserire",
+            "2. I campi obbligatori sono evidenziati nella sezione LEGENDA",
+            "3. Le validazioni guidano nella compilazione corretta",
+            "4. Salvare il file e caricarlo nel sistema",
             "",
-            "CAMPI OPZIONALI:",
-            "• Aula: selezionare dalla lista a tendina",
-            "• Date Iscrizione: se vuote, verranno calcolate automaticamente",
-            "  (Inizio: 30 giorni prima dell'esame, Fine: 1 giorno prima)",
-            "• Verbalizzazione: precompilato, modificabile dalla lista",
-            "• Tipo Esame: Scritto, Orale o Scritto e orale",
-            "• Note: campo libero per annotazioni",
+            "SUGGERIMENTI GENERALI:",
+            "- Gli esami con 'Apertura Appelli = No' non contano per il minimo annuale",
+            "- Il formato data è quello italiano (DD-MM-YYYY)",
+            "- Se le date di iscrizione sono vuote, verranno calcolate automaticamente",
+            "- Per aggiungere più di un appello per lo stesso insegnamento, duplicare la riga e modificare i campi necessari",
+            "- Non modificare i valori delle colonne C e D nascoste, sono necessari al sistema per identificare insegnamenti e CdS",
             "",
-            "SUGGERIMENTI:",
-            "• Compilare una riga per ogni esame da inserire",
-            "• Le validazioni guidano nella compilazione corretta",
-            "• Studio docente DMI non ha limiti di posti",
-            "• Gli esami con 'Apertura Appelli = No' non contano per il minimo annuale",
-            "• Il formato data è quello italiano (DD-MM-YYYY)"
+            "═════════════════════════════════════════════════════════",
+            "",
+            "LEGENDA CAMPI - VALORI ACCETTATI",
+            "",
+            "- CDS (Corso di Studio)",
+            "   - Precompilato automaticamente",
+            "   - Non modificare questo campo",
+            "",
+            "- INSEGNAMENTO",
+            "   - Precompilato automaticamente",
+            "   - Non modificare questo campo",
+            "",
+            "- APERTURA APPELLI (obbligatorio)",
+            "   - Sì: l'esame sarà visibile nel calendario pubblico e conta per il numero di esami annuali",
+            "   - No: l'esame sarà privato e non conta per il numero di esami annuali",
+            "   - Precompilato con 'Sì'",
+            "",
+            "- DATA (obbligatorio)",
+            "   - Formato: DD-MM-YYYY",
+            "   - Esempi validi: 15-06-2025, 03-02-2025, 31-12-2024",
+            "   - La data deve rispettare le sessioni d'esame configurate",
+            "",
+            "- ORA (obbligatorio)",
+            "   - Formato: HH:MM",
+            "   - Esempi validi: 09:00, 14:30, 16:00",
+            "   - Usa sempre due cifre per ore e minuti",
+            "",
+            "- DURATA (obbligatorio)",
+            "   - Solo il numero di minuti",
+            "   - Esempi: 120 (2 ore), 180 (3 ore), 90 (1,5 ore), solo multipli di 15 minuti",
+            "   - Non inserire 'min' o altre unità di misura",
+            "",
+            "- AULA (opzionale)",
+            "   - Selezionare dalla lista a tendina",
+            "   - Se vuoto, dovrai assegnare l'aula manualmente dopo l'importazione",
+            "   - Studio docente DMI è sempre disponibile",
+            "   - Purtroppo non è possibile calcolare in tempo reale la disponibilità delle aule, quindi è necessario verificare manualmente",
+            "",
+            "- INIZIO ISCRIZIONE (opzionale)",
+            "   - Formato: DD-MM-YYYY",
+            "   - Se vuoto: calcolato automaticamente (30 giorni prima dell'esame)",
+            "   - Esempi: 15-05-2025, 01-01-2025",
+            "",
+            "- FINE ISCRIZIONE (opzionale)",
+            "   - Formato: DD-MM-YYYY",
+            "   - Se vuoto: calcolato automaticamente (1 giorno prima dell'esame)",
+            "   - Deve essere successiva alla data di inizio iscrizione",
+            "",
+            "- VERBALIZZAZIONE (precompilato)",
+            "   - Prova finale: per esami senza pubblicazione automatica",
+            "   - Prova finale con pubblicazione: per esami con pubblicazione del voto",
+            "   - Prova parziale: per prove parziali senza pubblicazione",
+            "   - Prova parziale con pubblicazione: per prove parziali con pubblicazione del voto",
+            "",
+            "- TIPO ESAME (opzionale)",
+            "   - Scritto: solo prova scritta",
+            "   - Orale: solo prova orale",
+            "   - Scritto e orale: entrambe le modalità",
+            "",
+            "- NOTE (opzionale)",
+            "   - Campo libero per annotazioni",
+            "   - Esempi: 'Portare calcolatrice', 'Prova recupero', 'Sessione straordinaria'",
+            "   - Massimo 500 caratteri",
+            "",
+            "In caso di problemi o domande, contattare il supporto tecnico all'indirizzo opla.dmi.unipg@gmail.com.",
         ]
         
         for row, istruzione in enumerate(istruzioni, 1):
             cell = ws_istruzioni.cell(row, 1, istruzione)
-            if row == 1:
-                cell.font = Font(bold=True, size=14, name="Arial")
-            elif istruzione.endswith(":"):
-                cell.font = Font(bold=True, name="Arial")
+            
+            # Formattazione speciale per diversi tipi di contenuto
+            if row == 1:  # Titolo principale
+                cell.font = Font(bold=True, size=16, name="Arial")
             else:
                 cell.font = Font(name="Arial")
-            cell.alignment = Alignment(horizontal="left")
+            
+            cell.alignment = Alignment(horizontal="left", wrap_text=True)
         
-        ws_istruzioni.column_dimensions['A'].width = 80
+        # Imposta larghezza colonna per leggibilità ottimale
+        ws_istruzioni.column_dimensions['A'].width = 85
         
         buffer = io.BytesIO()
         wb.save(buffer)
@@ -279,20 +340,21 @@ def import_exams_from_file():
                 # Estrai valori dalla struttura riorganizzata
                 cds_nome = values[0]
                 insegnamento_nome = values[1] 
-                apertura_appelli = values[2]
-                data = values[3]
-                ora = values[4]
-                durata = values[5]
-                aula = values[6]
-                inizio_iscr = values[7]
-                fine_iscr = values[8]
-                verbalizzazione_friendly = values[9]
-                tipo_esame_friendly = values[10]
-                note = values[11]
                 
-                # Valori nascosti per elaborazione
-                codice_insegnamento = values[12] if len(values) > 12 else None
-                codice_cds = values[13] if len(values) > 13 else None
+                # Valori nascosti per elaborazione (ora subito dopo l'insegnamento)
+                codice_insegnamento = values[2] if len(values) > 2 else None
+                codice_cds = values[3] if len(values) > 3 else None
+                
+                apertura_appelli = values[4]
+                data = values[5]
+                ora = values[6]
+                durata = values[7]
+                aula = values[8]
+                inizio_iscr = values[9]
+                fine_iscr = values[10]
+                verbalizzazione_friendly = values[11]
+                tipo_esame_friendly = values[12]
+                note = values[13]
                 
                 # Controlli minimi per parsing (solo per evitare errori fatali)
                 if not all([cds_nome, insegnamento_nome, data, ora]):

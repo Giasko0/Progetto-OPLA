@@ -99,7 +99,7 @@ const ExamFileImporter = {
           <li>Scarica il template Excel (formato XLSX) con i tuoi insegnamenti</li>
           <li>Compila il file con i dati degli esami da inserire</li>
           <li>Carica il file compilato utilizzando il pulsante o trascinandolo nell'area sottostante</li>
-          <li>Consulta la scheda "Legenda" del file Excel per le informazioni sui valori accettati</li>
+          <li>Consulta la scheda "Istruzioni e Legenda" del file Excel per le informazioni sui valori accettati</li>
         </ol>
       </div>
     `;
