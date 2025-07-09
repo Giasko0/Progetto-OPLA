@@ -314,6 +314,45 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         # Controllo vincoli per insegnamento (solo se mostra nel calendario)
         if mostra_nel_calendario:
             for insegnamento in insegnamenti:
+                # Ottieni ID insegnamento
+                cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+                result = cursor.fetchone()
+                if not result:
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Insegnamento {insegnamento} non trovato'
+                insegnamento_id, titolo_insegnamento = result
+
+                # CONTROLLO TARGET ESAMI: Verifica numero massimo esami con "Apertura appelli"
+                # Conta esami esistenti per questo insegnamento con mostra_nel_calendario = True
+                where_clause_esami = """
+                    WHERE insegnamento = %s AND anno_accademico = %s 
+                    AND mostra_nel_calendario = TRUE AND tipo_appello != 'PP'
+                """
+                params_esami = [insegnamento_id, anno_accademico]
+                
+                # Escludi l'esame corrente se in modifica
+                if exam_id_to_exclude:
+                    where_clause_esami += " AND id != %s"
+                    params_esami.append(exam_id_to_exclude)
+                
+                cursor.execute(f"""
+                    SELECT COUNT(*) FROM esami {where_clause_esami}
+                """, params_esami)
+                
+                esami_esistenti = cursor.fetchone()[0]
+                
+                # Conta quanti nuovi esami con "Apertura appelli" si stanno inserendo per questo insegnamento
+                nuovi_esami_apertura = sum(1 for s in sezioni_appelli 
+                                         if s.get('mostra_nel_calendario', False))
+                
+                totale_esami = esami_esistenti + nuovi_esami_apertura
+                
+                if totale_esami > target_esami:
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Superato il limite massimo di {target_esami} esami con "Apertura appelli" per l\'insegnamento {titolo_insegnamento}. Attualmente: {esami_esistenti}, tentativo di aggiungere: {nuovi_esami_apertura}, totale: {totale_esami}'
+            for insegnamento in insegnamenti:
                 # Ottieni info insegnamento
                 cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
                 result = cursor.fetchone()

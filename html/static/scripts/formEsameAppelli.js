@@ -944,6 +944,89 @@ document.addEventListener('DOMContentLoaded', function() {
       };
     }
 
+    // Funzione per validare il numero di esami con "Apertura appelli" per insegnamento
+    async function validateTargetEsami(insegnamenti, nuoviEsamiApertura) {
+      if (!insegnamenti || insegnamenti.length === 0 || nuoviEsamiApertura === 0) {
+        return { isValid: true };
+      }
+
+      try {
+        const selectedYear = window.AnnoAccademicoManager?.getSelectedAcademicYear();
+        if (!selectedYear) return { isValid: true };
+
+        const userData = await window.getUserData();
+        const username = userData?.user_data?.username;
+        if (!username) return { isValid: true };
+
+        // Verifica per ogni insegnamento
+        for (const insegnamentoCodice of insegnamenti) {
+          const params = new URLSearchParams({
+            docente: username,
+            anno: selectedYear,
+            insegnamenti: insegnamentoCodice
+          });
+
+          const response = await fetch(`/api/get-esami?${params.toString()}`);
+          const esami = await response.json();
+
+          // Conta esami esistenti con "Apertura appelli" per questo insegnamento
+          const esamiApertura = esami.filter(esame => 
+            esame.extendedProps?.mostra_nel_calendario !== false &&
+            esame.extendedProps?.tipo_appello !== 'PP'
+          ).length;
+
+          const totale = esamiApertura + nuoviEsamiApertura;
+          
+          if (totale > 8) {
+            return {
+              isValid: false,
+              message: `Superato il limite massimo di 8 esami con "Apertura appelli" per l'insegnamento selezionato. Attualmente: ${esamiApertura}, tentativo di aggiungere: ${nuoviEsamiApertura}, totale: ${totale}`
+            };
+          }
+        }
+
+        return { isValid: true };
+      } catch (error) {
+        console.error('Errore nella validazione target esami:', error);
+        return { isValid: true }; // Fallback: permette l'inserimento
+      }
+    }
+
+    // Funzione per validare tutti i vincoli con controllo target esami
+    async function validateAllConstraints() {
+      const allSections = document.querySelectorAll('.date-appello-section');
+      
+      // Conta nuovi esami con "Apertura appelli"
+      let nuoviEsamiApertura = 0;
+      allSections.forEach(section => {
+        const sectionId = section.id;
+        const sectionCounterMatch = sectionId.match(/_(\d+)$/);
+        if (!sectionCounterMatch) return;
+        
+        const i = parseInt(sectionCounterMatch[1], 10);
+        const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${i}`);
+        
+        if (showInCalendarCheckbox?.checked) {
+          nuoviEsamiApertura++;
+        }
+      });
+
+      // Valida target esami se ci sono esami con apertura appelli
+      if (nuoviEsamiApertura > 0) {
+        const insegnamenti = window.InsegnamentiManager?.getSelectedInsegnamenti() || [];
+        const targetValidation = await validateTargetEsami(insegnamenti, nuoviEsamiApertura);
+        
+        if (!targetValidation.isValid) {
+          showError(targetValidation.message);
+          return false;
+        }
+      }
+
+      // Valida altri vincoli esistenti
+      validateAllDates();
+      return true;
+    }
+
     // Interfaccia pubblica aggiornata
     return {
       addDateSection,

@@ -77,7 +77,7 @@ def controlla_esami_minimi():
         """, (anno,))
         
         target_result = cursor.fetchone()
-        target_esami = target_result['target_esami'] if target_result else 8  # Default fallback
+        target_esami = target_result['target_esami']
         
         # Query base per ottenere tutti gli insegnamenti dell'anno
         base_query = """
