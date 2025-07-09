@@ -177,6 +177,7 @@ def get_esami():
         query = f"""
             SELECT e.id, e.descrizione, e.docente, 
                    CONCAT(u.nome, ' ', u.cognome) as docente_nome,
+                   u.nome as docente_nome_solo, u.cognome as docente_cognome,
                    i.codice as insegnamento, i.titolo as insegnamento_titolo,
                    e.aula, e.data_appello, e.ora_appello, e.tipo_appello,
                    e.durata_appello, e.periodo,
@@ -216,6 +217,8 @@ def get_esami():
                 'extendedProps': {
                     'docente': row['docente'],
                     'docenteNome': row['docente_nome'],
+                    'docenteNomeSolo': row['docente_nome_solo'],
+                    'docenteCognome': row['docente_cognome'],
                     'insegnamento': row['insegnamento'],
                     'insegnamentoDocente': esame_del_docente,
                     'tipo_appello': row['tipo_appello'],

@@ -260,9 +260,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
           eventContent: function (arg) {
             const titoloInsegnamento = arg.event.title || 'Insegnamento';
-            const docenteCompleto = arg.event.extendedProps?.docenteNome || '';
-            const cognomeDocente = docenteCompleto ? docenteCompleto.split(' ').pop() : 
-                                  (userData?.user_data?.cognome || 'Docente');
+            const cognomeDocente = arg.event.extendedProps?.docenteCognome || (userData?.user_data?.cognome || 'Docente');
 
             if (arg.event.extendedProps?.isProvisional) {
               const dataAppello = arg.event.start?.toLocaleDateString('it-IT') || '';
