@@ -222,9 +222,12 @@ body {
 
 .subtitle {
   color: var(--color-text);
-  margin-bottom: 30px;
   font-size: 1.2rem;
   line-height: 1.6;
+}
+
+#login-message {
+  margin-top: 50px;
 }
 
 /* Flex Containers */
