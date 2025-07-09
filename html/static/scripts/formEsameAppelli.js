@@ -119,8 +119,8 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
           
           <div class="form-element">
-            <label for="aula_COUNTER_PLACEHOLDER">Aula*</label>
-            <select id="aula_COUNTER_PLACEHOLDER" name="aula[]" class="form-input" required>
+            <label for="aula_COUNTER_PLACEHOLDER">Aula</label>
+            <select id="aula_COUNTER_PLACEHOLDER" name="aula[]" class="form-input">
               <option value="" disabled selected hidden>Seleziona prima data e ora</option>
             </select>
           </div>

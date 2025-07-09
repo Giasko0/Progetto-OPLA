@@ -361,7 +361,7 @@ const FormEsameData = (function() {
       mostra_nel_calendario: section.querySelector(`[id^="mostra_nel_calendario_"]`)?.checked,
       tipo_appello_radio: section.querySelector(`input[name^="tipo_appello_radio_"]:checked`)?.value
     };
-    const isValid = fields.descrizione && fields.dataora && fields.ora_h && fields.ora_m && fields.aula;
+    const isValid = fields.descrizione && fields.dataora && fields.ora_h && fields.ora_m;
     if (isValid) {
       // Calcola date se mancanti
       if (!fields.inizioIscrizione || !fields.fineIscrizione) {

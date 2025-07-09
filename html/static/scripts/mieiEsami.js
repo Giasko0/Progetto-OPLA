@@ -94,7 +94,7 @@ function processDataForDisplay(cdsData, esamiData, username) {
         docente: esame.extendedProps.docente,
         docenteNome: esame.extendedProps.docenteNome,
         insegnamento: esame.title,
-        aula: esame.aula,
+        aula: esame.aula || "Non definita",
         dataora: esame.start,
         cds: esame.extendedProps.nome_cds,
         codice_cds: esame.extendedProps.codice_cds,

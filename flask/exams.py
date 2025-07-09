@@ -105,7 +105,7 @@ def genera_dati_esame():
     # Processa tutte le sezioni
     for i in range(len(descrizioni)):
         # Validazione campi obbligatori base
-        if not all([date_appello[i], ore_h[i], ore_m[i], aule[i]]):
+        if not all([date_appello[i], ore_h[i], ore_m[i]]):
             continue
             
         # Costruzione sezione - validazioni delegate a controlla_vincoli
@@ -117,7 +117,7 @@ def genera_dati_esame():
             'data_appello': date_appello[i],
             'ora_appello': f"{ore_h[i]}:{ore_m[i]}",
             'durata_appello': durata_appello,
-            'aula': aule[i],
+            'aula': aule[i] if i < len(aule) and aule[i] else None,
             'periodo': 1 if ora_int >= 14 else 0,
             'verbalizzazione': verbalizzazione_map.get(verbalizzazioni[i] if i < len(verbalizzazioni) else 'FSS', 'FSS'),
             'tipo_esame': tipi_esame[i] if i < len(tipi_esame) else None,
@@ -202,8 +202,8 @@ def controlla_vincoli(dati_esame, aula_originale=None):
             release_connection(conn)
             return False, f'Non è possibile inserire esami nel weekend: {data_appello}'
         
-        # Controllo aula valida
-        if aula not in aule_valide:
+        # Controllo aula valida (solo se specificata)
+        if aula and aula not in aule_valide:
             cursor.close()
             release_connection(conn)
             return False, f'Aula non valida: {aula}'
@@ -294,8 +294,8 @@ def controlla_vincoli(dati_esame, aula_originale=None):
             release_connection(conn)
             return False, f'Non è possibile inserire esami nel weekend: {data_appello}'
         
-        # Controllo conflitti aula (salta se studio docente o stessa aula originale)
-        if aula != "Studio docente DMI" and aula != aula_originale:
+        # Controllo conflitti aula (salta se studio docente, stessa aula originale, o aula non specificata)
+        if aula and aula != "Studio docente DMI" and aula != aula_originale:
             where_clause = "WHERE aula = %s AND data_appello = %s AND periodo = %s"
             params = [aula, data_appello, periodo]
             

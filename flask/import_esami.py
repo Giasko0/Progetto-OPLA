@@ -183,9 +183,9 @@ def get_exam_template():
             "• Data: formato DD-MM-YYYY (esempio: 15-06-2025)",
             "• Ora: formato HH:MM (esempio: 09:00, 14:30)",
             "• Durata: solo il numero di minuti (esempio: 120)",
-            "• Aula: selezionare dalla lista a tendina",
             "",
             "CAMPI OPZIONALI:",
+            "• Aula: selezionare dalla lista a tendina",
             "• Date Iscrizione: se vuote, verranno calcolate automaticamente",
             "  (Inizio: 30 giorni prima dell'esame, Fine: 1 giorno prima)",
             "• Verbalizzazione: precompilato, modificabile dalla lista",
@@ -295,7 +295,7 @@ def import_exams_from_file():
                 codice_cds = values[13] if len(values) > 13 else None
                 
                 # Controlli minimi per parsing (solo per evitare errori fatali)
-                if not all([cds_nome, insegnamento_nome, data, ora, aula]):
+                if not all([cds_nome, insegnamento_nome, data, ora]):
                     errori.append(f"Riga {i}: dati obbligatori mancanti")
                     continue
                 
