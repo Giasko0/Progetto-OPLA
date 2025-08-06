@@ -1,6 +1,7 @@
 FROM python:3-alpine
 
 WORKDIR /app
+COPY flaskdebug_deps /app/flaskdebug_deps
 
 # Risolve un errore con xmlsec
 # https://github.com/xmlsec/python-xmlsec/issues/323
@@ -22,11 +23,10 @@ RUN apk add --no-cache \
 # Si devono istallare per forza queste versioni, altrimenti dice mismatch di lxml e xmlsec libxml2
 # https://github.com/xmlsec/python-xmlsec/issues/320
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir lxml==5.2.1 && \
-    pip install --no-cache-dir xmlsec==1.3.14 && \
-    pip install --no-cache-dir \
+    pip install --no-index --find-links=/app/flaskdebug_deps lxml==5.2.1 && \
+    pip install --no-index --find-links=/app/flaskdebug_deps xmlsec==1.3.14 && \
+    pip install --no-index --find-links=/app/flaskdebug_deps \
     flask \
-    gunicorn \
     psycopg2-binary \
     python3-saml \
     flask-session \
@@ -35,8 +35,11 @@ RUN pip install --upgrade pip && \
     xlrd \
     openpyxl
 
-ENV FLASK_APP=main.py
+ENV FLASK_APP=main.py \
+    FLASK_ENV=development \
+    FLASK_DEBUG=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+CMD ["flask", "run", "--host=0.0.0.0", "--reload"]
