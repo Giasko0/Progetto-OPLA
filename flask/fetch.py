@@ -388,68 +388,124 @@ def check_esami_minimi():
     docente = request.args.get('docente')
     anno = int(request.args.get('anno'))
     
-    # Docente e anno sono sempre obbligatori
     if not docente or not anno:
         return jsonify({'status': 'error', 'message': 'Docente e anno accademico sono obbligatori'}), 400
     
     try:
-        insegnamenti = ottieni_insegnamenti_docente(docente, anno)
-        if not insegnamenti:
-            return jsonify({'status': 'success', 'nessun_problema': True, 'message': 'Nessun insegnamento trovato.'})
-        
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Ottieni il target di esami dalle configurazioni globali
-        cursor.execute("""
-            SELECT target_esami_default 
-            FROM configurazioni_globali 
-            WHERE anno_accademico = %s
-        """, (anno,))
-        
+        # 1. Ottieni il target esami globale
+        cursor.execute("SELECT target_esami_default FROM configurazioni_globali WHERE anno_accademico = %s", (anno,))
         target_result = cursor.fetchone()
-        target_esami = target_result[0]
+        target_esami = target_result[0] if target_result else 8
         
+        # 2. Ottieni gli insegnamenti del docente
         cursor.execute("""
-            SELECT i.id, i.titolo, COUNT(e.id) AS conteggio_esami,
-                   CONCAT(c.nome_corso, ' - ', ic.cds) AS codici_cds
+            SELECT DISTINCT i.id, i.titolo, ic.cds, 
+                   COALESCE(c.nome_corso, 'N/D') as nome_corso, ic.semestre
             FROM insegnamenti i
             JOIN insegnamento_docente id ON i.id = id.insegnamento
             JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-            LEFT JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
-            LEFT JOIN esami e ON i.id = e.insegnamento AND e.docente = %s 
-                AND e.anno_accademico = %s AND e.tipo_appello != 'PP' AND e.mostra_nel_calendario = true
+            LEFT JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico 
+                       AND ic.curriculum_codice = c.curriculum_codice
             WHERE id.docente = %s AND id.annoaccademico = %s AND ic.anno_accademico = %s
-            GROUP BY i.id, i.titolo, ic.cds, c.nome_corso
-            HAVING COUNT(e.id) < %s
-            ORDER BY COUNT(e.id) ASC, i.titolo ASC
-        """, (docente, anno, docente, anno, anno, target_esami))
+        """, (docente, anno, anno))
         
-        insegnamenti_pochi_esami = [
-            {
-                'id': row[0], 
-                'titolo': row[1], 
-                'esami_inseriti': row[2], 
-                'codici_cds': row[3],
-                'target_esami': target_esami
-            }
-            for row in cursor.fetchall()
-        ]
+        insegnamenti = cursor.fetchall()
         
-        if not insegnamenti_pochi_esami:
+        if not insegnamenti:
             return jsonify({
                 'status': 'success', 
                 'nessun_problema': True, 
-                'message': f'Tutti gli insegnamenti hanno almeno {target_esami} esami.',
+                'message': 'Nessun insegnamento trovato per questo docente.',
+                'target_esami': target_esami
+            })
+        
+        insegnamenti_problematici = []
+        
+        for insegnamento in insegnamenti:
+            ins_id, ins_titolo, cds_code, nome_corso, semestre = insegnamento
+            
+            # 3. Conta esami totali per questo insegnamento
+            cursor.execute("""
+                SELECT COUNT(*) FROM esami 
+                WHERE insegnamento = %s AND docente = %s AND anno_accademico = %s 
+                      AND tipo_appello != 'PP' AND mostra_nel_calendario = true
+            """, (ins_id, docente, anno))
+            
+            esami_totali = cursor.fetchone()[0]
+            
+            # 4. Ottieni le sessioni per questo CdS
+            cursor.execute("""
+                SELECT tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre
+                FROM sessioni
+                WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = 'GEN'
+            """, (cds_code, anno))
+            
+            sessioni = cursor.fetchall()
+            
+            # 5. Verifica ogni sessione per problemi
+            sessioni_problematiche = []
+            
+            for sessione in sessioni:
+                tipo_sess, inizio, fine, esami_primo, esami_secondo = sessione
+                
+                # Calcola minimo richiesto per questo insegnamento/semestre
+                if semestre == 1:
+                    minimo_richiesto = esami_primo or 0
+                elif semestre == 2:
+                    minimo_richiesto = esami_secondo or 0
+                else:
+                    minimo_richiesto = max(esami_primo or 0, esami_secondo or 0)
+                
+                if minimo_richiesto > 0:
+                    # 6. Conta esami in questa sessione
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM esami 
+                        WHERE insegnamento = %s AND docente = %s AND anno_accademico = %s
+                              AND data_appello >= %s AND data_appello <= %s
+                              AND tipo_appello != 'PP' AND mostra_nel_calendario = true
+                    """, (ins_id, docente, anno, inizio, fine))
+                    
+                    esami_presenti = cursor.fetchone()[0]
+                    
+                    # 7. Verifica se è problematica
+                    if esami_presenti < minimo_richiesto:
+                        sessioni_problematiche.append({
+                            'tipo_sessione': tipo_sess,
+                            'esami_presenti': esami_presenti,
+                            'minimo_richiesto': minimo_richiesto
+                        })
+            
+            # 8. Aggiungi agli insegnamenti problematici se necessario
+            sotto_target = esami_totali < target_esami
+            ha_sessioni_problematiche = len(sessioni_problematiche) > 0
+            
+            if sotto_target or ha_sessioni_problematiche:
+                insegnamenti_problematici.append({
+                    'id': ins_id,
+                    'titolo': ins_titolo,
+                    'esami_inseriti': esami_totali,
+                    'codici_cds': f"{nome_corso} - {cds_code}",
+                    'target_esami': target_esami,
+                    'sotto_target': sotto_target,
+                    'sessioni_problematiche': sessioni_problematiche
+                })
+        
+        if not insegnamenti_problematici:
+            return jsonify({
+                'status': 'success', 
+                'nessun_problema': True, 
+                'message': f'Tutti gli insegnamenti rispettano i minimi richiesti.',
                 'target_esami': target_esami
             })
         
         return jsonify({
             'status': 'warning', 
             'nessun_problema': False,
-            'insegnamenti': [i['titolo'] for i in insegnamenti_pochi_esami],
-            'esami_mancanti': [target_esami - i['esami_inseriti'] for i in insegnamenti_pochi_esami],
-            'insegnamenti_sotto_minimo': insegnamenti_pochi_esami,
+            'insegnamenti': [i['titolo'] for i in insegnamenti_problematici],
+            'insegnamenti_sotto_minimo': insegnamenti_problematici,
             'target_esami': target_esami
         })
         

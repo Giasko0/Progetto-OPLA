@@ -35,10 +35,32 @@ async function checkEsamiMinimi() {
       // Ci sono insegnamenti sotto il minimo
       if (window.showMessage) {
         const targetEsami = data.target_esami;
-        let content = `<p>Insegnamenti con meno di ${targetEsami} esami inseriti:</p>`;
+        let content = `<p>Problemi rilevati negli esami inseriti:</p>`;
         content += `<ul style="margin-top:8px;margin-bottom:8px;padding-left:20px;">`;
+        
         data.insegnamenti_sotto_minimo.forEach((ins) => {
-          content += `<li style="font-size:0.9em;margin-bottom:4px;">${ins.titolo} (${ins.codici_cds}): ${ins.esami_inseriti}/${targetEsami}</li>`;
+          content += `<li style="font-size:1rem;margin-bottom:8px;">`;
+          content += `<strong>${ins.titolo}</strong> (${ins.codici_cds})`;
+          
+          // Se è sotto il target generale
+          if (ins.sotto_target) {
+            content += `<br><span style="color: #dc3545; font-size: 1rem;">• Target generale: ${ins.esami_inseriti}/${targetEsami} esami</span>`;
+          }
+          
+          // Se ci sono sessioni problematiche
+          if (ins.sessioni_problematiche && ins.sessioni_problematiche.length > 0) {
+            content += `<br><span style="color: #ffc107; font-size: 1rem;">• Sessioni sotto minimo:</span>`;
+            content += `<ul style="margin: 2px 0; padding-left: 15px;">`;
+            ins.sessioni_problematiche.forEach((sessione) => {
+              const nomeSessione = sessione.tipo_sessione.charAt(0).toUpperCase() + sessione.tipo_sessione.slice(1);
+              content += `<li style="font-size: 1rem; color: #6c757d; margin: 1px 0;">`;
+              content += `${nomeSessione}: ${sessione.esami_presenti}/${sessione.minimo_richiesto}`;
+              content += `</li>`;
+            });
+            content += `</ul>`;
+          }
+          
+          content += `</li>`;
         });
         content += `</ul>`;
 
