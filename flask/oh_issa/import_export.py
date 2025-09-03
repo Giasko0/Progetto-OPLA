@@ -259,6 +259,18 @@ def upload_ugov():
         continue
     
     # Inserisci dati nel database
+    # 0. Configurazioni globali (inserisce l'anno accademico se non esiste)
+    if cds_data:  # Solo se ci sono dati da importare
+      anno_accademico_import = cds_data[0][1]  # Prende l'anno dal primo CdS
+      try:
+        cursor.execute("""
+          INSERT INTO configurazioni_globali (anno_accademico, target_esami_default)
+          VALUES (%s, NULL)
+          ON CONFLICT (anno_accademico) DO NOTHING
+        """, (anno_accademico_import,))
+      except Exception as e:
+        pass
+    
     # 1. Cds
     for item in cds_data:
       try:
