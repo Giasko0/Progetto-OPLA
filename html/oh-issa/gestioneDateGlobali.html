@@ -125,8 +125,20 @@
       </div>
       <div class="vacanza-content">
         <div class="form-group">
-          <label>Descrizione:</label>
-          <input type="text" class="vacanza-descrizione" placeholder="es. Vacanze Natalizie, Vacanze Pasquali">
+          <label>Tipo di Vacanza:</label>
+          <select class="vacanza-tipo">
+            <option value="">Seleziona tipo di vacanza</option>
+            <option value="Vacanze Natalizie">Vacanze Natalizie</option>
+            <option value="Vacanze Pasquali">Vacanze Pasquali</option>
+            <option value="Pausa Didattica">Pausa Didattica</option>
+            <option value="Ponte">Ponte</option>
+            <option value="Festività">Festività</option>
+            <option value="altro">Altro (personalizzato)</option>
+          </select>
+        </div>
+        <div class="form-group vacanza-custom" style="display: none;">
+          <label>Descrizione personalizzata:</label>
+          <input type="text" class="vacanza-descrizione-custom" placeholder="Inserisci descrizione personalizzata">
         </div>
         <div class="vacanza-dates">
           <div>

@@ -234,8 +234,28 @@ function addVacanzaItem() {
         this.closest('.vacanza-item').remove();
     });
     
+    // Aggiungi event listener per il cambio tipo vacanza
+    const tipoSelect = clone.querySelector('.vacanza-tipo');
+    tipoSelect.addEventListener('change', function() {
+        handleVacanzaTypeChange(this);
+    });
+    
     // Aggiungi al container
     container.appendChild(clone);
+}
+
+/**
+ * Gestisce il cambio del tipo di vacanza
+ */
+function handleVacanzaTypeChange(selectElement) {
+    const vacanzaItem = selectElement.closest('.vacanza-item');
+    const customGroup = vacanzaItem.querySelector('.vacanza-custom');
+    
+    if (selectElement.value === 'altro') {
+        customGroup.style.display = 'block';
+    } else {
+        customGroup.style.display = 'none';
+    }
 }
 
 /**
@@ -258,7 +278,26 @@ function loadVacanze(vacanzeData) {
             const lastItem = items[items.length - 1];
             
             if (lastItem) {
-                lastItem.querySelector('.vacanza-descrizione').value = vacanza.descrizione || '';
+                const descrizione = vacanza.descrizione || '';
+                const selectTipo = lastItem.querySelector('.vacanza-tipo');
+                const inputCustom = lastItem.querySelector('.vacanza-descrizione-custom');
+                const customGroup = lastItem.querySelector('.vacanza-custom');
+                
+                // Controlla se la descrizione corrisponde a una delle opzioni predefinite
+                const optionExists = Array.from(selectTipo.options).some(option => 
+                    option.value === descrizione && option.value !== 'altro'
+                );
+                
+                if (optionExists) {
+                    // È una vacanza predefinita
+                    selectTipo.value = descrizione;
+                } else if (descrizione) {
+                    // È una descrizione personalizzata
+                    selectTipo.value = 'altro';
+                    inputCustom.value = descrizione;
+                    customGroup.style.display = 'block';
+                }
+                
                 lastItem.querySelector('.vacanza-inizio').value = formatDateForInput(vacanza.inizio);
                 lastItem.querySelector('.vacanza-fine').value = formatDateForInput(vacanza.fine);
             }
@@ -287,9 +326,19 @@ function collectVacanzeData() {
     const vacanzeItems = container.querySelectorAll('.vacanza-item');
     
     vacanzeItems.forEach(item => {
-        const descrizione = item.querySelector('.vacanza-descrizione').value.trim();
+        const selectTipo = item.querySelector('.vacanza-tipo');
+        const inputCustom = item.querySelector('.vacanza-descrizione-custom');
         const inizio = item.querySelector('.vacanza-inizio').value;
         const fine = item.querySelector('.vacanza-fine').value;
+        
+        let descrizione = '';
+        
+        // Determina la descrizione in base alla selezione
+        if (selectTipo.value === 'altro') {
+            descrizione = inputCustom.value.trim();
+        } else {
+            descrizione = selectTipo.value;
+        }
         
         // Aggiungi solo se ha almeno la descrizione
         if (descrizione || inizio || fine) {
