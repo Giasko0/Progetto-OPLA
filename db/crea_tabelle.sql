@@ -101,9 +101,11 @@ CREATE TABLE insegnamenti_cds (
     curriculum_codice TEXT,     -- Codice del curriculum del corso di studio
     anno_corso INT NOT NULL,    -- Anno del corso di studio
     semestre INT NOT NULL,      -- Semestre (Insegnamento annuale = 3)
+    titolare TEXT,              -- Matricola del docente titolare/responsabile didattico
     PRIMARY KEY (insegnamento, anno_accademico, cds, curriculum_codice),
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
     FOREIGN KEY (cds, anno_accademico, curriculum_codice) REFERENCES cds(codice, anno_accademico, curriculum_codice) ON DELETE CASCADE,
+    FOREIGN KEY (titolare) REFERENCES utenti(matricola) ON DELETE SET NULL,
     CONSTRAINT check_semestre CHECK (semestre IN (1, 2, 3))
 );
 

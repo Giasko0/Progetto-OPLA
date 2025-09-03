@@ -110,7 +110,7 @@ function initializeAnnoSelector() {
 function checkProgrammazioneDidattica(anno) {
   if (!anno) return;
   
-  updateStatus('loading', 'Verifico stato programmazione...');
+  updateStatus('loading', 'Carica programmazione didattica');
   
   fetch(`/api/oh-issa/check-programmazione-didattica?anno=${anno}`)
     .then(response => response.json())

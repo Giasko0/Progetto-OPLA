@@ -48,6 +48,7 @@ def upload_ugov():
       'des_insegnamento': 16,                    # Q - Des. Insegnamento
       'anno_corso': 28,                          # AC - Anno Corso Insegnamento
       'des_periodo_insegnamento': 39,            # AN - Des. Periodo Insegnamento
+      'matricola_titolare': 55,                  # BD - Matricola Resp. Did. Insegnamento
       'des_raggruppamento_insegnamento': 63,     # BL - Des. Raggruppamento Insegnamento
       'id_unita_didattica': 65,                  # BN - Id. Unità Didattica
       'cod_unita_didattica': 66,                 # BO - Cod. Unità Didattica
@@ -76,6 +77,7 @@ def upload_ugov():
         'DES. INSEGNAMENTO': 'des_insegnamento',
         'ANNO CORSO': 'anno_corso',
         'DES. PERIODO INSEGNAMENTO': 'des_periodo_insegnamento',
+        'MATRICOLA RESP. DID. INSEGNAMENTO': 'matricola_titolare',
         'DES. RAGGRUPPAMENTO INSEGNAMENTO': 'des_raggruppamento_insegnamento',
         'ID UNITÀ DIDATTICA': 'id_unita_didattica',
         'COD. UNITÀ DIDATTICA': 'cod_unita_didattica',
@@ -212,6 +214,11 @@ def upload_ugov():
         cognome_docente = str(sheet.cell_value(row_idx, colonna_indices['cognome_docente'])).strip()
         nome_docente = str(sheet.cell_value(row_idx, colonna_indices['nome_docente'])).strip()
         
+        # Estrai matricola del titolare/responsabile didattico
+        matricola_titolare = sheet.cell_value(row_idx, colonna_indices['matricola_titolare']).strip()
+        if matricola_titolare == "" or matricola_titolare is None:
+          matricola_titolare = matricola_docente
+        
         # Aggiungi CdS se non già presente
         cds_key = (cod_cds, anno_accademico, cod_curriculum)
         if cds_key not in cds_set:
@@ -232,8 +239,10 @@ def upload_ugov():
             cod_cds, 
             cod_curriculum,
             anno_corso, 
-            semestre
+            semestre,
+            matricola_titolare
           ))
+          cds_set.add(insegnamenti_cds_key)
         
         # Aggiungi utente se non già presente
         if username_docente not in utenti_set:
@@ -276,21 +285,7 @@ def upload_ugov():
       except Exception as e:
         continue
     
-    # 3. Insegnamenti_cds
-    for item in insegnamenti_cds_data:
-      try:
-        cursor.execute("""
-          INSERT INTO insegnamenti_cds 
-          (insegnamento, anno_accademico, cds, curriculum_codice, anno_corso, semestre)
-          VALUES (%s, %s, %s, %s, %s, %s)
-          ON CONFLICT (insegnamento, anno_accademico, cds, curriculum_codice) DO UPDATE 
-          SET anno_corso = EXCLUDED.anno_corso,
-              semestre = EXCLUDED.semestre
-        """, item)
-      except Exception as e:
-        continue
-    
-    # 4. Utenti
+    # 3. Utenti
     for item in utenti_data:
       try:
         cursor.execute("""
@@ -300,6 +295,21 @@ def upload_ugov():
           SET matricola = EXCLUDED.matricola,
               nome = EXCLUDED.nome,
               cognome = EXCLUDED.cognome
+        """, item)
+      except Exception as e:
+        continue
+    
+    # 4. Insegnamenti_cds
+    for item in insegnamenti_cds_data:
+      try:
+        cursor.execute("""
+          INSERT INTO insegnamenti_cds 
+          (insegnamento, anno_accademico, cds, curriculum_codice, anno_corso, semestre, titolare)
+          VALUES (%s, %s, %s, %s, %s, %s, %s)
+          ON CONFLICT (insegnamento, anno_accademico, cds, curriculum_codice) DO UPDATE 
+          SET anno_corso = EXCLUDED.anno_corso,
+              semestre = EXCLUDED.semestre,
+              titolare = EXCLUDED.titolare
         """, item)
       except Exception as e:
         continue
