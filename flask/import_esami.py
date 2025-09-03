@@ -8,7 +8,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from db import get_db_connection, release_connection
 from auth import require_auth
-from exams import controlla_vincoli, inserisci_esami, is_date_in_session
+from exams import controlla_vincoli, inserisci_esami
 
 import_bp = Blueprint('import_bp', __name__)
 

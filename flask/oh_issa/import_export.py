@@ -388,7 +388,7 @@ def download_esse3():
         e.tipo_esame,             -- Tipo Esa.
         a.edificio,               -- Edificio
         a.codice_esse3,           -- Codice Aula ESSE3
-        u.matricola,              -- Matricola Docente
+        ut.matricola,             -- Matricola Titolare
         a.sede,                   -- Sede
         e.condizione_sql,         -- Condizione SQL
         e.partizionamento,        -- Partizionamento
@@ -398,8 +398,12 @@ def download_esse3():
         e.codice_turno            -- Codice Turno
       FROM esami e
       JOIN insegnamenti i ON e.insegnamento = i.id
+      JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
+                                AND e.anno_accademico = ic.anno_accademico
+                                AND e.cds = ic.cds
+                                AND e.curriculum_codice = ic.curriculum_codice
+      LEFT JOIN utenti ut ON ic.titolare = ut.matricola  -- Matricola del titolare
       LEFT JOIN aule a ON e.aula = a.nome
-      LEFT JOIN utenti u ON e.docente = u.username
       WHERE e.anno_accademico = %s
       ORDER BY e.data_appello, e.insegnamento
     """, (anno,))

@@ -39,6 +39,41 @@ def get_user_admin_status(username):
     release_connection(conn)
     return bool(result and result[0])
 
+def get_titolare_per_insegnamento(insegnamento_codice, anno_accademico, docente_fallback):
+    """Ottiene il docente titolare per un singolo insegnamento."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Ottieni l'ID dell'insegnamento
+        cursor.execute("SELECT id FROM insegnamenti WHERE codice = %s", (insegnamento_codice,))
+        insegnamento_result = cursor.fetchone()
+        
+        if not insegnamento_result:
+            return docente_fallback  # Fallback se insegnamento non trovato
+        
+        insegnamento_id = insegnamento_result[0]
+        
+        # Trova il docente titolare
+        cursor.execute("""
+            SELECT u.username 
+            FROM insegnamenti_cds ic
+            JOIN utenti u ON ic.titolare = u.matricola
+            WHERE ic.insegnamento = %s AND ic.anno_accademico = %s
+            LIMIT 1
+        """, (insegnamento_id, anno_accademico))
+        
+        titolare_result = cursor.fetchone()
+        
+        if titolare_result:
+            return titolare_result[0]
+        else:
+            return docente_fallback  # Se non c'è titolare, usa fallback
+            
+    finally:
+        cursor.close()
+        release_connection(conn)
+
 def is_date_in_session(data_appello, docente, anno_accademico):
     """Verifica se la data dell'appello è all'interno di una sessione valida per il docente."""
     try:
@@ -70,7 +105,7 @@ def is_date_in_session(data_appello, docente, anno_accademico):
 def genera_dati_esame():
     """Raccoglie i dati dal form modulare e li valida."""
     data = request.form
-    docente = data.get('docente')
+    docente_form = data.get('docente')  # Docente dal form (potrebbe essere admin)
     
     # Gestione insegnamenti
     insegnamenti = request.form.getlist('insegnamenti[]')
@@ -149,7 +184,7 @@ def genera_dati_esame():
     
     return {
         'insegnamenti': insegnamenti,
-        'docente': docente,
+        'docente': docente_form,
         'sezioni_appelli': sezioni_appelli,
         'anno_accademico': anno_accademico
     }
@@ -180,8 +215,11 @@ def controlla_vincoli(dati_esame, aula_originale=None):
     insegnamenti = dati_esame['insegnamenti']
     sezioni_appelli = dati_esame['sezioni_appelli']
     anno_accademico = dati_esame['anno_accademico']
-    docente = dati_esame.get('docente')
+    docente_form = dati_esame.get('docente')
     exam_id_to_exclude = dati_esame.get('exam_id')
+    
+    # Determina se è admin
+    is_admin = get_user_admin_status(docente_form)
     
     for sezione in sezioni_appelli:
         data_appello = sezione['data_appello']
@@ -191,10 +229,17 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         data_esame = datetime.fromisoformat(data_appello)
         
         # CONTROLLO SESSIONI: Verifica che la data sia all'interno di una sessione valida
-        if docente and not is_date_in_session(data_esame.date(), docente, anno_accademico):
-            cursor.close()
-            release_connection(conn)
-            return False, f'La data {data_appello} non è all\'interno di una sessione valida.'
+        # Per ogni insegnamento, controlla con il proprio titolare
+        for insegnamento_codice in insegnamenti:
+            # Determina il docente per questo specifico insegnamento
+            docente_esame = docente_form if not is_admin else get_titolare_per_insegnamento(
+                insegnamento_codice, anno_accademico, docente_form
+            )
+            
+            if not is_date_in_session(data_esame.date(), docente_esame, anno_accademico):
+                cursor.close()
+                release_connection(conn)
+                return False, f'La data {data_appello} non è all\'interno di una sessione valida per l\'insegnamento {insegnamento_codice}'
         
         # Controllo weekend
         if data_esame.weekday() >= 5:
@@ -248,7 +293,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
             insegnamento_id, titolo_insegnamento = result
 
             # CONTROLLO SESSIONI AGGIUNTIVO: Verifica che la data sia nelle sessioni specifiche dell'insegnamento
-            if not is_date_in_session(data_esame.date(), docente, anno_accademico):
+            if not is_date_in_session(data_esame.date(), docente_esame, anno_accademico):
                 cursor.close()
                 release_connection(conn)
                 return False, f'La data {data_appello} non è all\'interno di una sessione valida per l\'insegnamento {titolo_insegnamento}'
@@ -439,12 +484,20 @@ def inserisci_esami(dati_esame):
     
     esami_inseriti = []
     insegnamenti = dati_esame['insegnamenti']
-    docente = dati_esame['docente']
+    docente_form = dati_esame['docente']
     sezioni_appelli = dati_esame['sezioni_appelli']
     anno_accademico = dati_esame['anno_accademico']
     
+    # Determina se è admin
+    is_admin = get_user_admin_status(docente_form)
+    
     for sezione in sezioni_appelli:
         for insegnamento_codice in insegnamenti:
+            # Determina il docente specifico per questo insegnamento
+            docente_esame = docente_form if not is_admin else get_titolare_per_insegnamento(
+                insegnamento_codice, anno_accademico, docente_form
+            )
+            
             # Ottieni ID insegnamento
             cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento_codice,))
             result = cursor.fetchone()
@@ -476,7 +529,7 @@ def inserisci_esami(dati_esame):
                  curriculum_codice, mostra_nel_calendario)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                docente, insegnamento_id, sezione['aula'], sezione['data_appello'],
+                docente_esame, insegnamento_id, sezione['aula'], sezione['data_appello'],
                 sezione['ora_appello'], sezione['inizio_iscrizione'], sezione['fine_iscrizione'],
                 sezione['tipo_esame'], sezione['verbalizzazione'], sezione['descrizione'],
                 sezione['note_appello'], sezione['tipo_appello'], sezione['definizione_appello'],
@@ -485,7 +538,7 @@ def inserisci_esami(dati_esame):
                 curriculum_codice, sezione['mostra_nel_calendario']
             ))
             
-            esami_inseriti.append(f"{titolo_insegnamento} - {sezione['data_appello']}")
+            esami_inseriti.append(f"{titolo_insegnamento} - {sezione['data_appello']} (Docente: {docente_esame})")
     
     conn.commit()
     cursor.close()
@@ -640,7 +693,13 @@ def update_esame():
 
         # Controllo sessioni sempre attivo (anche con bypass parziale)
         nuova_data_obj = datetime.strptime(data.get('data_appello'), '%Y-%m-%d')
-        if not is_date_in_session(nuova_data_obj.date(), username, esame_dict['anno_accademico']):
+        
+        # Determina il docente per il controllo sessioni
+        # Se chi sta modificando è admin, usa il docente originale dell'esame (che è il titolare)
+        # Altrimenti usa chi sta modificando
+        docente_per_sessioni = esame_dict['docente'] if is_admin else username
+        
+        if not is_date_in_session(nuova_data_obj.date(), docente_per_sessioni, esame_dict['anno_accademico']):
             cursor.close()
             release_connection(conn)
             return jsonify({'success': False, 'message': f'La data {data.get("data_appello")} non è all\'interno di una sessione valida'}), 400
