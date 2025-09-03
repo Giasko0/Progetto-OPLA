@@ -232,9 +232,12 @@ CREATE INDEX idx_vacanze_date_range ON vacanze(inizio, fine);
 -- Indici per la tabella 'configurazioni_globali'
 CREATE INDEX idx_configurazioni_globali_anno ON configurazioni_globali(anno_accademico);
 
--- Inserimento dell'utente 'admin' con permessi di amministratore
-INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('aa000000', '000000', 'Admin', 'Istratore', 'AccountAdmin1234', true);
-INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('ad020022', '342804', 'Amedeo', 'Di Biase', 'password', true);
+-- Inserimento utenti admin
+INSERT INTO "utenti" ("username", "matricola", "nome", "cognome", "password", "permessi_admin") VALUES
+('aa000000', '000000', 'Admin', 'Istratore', 'AccountAdmin1234', true),
+('ad020022', '342804', 'Amedeo', 'Di Biase', 'password', true),
+('pm590001', '003623', 'Paola', 'Morettini', 'password', true),
+('sm780040', '039107', 'Simone', 'Morgante', 'password', true);
 
 -- Inserimento delle aule
 INSERT INTO aule (nome, codice_esse3, codice_easyacademy, sede, edificio, posti) VALUES
