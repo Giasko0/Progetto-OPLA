@@ -36,7 +36,39 @@ document.addEventListener('DOMContentLoaded', function() {
             showCopyDatesModal();
         });
     }
+
+    // Inizializza il dropdown personalizzato per i CdS
+    initCustomDropdown();
 });
+
+/**
+ * Inizializza il dropdown personalizzato
+ */
+function initCustomDropdown() {
+    const dropdown = document.getElementById('cdsDropdownContainer');
+    const header = document.getElementById('cdsDropdownHeader');
+    const options = document.getElementById('cdsDropdownOptions');
+    
+    if (!dropdown || !header || !options) return;
+    
+    // Gestione apertura/chiusura dropdown
+    header.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdown.classList.toggle('open');
+    });
+    
+    // Chiusura dropdown quando si clicca fuori
+    document.addEventListener('click', function(e) {
+        if (!dropdown.contains(e.target)) {
+            dropdown.classList.remove('open');
+        }
+    });
+    
+    // Impedisce la chiusura quando si clicca all'interno delle opzioni
+    options.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+}
 
 /**
  * Carica gli anni accademici per il selettore
@@ -71,7 +103,7 @@ function loadAnniAccademici() {
  */
 function loadCorsiForAnno(anno) {
     if (!anno) {
-        document.getElementById('selectCds').innerHTML = '<option value="">Seleziona un corso</option>';
+        clearCdsDropdown();
         document.getElementById('cdsFormContainer').style.display = 'none';
         return;
     }
@@ -79,14 +111,14 @@ function loadCorsiForAnno(anno) {
     fetch(`/api/oh-issa/get-cds-by-anno?anno=${anno}`)
         .then(response => response.json())
         .then(data => {
-            const select = document.getElementById('selectCds');
-            select.innerHTML = '<option value="">Seleziona un corso</option>';
+            const optionsContainer = document.getElementById('cdsDropdownOptions');
+            optionsContainer.innerHTML = '';
             
             if (data.length === 0) {
-                const option = document.createElement('option');
-                option.disabled = true;
-                option.textContent = "Nessun corso disponibile per questo anno";
-                select.appendChild(option);
+                const option = document.createElement('div');
+                option.className = 'dropdown-option disabled';
+                option.textContent = 'Nessun corso disponibile per questo anno';
+                optionsContainer.appendChild(option);
             } else {
                 // Oggetto per tenere traccia dei CdS già aggiunti (per codice)
                 const cdsByCode = {};
@@ -100,10 +132,41 @@ function loadCorsiForAnno(anno) {
                 
                 // Aggiungi le opzioni filtrate
                 Object.values(cdsByCode).forEach(cds => {
-                    const option = document.createElement('option');
-                    option.value = `${cds.codice}_${anno}`;
-                    option.textContent = `${cds.codice} - ${cds.nome_corso}`;
-                    select.appendChild(option);
+                    const option = document.createElement('div');
+                    option.className = 'dropdown-option';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = `${cds.codice}_${anno}`;
+                    checkbox.id = `cds_${cds.codice}_${anno}`;
+                    
+                    const label = document.createElement('label');
+                    label.htmlFor = checkbox.id;
+                    label.textContent = `${cds.codice} - ${cds.nome_corso}`;
+                    label.style.cursor = 'pointer';
+                    label.style.margin = '0';
+                    label.style.fontWeight = 'normal';
+                    
+                    option.appendChild(checkbox);
+                    option.appendChild(label);
+                    optionsContainer.appendChild(option);
+                    
+                    // Gestisci il click sull'intera opzione
+                    option.addEventListener('click', function(e) {
+                        // Previeni il comportamento di default solo se il click non è sul checkbox
+                        if (e.target !== checkbox) {
+                            e.preventDefault();
+                            checkbox.checked = !checkbox.checked;
+                        }
+                        updateDropdownDisplay();
+                        handleCdsSelectionChange();
+                    });
+                    
+                    // Gestisci anche il cambiamento diretto del checkbox
+                    checkbox.addEventListener('change', function() {
+                        updateDropdownDisplay();
+                        handleCdsSelectionChange();
+                    });
                 });
             }
         })
@@ -111,6 +174,93 @@ function loadCorsiForAnno(anno) {
             console.error('Errore nel caricamento dei corsi:', error);
             showMessage('error', 'Impossibile caricare i corsi per l\'anno selezionato');
         });
+}
+
+/**
+ * Pulisce il dropdown dei CdS
+ */
+function clearCdsDropdown() {
+    const optionsContainer = document.getElementById('cdsDropdownOptions');
+    const headerText = document.getElementById('cdsDropdownText');
+    
+    if (optionsContainer) {
+        optionsContainer.innerHTML = '';
+    }
+    
+    if (headerText) {
+        headerText.textContent = 'Seleziona uno o più corsi';
+    }
+}
+
+/**
+ * Aggiorna il testo del dropdown in base alle selezioni
+ */
+function updateDropdownDisplay() {
+    const checkboxes = document.querySelectorAll('#cdsDropdownOptions input[type="checkbox"]:checked');
+    const headerText = document.getElementById('cdsDropdownText');
+    
+    if (checkboxes.length === 0) {
+        headerText.textContent = 'Seleziona uno o più corsi';
+    } else if (checkboxes.length === 1) {
+        const label = document.querySelector(`label[for="${checkboxes[0].id}"]`);
+        headerText.textContent = label ? label.textContent : 'Corso selezionato';
+    } else {
+        headerText.textContent = `${checkboxes.length} corsi selezionati`;
+    }
+}
+
+/**
+ * Gestisce il cambiamento nella selezione dei corsi
+ */
+function handleCdsSelectionChange() {
+    const checkboxes = document.querySelectorAll('#cdsDropdownOptions input[type="checkbox"]:checked');
+    
+    if (checkboxes.length === 1) {
+        loadCdsDetails(checkboxes[0].value);
+    } else if (checkboxes.length > 1) {
+        displayMultiSelectForm(Array.from(checkboxes));
+    } else {
+        document.getElementById('cdsFormContainer').style.display = 'none';
+    }
+}
+
+/**
+ * Mostra le informazioni per la selezione multipla dei corsi
+ */
+function displayMultiSelectForm(selectedOptions) {
+    document.getElementById('cdsFormContainer').style.display = 'block';
+    
+    // Pulisci i campi del form tranne quelli nascosti che servono
+    document.getElementById('cdsForm').reset();
+
+    const annoAccademico = selectedOptions[0].value.split('_')[1];
+    document.getElementById('anno_accademico').value = annoAccademico;
+
+    const infoContainer = document.getElementById('cdsInfoContainer');
+    const selectedCoursesHtml = selectedOptions.map(opt => {
+        const [codice, anno] = opt.value.split('_');
+        const label = document.querySelector(`label[for="${opt.id}"]`);
+        const nome = label ? label.textContent.split(' - ')[1] : 'Nome non disponibile';
+        return { codice, nome, anno };
+    });
+
+    infoContainer.innerHTML = `
+        <h3>Corsi Selezionati</h3>
+        <div class="info-row">
+            <span class="info-label">Anno Accademico:</span>
+            <span>${annoAccademico}/${parseInt(annoAccademico) + 1}</span>
+        </div>
+        <div class="selected-courses-list">
+            <ul>
+                ${selectedCoursesHtml.map(c => `<li>${c.codice} - ${c.nome}</li>`).join('')}
+            </ul>
+        </div>
+    `;
+
+    // Popola i campi nascosti per il salvataggio
+    const codici = selectedCoursesHtml.map(c => c.codice);
+    document.getElementById('codice').value = JSON.stringify(codici); // Salva come JSON string
+    document.getElementById('nome_corso').value = ''; // Non applicabile per selezione multipla
 }
 
 /**
@@ -192,9 +342,6 @@ function loadCdsDetails(value) {
                     document.getElementById(`${tipo}_esami_secondo`).value = data[`${tipo}_esami_secondo`] || '';
                 }
             });
-            
-            // Scroll to form
-            document.getElementById('cdsFormContainer').scrollIntoView({ behavior: 'smooth' });
         })
         .catch(error => {
             console.error('Errore nel caricamento dei dettagli del corso:', error);
@@ -211,10 +358,23 @@ function saveCdsData() {
     const cdsData = {};
     
     // Campi nascosti
-    cdsData.codice_cds = formData.get('codice_cds');
-    if (!cdsData.codice_cds) {
+    const codiciValue = formData.get('codice_cds');
+    if (!codiciValue) {
         showMessage('error', 'Codice CdS mancante');
         return;
+    }
+
+    try {
+        // Prova a parsare come JSON (selezione multipla)
+        const codici = JSON.parse(codiciValue);
+        if (Array.isArray(codici)) {
+            cdsData.codici_cds = codici;
+        } else {
+            throw new Error("Not an array");
+        }
+    } catch (e) {
+        // Altrimenti, trattalo come un singolo codice (stringa)
+        cdsData.codice_cds = codiciValue;
     }
     
     const annoAccVal = formData.get('anno_accademico');
@@ -270,7 +430,13 @@ function saveCdsData() {
     .then(data => {
         if (data.status === 'success') {
             showMessage('success', data.message);
-            loadCdsDetails(`${cdsData.codice_cds}_${cdsData.anno_accademico}`);
+            
+            const checkboxes = document.querySelectorAll('#cdsDropdownOptions input[type="checkbox"]:checked');
+            if (checkboxes.length === 1) {
+                loadCdsDetails(checkboxes[0].value);
+            } else {
+                // Non ricaricare nulla, basta il messaggio
+            }
         } else {
             showMessage('error', data.message);
         }
@@ -491,11 +657,17 @@ function initResetConfirmModal() {
     
     // Gestione click su Conferma - esegue il reset e chiude il modal
     confirmButton.addEventListener('click', function() {
-        const cdsSelect = document.getElementById('selectCds');
-        if (cdsSelect.value) {
-            loadCdsDetails(cdsSelect.value);
+        const checkboxes = document.querySelectorAll('#cdsDropdownOptions input[type="checkbox"]:checked');
+
+        if (checkboxes.length === 1) {
+            loadCdsDetails(checkboxes[0].value);
             showMessage('info', 'Dati ripristinati allo stato originale');
+        } else if (checkboxes.length > 1) {
+            // Per la selezione multipla, basta pulire il form
+            document.getElementById('cdsForm').reset();
+            showMessage('info', 'Campi del form resettati');
         }
+        
         modal.style.display = 'none';
     });
     

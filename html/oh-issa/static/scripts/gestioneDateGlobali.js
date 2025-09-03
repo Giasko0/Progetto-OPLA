@@ -115,9 +115,6 @@ function loadAnnoAccademicoDetails(anno) {
                 initializeDefaultValues();
                 clearVacanzeContainer();
             }
-            
-            // Scroll to form
-            document.getElementById('globalDatesFormContainer').scrollIntoView({ behavior: 'smooth' });
         })
         .catch(error => {
             console.error('Errore nel caricamento delle configurazioni:', error);

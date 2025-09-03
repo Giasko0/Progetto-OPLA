@@ -234,6 +234,26 @@ CREATE INDEX idx_configurazioni_globali_anno ON configurazioni_globali(anno_acca
 INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('aa000000', '000000', 'Admin', 'Istratore', 'AccountAdmin1234', true);
 INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('ad020022', '342804', 'Amedeo', 'Di Biase', 'password', true);
 
+-- Inserimento delle aule
+INSERT INTO aule (nome, codice_esse3, codice_easyacademy, sede, edificio, posti) VALUES
+('Aula A-0', 'AULA A0', '002_FIA', '1288', 'INFORMATICA', 180),
+('Aula A-2', 'AULA A2', '028_A2', '1288', 'INFORMATICA', 180),
+('Aula A-3', 'AULA A3', '014_A0', '1288', 'INFORMATICA', 70),
+('Aula B-1', 'AULA B1', '010_B1', '1288', 'INFORMATICA', 30),
+('Aula B-3', 'AULA B3', '004_B3', '1288', 'INFORMATICA', 35),
+('Aula C-2', 'AULA C2', '002_C2', '1288', 'INFORMATICA', 20),
+('Aula C-3', 'AULA C3', '003_C3', '1288', 'INFORMATICA', 25),
+('Aula Gialla', 'AULA GIALLA', '012_GIA', '1288', 'INFORMATICA', 23),
+('Aula I-1', 'AULA I1', 'x1', '1288', 'INFORMATICA', 215),
+('Aula I-2', 'AULA I2', 'x2', '1288', 'INFORMATICA', 90),
+('Aula Verde', 'AULA VERDE', '013_VER', '1288', 'INFORMATICA', 25),
+('Sala Riunioni', 'SALA RIUNIONI', 'x3', '1288', 'INFORMATICA', 25),
+('Studio docente DMI', 'STUDIO DOCENTE DMI', '', '1288', 'INFORMATICA', 9999);
+-- Aule inutilizzate
+-- ('Aula Informatica', 'AULA INFORMATICA', '')
+-- ('Aula Virtuale', 'AULA VIRTUALE TEAMS', '')
+
+/*
 -- Inserimento dei corsi di studio default
 INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum_codice, curriculum_nome) VALUES
 ('L062', 2024, 'INFORMATICA', 'GEN', 'CORSO GENERICO');
@@ -253,22 +273,4 @@ INSERT INTO sessioni (cds, anno_accademico, curriculum_codice, tipo_sessione, in
 ('L062', 2024, 'GEN', 'estiva', '2025-06-10', '2025-07-25', 2, 3),
 ('L062', 2024, 'GEN', 'autunnale', '2025-09-01', '2025-9-30', 2, 2),
 ('L062', 2024, 'GEN', 'invernale', '2026-01-10', '2026-02-25', 2, 3);
-
--- Inserimento delle aule
-INSERT INTO aule (nome, codice_esse3, codice_easyacademy, sede, edificio, posti) VALUES
-('Aula A-0', 'AULA A0', '002_FIA', '1288', 'INFORMATICA', 180),
-('Aula A-2', 'AULA A2', '028_A2', '1288', 'INFORMATICA', 180),
-('Aula A-3', 'AULA A3', '014_A0', '1288', 'INFORMATICA', 70),
-('Aula B-1', 'AULA B1', '010_B1', '1288', 'INFORMATICA', 30),
-('Aula B-3', 'AULA B3', '004_B3', '1288', 'INFORMATICA', 35),
-('Aula C-2', 'AULA C2', '002_C2', '1288', 'INFORMATICA', 20),
-('Aula C-3', 'AULA C3', '003_C3', '1288', 'INFORMATICA', 25),
-('Aula Gialla', 'AULA GIALLA', '012_GIA', '1288', 'INFORMATICA', 23),
-('Aula I-1', 'AULA I1', 'x1', '1288', 'INFORMATICA', 215),
-('Aula I-2', 'AULA I2', 'x2', '1288', 'INFORMATICA', 90),
-('Aula Verde', 'AULA VERDE', '013_VER', '1288', 'INFORMATICA', 25),
-('Sala Riunioni', 'SALA RIUNIONI', 'x3', '1288', 'INFORMATICA', 25),
-('Studio docente DMI', 'STUDIO DOCENTE DMI', '', '1288', 'INFORMATICA', 9999);
--- Aule inutilizzate
--- ('Aula Informatica', 'AULA INFORMATICA', '')
--- ('Aula Virtuale', 'AULA VIRTUALE TEAMS', '')
+*/

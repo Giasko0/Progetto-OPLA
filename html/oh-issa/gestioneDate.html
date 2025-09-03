@@ -33,10 +33,15 @@
         </div>
         <div class="column">
           <label for="selectCds">Corso di Studio:</label>
-          <select id="selectCds" onchange="loadCdsDetails(this.value)">
-            <option value="">Seleziona un corso</option>
-            <!-- Opzioni caricate dinamicamente -->
-          </select>
+          <div class="custom-dropdown" id="cdsDropdownContainer">
+            <div class="dropdown-header" id="cdsDropdownHeader">
+              <span id="cdsDropdownText">Seleziona uno o più corsi</span>
+              <span class="dropdown-arrow">▼</span>
+            </div>
+            <div class="dropdown-options" id="cdsDropdownOptions">
+              <!-- Opzioni caricate dinamicamente -->
+            </div>
+          </div>
         </div>
       </div>
     </section>

@@ -176,7 +176,6 @@ input, select, textarea {
   padding: 0.5rem;
   border: 1px solid #ddd;
   border-radius: 4px;
-  margin-bottom: 1rem;
 }
 
 input[type="checkbox"], input[type="radio"] {
@@ -433,6 +432,129 @@ input[type="checkbox"], input[type="radio"] {
 .info-label {
   font-weight: bold;
   width: 150px;
+}
+
+.selected-courses-list {
+  margin-top: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+.selected-courses-list ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.selected-courses-list li {
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.selected-courses-list li:last-child {
+  border-bottom: none;
+}
+
+/* Stile per dropdown personalizzato */
+.custom-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-header {
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+  min-height: 44px;
+  height: 44px;
+}
+
+.dropdown-header:hover {
+  border-color: #999;
+}
+
+.dropdown-arrow {
+  transition: transform 0.3s ease;
+  font-size: 12px;
+  color: #666;
+}
+
+.custom-dropdown.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.dropdown-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.custom-dropdown.open .dropdown-options {
+  display: block;
+}
+
+.dropdown-option {
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dropdown-option:last-child {
+  border-bottom: none;
+}
+
+.dropdown-option:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdown-option label {
+  flex: 1;
+  padding: 8px 12px;
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: normal;
+}
+
+.dropdown-option input[type="checkbox"] {
+  margin-left: 10px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.dropdown-option.disabled {
+  color: #999;
+  cursor: not-allowed;
+  font-style: italic;
+}
+
+.dropdown-option.disabled:hover {
+  background-color: transparent;
 }
 
 /* Stile per layout a colonne */
