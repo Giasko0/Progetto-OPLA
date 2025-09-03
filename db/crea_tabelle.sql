@@ -78,8 +78,8 @@ CREATE TABLE vacanze (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (anno_accademico) 
-        REFERENCES configurazioni_globali(anno_accademico) 
+    FOREIGN KEY (anno_accademico)
+        REFERENCES configurazioni_globali(anno_accademico)
         ON DELETE CASCADE,
     
     -- Vincolo per verificare che la data di inizio sia precedente alla data di fine
@@ -165,7 +165,7 @@ CREATE TABLE esami (
     FOREIGN KEY (aula) REFERENCES aule(nome) ON DELETE SET NULL,
     FOREIGN KEY (cds, anno_accademico, curriculum_codice) REFERENCES cds(codice, anno_accademico, curriculum_codice) ON DELETE CASCADE,
     CONSTRAINT check_date_esami CHECK (
-        data_inizio_iscrizione <= data_fine_iscrizione 
+        data_inizio_iscrizione <= data_fine_iscrizione
         AND data_fine_iscrizione <= data_appello
     ),
     CONSTRAINT check_posti CHECK (posti > 0)
@@ -231,6 +231,7 @@ CREATE INDEX idx_vacanze_date_range ON vacanze(inizio, fine);
 CREATE INDEX idx_configurazioni_globali_anno ON configurazioni_globali(anno_accademico);
 
 -- Inserimento dell'utente 'admin' con permessi di amministratore
+INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('aa000000', '000000', 'Admin', 'Istratore', 'AccountAdmin1234', true);
 INSERT INTO utenti (username, matricola, nome, cognome, password, permessi_admin) VALUES ('ad020022', '342804', 'Amedeo', 'Di Biase', 'password', true);
 
 -- Inserimento dei corsi di studio default

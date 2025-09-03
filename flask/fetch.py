@@ -256,8 +256,8 @@ def get_anni_accademici():
     
     # Recupera tutti gli anni accademici
     cursor.execute("""
-      SELECT DISTINCT anno_accademico 
-      FROM configurazioni_globali 
+      SELECT DISTINCT anno_accademico
+      FROM cds
       ORDER BY anno_accademico DESC
     """)
     
