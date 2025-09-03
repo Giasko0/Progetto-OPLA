@@ -1,10 +1,11 @@
 from flask import Blueprint, request, jsonify, redirect, session, current_app
 from db import get_db_connection, release_connection
 from functools import wraps
-import os
-import re
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.utils import OneLogin_Saml2_Utils
+import os
+import re
+import json
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -28,7 +29,18 @@ def require_auth(f):
 # Funzioni SAML
 def init_saml_auth(req):
   saml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saml')
-  return OneLogin_Saml2_Auth(req, custom_base_path=saml_path)
+  with open(os.path.join(saml_path, 'settings.json'), 'r') as f:
+    settings = json.load(f)
+
+  # Carica la chiave privata e il certificato se sono percorsi di file
+  if 'sp' in settings and 'x509cert' in settings['sp'] and os.path.exists(settings['sp']['x509cert']):
+    with open(settings['sp']['x509cert'], 'r') as f:
+      settings['sp']['x509cert'] = f.read()
+  if 'sp' in settings and 'privateKey' in settings['sp'] and os.path.exists(settings['sp']['privateKey']):
+    with open(settings['sp']['privateKey'], 'r') as f:
+      settings['sp']['privateKey'] = f.read()
+
+  return OneLogin_Saml2_Auth(req, old_settings=settings)
 
 def prepare_flask_request(request):
   return {
@@ -44,11 +56,11 @@ def get_user_attributes_from_saml(auth):
   attributes = auth.get_attributes()
   if not attributes:
     raise ValueError("Nessun attributo SAML ricevuto")
-  
+
   def safe_get_attr(attr_name):
     attr_list = attributes.get(attr_name, [])
     return attr_list[0].strip() if attr_list and attr_list[0] else ''
-  
+
   user_attrs = {
     'username': safe_get_attr('urn:oid:0.9.2342.19200300.100.1.1'),
     'nome': safe_get_attr('urn:oid:2.5.4.42'),
@@ -56,22 +68,22 @@ def get_user_attributes_from_saml(auth):
     'matricola': safe_get_attr('1.3.6.1.4.1.27287.2.1.3'),
     'matricolaStudente': safe_get_attr('1.3.6.1.4.1.27287.2.1.4')
   }
-  
+
   if not user_attrs['username']:
     raise ValueError("Username SAML mancante o vuoto")
-    
+
   return user_attrs
 
 def create_user_if_not_exists(user_attrs):
   conn = get_db_connection()
   cursor = conn.cursor()
-  
+
   username = user_attrs['username']
-  
+
   # Verifica se l'utente esiste già
   cursor.execute("SELECT username, permessi_admin FROM utenti WHERE username = %s", (username,))
   result = cursor.fetchone()
-  
+
   if not result:
     # Crea nuovo utente
     cursor.execute(
@@ -83,10 +95,10 @@ def create_user_if_not_exists(user_attrs):
   else:
     # Utente esistente, recupera i permessi
     permessi_admin = result[1]
-  
+
   cursor.close()
   release_connection(conn)
-  
+
   # Imposta la sessione utente
   set_user_session(username, user_attrs['matricola'], user_attrs['nome'], user_attrs['cognome'], permessi_admin)
 
@@ -96,18 +108,18 @@ def login_standard():
   data = request.form
   username = data.get('username')
   password = data.get('password')
-  
+
   conn = get_db_connection()
   cursor = conn.cursor()
   cursor.execute("""
-    SELECT username, matricola, nome, cognome, password, permessi_admin 
-    FROM utenti 
+    SELECT username, matricola, nome, cognome, password, permessi_admin
+    FROM utenti
     WHERE username = %s AND password = %s
   """, (username, password))
   user = cursor.fetchone()
   cursor.close()
   release_connection(conn)
-  
+
   if user:
     set_user_session(user[0], user[1], user[2], user[3], user[5])
     return jsonify({
@@ -126,7 +138,7 @@ def logout():
 def get_user_data():
   if not session.get('authenticated'):
     return jsonify({'authenticated': False, 'user_data': None})
-  
+
   user_data = {
     'username': session.get('username'),
     'matricola': session.get('matricola'),
@@ -165,14 +177,14 @@ def login_saml():
 def saml_acs():
   req = prepare_flask_request(request)
   auth = init_saml_auth(req)
-  
+
   auth.process_response()
   errors = auth.get_errors()
-  
+
   if not errors:
     try:
       user_attrs = get_user_attributes_from_saml(auth)
-      
+
       if not user_attrs['matricola']:
         # Eccezione per la mia matricola (342804)
         matricola_studente = user_attrs.get('matricolaStudente', '')
@@ -180,9 +192,9 @@ def saml_acs():
           user_attrs['matricola'] = matricola_studente
         else:
           return "Accesso negato: solo i docenti possono accedere", 403
-      
+
       create_user_if_not_exists(user_attrs)
-      
+
       return redirect('/')
     except ValueError as e:
       return f"Errore: {str(e)}", 400
@@ -196,10 +208,10 @@ def saml_acs():
 def saml_sls():
   req = prepare_flask_request(request)
   auth = init_saml_auth(req)
-  
+
   url = auth.process_slo(delete_session_cb=lambda: session.clear())
   errors = auth.get_errors()
-  
+
   if len(errors) == 0:
     return redirect(url) if url else redirect('/')
   else:

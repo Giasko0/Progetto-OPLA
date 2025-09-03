@@ -1,6 +1,6 @@
 services:
   opla-html:
-    build: 
+    build:
       context: ./misc
       dockerfile: Dockerfile.nginx
     # Deve esserci per forza la porta 80:80, altrimenti non funziona
@@ -12,11 +12,12 @@ services:
       - opla-flask
 
   opla-flask:
-    build: 
+    build:
       context: ./misc
-      dockerfile: Dockerfile.flask
+      dockerfile: Dockerfile.flaskdebug
     volumes:
       - ./flask:/app
+      - /data/home/meivan/nginx-proxy/certs/opla.dmi.unipg.it:/run/secrets:ro
     depends_on:
       - opla-db
 
