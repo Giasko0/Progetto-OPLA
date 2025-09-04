@@ -132,19 +132,25 @@ def save_cds_dates():
         # Aggiungi le sessioni d'esame
         if anticipata_inizio and anticipata_fine:
           sessioni.append(('anticipata', anticipata_inizio, anticipata_fine, anticipata_esami_primo, None))
+        if estiva_inizio and estiva_fine:
+          sessioni.append(('estiva', estiva_inizio, estiva_fine, estiva_esami_primo, estiva_esami_secondo))
+        if autunnale_inizio and autunnale_fine:
+          sessioni.append(('autunnale', autunnale_inizio, autunnale_fine, autunnale_esami_primo, autunnale_esami_secondo))
+        if invernale_inizio and invernale_fine:
+          sessioni.append(('invernale', invernale_inizio, invernale_fine, invernale_esami_primo, invernale_esami_secondo))
           
-          # Gestisci la sessione invernale dell'anno precedente
+          # Gestisci la sessione anticipata dell'anno successivo
           try:
-            anno_precedente = anno_accademico - 1
+            anno_successivo = anno_accademico + 1
             
-            # Semplifichiamo il controllo: verifichiamo solo se esiste un record CDS per l'anno precedente
+            # Verifichiamo se esiste un record CDS per l'anno successivo
             cursor.execute(
               "SELECT COUNT(*) FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s",
-              (codice_cds, anno_precedente, curriculum_codice)
+              (codice_cds, anno_successivo, curriculum_codice)
             )
-            exists_prev_year = cursor.fetchone()[0] > 0
+            exists_next_year = cursor.fetchone()[0] > 0
             
-            if not exists_prev_year:
+            if not exists_next_year:
               # Se non esiste, creiamo un record base
               cursor.execute("""
                 INSERT INTO cds (
@@ -153,32 +159,24 @@ def save_cds_dates():
                   %s, %s, %s, %s, %s
                 )
               """, (
-                codice_cds, anno_precedente, current_nome_corso, curriculum_codice, curriculum_nome
+                codice_cds, anno_successivo, current_nome_corso, curriculum_codice, curriculum_nome
               ))
             
-            # In entrambi i casi, eliminiamo eventuali periodi invernali esistenti
+            # In entrambi i casi, eliminiamo eventuali periodi anticipati esistenti
             cursor.execute("""
               DELETE FROM sessioni 
-              WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s AND tipo_sessione = 'invernale'
-            """, (codice_cds, anno_precedente, curriculum_codice))
+              WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s AND tipo_sessione = 'anticipata'
+            """, (codice_cds, anno_successivo, curriculum_codice))
             
-            # E inseriamo la nuova sessione invernale per l'anno precedente
+            # E inseriamo la nuova sessione anticipata per l'anno successivo
             cursor.execute("""
               INSERT INTO sessioni (cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre)
               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (codice_cds, anno_precedente, curriculum_codice, 'invernale', anticipata_inizio, anticipata_fine, anticipata_esami_primo, None))
+            """, (codice_cds, anno_successivo, curriculum_codice, 'anticipata', invernale_inizio, invernale_fine, invernale_esami_primo, None))
             
           except Exception as e:
             # Non interrompiamo il flusso principale se questa parte fallisce
             pass
-        
-        # Aggiungi le altre sessioni
-        if estiva_inizio and estiva_fine:
-          sessioni.append(('estiva', estiva_inizio, estiva_fine, estiva_esami_primo, estiva_esami_secondo))
-        if autunnale_inizio and autunnale_fine:
-          sessioni.append(('autunnale', autunnale_inizio, autunnale_fine, autunnale_esami_primo, autunnale_esami_secondo))
-        if invernale_inizio and invernale_fine:
-          sessioni.append(('invernale', invernale_inizio, invernale_fine, invernale_esami_primo, invernale_esami_secondo))
         
         # Inserisci le sessioni d'esame
         for tipo_sessione, inizio, fine, esami_primo, esami_secondo in sessioni:

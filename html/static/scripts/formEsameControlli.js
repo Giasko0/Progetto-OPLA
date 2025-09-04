@@ -157,8 +157,7 @@ const FormEsameControlli = (function() {
       { field: 'descrizione', message: 'Inserisci una descrizione' },
       { field: 'dataora', message: 'Seleziona una data' },
       { field: 'ora_h', message: 'Seleziona un orario' },
-      { field: 'ora_m', message: 'Seleziona un orario' },
-      { field: 'aula', message: 'Seleziona un\'aula' }
+      { field: 'ora_m', message: 'Seleziona un orario' }
     ];
 
     for (const { field, message } of requiredFields) {
