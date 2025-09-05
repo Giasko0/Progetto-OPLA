@@ -124,14 +124,26 @@ function processDataForDisplay(cdsData, esamiData, username) {
 function determinaSessioneEsame(dataEsame) {
   const mese = dataEsame.getMonth() + 1;
   const anno = dataEsame.getFullYear();
+  const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
   
   if (mese >= 1 && mese <= 2) {
-    const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
-    return anno === selectedYear + 1 ? 'Invernale' : 'Anticipata';
+    // Sessione anticipata: Gen/Feb dell'anno successivo all'anno accademico
+    // Sessione invernale: Gen/Feb di due anni dopo l'anno accademico
+    if (anno === selectedYear + 1) {
+      return 'Anticipata';
+    } else if (anno === selectedYear + 2) {
+      return 'Invernale';
+    }
   } else if (mese >= 6 && mese <= 7) {
-    return 'Estiva';
+    // Sessione estiva: Giu/Lug dell'anno successivo all'anno accademico
+    if (anno === selectedYear + 1) {
+      return 'Estiva';
+    }
   } else if (mese === 9) {
-    return 'Autunnale';
+    // Sessione autunnale: Set dell'anno successivo all'anno accademico
+    if (anno === selectedYear + 1) {
+      return 'Autunnale';
+    }
   }
   
   return null;
@@ -320,20 +332,41 @@ function displaySessioniEsami(data, insegnamento, container, targetEsami, sessio
   gridContainer.className = "sessions-grid";
 
   const sessioniDaVisualizzare = [
-    { nome: "Sessione Anticipata", periodo: `Gen/Feb ${selectedYear}`, count: sessioni.Anticipata || { ufficiali: 0, totali: 0 }, max: sessioniInfo.anticipata.max },
-    { nome: "Sessione Estiva", periodo: `Giu/Lug ${selectedYear}`, count: sessioni.Estiva || { ufficiali: 0, totali: 0 }, max: sessioniInfo.estiva.max },
-    { nome: "Sessione Autunnale", periodo: `Set ${selectedYear}`, count: sessioni.Autunnale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.autunnale.max },
-    { nome: "Sessione Invernale", periodo: `Gen/Feb ${selectedYear + 1}`, count: sessioni.Invernale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.invernale.max }
+    { nome: "Sessione Anticipata", periodo: `Gen/Feb ${selectedYear + 1}`, count: sessioni.Anticipata || { ufficiali: 0, totali: 0 }, max: sessioniInfo.anticipata.max },
+    { nome: "Sessione Estiva", periodo: `Giu/Lug ${selectedYear + 1}`, count: sessioni.Estiva || { ufficiali: 0, totali: 0 }, max: sessioniInfo.estiva.max },
+    { nome: "Sessione Autunnale", periodo: `Set ${selectedYear + 1}`, count: sessioni.Autunnale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.autunnale.max },
+    { nome: "Sessione Invernale", periodo: `Gen/Feb ${selectedYear + 2}`, count: sessioni.Invernale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.invernale.max }
   ];
 
   sessioniDaVisualizzare.forEach((sessione) => {
     const card = document.createElement("div");
-    card.className = "session-card static";
+    card.className = "session-card clickable";
+    card.setAttribute('data-sessione', sessione.nome.replace('Sessione ', ''));
     card.innerHTML = `
       <h4>${sessione.nome} (${sessione.periodo})</h4>
       <p>${sessione.count.ufficiali}/${sessione.max} appelli ufficiali</p>
       <p>${sessione.count.totali} appelli totali</p>
     `;
+    
+    // Aggiungi event listener per il filtro
+    card.addEventListener('click', () => {
+      const tableId = `tabella-${insegnamento.replace(/\s+/g, "-")}`;
+      const sessioneNome = sessione.nome.replace('Sessione ', '');
+      
+      // Verifica se la card è già attiva (filtro già applicato)
+      if (card.classList.contains('active')) {
+        // Se già attiva, rimuovi il filtro
+        resetTableFilter(tableId);
+        gridContainer.querySelectorAll('.session-card').forEach(c => c.classList.remove('active'));
+      } else {
+        // Altrimenti applica il filtro
+        filterTableBySession(tableId, sessioneNome, data.esami);
+        // Aggiorna lo stato visivo delle card
+        gridContainer.querySelectorAll('.session-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+      }
+    });
+    
     gridContainer.appendChild(card);
   });
 
@@ -522,4 +555,40 @@ async function getTargetEsamiESessioni(docente, anno) {
     throw new Error(`Errore nel recupero dei dati: ${response.status} ${response.statusText}`);
   }
   return await response.json();
+}
+
+// Funzione per filtrare la tabella per sessione
+function filterTableBySession(tableId, sessioneNome, tuttiEsami) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  
+  const tbody = table.querySelector('tbody');
+  const rows = tbody.querySelectorAll('tr');
+  
+  rows.forEach(row => {
+    const dataCell = row.cells[5]; // Colonna data (indice 5)
+    if (!dataCell) return;
+    
+    const dataEsame = new Date(dataCell.getAttribute('data-datetime'));
+    const sessioneEsame = determinaSessioneEsame(dataEsame);
+    
+    if (sessioneEsame === sessioneNome) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+
+// Funzione per resettare il filtro della tabella
+function resetTableFilter(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  
+  const tbody = table.querySelector('tbody');
+  const rows = tbody.querySelectorAll('tr');
+  
+  rows.forEach(row => {
+    row.style.display = '';
+  });
 }
