@@ -63,15 +63,18 @@ function processDataForDisplay(cdsData, esamiData, username) {
         cds_info: `${ins.cds_nome} - ${ins.cds_codice}`
       };
       
-      insegnamentiCdsInfo.set(ins.titolo, cdsInfo);
+      // Crea chiave unica per insegnamento + CdS
+      const insegnamentoKey = `${ins.titolo}_${ins.cds_codice}`;
+      insegnamentiCdsInfo.set(insegnamentoKey, cdsInfo);
       
-      // Inizializza il conteggio esami per ogni insegnamento
-      if (!insegnamenti[ins.titolo]) {
-        insegnamenti[ins.titolo] = {
+      // Inizializza il conteggio esami per ogni combinazione insegnamento+CdS
+      if (!insegnamenti[insegnamentoKey]) {
+        insegnamenti[insegnamentoKey] = {
           'Anticipata': { ufficiali: 0, totali: 0 },
           'Estiva': { ufficiali: 0, totali: 0 }, 
           'Autunnale': { ufficiali: 0, totali: 0 },
-          'Invernale': { ufficiali: 0, totali: 0 }
+          'Invernale': { ufficiali: 0, totali: 0 },
+          titolo: ins.titolo
         };
       }
     });
@@ -104,14 +107,17 @@ function processDataForDisplay(cdsData, esamiData, username) {
       
       esamiProcessed.push(esameFormatted);
       
+      // Crea la chiave combinata per trovare l'insegnamento corretto
+      const insegnamentoKey = `${esame.title}_${esame.extendedProps.codice_cds}`;
+      
       // Conta gli esami per sessione
-      if (sessione && insegnamenti[esame.title]) {
+      if (sessione && insegnamenti[insegnamentoKey]) {
         // Conta sempre nel totale
-        insegnamenti[esame.title][sessione].totali++;
+        insegnamenti[insegnamentoKey][sessione].totali++;
         
         // Conta negli ufficiali solo se è un esame ufficiale
         if (isUfficiale) {
-          insegnamenti[esame.title][sessione].ufficiali++;
+          insegnamenti[insegnamentoKey][sessione].ufficiali++;
         }
       }
     }
@@ -126,24 +132,23 @@ function determinaSessioneEsame(dataEsame) {
   const anno = dataEsame.getFullYear();
   const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
   
-  if (mese >= 1 && mese <= 2) {
-    // Sessione anticipata: Gen/Feb dell'anno successivo all'anno accademico
-    // Sessione invernale: Gen/Feb di due anni dopo l'anno accademico
-    if (anno === selectedYear + 1) {
-      return 'Anticipata';
-    } else if (anno === selectedYear + 2) {
-      return 'Invernale';
-    }
-  } else if (mese >= 6 && mese <= 7) {
-    // Sessione estiva: Giu/Lug dell'anno successivo all'anno accademico
-    if (anno === selectedYear + 1) {
-      return 'Estiva';
-    }
-  } else if (mese === 9) {
-    // Sessione autunnale: Set dell'anno successivo all'anno accademico
-    if (anno === selectedYear + 1) {
-      return 'Autunnale';
-    }
+  // Sessione anticipata: Dic dell'anno accademico a Mag dell'anno successivo
+  if ((mese === 12 && anno === selectedYear) || 
+      (mese >= 1 && mese <= 5 && anno === selectedYear + 1)) {
+    return 'Anticipata';
+  }
+  // Sessione estiva: Giu-Lug dell'anno successivo all'anno accademico
+  else if (mese >= 6 && mese <= 7 && anno === selectedYear + 1) {
+    return 'Estiva';
+  }
+  // Sessione autunnale: Ago-Nov dell'anno successivo all'anno accademico
+  else if (mese >= 8 && mese <= 11 && anno === selectedYear + 1) {
+    return 'Autunnale';
+  }
+  // Sessione invernale: Dic di due anni dopo l'anno accademico a Mag di tre anni dopo
+  else if ((mese === 12 && anno === selectedYear + 1) || 
+           (mese >= 1 && mese <= 5 && anno === selectedYear + 2)) {
+    return 'Invernale';
   }
   
   return null;
@@ -160,11 +165,12 @@ function displayEsamiData(data, targetEsami, sessioniInfo) {
 
   // Popola il dropdown degli insegnamenti
   insegnamentoSelect.innerHTML = '<option value="">Tutti gli appelli</option>';
-  insegnamenti.forEach((insegnamento) => {
+  insegnamenti.forEach((insegnamentoKey) => {
     const option = document.createElement("option");
-    option.value = insegnamento;
-    const cdsInfo = data.insegnamentiCdsInfo.get(insegnamento);
-    const displayText = cdsInfo ? `${insegnamento} (${cdsInfo.cds_info})` : insegnamento;
+    option.value = insegnamentoKey;
+    const cdsInfo = data.insegnamentiCdsInfo.get(insegnamentoKey);
+    const insegnamentoData = data.insegnamenti[insegnamentoKey];
+    const displayText = cdsInfo ? `${insegnamentoData.titolo} (${cdsInfo.cds_info})` : insegnamentoData.titolo;
     option.textContent = displayText;
     insegnamentoSelect.appendChild(option);
   });
@@ -185,14 +191,14 @@ function displayEsamiData(data, targetEsami, sessioniInfo) {
   };
 
   // Crea i contenuti dei tab per ogni insegnamento
-  insegnamenti.forEach((insegnamento) => {
+  insegnamenti.forEach((insegnamentoKey) => {
     const tabContent = document.createElement("div");
     tabContent.className = "tab-content";
     tabContent.style.display = "none";
-    tabContent.id = `tab-${insegnamento.replace(/\s+/g, "-")}`;
+    tabContent.id = `tab-${insegnamentoKey.replace(/\s+/g, "-")}`;
 
-    displaySessioniEsami(data, insegnamento, tabContent, targetEsami, sessioniInfo);
-    displayTabelleEsami(data, insegnamento, tabContent);
+    displaySessioniEsami(data, insegnamentoKey, tabContent, targetEsami, sessioniInfo);
+    displayTabelleEsami(data, insegnamentoKey, tabContent);
 
     container.appendChild(tabContent);
   });
@@ -243,16 +249,13 @@ function createTableStructure(tableId, headers) {
   `;
 }
 
-// Funzione per visualizzare le tabelle degli esami
-function displayTabelleEsami(data, insegnamento, container) {
-  const esamiInsegnamento = data.esami.filter(esame => esame.insegnamento === insegnamento);
-
-  if (esamiInsegnamento.length === 0) {
+// Funzione generica per creare e popolare una tabella di esami
+function createExamsTable(tableId, exams, noExamsMessage = "Inserisci degli appelli d'esame per visualizzarli qui!") {
+  if (exams.length === 0) {
     const noExamsMsg = document.createElement("p");
     noExamsMsg.style.textAlign = "center";
-    noExamsMsg.textContent = "Inserisci degli appelli d'esame per visualizzarli qui!";
-    container.appendChild(noExamsMsg);
-    return;
+    noExamsMsg.textContent = noExamsMessage;
+    return noExamsMsg;
   }
 
   const section = document.createElement("div");
@@ -263,7 +266,7 @@ function displayTabelleEsami(data, insegnamento, container) {
   tableContainer.className = "table-container";
 
   const table = document.createElement("table");
-  table.id = `tabella-${insegnamento.replace(/\s+/g, "-")}`;
+  table.id = tableId;
   table.className = "esami-table";
 
   const headers = [
@@ -274,13 +277,13 @@ function displayTabelleEsami(data, insegnamento, container) {
     { text: "Docente", hideOnMobile: true },
     { text: "Data", hideOnMobile: false },
     { text: "Aula", hideOnMobile: false },
-    { text: "Durata", hideOnMobile: true }
+    { text: "Azioni", hideOnMobile: false, sortable: false }
   ];
 
   table.innerHTML = createTableStructure(table.id, headers);
   const tbody = table.querySelector("tbody");
 
-  esamiInsegnamento.forEach(esame => {
+  exams.forEach(esame => {
     const row = document.createElement("tr");
     row.className = "esami-tr";
     
@@ -291,51 +294,78 @@ function displayTabelleEsami(data, insegnamento, container) {
       esame.insegnamento,
       esame.docenteNome,
       formatDateTime(esame.dataora),
-      esame.aula,
-      formatDurata(esame.durata_appello)
+      esame.aula
     ];
 
     cellsData.forEach((content, index) => {
       const cell = row.insertCell(index);
-      const hideClass = (index === 0 || index === 1 || index === 2 || index === 4 || index === 7) ? 'col-responsive-hide' : '';
+      const hideClass = (index === 0 || index === 1 || index === 2 || index === 4) ? 'col-responsive-hide' : '';
       cell.className = `esami-td ${hideClass}`;
       cell.textContent = content;
       
-      if (index === 5) { // Data column (ora è spostata a indice 5)
+      if (index === 5) { // Data column
         cell.setAttribute("data-datetime", esame.dataora);
       }
     });
+
+    // Aggiungi cella con pulsante elimina
+    const actionCell = row.insertCell(7);
+    actionCell.className = "esami-td";
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "Elimina";
+    deleteButton.className = "cta-button";
+    deleteButton.style.backgroundColor = "var(--color-error)";
+    deleteButton.style.margin = "0";
+    deleteButton.style.padding = "10px 15px";
+    deleteButton.style.fontSize = "0.9em";
+    deleteButton.onclick = () => deleteExam(esame.id);
+    actionCell.appendChild(deleteButton);
 
     tbody.appendChild(row);
   });
 
   tableContainer.appendChild(table);
   section.appendChild(tableContainer);
-  container.appendChild(section);
+  return section;
 }
 
-function displaySessioniEsami(data, insegnamento, container, targetEsami, sessioniInfo) {
+// Funzione per visualizzare le tabelle degli esami (ora semplificata)
+function displayTabelleEsami(data, insegnamentoKey, container) {
+  // Estrai il titolo dall'insegnamento per filtrare gli esami
+  const insegnamentoData = data.insegnamenti[insegnamentoKey];
+  const esamiInsegnamento = data.esami.filter(esame => 
+    esame.insegnamento === insegnamentoData.titolo && 
+    esame.codice_cds === data.insegnamentiCdsInfo.get(insegnamentoKey).cds_codice
+  );
+
+  const tableId = `tabella-${insegnamentoKey.replace(/\s+/g, "-")}`;
+  const tableElement = createExamsTable(tableId, esamiInsegnamento);
+  container.appendChild(tableElement);
+}
+
+function displaySessioniEsami(data, insegnamentoKey, container, targetEsami, sessioniInfo) {
   const section = document.createElement("div");
   section.className = "exam-section";
 
   const title = document.createElement("h2");
   // Aggiungi informazioni CdS al titolo tra parentesi
-  const cdsInfo = data.insegnamentiCdsInfo.get(insegnamento);
-  const titleText = cdsInfo ? `${insegnamento} (${cdsInfo.cds_info})` : insegnamento;
+  const cdsInfo = data.insegnamentiCdsInfo.get(insegnamentoKey);
+  const insegnamentoData = data.insegnamenti[insegnamentoKey];
+  const titleText = cdsInfo ? `${insegnamentoData.titolo} (${cdsInfo.cds_info})` : insegnamentoData.titolo;
   title.textContent = titleText;
   section.appendChild(title);
 
   const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
-  const sessioni = data.insegnamenti[insegnamento];
+  const sessioni = data.insegnamenti[insegnamentoKey];
 
   const gridContainer = document.createElement("div");
   gridContainer.className = "sessions-grid";
 
   const sessioniDaVisualizzare = [
-    { nome: "Sessione Anticipata", periodo: `Gen/Feb ${selectedYear + 1}`, count: sessioni.Anticipata || { ufficiali: 0, totali: 0 }, max: sessioniInfo.anticipata.max },
-    { nome: "Sessione Estiva", periodo: `Giu/Lug ${selectedYear + 1}`, count: sessioni.Estiva || { ufficiali: 0, totali: 0 }, max: sessioniInfo.estiva.max },
-    { nome: "Sessione Autunnale", periodo: `Set ${selectedYear + 1}`, count: sessioni.Autunnale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.autunnale.max },
-    { nome: "Sessione Invernale", periodo: `Gen/Feb ${selectedYear + 2}`, count: sessioni.Invernale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.invernale.max }
+    { nome: "Sessione Anticipata", count: sessioni.Anticipata || { ufficiali: 0, totali: 0 }, max: sessioniInfo.anticipata.max },
+    { nome: "Sessione Estiva", count: sessioni.Estiva || { ufficiali: 0, totali: 0 }, max: sessioniInfo.estiva.max },
+    { nome: "Sessione Autunnale", count: sessioni.Autunnale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.autunnale.max },
+    { nome: "Sessione Invernale", count: sessioni.Invernale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.invernale.max }
   ];
 
   sessioniDaVisualizzare.forEach((sessione) => {
@@ -343,14 +373,14 @@ function displaySessioniEsami(data, insegnamento, container, targetEsami, sessio
     card.className = "session-card clickable";
     card.setAttribute('data-sessione', sessione.nome.replace('Sessione ', ''));
     card.innerHTML = `
-      <h4>${sessione.nome} (${sessione.periodo})</h4>
+      <h4>${sessione.nome}</h4>
       <p>${sessione.count.ufficiali}/${sessione.max} appelli ufficiali</p>
       <p>${sessione.count.totali} appelli totali</p>
     `;
     
     // Aggiungi event listener per il filtro
     card.addEventListener('click', () => {
-      const tableId = `tabella-${insegnamento.replace(/\s+/g, "-")}`;
+      const tableId = `tabella-${insegnamentoKey.replace(/\s+/g, "-")}`;
       const sessioneNome = sessione.nome.replace('Sessione ', '');
       
       // Verifica se la card è già attiva (filtro già applicato)
@@ -386,21 +416,27 @@ function displayAllExams(data, container, targetEsami, sessioniInfo) {
   const sessionsGrid = document.createElement("div");
   sessionsGrid.className = "teaching-grid";
 
-  Object.keys(data.insegnamenti).forEach((insegnamento) => {
-    const sessioni = data.insegnamenti[insegnamento];
+  Object.keys(data.insegnamenti).forEach((insegnamentoKey) => {
+    const sessioni = data.insegnamenti[insegnamentoKey];
     const totaleEsamiUfficiali = Object.values(sessioni).reduce((sum, val) => sum + (val.ufficiali || 0), 0);
     const totaleEsamiTotali = Object.values(sessioni).reduce((sum, val) => sum + (val.totali || 0), 0);
 
     const cardElement = document.createElement("div");
     cardElement.className = `session-card ${totaleEsamiUfficiali < targetEsami ? 'warning-card' : 'success-card'}`;
+    
+    // Aggiungi informazioni CdS al titolo tra parentesi
+    const cdsInfo = data.insegnamentiCdsInfo.get(insegnamentoKey);
+    const insegnamentoData = data.insegnamenti[insegnamentoKey];
+    const titleText = cdsInfo ? `${insegnamentoData.titolo} (${cdsInfo.cds_codice})` : insegnamentoData.titolo;
+    
     cardElement.innerHTML = `
-      <h4>${insegnamento}</h4>
+      <h4>${titleText}</h4>
       <p>${totaleEsamiUfficiali}/${targetEsami} appelli ufficiali</p>
       <p>${totaleEsamiTotali} appelli totali</p>
     `;
 
     cardElement.addEventListener("click", () => {
-      window.location.href = `?insegnamento=${encodeURIComponent(insegnamento)}`;
+      window.location.href = `?insegnamento=${encodeURIComponent(insegnamentoKey)}`;
     });
 
     sessionsGrid.appendChild(cardElement);
@@ -417,66 +453,10 @@ function displayAllExams(data, container, targetEsami, sessioniInfo) {
     return;
   }
 
-  // Tabella di tutti gli esami
-  const section = document.createElement("div");
-  section.className = "section";
-
-  // Container scrollabile per la tabella
-  const tableContainer = document.createElement("div");
-  tableContainer.className = "table-container";
-
-  const tableAllExams = document.createElement("table");
-  tableAllExams.id = "tabella-tutti-appelli";
-  tableAllExams.className = "esami-table";
-
-  const headers = [
-    { text: "Appare in calendario", hideOnMobile: true },
-    { text: "Tipo prova", hideOnMobile: true },
-    { text: "CDS", hideOnMobile: true },
-    { text: "Insegnamento", hideOnMobile: false },
-    { text: "Docente", hideOnMobile: true },
-    { text: "Data", hideOnMobile: false },
-    { text: "Aula", hideOnMobile: false },
-    { text: "Durata", hideOnMobile: true }
-  ];
-
-  tableAllExams.innerHTML = createTableStructure(tableAllExams.id, headers);
-  const tbody = tableAllExams.querySelector("tbody");
-
-  // Ordina per data e crea le righe
+  // Tabella di tutti gli esami usando la funzione generica
   const esamiOrdinati = [...data.esami].sort((a, b) => new Date(a.dataora) - new Date(b.dataora));
-  esamiOrdinati.forEach(esame => {
-    const row = document.createElement("tr");
-    row.className = "esami-tr";
-    
-    const cellsData = [
-      esame.mostra_nel_calendario ? "Sì" : "No",
-      esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale",
-      esame.cds,
-      esame.insegnamento,
-      esame.docenteNome,
-      formatDateTime(esame.dataora),
-      esame.aula,
-      formatDurata(esame.durata_appello)
-    ];
-
-    cellsData.forEach((content, index) => {
-      const cell = row.insertCell(index);
-      const hideClass = (index === 0 || index === 1 || index === 2 || index === 4 || index === 7) ? 'col-responsive-hide' : '';
-      cell.className = `esami-td ${hideClass}`;
-      cell.textContent = content;
-      
-      if (index === 5) { // Data column
-        cell.setAttribute("data-datetime", esame.dataora);
-      }
-    });
-
-    tbody.appendChild(row);
-  });
-
-  tableContainer.appendChild(tableAllExams);
-  section.appendChild(tableContainer);
-  container.appendChild(section);
+  const tableElement = createExamsTable("tabella-tutti-appelli", esamiOrdinati);
+  container.appendChild(tableElement);
 }
 
 // Ordinamento tabella
@@ -523,25 +503,6 @@ function formatDateTime(dateTimeStr) {
   const minutes = String(date.getMinutes()).padStart(2, "0");
 
   return `${day}/${month}/${year}, ${hours}:${minutes}`;
-}
-
-// Funzione per formattare la durata in ore e minuti
-function formatDurata(durataMinuti) {
-  if (!durataMinuti || durataMinuti === null) {
-    return "Non inserita";
-  }
-  
-  const durata = parseInt(durataMinuti, 10);
-  if (isNaN(durata) || durata <= 0) {
-    return "Non inserita";
-  }
-  
-  const ore = Math.floor(durata / 60);
-  const minuti = durata % 60;
-  
-  if (ore === 0) return `${minuti} min`;
-  if (minuti === 0) return `${ore} ${ore === 1 ? 'ora' : 'ore'}`;
-  return `${ore} ${ore === 1 ? 'ora' : 'ore'} e ${minuti} min`;
 }
 
 // Espone funzioni necessarie per l'HTML
@@ -591,4 +552,47 @@ function resetTableFilter(tableId) {
   rows.forEach(row => {
     row.style.display = '';
   });
+}
+
+// Funzione per eliminare un esame
+async function deleteExam(examId) {
+  if (!confirm('Sei sicuro di voler eliminare questo esame? Questa azione non può essere annullata.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/delete-esame', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id: examId })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      // Mostra messaggio di successo nella sidebar
+      if (window.showMessage) {
+        window.showMessage('Esame eliminato con successo', 'Eliminazione completata', 'success');
+      }
+      // Ricarica i dati
+      fetchAndDisplayEsami();
+    } else {
+      // Mostra messaggio di errore nella sidebar
+      if (window.showMessage) {
+        window.showMessage('Errore nell\'eliminazione dell\'esame: ' + result.message, 'Errore eliminazione', 'error');
+      } else {
+        alert('Errore nell\'eliminazione dell\'esame: ' + result.message);
+      }
+    }
+  } catch (error) {
+    console.error('Errore:', error);
+    // Mostra messaggio di errore nella sidebar
+    if (window.showMessage) {
+      window.showMessage('Si è verificato un errore durante l\'eliminazione dell\'esame', 'Errore di connessione', 'error');
+    } else {
+      alert('Si è verificato un errore durante l\'eliminazione dell\'esame');
+    }
+  }
 }
