@@ -132,8 +132,28 @@ const FormEsameControlli = (function() {
   }
 
   // Validazione che la data sia in una sessione valida
-  function isDateInSession(dateStr) {
+  function isDateInSession(dateStr, section) {
     if (!window.isDateValid) return true; // fallback se non disponibile
+    
+    // Controlla se è una prova parziale non ufficiale
+    if (section && section.dataset.isNonOfficialPartial === 'true') {
+      return true; // Salta controllo sessioni per prove parziali non ufficiali
+    }
+    
+    // Controlla anche dai valori del form se non c'è il dataset
+    if (section) {
+      const sectionIdMatch = section.id.match(/dateSection_(\d+)/);
+      const counter = sectionIdMatch ? sectionIdMatch[1] : '1';
+      
+      const tipoAppelloPP = section.querySelector(`#tipoAppelloPP_${counter}`);
+      const showInCalendarCheckbox = section.querySelector(`#mostra_nel_calendario_${counter}`);
+      
+      // Se è PP e non mostra nel calendario, è prova parziale non ufficiale
+      if (tipoAppelloPP?.checked && !showInCalendarCheckbox?.checked) {
+        return true;
+      }
+    }
+    
     const result = window.isDateValid(dateStr, window.sessioniPartiOriginali || []);
     return result && result.isValid;
   }
@@ -201,8 +221,8 @@ const FormEsameControlli = (function() {
       return false;
     }
 
-    // La data deve essere in una sessione valida
-    if (!isDateInSession(fields.dataora)) {
+    // La data deve essere in una sessione valida (solo se non è prova parziale non ufficiale)
+    if (!isDateInSession(fields.dataora, section)) {
       showValidationError(`Appello ${sectionNumber}: La data non è all'interno di una sessione valida.`);
       return false;
     }

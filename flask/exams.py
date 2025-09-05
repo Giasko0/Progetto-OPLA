@@ -229,14 +229,21 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         data_esame = datetime.fromisoformat(data_appello)
         
         # CONTROLLO SESSIONI: Verifica che la data sia all'interno di una sessione valida
-        # Per ogni insegnamento, controlla con il proprio titolare
+        # ECCEZIONE: Permetti prove parziali non ufficiali fuori dalle sessioni
         for insegnamento_codice in insegnamenti:
             # Determina il docente per questo specifico insegnamento
             docente_esame = docente_form if not is_admin else get_titolare_per_insegnamento(
                 insegnamento_codice, anno_accademico, docente_form
             )
             
-            if not is_date_in_session(data_esame.date(), docente_esame, anno_accademico):
+            # Controlla se è una prova parziale non ufficiale (PP + mostra_nel_calendario = False)
+            is_prova_parziale_non_ufficiale = (
+                sezione.get('tipo_appello') == 'PP' and 
+                not sezione.get('mostra_nel_calendario', True)
+            )
+            
+            # Permetti prove parziali non ufficiali fuori dalle sessioni
+            if not is_prova_parziale_non_ufficiale and not is_date_in_session(data_esame.date(), docente_esame, anno_accademico):
                 cursor.close()
                 release_connection(conn)
                 return False, f'La data {data_appello} non è all\'interno di una sessione valida per l\'insegnamento {insegnamento_codice}'
@@ -293,7 +300,13 @@ def controlla_vincoli(dati_esame, aula_originale=None):
             insegnamento_id, titolo_insegnamento = result
 
             # CONTROLLO SESSIONI AGGIUNTIVO: Verifica che la data sia nelle sessioni specifiche dell'insegnamento
-            if not is_date_in_session(data_esame.date(), docente_esame, anno_accademico):
+            # Solo se non è una prova parziale non ufficiale
+            is_prova_parziale_non_ufficiale = (
+                sezione.get('tipo_appello') == 'PP' and 
+                not sezione.get('mostra_nel_calendario', True)
+            )
+            
+            if not is_prova_parziale_non_ufficiale and not is_date_in_session(data_esame.date(), docente_esame, anno_accademico):
                 cursor.close()
                 release_connection(conn)
                 return False, f'La data {data_appello} non è all\'interno di una sessione valida per l\'insegnamento {titolo_insegnamento}'
@@ -739,7 +752,14 @@ def update_esame():
             # Altrimenti usa chi sta modificando
             docente_per_sessioni = esame_dict['docente'] if is_admin else username
             
-            if not is_date_in_session(nuova_data_obj.date(), docente_per_sessioni, esame_dict['anno_accademico']):
+            # Controlla se è una prova parziale non ufficiale
+            is_prova_parziale_non_ufficiale = (
+                data.get('tipo_appello') == 'PP' and 
+                not data.get('mostra_nel_calendario', True)
+            )
+            
+            # Permetti prove parziali non ufficiali fuori dalle sessioni
+            if not is_prova_parziale_non_ufficiale and not is_date_in_session(nuova_data_obj.date(), docente_per_sessioni, esame_dict['anno_accademico']):
                 cursor.close()
                 release_connection(conn)
                 return jsonify({'success': False, 'message': f'La data {data.get("data_appello")} non è all\'interno di una sessione valida'}), 400

@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return appellobTemplate;
     }
 
-    async function addDateSection(date = '') {
+    async function addDateSection(date = '', options = {}) {
       const container = document.getElementById('dateAppelliContainer');
       if (!container) {
         return null;
@@ -213,10 +213,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
       
-      // Imposta checkbox default
-      const showInCalendarCheckbox = section.querySelector(`#mostra_nel_calendario_${dateAppelliCounter}`);
-      if (showInCalendarCheckbox) {
-        showInCalendarCheckbox.checked = true;
+      // Configura per prova parziale non ufficiale se richiesto
+      if (options.isNonOfficialPartial) {
+        setTimeout(() => {
+          configureNonOfficialPartialSection(section, dateAppelliCounter);
+        }, 50);
+      } else {
+        // Imposta checkbox default solo se non è prova parziale non ufficiale
+        const showInCalendarCheckbox = section.querySelector(`#mostra_nel_calendario_${dateAppelliCounter}`);
+        if (showInCalendarCheckbox) {
+          showInCalendarCheckbox.checked = true;
+        }
       }
       
       // Gestisci evento provvisorio se c'è una data
@@ -228,6 +235,68 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       return sectionId;
+    }
+    
+    // Configura sezione per prova parziale non ufficiale
+    function configureNonOfficialPartialSection(section, counter) {
+      // Disabilita e deseleziona "Appello ufficiale"
+      const showInCalendarCheckbox = section.querySelector(`#mostra_nel_calendario_${counter}`);
+      if (showInCalendarCheckbox) {
+        showInCalendarCheckbox.checked = false;
+        showInCalendarCheckbox.disabled = true;
+        showInCalendarCheckbox.style.opacity = '0.5';
+        // Aggiungi stile per mostrare che è disabilitato
+        const checkboxContainer = showInCalendarCheckbox.closest('.form-element');
+        if (checkboxContainer) {
+          checkboxContainer.style.opacity = '0.5';
+          checkboxContainer.style.pointerEvents = 'none';
+        }
+      }
+      
+      // Seleziona e disabilita "Prova Parziale"
+      const tipoAppelloPP = section.querySelector(`#tipoAppelloPP_${counter}`);
+      const tipoAppelloPF = section.querySelector(`#tipoAppelloPF_${counter}`);
+      
+      if (tipoAppelloPP && tipoAppelloPF) {
+        tipoAppelloPP.checked = true;
+        tipoAppelloPF.checked = false;
+        
+        // Disabilita entrambi i radio button
+        tipoAppelloPP.disabled = true;
+        tipoAppelloPF.disabled = true;
+        
+        // Stile visivo per indicare che sono disabilitati
+        const radioGroup = section.querySelector('.radio-group');
+        if (radioGroup) {
+          radioGroup.style.opacity = '0.5';
+          radioGroup.style.pointerEvents = 'none';
+        }
+      }
+      
+      // Aggiorna il dropdown verbalizzazione per prova parziale
+      setTimeout(() => {
+        aggiornaVerbalizzazioneForSection(counter);
+        
+        // Imposta la verbalizzazione di default a "Prova parziale"
+        const verbalizzazioneSelect = section.querySelector(`#verbalizzazione_${counter}`);
+        if (verbalizzazioneSelect) {
+          verbalizzazioneSelect.value = "PAR";
+        }
+      }, 100);
+      
+      // Aggiungi marker per identificare la sezione come prova parziale non ufficiale
+      section.dataset.isNonOfficialPartial = 'true';
+      
+      // Aggiungi stile visivo per distinguere la sezione
+      section.style.border = '2px dashed #ff9800';
+      section.style.backgroundColor = '#fff3e0';
+      
+      // Aggiungi tooltip esplicativo
+      const header = section.querySelector('.date-appello-header h4');
+      if (header) {
+        header.style.color = '#ff9800';
+        header.title = 'Prova parziale non ufficiale - non apparirà nel calendario ufficiale';
+      }
     }
     
     function removeDateSection(sectionId) {

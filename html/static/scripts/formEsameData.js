@@ -200,7 +200,7 @@ const FormEsameData = (function() {
   }
 
   // Gestione selezione data ottimizzata
-  function handleDateSelection(date) {
+  function handleDateSelection(date, options = {}) {
     const existingSections = document.querySelectorAll('.date-appello-section');
     
     // Cerca prima una sezione vuota
@@ -214,6 +214,11 @@ const FormEsameData = (function() {
         dateInput.value = date;
         emptySection.dataset.date = date;
         calculateAndSetInscriptionDatesForSection(emptySection, date);
+        
+        // Applica configurazione per prova parziale non ufficiale
+        if (options.isNonOfficialPartial) {
+          configureNonOfficialPartialSection(emptySection);
+        }
         
         // Crea evento provvisorio
         if (window.EsameAppelli?.createProvisionalEventForDate) {
@@ -241,8 +246,86 @@ const FormEsameData = (function() {
 
     // Crea nuova sezione
     if (window.EsameAppelli?.addDateSection) {
-      window.EsameAppelli.addDateSection(date);
-      setTimeout(() => calculateAndSetInscriptionDates(date), 50);
+      const sectionId = window.EsameAppelli.addDateSection(date, options);
+      setTimeout(() => {
+        calculateAndSetInscriptionDates(date);
+        
+        // Applica configurazione per prova parziale non ufficiale se necessario
+        // (viene già gestita in addDateSection, ma manteniamo per sicurezza)
+        if (options.isNonOfficialPartial && sectionId) {
+          const section = document.getElementById(sectionId);
+          if (section) {
+            configureNonOfficialPartialSection(section);
+          }
+        }
+      }, 50);
+    }
+  }
+
+  // Configura sezione per prova parziale non ufficiale
+  function configureNonOfficialPartialSection(section) {
+    const sectionIdMatch = section.id.match(/dateSection_(\d+)/);
+    const counter = sectionIdMatch ? sectionIdMatch[1] : '1';
+    
+    // Disabilita e deseleziona "Appello ufficiale"
+    const showInCalendarCheckbox = section.querySelector(`#mostra_nel_calendario_${counter}`);
+    if (showInCalendarCheckbox) {
+      showInCalendarCheckbox.checked = false;
+      showInCalendarCheckbox.disabled = true;
+      showInCalendarCheckbox.style.opacity = '0.5';
+      // Aggiungi stile per mostrare che è disabilitato
+      const checkboxContainer = showInCalendarCheckbox.closest('.form-element');
+      if (checkboxContainer) {
+        checkboxContainer.style.opacity = '0.5';
+        checkboxContainer.style.pointerEvents = 'none';
+      }
+    }
+    
+    // Seleziona e disabilita "Prova Parziale"
+    const tipoAppelloPP = section.querySelector(`#tipoAppelloPP_${counter}`);
+    const tipoAppelloPF = section.querySelector(`#tipoAppelloPF_${counter}`);
+    
+    if (tipoAppelloPP && tipoAppelloPF) {
+      tipoAppelloPP.checked = true;
+      tipoAppelloPF.checked = false;
+      
+      // Disabilita entrambi i radio button
+      tipoAppelloPP.disabled = true;
+      tipoAppelloPF.disabled = true;
+      
+      // Stile visivo per indicare che sono disabilitati
+      const radioGroup = section.querySelector('.radio-group');
+      if (radioGroup) {
+        radioGroup.style.opacity = '0.5';
+        radioGroup.style.pointerEvents = 'none';
+      }
+    }
+    
+    // Aggiorna il dropdown verbalizzazione per prova parziale
+    setTimeout(() => {
+      if (window.EsameAppelli?.aggiornaVerbalizzazioneForSection) {
+        window.EsameAppelli.aggiornaVerbalizzazioneForSection(counter);
+        
+        // Imposta la verbalizzazione di default a "Prova parziale"
+        const verbalizzazioneSelect = section.querySelector(`#verbalizzazione_${counter}`);
+        if (verbalizzazioneSelect) {
+          verbalizzazioneSelect.value = "PAR";
+        }
+      }
+    }, 100);
+    
+    // Aggiungi marker per identificare la sezione come prova parziale non ufficiale
+    section.dataset.isNonOfficialPartial = 'true';
+    
+    // Aggiungi stile visivo per distinguere la sezione
+    section.style.border = '2px dashed #ff9800';
+    section.style.backgroundColor = '#fff3e0';
+    
+    // Aggiungi tooltip esplicativo
+    const header = section.querySelector('.date-appello-header h4');
+    if (header) {
+      header.style.color = '#ff9800';
+      header.title = 'Prova parziale non ufficiale - non apparirà nel calendario ufficiale';
     }
   }
 

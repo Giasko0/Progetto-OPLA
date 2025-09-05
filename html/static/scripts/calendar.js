@@ -209,22 +209,48 @@ document.addEventListener("DOMContentLoaded", async function () {
             const visibleProvisionalDates = window.EsameAppelli?.getVisibleSectionDates?.() || [];
             const validationResult = isDateValid(info.date, dateValide, visibleProvisionalDates);
 
-            // Gestione errori di validazione
+            // Gestione date disabilitate per utenti non admin
             if (!validationResult.isValid && !isAdmin) {
-              const messages = {
-                isSameDayConflict: 'Non è possibile inserire due esami nello stesso giorno.',
-                isProvisionalConflict: 'Non è possibile inserire esami a meno di 14 giorni di distanza da altri eventi con proprietà "Appello ufficiale".',
-                default: validationResult.message
-              };
-              
-              const messageKey = validationResult.isSameDayConflict ? 'isSameDayConflict' : 
-                               validationResult.isProvisionalConflict ? 'isProvisionalConflict' : 'default';
-              
-              window.showMessage?.(messages[messageKey], 'Attenzione', 'notification');
-              return;
+              // Controlla se è un conflitto con sessioni (non con altri eventi)
+              if (!validationResult.isSameDayConflict && !validationResult.isProvisionalConflict) {
+                // Data fuori dalle sessioni - mostra popup di conferma
+                const confirmMessage = "Si sta inserendo un esame fuori dalle sessioni, è possibile inserire solo prove parziali non ufficiali (queste date non appariranno nel calendario).";
+                
+                if (confirm(confirmMessage)) {
+                  // Apri form con modalità prova parziale non ufficiale
+                  const formContainer = document.getElementById('form-container');
+                  const isFormOpen = formContainer?.style.display === 'block';
+                  
+                  if (isFormOpen) {
+                    window.FormEsameData?.handleDateSelection?.(selDateFormatted, { isNonOfficialPartial: true });
+                  } else {
+                    window.EsameForm?.showForm({ date: selDateFormatted, isNonOfficialPartial: true })
+                      .then(formOpened => {
+                        if (formOpened) {
+                          setTimeout(() => window.FormEsameData?.handleDateSelection?.(selDateFormatted, { isNonOfficialPartial: true }), 100);
+                        }
+                      })
+                      .catch(error => console.error('Errore apertura form:', error));
+                  }
+                }
+                return;
+              } else {
+                // Altri tipi di conflitto - mostra messaggio di errore
+                const messages = {
+                  isSameDayConflict: 'Non è possibile inserire due esami nello stesso giorno.',
+                  isProvisionalConflict: 'Non è possibile inserire esami a meno di 14 giorni di distanza da altri eventi con proprietà "Appello ufficiale".',
+                  default: validationResult.message
+                };
+                
+                const messageKey = validationResult.isSameDayConflict ? 'isSameDayConflict' : 
+                                 validationResult.isProvisionalConflict ? 'isProvisionalConflict' : 'default';
+                
+                window.showMessage?.(messages[messageKey], 'Attenzione', 'notification');
+                return;
+              }
             }
             
-            // Gestione apertura form ottimizzata
+            // Gestione apertura form ottimizzata per date valide
             const formContainer = document.getElementById('form-container');
             const isFormOpen = formContainer?.style.display === 'block';
             

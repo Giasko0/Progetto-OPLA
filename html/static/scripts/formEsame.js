@@ -137,7 +137,7 @@ const EsameForm = (function() {
       const existingSections = document.querySelectorAll('.date-appello-section');
       
       if (existingSections.length === 0 && !options.date) {
-        window.EsameAppelli.addDateSection();
+        window.EsameAppelli.addDateSection('', { isNonOfficialPartial: options.isNonOfficialPartial });
       }
       
       initUserData();
