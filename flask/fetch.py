@@ -177,8 +177,13 @@ def get_esami():
                 insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
                 insegnamenti_autorizzati.extend(insegnamenti_correlati)
         
-        # Query principale
-        where_clause = "WHERE e.insegnamento = ANY(%s) AND e.mostra_nel_calendario = true" if insegnamenti_autorizzati else "WHERE 1=0"
+        # Query principale - distingui tra esami del docente e degli altri
+        if not insegnamenti_autorizzati:
+            where_clause = "WHERE 1=0"
+        else:
+            # Un docente vede sempre tutti i suoi esami, mentre per gli altri vale la flag mostra_nel_calendario
+            where_clause = f"""WHERE e.insegnamento = ANY(%s) AND 
+                              (e.docente = '{docente}' OR e.mostra_nel_calendario = true)"""
         
         query = f"""
             SELECT e.id, e.descrizione, e.docente, 
@@ -427,11 +432,11 @@ def check_esami_minimi():
         for insegnamento in insegnamenti:
             ins_id, ins_titolo, cds_code, nome_corso, semestre = insegnamento
             
-            # 3. Conta esami totali per questo insegnamento
+            # 3. Conta esami totali per questo insegnamento (conta tutti gli esami visibili nel calendario)
             cursor.execute("""
                 SELECT COUNT(*) FROM esami 
                 WHERE insegnamento = %s AND docente = %s AND anno_accademico = %s 
-                      AND tipo_appello != 'PP' AND mostra_nel_calendario = true
+                      AND mostra_nel_calendario = true
             """, (ins_id, docente, anno))
             
             esami_totali = cursor.fetchone()[0]
@@ -465,7 +470,7 @@ def check_esami_minimi():
                         SELECT COUNT(*) FROM esami 
                         WHERE insegnamento = %s AND docente = %s AND anno_accademico = %s
                               AND data_appello >= %s AND data_appello <= %s
-                              AND tipo_appello != 'PP' AND mostra_nel_calendario = true
+                              AND mostra_nel_calendario = true
                     """, (ins_id, docente, anno, inizio, fine))
                     
                     esami_presenti = cursor.fetchone()[0]
