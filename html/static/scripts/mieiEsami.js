@@ -84,9 +84,8 @@ function processDataForDisplay(cdsData, esamiData, username) {
       const dataEsame = new Date(esame.start);
       const sessione = determinaSessioneEsame(dataEsame);
       
-      // Determina se l'esame è ufficiale (mostra_nel_calendario non è false e tipo_appello non è PP)
-      const isUfficiale = esame.extendedProps.mostra_nel_calendario !== false && 
-                         esame.extendedProps.tipo_appello !== 'PP';
+      // Determina se l'esame è ufficiale
+      const isUfficiale = esame.extendedProps.mostra_nel_calendario === true;
       
       // Formato compatibile con il codice esistente
       const esameFormatted = {

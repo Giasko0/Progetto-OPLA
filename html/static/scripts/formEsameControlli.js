@@ -327,8 +327,8 @@ const FormEsameControlli = (function() {
     isUserAdmin,
     validateForm,
     validateFormWithBypass,
-    validateFormForEdit, // Nuovo per modalità modifica
-    validateFormForEditWithBypass, // Nuovo per bypass in modifica
+    validateFormForEdit,
+    validateFormForEditWithBypass,
     validateFormField,
     validators,
     getCommonValidationRules,

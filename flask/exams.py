@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from datetime import datetime, timedelta, date, time
+import traceback
 from db import get_db_connection, release_connection
 from auth import require_auth
 from utils.sessions import ottieni_intersezione_sessioni_docente, ottieni_vacanze, escludi_vacanze_da_sessioni
@@ -680,159 +681,197 @@ def get_esame_by_id():
 @require_auth
 def update_esame():
     """Aggiorna un esame esistente con supporto per sezioni modulari."""
-    data = request.get_json()
-    exam_id = data.get('id')
-    if not exam_id:
-        return jsonify({'success': False, 'message': 'ID esame non fornito'}), 400
+    try:
+        print(f"Ricevuta richiesta PUT /api/update-esame")
+        data = request.get_json()
+        print(f"Dati ricevuti per update: {data}")
+        
+        exam_id = data.get('id')
+        if not exam_id:
+            print("ID esame non fornito")
+            return jsonify({'success': False, 'message': 'ID esame non fornito'}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    username = session.get('username', '')
-    is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
-    bypass_checks = data.get('bypass_checks', False)
+        username = session.get('username', '')
+        is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
+        bypass_checks = data.get('bypass_checks', False)
 
-    # Ottieni esame esistente
-    cursor.execute("SELECT * FROM esami WHERE id = %s", (exam_id,))
-    esame = cursor.fetchone()
-    if not esame:
-        cursor.close()
-        release_connection(conn)
-        return jsonify({'success': False, 'message': 'Esame non trovato'}), 404
+        print(f"Username: {username}, is_admin: {is_admin}, bypass_checks: {bypass_checks}")
 
-    columns = [desc[0] for desc in cursor.description]
-    esame_dict = dict(zip(columns, esame))
-
-    # Controlli permessi e modificabilità
-    if not check_user_permissions(esame_dict['docente'], username, is_admin):
-        cursor.close()
-        release_connection(conn)
-        return jsonify({'success': False, 'message': 'Non hai i permessi per modificare questo esame'}), 403
-
-    if not bypass_checks and not check_exam_modifiable(esame_dict['data_appello']):
-        cursor.close()
-        release_connection(conn)
-        return jsonify({'success': False, 'message': 'Esame non modificabile (meno di 7 giorni)'}), 400
-
-    # Controllo data non anticipata (solo se non bypass)
-    if not bypass_checks:
-        nuova_data = datetime.strptime(data.get('data_appello'), '%Y-%m-%d').date()
-        if nuova_data < esame_dict['data_appello']:
+        # Ottieni esame esistente
+        cursor.execute("SELECT * FROM esami WHERE id = %s", (exam_id,))
+        esame = cursor.fetchone()
+        if not esame:
+            print(f"Esame con ID {exam_id} non trovato")
             cursor.close()
             release_connection(conn)
-            return jsonify({'success': False, 'message': 'La nuova data non può essere anticipata'}), 400
+            return jsonify({'success': False, 'message': 'Esame non trovato'}), 404
 
-    # Controllo vincoli (solo se non bypass)
-    if not bypass_checks:
-        # Ottieni codice insegnamento per controllo vincoli
-        cursor.execute("SELECT codice FROM insegnamenti WHERE id = %s", (esame_dict['insegnamento'],))
-        insegnamento_result = cursor.fetchone()
+        columns = [desc[0] for desc in cursor.description]
+        esame_dict = dict(zip(columns, esame))
+        print(f"Esame trovato: {esame_dict['docente']}, data: {esame_dict['data_appello']}")
 
-        # Controllo sessioni sempre attivo (anche con bypass parziale)
-        nuova_data_obj = datetime.strptime(data.get('data_appello'), '%Y-%m-%d')
-        
-        # Determina il docente per il controllo sessioni
-        # Se chi sta modificando è admin, usa il docente originale dell'esame (che è il titolare)
-        # Altrimenti usa chi sta modificando
-        docente_per_sessioni = esame_dict['docente'] if is_admin else username
-        
-        if not is_date_in_session(nuova_data_obj.date(), docente_per_sessioni, esame_dict['anno_accademico']):
+        # Controlli permessi e modificabilità
+        if not check_user_permissions(esame_dict['docente'], username, is_admin):
+            print(f"Permessi negati - docente esame: {esame_dict['docente']}, user: {username}")
             cursor.close()
             release_connection(conn)
-            return jsonify({'success': False, 'message': f'La data {data.get("data_appello")} non è all\'interno di una sessione valida'}), 400
+            return jsonify({'success': False, 'message': 'Non hai i permessi per modificare questo esame'}), 403
 
-        # Prepara dati per controllo vincoli
-        dati_controllo = {
-            'exam_id': exam_id,
-            'insegnamenti': [insegnamento_result[0]],
-            'docente': username,
-            'sezioni_appelli': [{
-                'data_appello': data.get('data_appello'),
-                'ora_appello': data.get('ora_appello'),
-                'aula': data.get('aula'),
-                'periodo': data.get('periodo'),
-                'mostra_nel_calendario': data.get('mostra_nel_calendario', True),
-                'tipo_appello': data.get('tipo_appello', 'PF')
-            }],
-            'anno_accademico': esame_dict['anno_accademico']
-        }
+        #if not bypass_checks and not check_exam_modifiable(esame_dict['data_appello']):
+            #cursor.close()
+            #release_connection(conn)
+            #return jsonify({'success': False, 'message': 'Esame non modificabile (meno di 7 giorni)'}), 400
 
-        # Controllo vincoli passando l'aula originale
-        vincoli_ok, errore = controlla_vincoli(dati_controllo, aula_originale=esame_dict['aula'])
-        if not vincoli_ok:
-            cursor.close()
-            release_connection(conn)
-            return jsonify({'success': False, 'message': errore}), 400
-    # Con bypass completo, salta tutti i controlli
+        # Controllo data non anticipata (solo se non bypass)
+        #if not bypass_checks:
+            #nuova_data = datetime.strptime(data.get('data_appello'), '%Y-%m-%d').date()
+            #if nuova_data < esame_dict['data_appello']:
+                #cursor.close()
+                #release_connection(conn)
+                #return jsonify({'success': False, 'message': 'La nuova data non può essere anticipata'}), 400
 
-    # Aggiornamento
-    cursor.execute("""
-    UPDATE esami SET
-        descrizione = %s, tipo_appello = %s, aula = %s, data_appello = %s,
-        data_inizio_iscrizione = %s, data_fine_iscrizione = %s, ora_appello = %s,
-        durata_appello = %s, periodo = %s, verbalizzazione = %s,
-        tipo_esame = %s, note_appello = %s, mostra_nel_calendario = %s
-    WHERE id = %s
-    """, (
-        data.get('descrizione'), data.get('tipo_appello'), data.get('aula'),
-        data.get('data_appello'), data.get('data_inizio_iscrizione'),
-        data.get('data_fine_iscrizione'), data.get('ora_appello'),
-        data.get('durata_appello'), data.get('periodo'), data.get('verbalizzazione'),
-        data.get('tipo_esame'), data.get('note_appello'),
-        data.get('mostra_nel_calendario', True), exam_id
-    ))
-    
-    conn.commit()
-    cursor.close()
-    release_connection(conn)
-    
-    message = 'Esame aggiornato con successo'
-    if bypass_checks:
-        message += ' (controlli bypassati)'
+        # Controllo vincoli (solo se non bypass)
+        if not bypass_checks:
+            print("Inizio controllo vincoli")
+            # Ottieni codice insegnamento per controllo vincoli
+            cursor.execute("SELECT codice FROM insegnamenti WHERE id = %s", (esame_dict['insegnamento'],))
+            insegnamento_result = cursor.fetchone()
+
+            # Controllo sessioni sempre attivo (anche con bypass parziale)
+            nuova_data_obj = datetime.strptime(data.get('data_appello'), '%Y-%m-%d')
+            
+            # Determina il docente per il controllo sessioni
+            # Se chi sta modificando è admin, usa il docente originale dell'esame (che è il titolare)
+            # Altrimenti usa chi sta modificando
+            docente_per_sessioni = esame_dict['docente'] if is_admin else username
+            print(f"Controllo sessioni per docente: {docente_per_sessioni}, data: {nuova_data_obj.date()}")
+            
+            if not is_date_in_session(nuova_data_obj.date(), docente_per_sessioni, esame_dict['anno_accademico']):
+                print("Data non in sessione valida")
+                cursor.close()
+                release_connection(conn)
+                return jsonify({'success': False, 'message': f'La data {data.get("data_appello")} non è all\'interno di una sessione valida'}), 400
+
+            # Prepara dati per controllo vincoli
+            dati_controllo = {
+                'exam_id': exam_id,
+                'insegnamenti': [insegnamento_result[0]],
+                'docente': username,
+                'sezioni_appelli': [{
+                    'data_appello': data.get('data_appello'),
+                    'ora_appello': data.get('ora_appello'),
+                    'aula': data.get('aula'),
+                    'periodo': data.get('periodo'),
+                    'mostra_nel_calendario': data.get('mostra_nel_calendario', True),
+                    'tipo_appello': data.get('tipo_appello', 'PF')
+                }],
+                'anno_accademico': esame_dict['anno_accademico']
+            }
+
+            print(f"Dati controllo vincoli: {dati_controllo}")
+
+            # Controllo vincoli passando l'aula originale
+            vincoli_ok, errore = controlla_vincoli(dati_controllo, aula_originale=esame_dict['aula'])
+            if not vincoli_ok:
+                print(f"Vincoli falliti: {errore}")
+                cursor.close()
+                release_connection(conn)
+                return jsonify({'success': False, 'message': errore}), 400
+
+        # Aggiornamento
+        cursor.execute("""
+        UPDATE esami SET
+            descrizione = %s, tipo_appello = %s, aula = %s, data_appello = %s,
+            data_inizio_iscrizione = %s, data_fine_iscrizione = %s, ora_appello = %s,
+            durata_appello = %s, periodo = %s, verbalizzazione = %s,
+            tipo_esame = %s, note_appello = %s, mostra_nel_calendario = %s
+        WHERE id = %s
+        """, (
+            data.get('descrizione'), data.get('tipo_appello'), data.get('aula'),
+            data.get('data_appello'), data.get('data_inizio_iscrizione'),
+            data.get('data_fine_iscrizione'), data.get('ora_appello'),
+            data.get('durata_appello'), data.get('periodo'), data.get('verbalizzazione'),
+            data.get('tipo_esame'), data.get('note_appello'),
+            data.get('mostra_nel_calendario', True), exam_id
+        ))
         
-    return jsonify({'success': True, 'message': message})
+        conn.commit()
+        cursor.close()
+        release_connection(conn)
+        
+        message = 'Esame aggiornato con successo'
+        if bypass_checks:
+            message += ' (controlli bypassati)'
+        
+        print(f"Aggiornamento completato: {message}")
+        return jsonify({'success': True, 'message': message})
+        
+    except Exception as e:
+        print(f"Errore nell'update_esame: {e}")
+        print(f"Stack trace: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'Errore interno del server: {str(e)}'}), 500
 
 @exam_bp.route('/api/delete-esame', methods=['DELETE'])
 @require_auth
 def delete_esame():
     """Elimina un esame esistente."""
-    data = request.get_json()
-    exam_id = data.get('id')
-    if not exam_id:
-        return jsonify({'success': False, 'message': 'ID esame non fornito'}), 400
+    try:
+        print(f"Ricevuta richiesta DELETE")
+        data = request.get_json()
+        print(f"Dati ricevuti per delete: {data}")
+        
+        exam_id = data.get('id')
+        if not exam_id:
+            print("ID esame non fornito per eliminazione")
+            return jsonify({'success': False, 'message': 'ID esame non fornito'}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    username = session.get('username', '')
-    is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
+        username = session.get('username', '')
+        is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
+        
+        print(f"Username per eliminazione: {username}, is_admin: {is_admin}")
 
-    # Ottieni esame
-    cursor.execute("SELECT * FROM esami WHERE id = %s", (exam_id,))
-    esame = cursor.fetchone()
-    if not esame:
+        # Ottieni esame
+        cursor.execute("SELECT * FROM esami WHERE id = %s", (exam_id,))
+        esame = cursor.fetchone()
+        if not esame:
+            print(f"Esame con ID {exam_id} non trovato per eliminazione")
+            cursor.close()
+            release_connection(conn)
+            return jsonify({'success': False, 'message': 'Esame non trovato'}), 404
+
+        columns = [desc[0] for desc in cursor.description]
+        esame_dict = dict(zip(columns, esame))
+        print(f"Esame da eliminare trovato: {esame_dict['docente']}, data: {esame_dict['data_appello']}")
+
+        # Controlli
+        if not check_user_permissions(esame_dict['docente'], username, is_admin):
+            print(f"Permessi negati per eliminazione - docente: {esame_dict['docente']}, user: {username}")
+            cursor.close()
+            release_connection(conn)
+            return jsonify({'success': False, 'message': 'Non hai i permessi per eliminare questo esame'}), 403
+
+        #if not check_exam_modifiable(esame_dict['data_appello']):
+            #cursor.close()
+            #release_connection(conn)
+            #return jsonify({'success': False, 'message': 'Esame non eliminabile (meno di 7 giorni)'}), 400
+
+        print(f"Inizio eliminazione esame con ID: {exam_id}")
+        # Eliminazione
+        cursor.execute("DELETE FROM esami WHERE id = %s", (exam_id,))
+        conn.commit()
+        print(f"Esame eliminato con successo, righe interessate: {cursor.rowcount}")
         cursor.close()
         release_connection(conn)
-        return jsonify({'success': False, 'message': 'Esame non trovato'}), 404
-
-    columns = [desc[0] for desc in cursor.description]
-    esame_dict = dict(zip(columns, esame))
-
-    # Controlli
-    if not check_user_permissions(esame_dict['docente'], username, is_admin):
-        cursor.close()
-        release_connection(conn)
-        return jsonify({'success': False, 'message': 'Non hai i permessi per eliminare questo esame'}), 403
-
-    if not check_exam_modifiable(esame_dict['data_appello']):
-        cursor.close()
-        release_connection(conn)
-        return jsonify({'success': False, 'message': 'Esame non eliminabile (meno di 7 giorni)'}), 400
-
-    # Eliminazione
-    cursor.execute("DELETE FROM esami WHERE id = %s", (exam_id,))
-    conn.commit()
-    cursor.close()
-    release_connection(conn)
-    
-    return jsonify({'success': True, 'message': 'Esame eliminato con successo'})
+        
+        return jsonify({'success': True, 'message': 'Esame eliminato con successo'})
+        
+    except Exception as e:
+        print(f"Errore nel delete_esame: {e}")
+        print(f"Stack trace: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'Errore interno del server: {str(e)}'}), 500

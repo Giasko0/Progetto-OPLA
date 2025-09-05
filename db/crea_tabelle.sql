@@ -261,21 +261,21 @@ INSERT INTO aule (nome, codice_esse3, codice_easyacademy, sede, edificio, posti)
 /*
 -- Inserimento dei corsi di studio default
 INSERT INTO cds (codice, anno_accademico, nome_corso, curriculum_codice, curriculum_nome) VALUES
-('L062', 2024, 'INFORMATICA', 'GEN', 'CORSO GENERICO');
+('L062', 2025, 'INFORMATICA', 'GEN', 'CORSO GENERICO');
 
 -- Inserimento delle configurazioni globali di default
 INSERT INTO configurazioni_globali (anno_accademico, target_esami_default) VALUES
-(2024, 8);
+(2025, 8);
 
 -- Inserimento di alcune vacanze globali di esempio
 INSERT INTO vacanze (anno_accademico, descrizione, inizio, fine) VALUES
-(2024, 'Vacanze Natalizie', '2024-12-24', '2025-01-06'),
-(2024, 'Vacanze Pasquali', '2025-04-20', '2025-04-25');
+(2025, 'Vacanze Natalizie', '2025-12-24', '2026-01-06'),
+(2025, 'Vacanze Pasquali', '2026-04-20', '2026-04-25');
 
 -- Inserimento delle sessioni di prova
 INSERT INTO sessioni (cds, anno_accademico, curriculum_codice, tipo_sessione, inizio, fine, esami_primo_semestre, esami_secondo_semestre) VALUES
-('L062', 2024, 'GEN', 'anticipata', '2024-12-22', '2025-02-22', 2, 0),
-('L062', 2024, 'GEN', 'estiva', '2025-06-10', '2025-07-25', 2, 3),
-('L062', 2024, 'GEN', 'autunnale', '2025-09-01', '2025-9-30', 2, 2),
-('L062', 2024, 'GEN', 'invernale', '2026-01-10', '2026-02-25', 2, 3);
+('L062', 2025, 'GEN', 'anticipata', '2025-12-22', '2026-02-22', 2, 0),
+('L062', 2025, 'GEN', 'estiva', '2026-06-10', '2026-07-25', 2, 2),
+('L062', 2025, 'GEN', 'autunnale', '2026-09-01', '2026-9-30', 1, 1),
+('L062', 2025, 'GEN', 'invernale', '2027-01-10', '2027-02-25', 2, 2);
 */

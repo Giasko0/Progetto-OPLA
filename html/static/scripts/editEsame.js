@@ -289,6 +289,8 @@ document.addEventListener('DOMContentLoaded', function() {
       examDataFromForm.id = currentExamData.id;
       examDataFromForm.bypass_checks = bypassChecks;
 
+      console.log('Invio richiesta modifica esame, dati:', examDataFromForm);
+      
       fetch('/api/update-esame', {
         method: 'PUT',
         headers: {
@@ -296,8 +298,20 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         body: JSON.stringify(examDataFromForm)
       })
-      .then(response => response.json())
+      .then(response => {
+        console.log('Status risposta:', response.status);
+        console.log('Headers risposta:', response.headers);
+        
+        if (!response.ok) {
+          console.error('Errore nella modifica:', response.status, response.statusText);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+      })
       .then(data => {
+        console.log('Dati risposta modifica:', data);
+        
         if (data.success) {
           window.showMessage(data.message, "Successo", "success");
           
@@ -316,12 +330,14 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => location.reload(), 1000);
           }
         } else {
+          console.error('Errore dal server nella modifica:', data.message);
           window.FormEsameControlli.showValidationError(data.message);
         }
       })
       .catch(error => {
-        console.error('Errore nella modifica:', error);
-        window.FormEsameControlli.showValidationError('Errore nella comunicazione con il server');
+        console.error('Errore completo nella modifica:', error);
+        console.error('Stack trace:', error.stack);
+        window.FormEsameControlli.showValidationError(`Errore nella comunicazione con il server: ${error.message}`);
       });
     }
 
@@ -390,6 +406,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleDeleteExam(examId) {
       if (!confirm('Sei sicuro di voler eliminare questo esame?')) return;
 
+      console.log('Eliminazione esame con ID:', examId);
+
       fetch('/api/delete-esame', {
         method: 'DELETE',
         headers: {
@@ -397,8 +415,20 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         body: JSON.stringify({ id: examId })
       })
-      .then(response => response.json())
+      .then(response => {
+        console.log('Status risposta eliminazione:', response.status);
+        console.log('Headers risposta:', response.headers);
+        
+        if (!response.ok) {
+          console.error('Errore HTTP nell\'eliminazione:', response.status, response.statusText);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+      })
       .then(data => {
+        console.log('Dati risposta eliminazione:', data);
+        
         if (data.success) {
           window.showMessage(data.message, "Successo", "success");
           
@@ -414,12 +444,14 @@ document.addEventListener('DOMContentLoaded', function() {
             window.calendar.refetchEvents();
           }
         } else {
+          console.error('Errore dal server nell\'eliminazione:', data.message);
           window.FormEsameControlli.showValidationError(data.message);
         }
       })
       .catch(error => {
-        console.error('Errore nell\'eliminazione:', error);
-        window.FormEsameControlli.showValidationError('Errore nella comunicazione con il server');
+        console.error('Errore completo nell\'eliminazione:', error);
+        console.error('Stack trace:', error.stack);
+        window.FormEsameControlli.showValidationError(`Errore nella comunicazione con il server: ${error.message}`);
       });
     }
 
