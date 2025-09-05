@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <div class="footer-section">
           <p>OPLÀ - Portale Online per Prenotare Laboratori e Aule</p>
-          <p>Versione 1.2.1</p>
+          <p>Versione 1.2.2</p>
         </div>
         <div class="footer-section">
           <p>Stai riscontrando problemi?</p>
