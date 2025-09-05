@@ -257,10 +257,11 @@ document.addEventListener("DOMContentLoaded", function () {
       openSidebar();
     }
 
-    // Per le notifiche, aggiungi la barra di progresso e timeout
-    if (isNotification && settings.timeout > 0) {
+    // Aggiungi timeout e barra di progresso per messaggi con timeout > 0
+    if (settings.timeout > 0) {
       const progressBar = document.createElement("div");
       progressBar.className = "notification-progress";
+      progressBar.style.backgroundColor = borderColor;
       progressBar.style.animation = `shrinkWidth ${
         settings.timeout / 1000
       }s linear forwards`;

@@ -79,6 +79,42 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
   }
 
+  // Funzione per controllare i permessi di modifica prima di aprire il form
+  async function checkEditPermissions(examId, examDocente) {
+    try {
+      // Se userData non è ancora caricato, aspetta
+      if (!userData) {
+        userData = await window.getUserData();
+      }
+
+      const currentUser = userData?.user_data?.username;
+      const isAdmin = userData?.authenticated && userData?.user_data?.permessi_admin;
+
+      // Admin può modificare tutto
+      if (isAdmin) {
+        return { allowed: true };
+      }
+
+      // Non admin può modificare solo i propri esami
+      if (currentUser && examDocente && currentUser.toLowerCase() === examDocente.toLowerCase()) {
+        return { allowed: true };
+      }
+
+      // Non autorizzato
+      return { 
+        allowed: false, 
+        message: "Non hai i permessi per modificare questo esame. Puoi modificare solo i tuoi esami." 
+      };
+
+    } catch (error) {
+      console.error("Errore nel controllo permessi:", error);
+      return { 
+        allowed: false, 
+        message: "Errore nel controllo dei permessi. Riprova." 
+      };
+    }
+  }
+
   window.deleteEsame = deleteEsame;
 
   // Inizializza calendario
@@ -267,7 +303,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
           },
 
-          eventClick: function (clickInfo) {
+          eventClick: async function (clickInfo) {
             const { event } = clickInfo;
             
             if (event.extendedProps?.isProvisional) {
@@ -277,6 +313,15 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             // Gestione modifica esame esistente
             if (event.id) {
+              // Controlla prima i permessi di modifica
+              const canEdit = await checkEditPermissions(event.id, event.extendedProps?.docente);
+              
+              if (!canEdit.allowed) {
+                window.showMessage(canEdit.message, 'Accesso Negato', 'warning');
+                return;
+              }
+              
+              // Solo se ha i permessi, apri il form
               window.EsameForm?.showForm?.({ id: event.id }, true);
             } else {
               console.error("ID dell'esame non trovato nell'evento:", event);

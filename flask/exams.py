@@ -787,6 +787,11 @@ def update_esame():
                 release_connection(conn)
                 return jsonify({'success': False, 'message': errore}), 400
 
+        # Normalizza l'aula: converti stringa vuota in None per permettere NULL nel database
+        aula_value = data.get('aula')
+        if aula_value is not None and aula_value.strip() == '':
+            aula_value = None
+
         # Aggiornamento
         cursor.execute("""
         UPDATE esami SET
@@ -796,7 +801,7 @@ def update_esame():
             tipo_esame = %s, note_appello = %s, mostra_nel_calendario = %s
         WHERE id = %s
         """, (
-            data.get('descrizione'), data.get('tipo_appello'), data.get('aula'),
+            data.get('descrizione'), data.get('tipo_appello'), aula_value,
             data.get('data_appello'), data.get('data_inizio_iscrizione'),
             data.get('data_fine_iscrizione'), data.get('ora_appello'),
             data.get('durata_appello'), data.get('periodo'), data.get('verbalizzazione'),

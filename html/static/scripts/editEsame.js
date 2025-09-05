@@ -393,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Campi specifici della sezione
         descrizione: getFieldValue('descrizione'),
         tipo_appello: getRadioValue('tipo_appello_radio') || 'PF',
-        aula: getFieldValue('aula'),
+        aula: getFieldValue('aula') || null,
         data_appello: getFieldValue('dataora'),
         data_inizio_iscrizione: getFieldValue('inizioIscrizione'),
         data_fine_iscrizione: getFieldValue('fineIscrizione'),
