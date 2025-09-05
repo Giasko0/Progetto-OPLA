@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <div class="footer-section">
           <p>OH-ISSA - Online Helper per Importazione dei Sistemi Strutturati Accademici</p>
-          <p>Versione 1.2.2</p>
+          <p>Versione 1.3</p>
         </div>
         <div class="footer-section">
           <p>Stai riscontrando problemi?</p>
