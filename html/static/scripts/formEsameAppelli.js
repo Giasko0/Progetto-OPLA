@@ -293,7 +293,10 @@ document.addEventListener('DOMContentLoaded', function() {
         {
           element: dateInput,
           events: [
-            { type: 'input', handler: () => dateInput.classList.remove('form-input-error') },
+            { type: 'input', handler: () => {
+              dateInput.classList.remove('form-input-error');
+              handleDateInputChange(sectionId, counter);
+            }},
             { type: 'blur', handler: () => handleDateInputChange(sectionId, counter) }
           ]
         },
@@ -578,14 +581,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const newDate = dateInput.value;
       const oldDate = section.dataset.date;
       
-      // Verifica validità data
-      if (!newDate || newDate.length < 10 || !isValidDateFormat(newDate)) {
-        return;
-      }
-      
-      // Se la data è cambiata
-      if (newDate !== oldDate) {
-        // Cleanup evento precedente
+      // Se la nuova data è valida e diversa dalla precedente
+      if (newDate && newDate.length === 10 && isValidDateFormat(newDate) && newDate !== oldDate) {
+        // Rimuovi l'evento precedente se esiste
         if (oldDate) {
           const matchingEvent = window.provisionalEvents?.find(event =>
             event.extendedProps?.formSectionDate === oldDate
@@ -594,20 +592,11 @@ document.addEventListener('DOMContentLoaded', function() {
             removeProvisionalEventsByIds([matchingEvent.id]);
           }
           
-          // Aggiorna tracking
           const index = selectedDates.indexOf(oldDate);
           if (index > -1) selectedDates.splice(index, 1);
         }
         
-        // Valida nuova data se necessario
-        const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${counter}`);
-        if (showInCalendarCheckbox?.checked) {
-          if (!validateDateConstraints(newDate, counter)) {
-            return;
-          }
-        }
-        
-        // Aggiorna sezione
+        // Aggiorna con la nuova data
         section.dataset.date = newDate;
         createProvisionalEventForDate(newDate, counter);
         
@@ -615,15 +604,22 @@ document.addEventListener('DOMContentLoaded', function() {
           selectedDates.push(newDate);
         }
         
-        // Reset aule
-        const aulaSelect = document.getElementById(`aula_${counter}`);
-        if (aulaSelect) {
-          aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
-        }
-
         // Calcola date iscrizione automaticamente
         calculateInscriptionDates(section, newDate);
+        
+        // Ricarica aule se l'ora è già selezionata
+        const oraH = document.getElementById(`ora_h_${counter}`);
+        if (oraH?.value) {
+          updateAuleForSection(counter);
+        } else {
+          // Reset aule se l'ora non è selezionata
+          const aulaSelect = document.getElementById(`aula_${counter}`);
+          if (aulaSelect) {
+            aulaSelect.innerHTML = '<option value="" disabled selected hidden>Seleziona prima data e ora</option>';
+          }
+        }
       }
+      // Se la data non è valida, non fare nulla - il rettangolino rimane dov'è
     }
 
     // Funzione helper per calcolare date iscrizione
