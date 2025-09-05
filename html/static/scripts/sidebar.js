@@ -28,8 +28,9 @@ document.addEventListener("DOMContentLoaded", function () {
     toggleBtn.addEventListener("click", toggleSidebar);
     closeBtn.addEventListener("click", closeSidebar);
 
-    // Gestore chiusura elementi
+    // Gestore chiusura elementi e collassabili
     document.addEventListener("click", handleCloseClicks);
+    document.addEventListener("click", handleCollapseClicks);
 
     // Esponi funzioni a livello globale
     window.showMessage = showMessage;
@@ -88,6 +89,38 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // Gestisce i click sui pulsanti di collasso
+  function handleCollapseClicks(e) {
+    if (e.target.classList.contains("collapse-toggle") || e.target.closest(".collapse-toggle")) {
+      const toggleElement = e.target.classList.contains("collapse-toggle") 
+        ? e.target 
+        : e.target.closest(".collapse-toggle");
+      
+      const content = toggleElement.nextElementSibling;
+      const icon = toggleElement.querySelector(".collapse-icon");
+      
+      if (content && content.classList.contains("collapse-content")) {
+        const isExpanded = content.classList.contains("expanded");
+        
+        if (isExpanded) {
+          // Chiudi
+          content.style.maxHeight = "0px";
+          content.classList.remove("expanded");
+          if (icon) {
+            icon.textContent = "keyboard_arrow_right";
+          }
+        } else {
+          // Apri - calcola l'altezza del contenuto
+          content.style.maxHeight = content.scrollHeight + "px";
+          content.classList.add("expanded");
+          if (icon) {
+            icon.textContent = "keyboard_arrow_down";
+          }
+        }
+      }
+    }
+  }
+
   // Rimuove un elemento dalla sidebar
   function removeItem(item, isNotification) {
     item.remove();
@@ -130,9 +163,25 @@ document.addEventListener("DOMContentLoaded", function () {
     type = "notification",
     options = {}
   ) {
+    // Determina il timeout di default in base al tipo
+    let defaultTimeout = 0;
+    switch (type) {
+      case "notification":
+      case "success":
+        defaultTimeout = 10000; // 10 secondi per blu e verde
+        break;
+      case "error":
+      case "warning":
+        defaultTimeout = 60000; // 60 secondi per rosso e arancione
+        break;
+      case "info":
+        defaultTimeout = 0; // Nessuna scadenza per info
+        break;
+    }
+
     const defaultOptions = {
       html: false,
-      timeout: type === "notification" ? 5000 : 0,
+      timeout: defaultTimeout,
     };
 
     const settings = { ...defaultOptions, ...options };
@@ -158,6 +207,12 @@ document.addEventListener("DOMContentLoaded", function () {
         itemClass = "notification-item";
         isNotification = true;
         borderColor = "var(--color-success, #28a745)";
+        break;
+      case "info":
+        containerId = "alertsContainer";
+        itemClass = "alert-item";
+        isNotification = false;
+        borderColor = "var(--color-info, #17a2b8)";
         break;
       case "notification":
       default:
@@ -197,7 +252,8 @@ document.addEventListener("DOMContentLoaded", function () {
     updateBadge();
 
     // Apri la sidebar automaticamente solo se non siamo in modalità mobile
-    if (!isMobileView()) {
+    // e se il form esame non è stato appena chiuso
+    if (!isMobileView() && !window.formJustClosed) {
       openSidebar();
     }
 

@@ -35,37 +35,65 @@ async function checkEsamiMinimi() {
       // Ci sono insegnamenti sotto il minimo
       if (window.showMessage) {
         const targetEsami = data.target_esami;
-        let content = `<p>Problemi rilevati negli esami inseriti:</p>`;
-        content += `<ul style="margin-top:8px;margin-bottom:8px;padding-left:20px;">`;
+        const isMultiple = data.insegnamenti_sotto_minimo.length > 1;
         
-        data.insegnamenti_sotto_minimo.forEach((ins) => {
-          content += `<li style="font-size:1rem;margin-bottom:8px;">`;
-          content += `<strong>${ins.titolo}</strong> (${ins.codici_cds})`;
+        let content = `<div style="font-size: 0.9rem; line-height: 1.4;">`;
+        
+        if (isMultiple) {
+          content += `<p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Clicca per espandere i dettagli:</p>`;
+        }
+        
+        data.insegnamenti_sotto_minimo.forEach((ins, index) => {
+          if (index > 0) content += `<div style="margin-top: 8px;"></div>`;
+          
+          if (isMultiple) {
+            // Header collassabile per più insegnamenti
+            content += `<div class="collapse-toggle" style="cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #17a2b8; margin-top: 8px; user-select: none;">`;
+            content += `<span class="collapse-icon material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 8px; color: #6c757d;">keyboard_arrow_right</span>`;
+            content += `<strong style="color: #2c3e50; font-size: 0.9rem;">${ins.titolo}</strong>`;
+            content += `</div>`;
+            
+            // Contenuto collassabile
+            content += `<div class="collapse-content" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; padding: 0 12px;">`;
+          } else {
+            // Header fisso per singolo insegnamento
+            content += `<div style="padding: 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #17a2b8; margin-bottom: 8px;">`;
+            content += `<strong style="color: #2c3e50; font-size: 0.9rem;">${ins.titolo}</strong>`;
+            content += `</div>`;
+          }
+          
+          content += `<div style="padding: 8px 0;">`;
+          content += `<div style="font-size: 0.8rem; color: #6c757d; margin-bottom: 6px;">${ins.codici_cds}</div>`;
           
           // Se è sotto il target generale
           if (ins.sotto_target) {
-            content += `<br><span style="color: #dc3545; font-size: 1rem;">• Target generale: ${ins.esami_inseriti}/${targetEsami} esami</span>`;
+            content += `<div style="color: #e74c3c; font-size: 0.85rem; margin-bottom: 4px; padding: 4px 8px; background: #fff5f5; border-radius: 3px;">`;
+            content += `📊 Target generale: ${ins.esami_inseriti}/${targetEsami} esami`;
+            content += `</div>`;
           }
           
           // Se ci sono sessioni problematiche
           if (ins.sessioni_problematiche && ins.sessioni_problematiche.length > 0) {
-            content += `<br><span style="color: #ffc107; font-size: 1rem;">• Sessioni sotto minimo:</span>`;
-            content += `<ul style="margin: 2px 0; padding-left: 15px;">`;
+            content += `<div style="color: #f39c12; font-size: 0.85rem; padding: 4px 8px; background: #fffbf0; border-radius: 3px;">`;
+            content += `⚠️ Sessioni sotto minimo:<br>`;
             ins.sessioni_problematiche.forEach((sessione) => {
               const nomeSessione = sessione.tipo_sessione.charAt(0).toUpperCase() + sessione.tipo_sessione.slice(1);
-              content += `<li style="font-size: 1rem; color: #6c757d; margin: 1px 0;">`;
-              content += `${nomeSessione}: ${sessione.esami_presenti}/${sessione.minimo_richiesto}`;
-              content += `</li>`;
+              content += `<span style="margin-left: 12px; font-size: 0.8rem;">• ${nomeSessione}: ${sessione.esami_presenti}/${sessione.minimo_richiesto}</span><br>`;
             });
-            content += `</ul>`;
+            content += `</div>`;
           }
           
-          content += `</li>`;
+          content += `</div>`;
+          
+          if (isMultiple) {
+            content += `</div>`;
+          }
         });
-        content += `</ul>`;
+        
+        content += `</div>`;
 
         // Mostra l'avviso nella sidebar
-        window.showMessage(content, "Attenzione!", "warning", { html: true });
+        window.showMessage(content, "Avviso appelli minimi", "info", { html: true });
       }
     }
   } catch (error) {

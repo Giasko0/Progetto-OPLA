@@ -393,6 +393,12 @@ const EsameForm = (function() {
 
   // Nasconde il form
   function hideForm(cleanupProvisional = false, clearAutosave = false) {
+    // Imposta il flag per evitare l'apertura automatica della sidebar
+    window.formJustClosed = true;
+    setTimeout(() => {
+      window.formJustClosed = false;
+    }, 1000); // Reset del flag dopo 1 secondo
+    
     if (clearAutosave) {
       window.FormEsameAutosave?.clearSavedData();
     }
