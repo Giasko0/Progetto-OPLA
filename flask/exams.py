@@ -324,13 +324,6 @@ def controlla_vincoli(dati_esame, aula_originale=None):
             """, (insegnamento_id, anno_accademico, anno_accademico, data_esame.date()))
             
             sessione_invernale = cursor.fetchone()
-            if sessione_invernale and (semestre == 1 or semestre == 3):  # Primo semestre o annuale
-                # Verifica che l'esame sia valido anche per l'anno accademico successivo
-                anno_successivo = anno_accademico + 1
-                if not is_date_in_session(data_esame.date(), docente_esame, anno_successivo):
-                    cursor.close()
-                    release_connection(conn)
-                    return False, f'L\'esame nella sessione invernale per l\'insegnamento {titolo_insegnamento} (primo semestre/annuale) deve essere valido anche per l\'anno accademico {anno_successivo}'
 
             # Controlla se la data cade in una sessione anticipata
             cursor.execute("""
@@ -583,48 +576,6 @@ def inserisci_esami(dati_esame):
             ))
             
             esami_inseriti.append(f"{titolo_insegnamento} - {sezione['data_appello']} (Docente: {docente_esame})")
-            
-            # Se è sessione invernale e primo semestre/annuale, inserisci anche per l'anno successivo
-            if sessione_invernale and semestre in [1, 3]:
-                anno_successivo = anno_accademico + 1
-                
-                # Verifica se esiste il CDS per l'anno successivo
-                cursor.execute("""
-                    SELECT 1 FROM cds 
-                    WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s
-                """, (cds, anno_successivo, curriculum_codice))
-                
-                cds_successivo_exists = cursor.fetchone()
-                
-                # Verifica se esiste l'insegnamento per l'anno successivo
-                cursor.execute("""
-                    SELECT 1 FROM insegnamenti_cds 
-                    WHERE insegnamento = %s AND anno_accademico = %s
-                """, (insegnamento_id, anno_successivo))
-                
-                insegnamento_successivo_exists = cursor.fetchone()
-                
-                if cds_successivo_exists and insegnamento_successivo_exists:
-                    cursor.execute("""
-                        INSERT INTO esami 
-                        (docente, insegnamento, aula, data_appello, ora_appello, 
-                         data_inizio_iscrizione, data_fine_iscrizione, tipo_esame, 
-                         verbalizzazione, descrizione, note_appello, tipo_appello, 
-                         definizione_appello, gestione_prenotazione, riservato, 
-                         tipo_iscrizione, periodo, durata_appello, cds, anno_accademico, 
-                         curriculum_codice, mostra_nel_calendario)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        docente_esame, insegnamento_id, sezione['aula'], sezione['data_appello'],
-                        sezione['ora_appello'], sezione['inizio_iscrizione'], sezione['fine_iscrizione'],
-                        sezione['tipo_esame'], sezione['verbalizzazione'], sezione['descrizione'],
-                        sezione['note_appello'], sezione['tipo_appello'], sezione['definizione_appello'],
-                        sezione['gestione_prenotazione'], sezione['riservato'], sezione['tipo_iscrizione'],
-                        sezione['periodo'], sezione['durata_appello'], cds, anno_successivo,
-                        curriculum_codice, sezione['mostra_nel_calendario']
-                    ))
-                    
-                    esami_inseriti.append(f"{titolo_insegnamento} - {sezione['data_appello']} (Anno {anno_successivo}, Docente: {docente_esame})")
     
     conn.commit()
     cursor.close()
