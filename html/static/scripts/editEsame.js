@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('Invio richiesta modifica esame, dati:', examDataFromForm);
       
       fetch('/api/update-esame', {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -409,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('Eliminazione esame con ID:', examId);
 
       fetch('/api/delete-esame', {
-        method: 'DELETE',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },

@@ -81,7 +81,7 @@ def ottieni_preferenze():
         if conn:
             release_connection(conn)
 
-@preferences_bp.route('/api/preferenze/<int:preference_id>', methods=['DELETE'])
+@preferences_bp.route('/api/preferenze/<int:preference_id>', methods=['POST'])
 def elimina_preferenza(preference_id):
     """Elimina una preferenza"""
     conn = None

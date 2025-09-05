@@ -677,7 +677,7 @@ def get_esame_by_id():
     release_connection(conn)
     return jsonify({'success': True, 'esame': esame_dict})
 
-@exam_bp.route('/api/update-esame', methods=['PUT'])
+@exam_bp.route('/api/update-esame', methods=['POST'])
 @require_auth
 def update_esame():
     """Aggiorna un esame esistente con supporto per sezioni modulari."""
@@ -814,7 +814,7 @@ def update_esame():
         print(f"Stack trace: {traceback.format_exc()}")
         return jsonify({'success': False, 'message': f'Errore interno del server: {str(e)}'}), 500
 
-@exam_bp.route('/api/delete-esame', methods=['DELETE'])
+@exam_bp.route('/api/delete-esame', methods=['POST'])
 @require_auth
 def delete_esame():
     """Elimina un esame esistente."""

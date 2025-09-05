@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!examId || !confirm("Sei sicuro di voler eliminare questo esame?")) return;
 
     fetch('/api/delete-esame', {
-      method: 'DELETE',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: examId }),
     })

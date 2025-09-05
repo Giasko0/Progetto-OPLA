@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function eliminaPreferenza(id) {
       const response = await fetch(`/api/preferenze/${id}?username=${encodeURIComponent(currentUsername)}`, {
-        method: 'DELETE'
+        method: 'POST'
       });
       return response.json();
     }
