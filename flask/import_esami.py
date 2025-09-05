@@ -219,10 +219,11 @@ def get_exam_template():
             "   - Esempi validi: 09:00, 14:30, 16:00",
             "   - Usa sempre due cifre per ore e minuti",
             "",
-            "- DURATA (obbligatorio)",
+            "- DURATA (opzionale)",
             "   - Solo il numero di minuti",
             "   - Esempi: 120 (2 ore), 180 (3 ore), 90 (1,5 ore), solo multipli di 15 minuti",
             "   - Non inserire 'min' o altre unità di misura",
+            "   - Se vuoto, la durata dell'esame non sarà specificata",
             "",
             "- AULA (opzionale)",
             "   - Selezionare dalla lista a tendina",
@@ -395,9 +396,9 @@ def import_exams_from_file():
                     errori.append(f"Riga {i}: formato ora non valido")
                     continue
                 
-                # Validazione durata
+                # Validazione durata (opzionale)
                 if not durata:
-                    durata = 120
+                    durata = None
                 else:
                     try:
                         durata = int(durata)

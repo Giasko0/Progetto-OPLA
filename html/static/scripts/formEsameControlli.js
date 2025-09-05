@@ -10,6 +10,9 @@ const FormEsameControlli = (function() {
     },
     
     durataEsame: (durataMinuti) => {
+      if (!durataMinuti || durataMinuti === '' || durataMinuti === null) {
+        return true; // Durata opzionale
+      }
       const durata = parseInt(durataMinuti, 10);
       return durata >= 30 && durata <= 720;
     },
@@ -30,10 +33,10 @@ const FormEsameControlli = (function() {
         invalidMessage: "L'ora dell'appello deve essere compresa tra le 08:00 e le 18:00"
       },
       durata_esame: {
-        required: true,
+        required: false,
         validator: validators.durataEsame,
-        requiredMessage: "La durata dell'esame è obbligatoria",
-        invalidMessage: "La durata dell'esame deve essere di almeno 30 minuti e non superiore a 720 minuti"
+        requiredMessage: "La durata dell'esame è opzionale",
+        invalidMessage: "La durata dell'esame, se specificata, deve essere di almeno 30 minuti e non superiore a 720 minuti"
       },
       giorno_settimana: {
         required: true,
@@ -180,13 +183,14 @@ const FormEsameControlli = (function() {
       }
     }
 
-    // Validazione durata
-    const durataH = parseInt(fields.durata_h);
-    const durataM = parseInt(fields.durata_m);
+    // Validazione durata (opzionale)
+    const durataH = parseInt(fields.durata_h) || 0;
+    const durataM = parseInt(fields.durata_m) || 0;
     const durataTotale = (durataH * 60) + durataM;
     
-    if (durataTotale < 30 || durataTotale > 720) {
-      showValidationError(`Appello ${sectionNumber}: La durata deve essere tra 30 minuti e 12 ore`);
+    // Solo se la durata è specificata, deve essere valida
+    if (durataTotale > 0 && (durataTotale < 30 || durataTotale > 720)) {
+      showValidationError(`Appello ${sectionNumber}: La durata, se specificata, deve essere tra 30 minuti e 12 ore`);
       return false;
     }
 

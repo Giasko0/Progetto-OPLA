@@ -147,7 +147,7 @@ CREATE TABLE esami (
     data_inizio_iscrizione DATE NOT NULL, -- Data di apertura iscrizioni
     data_fine_iscrizione DATE NOT NULL,   -- Data di chiusura iscrizioni
     ora_appello TIME NOT NULL,            -- Ora di inizio dell'esame
-    durata_appello REAL NOT NULL,         -- Durata dell'esame (in minuti)
+    durata_appello INT,                   -- Durata dell'esame (in minuti)
     periodo INT NOT NULL,                 -- Periodo dell'esame (1 per mattina o 2 per pomeriggio)
     verbalizzazione TEXT NOT NULL,        -- Modalità di verbalizzazione (Firme...)
     definizione_appello TEXT,             -- Boh (STD)

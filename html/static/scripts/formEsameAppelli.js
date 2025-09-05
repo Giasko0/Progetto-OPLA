@@ -30,17 +30,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="checkbox" id="mostra_nel_calendario_COUNTER_PLACEHOLDER" name="mostra_nel_calendario[]" class="form-checkbox" checked>
                 <span class="tooltip">
                   <span class="material-symbols-outlined">help</span>
-                  <span class="tooltiptext">Spunta quest'opzione se questo appello finirà sul calendario. Se l'opzione è spuntata l'esame conterà per il numero minimo di esami annuali.</span>
+                  <span class="tooltiptext">Spunta quest'opzione se questo appello finirà sul calendario ufficiale. Se l'opzione è spuntata l'esame conterà per il numero minimo di esami annuali.</span>
                 </span>
               </div>
             </div>
             <div class="column">
               <div class="form-element">
                 <div class="radio-group">
-                  <input type="radio" id="tipoAppelloPF_COUNTER_PLACEHOLDER" name="tipo_appello_radio_COUNTER_PLACEHOLDER" value="PF" checked>
-                  <label for="tipoAppelloPF_COUNTER_PLACEHOLDER">Prova Finale</label>
                   <input type="radio" id="tipoAppelloPP_COUNTER_PLACEHOLDER" name="tipo_appello_radio_COUNTER_PLACEHOLDER" value="PP">
                   <label for="tipoAppelloPP_COUNTER_PLACEHOLDER">Prova Parziale</label>
+                  <input type="radio" id="tipoAppelloPF_COUNTER_PLACEHOLDER" name="tipo_appello_radio_COUNTER_PLACEHOLDER" value="PF" checked>
+                  <label for="tipoAppelloPF_COUNTER_PLACEHOLDER">Prova Finale</label>
                 </div>
               </div>
             </div>
@@ -90,10 +90,11 @@ document.addEventListener('DOMContentLoaded', function() {
               <div class="form-element">
                 <label for="durata_h_COUNTER_PLACEHOLDER">Durata*</label>
                 <div class="time-select-container">
-                  <select id="durata_h_COUNTER_PLACEHOLDER" name="durata_h[]" class="form-input" required>
+                  <select id="durata_h_COUNTER_PLACEHOLDER" name="durata_h[]" class="form-input">
+                    <option value="" selected>Ore</option>
                     <option value="0">0 ore</option>
                     <option value="1">1 ora</option>
-                    <option value="2" selected>2 ore</option>
+                    <option value="2">2 ore</option>
                     <option value="3">3 ore</option>
                     <option value="4">4 ore</option>
                     <option value="5">5 ore</option>
@@ -105,8 +106,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <option value="11">11 ore</option>
                     <option value="12">12 ore</option>
                   </select>
-                  <select id="durata_m_COUNTER_PLACEHOLDER" name="durata_m[]" class="form-input" required>
-                    <option value="00" selected>0 minuti</option>
+                  <select id="durata_m_COUNTER_PLACEHOLDER" name="durata_m[]" class="form-input">
+                    <option value="" selected>Minuti</option>
+                    <option value="00">0 minuti</option>
                     <option value="15">15 minuti</option>
                     <option value="30">30 minuti</option>
                     <option value="45">45 minuti</option>
@@ -426,11 +428,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function combineDurataForSection(counter) {
       const durata_h = parseInt(document.getElementById(`durata_h_${counter}`)?.value) || 0;
       const durata_m = parseInt(document.getElementById(`durata_m_${counter}`)?.value) || 0;
-      const durata_totale = (durata_h * 60) + durata_m;
+      
+      // Se entrambi sono 0 o vuoti, imposta null
+      const durata_totale = (durata_h === 0 && durata_m === 0) ? null : (durata_h * 60) + durata_m;
       
       const durataField = document.getElementById(`durata_${counter}`);
       if (durataField) {
-        durataField.value = durata_totale.toString();
+        durataField.value = durata_totale !== null ? durata_totale.toString() : '';
       }
     }
 
@@ -661,7 +665,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function populateAulaSelect(selectElement, aule, includeStudioDocente = true) {
       if (!selectElement) return;
 
-      selectElement.innerHTML = '<option value="" disabled selected hidden>Scegli l\'aula</option>';
+      selectElement.innerHTML = '<option value="" selected>Nessuna aula</option>';
       
       if (includeStudioDocente) {
         const studioDocenteNome = "Studio docente DMI";
@@ -724,6 +728,30 @@ document.addEventListener('DOMContentLoaded', function() {
       aulaSelect.parentNode.replaceChild(newAulaSelect, aulaSelect);
       newAulaSelect.addEventListener('change', function() {
         updateEventAula(data, this.value);
+        
+        // Auto-compila durata a 2 ore se viene selezionata un'aula e la durata è vuota
+        if (this.value && this.value !== '') {
+          const sectionCounterMatch = this.id.match(/_(\d+)$/);
+          const sectionCounter = sectionCounterMatch ? sectionCounterMatch[1] : '1';
+          
+          const durataH = document.getElementById(`durata_h_${sectionCounter}`);
+          const durataM = document.getElementById(`durata_m_${sectionCounter}`);
+          
+          // Controlla se la durata è vuota (entrambi i campi vuoti o 0)
+          if (durataH && durataM) {
+            const currentH = parseInt(durataH.value) || 0;
+            const currentM = parseInt(durataM.value) || 0;
+            
+            if (currentH === 0 && currentM === 0) {
+              durataH.value = '2';
+              durataM.value = '00';
+              // Aggiorna il campo hidden durata
+              if (window.EsameAppelli && window.EsameAppelli.combineDurataForSection) {
+                window.EsameAppelli.combineDurataForSection(sectionCounter);
+              }
+            }
+          }
+        }
       });
     }
 

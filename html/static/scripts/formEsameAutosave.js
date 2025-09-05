@@ -134,11 +134,11 @@ document.addEventListener('DOMContentLoaded', function() {
       // Durata
       if (data.durata_h !== undefined) {
         const durataH = section.querySelector('[id^="durata_h_"]');
-        durataH.value = data.durata_h;
+        if (durataH) durataH.value = data.durata_h;
       }
       if (data.durata_m !== undefined) {
         const durataM = section.querySelector('[id^="durata_m_"]');
-        durataM.value = data.durata_m;
+        if (durataM) durataM.value = data.durata_m;
       }
 
       // Select

@@ -47,7 +47,8 @@ document.addEventListener('DOMContentLoaded', function() {
       // Durata
       const durata_h = parseInt(getValue('[id^="durata_h_"]')) || 0;
       const durata_m = parseInt(getValue('[id^="durata_m_"]')) || 0;
-      const durata = ((durata_h * 60) + durata_m).toString();
+      const durata = (durata_h === 0 && durata_m === 0) ? null : ((durata_h * 60) + durata_m);
+      const durataString = durata !== null ? durata.toString() : '';
 
       // Insegnamenti
       const insegnamenti = [];

@@ -146,7 +146,7 @@ def genera_dati_esame():
         # Costruzione sezione - validazioni delegate a controlla_vincoli
         data_esame = datetime.fromisoformat(date_appello[i])
         ora_int = int(ore_h[i])
-        durata_appello = int(durate[i] if i < len(durate) else '120')
+        durata_appello = int(durate[i]) if i < len(durate) and durate[i] and durate[i].strip() else None
         sezione = {
             'descrizione': descrizioni[i],
             'data_appello': date_appello[i],
@@ -267,9 +267,9 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 release_connection(conn)
                 return False, f'Formato orario non valido: {ora_appello}'
         
-        # Controllo durata valida (30-720 minuti)
+        # Controllo durata valida (opzionale, se specificata deve essere valida)
         durata_appello = sezione.get('durata_appello')
-        if durata_appello:
+        if durata_appello is not None and durata_appello != '':
             try:
                 durata = int(durata_appello)
                 if durata < 30 or durata > 720:

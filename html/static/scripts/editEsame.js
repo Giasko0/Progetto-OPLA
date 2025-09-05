@@ -167,6 +167,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.EsameAppelli && window.EsameAppelli.combineDurataForSection) {
             window.EsameAppelli.combineDurataForSection(sectionCounter);
         }
+      } else {
+        // Durata vuota - imposta valori di default vuoti
+        const durataH = section.querySelector(`[id^="durata_h_${sectionCounter}"]`);
+        const durataM = section.querySelector(`[id^="durata_m_${sectionCounter}"]`);
+
+        if (durataH) durataH.value = '';
+        if (durataM) durataM.value = '';
+        // Aggiorna il campo hidden durata
+        if (window.EsameAppelli && window.EsameAppelli.combineDurataForSection) {
+            window.EsameAppelli.combineDurataForSection(sectionCounter);
+        }
       }
 
       // Checkbox mostra nel calendario
@@ -358,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Calcola durata in minuti
       const durataH = parseInt(getFieldValue('durata_h')) || 0;
       const durataM = parseInt(getFieldValue('durata_m')) || 0;
-      const durataTotale = (durataH * 60) + durataM;
+      const durataTotale = (durataH === 0 && durataM === 0) ? null : (durataH * 60) + durataM;
 
       // Calcola periodo dall'ora
       const oraHField = getFieldValue('ora_h');

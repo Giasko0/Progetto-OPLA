@@ -54,9 +54,9 @@ const FormEsameData = (function() {
       // ...gestione durata come prima...
       const durata_h = parseInt(section.querySelector(`[id^="durata_h_"]`)?.value) || 0;
       const durata_m = parseInt(section.querySelector(`[id^="durata_m_"]`)?.value) || 0;
-      const durata_totale = (durata_h * 60) + durata_m;
+      const durata_totale = (durata_h === 0 && durata_m === 0) ? null : (durata_h * 60) + durata_m;
       let durataField = section.querySelector(`[id^="durata_"][type="hidden"]`);
-      if (durataField) durataField.value = durata_totale.toString();
+      if (durataField) durataField.value = durata_totale !== null ? durata_totale.toString() : '';
     });
   }
 
@@ -372,7 +372,8 @@ const FormEsameData = (function() {
       // Calcola durata e ora
       const durataH = parseInt(fields.durata_h) || 0;
       const durataM = parseInt(fields.durata_m) || 0;
-      fields.durata = ((durataH * 60) + durataM).toString();
+      const durataTotale = (durataH === 0 && durataM === 0) ? null : (durataH * 60) + durataM;
+      fields.durata = durataTotale !== null ? durataTotale.toString() : '';
       fields.ora = `${fields.ora_h.padStart(2, '0')}:${fields.ora_m.padStart(2, '0')}`;
     }
     return { fields, isValid };

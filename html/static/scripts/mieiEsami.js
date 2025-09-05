@@ -255,6 +255,7 @@ function displayTabelleEsami(data, insegnamento, container) {
   table.className = "esami-table";
 
   const headers = [
+    { text: "Appare in calendario", hideOnMobile: true },
     { text: "Tipo prova", hideOnMobile: true },
     { text: "CDS", hideOnMobile: true },
     { text: "Insegnamento", hideOnMobile: false },
@@ -272,6 +273,7 @@ function displayTabelleEsami(data, insegnamento, container) {
     row.className = "esami-tr";
     
     const cellsData = [
+      esame.mostra_nel_calendario ? "Sì" : "No",
       esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale",
       esame.cds,
       esame.insegnamento,
@@ -283,11 +285,11 @@ function displayTabelleEsami(data, insegnamento, container) {
 
     cellsData.forEach((content, index) => {
       const cell = row.insertCell(index);
-      const hideClass = (index === 0 || index === 1 || index === 3 || index === 6) ? 'col-responsive-hide' : '';
+      const hideClass = (index === 0 || index === 1 || index === 2 || index === 4 || index === 7) ? 'col-responsive-hide' : '';
       cell.className = `esami-td ${hideClass}`;
       cell.textContent = content;
       
-      if (index === 4) { // Data column
+      if (index === 5) { // Data column (ora è spostata a indice 5)
         cell.setAttribute("data-datetime", esame.dataora);
       }
     });
@@ -395,6 +397,7 @@ function displayAllExams(data, container, targetEsami, sessioniInfo) {
   tableAllExams.className = "esami-table";
 
   const headers = [
+    { text: "Appare in calendario", hideOnMobile: true },
     { text: "Tipo prova", hideOnMobile: true },
     { text: "CDS", hideOnMobile: true },
     { text: "Insegnamento", hideOnMobile: false },
@@ -414,6 +417,7 @@ function displayAllExams(data, container, targetEsami, sessioniInfo) {
     row.className = "esami-tr";
     
     const cellsData = [
+      esame.mostra_nel_calendario ? "Sì" : "No",
       esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale",
       esame.cds,
       esame.insegnamento,
@@ -425,11 +429,11 @@ function displayAllExams(data, container, targetEsami, sessioniInfo) {
 
     cellsData.forEach((content, index) => {
       const cell = row.insertCell(index);
-      const hideClass = (index === 0 || index === 1 || index === 3 || index === 6) ? 'col-responsive-hide' : '';
+      const hideClass = (index === 0 || index === 1 || index === 2 || index === 4 || index === 7) ? 'col-responsive-hide' : '';
       cell.className = `esami-td ${hideClass}`;
       cell.textContent = content;
       
-      if (index === 4) { // Data column
+      if (index === 5) { // Data column
         cell.setAttribute("data-datetime", esame.dataora);
       }
     });
@@ -490,7 +494,15 @@ function formatDateTime(dateTimeStr) {
 
 // Funzione per formattare la durata in ore e minuti
 function formatDurata(durataMinuti) {
+  if (!durataMinuti || durataMinuti === null) {
+    return "Non inserita";
+  }
+  
   const durata = parseInt(durataMinuti, 10);
+  if (isNaN(durata) || durata <= 0) {
+    return "Non inserita";
+  }
+  
   const ore = Math.floor(durata / 60);
   const minuti = durata % 60;
   
