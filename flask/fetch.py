@@ -178,7 +178,7 @@ def get_esami():
                 insegnamenti_autorizzati.extend(insegnamenti_correlati)
         
         # Query principale
-        where_clause = "WHERE e.insegnamento = ANY(%s)" if insegnamenti_autorizzati else "WHERE 1=0"
+        where_clause = "WHERE e.insegnamento = ANY(%s) AND e.mostra_nel_calendario = true" if insegnamenti_autorizzati else "WHERE 1=0"
         
         query = f"""
             SELECT e.id, e.descrizione, e.docente, 
