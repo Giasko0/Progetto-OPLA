@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Inserisci la sezione
       const addButton = container.querySelector('.add-date-btn');
       container.insertBefore(section, addButton || null);
-      
+
       // Setup listeners e inizializzazione
       setupDateSectionListeners(sectionId, dateAppelliCounter);
       
@@ -218,8 +218,8 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
           configureNonOfficialPartialSection(section, dateAppelliCounter);
         }, 50);
-      } else {
-        // Imposta checkbox default solo se non è prova parziale non ufficiale
+      } else if (!options.isDuplication) {
+        // Imposta checkbox default solo se non è prova parziale non ufficiale e non è duplicazione
         const showInCalendarCheckbox = section.querySelector(`#mostra_nel_calendario_${dateAppelliCounter}`);
         if (showInCalendarCheckbox) {
           showInCalendarCheckbox.checked = true;
@@ -336,11 +336,27 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function renumberDateSections() {
       const sections = document.querySelectorAll('.date-appello-section');
+      
       sections.forEach((section, index) => {
         const newNumber = index + 1;
         const title = section.querySelector('.date-appello-title');
+        
         if (title) {
-          title.textContent = `Appello ${newNumber}`;
+          // Durante la duplicazione, mantieni i titoli speciali
+          if (window.isDuplicationMode) {
+            if (index === 0) {
+              // Prima sezione sempre "Appello da duplicare"
+              title.textContent = 'Appello da duplicare';
+            } else {
+              // Sezioni duplicate mantengono il formato "Appello X (Duplicato)"
+              if (!title.textContent.includes('(Duplicato)')) {
+                title.textContent = `Appello ${newNumber} (Duplicato)`;
+              }
+            }
+          } else {
+            // Modalità normale
+            title.textContent = `Appello ${newNumber}`;
+          }
         }
       });
     }
@@ -910,20 +926,29 @@ document.addEventListener('DOMContentLoaded', function() {
       // Genera un ID unico per l'evento
       const provisionalEventId = `provisional_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
+      // Determina se siamo in modalità duplicazione
+      const isDuplicationMode = window.isDuplicationMode || false;
+      
+      // Colori diversi per modalità duplicazione
+      const backgroundColor = isDuplicationMode ? '#90EE90' : '#77DD77'; // Verde più chiaro per duplicazione
+      const borderColor = isDuplicationMode ? '#4CAF50' : '#77DD77';
+      const title = isDuplicationMode ? 'Nuovo esame (duplicato)' : 'Nuovo esame';
+      
       // Crea l'oggetto evento con valori di default
       const provisionalEvent = {
         id: provisionalEventId,
         start: date,
         allDay: true,
-        backgroundColor: '#77DD77',
-        borderColor: '#77DD77',
+        backgroundColor: backgroundColor,
+        borderColor: borderColor,
         textColor: '#000',
-        title: 'Nuovo esame',
+        title: title,
         extendedProps: {
           isProvisional: true,
           formSectionDate: date,
           sectionNumber: sectionNumber,
-          aula: ''
+          aula: '',
+          isDuplication: isDuplicationMode
         }
       };
 

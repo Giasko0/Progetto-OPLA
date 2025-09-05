@@ -236,6 +236,14 @@ document.addEventListener('DOMContentLoaded', function() {
       modifyBtn.addEventListener('click', handleModifySubmit);
       formActions.appendChild(modifyBtn);
 
+      // Pulsante Duplica
+      const duplicateBtn = document.createElement('button');
+      duplicateBtn.type = 'button';
+      duplicateBtn.className = 'form-button duplicate';
+      duplicateBtn.textContent = 'Duplica';
+      duplicateBtn.addEventListener('click', () => handleDuplicateExam(examId));
+      formActions.appendChild(duplicateBtn);
+
       // Pulsante Elimina
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
@@ -405,6 +413,508 @@ document.addEventListener('DOMContentLoaded', function() {
         note_appello: getFieldValue('note'), // Corretto da 'note' a 'note_appello' se il server si aspetta questo
         mostra_nel_calendario: getCheckedValue('mostra_nel_calendario')
       };
+    }
+
+    // Gestisce la duplicazione dell'esame
+    function handleDuplicateExam(examId) {
+      if (!currentExamData) {
+        window.FormEsameControlli.showValidationError("Dati dell'esame non disponibili per la duplicazione.");
+        return;
+      }
+
+      // Entra in modalità duplicazione
+      enterDuplicationMode();
+    }
+
+    // Attiva la modalità duplicazione
+    function enterDuplicationMode() {
+      // Nascondi tutti i pulsanti tranne "Esci dalla duplicazione" e "Conferma"
+      const formActions = document.querySelector('.form-actions');
+      if (formActions) {
+        formActions.innerHTML = '';
+        
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        confirmBtn.className = 'form-button success';
+        confirmBtn.textContent = 'Conferma';
+        confirmBtn.addEventListener('click', handleConfirmDuplication);
+        formActions.appendChild(confirmBtn);
+        
+        const exitDuplicationBtn = document.createElement('button');
+        exitDuplicationBtn.type = 'button';
+        exitDuplicationBtn.className = 'form-button danger';
+        exitDuplicationBtn.textContent = 'Esci dalla duplicazione';
+        exitDuplicationBtn.addEventListener('click', exitDuplicationMode);
+        formActions.appendChild(exitDuplicationBtn);
+      }
+
+      // Modifica il titolo del form
+      const formTitle = document.querySelector('.form-header h2');
+      if (formTitle) {
+        formTitle.textContent = 'Duplica Esame';
+      }
+
+      // Cambia lo sfondo della sezione esistente e il titolo
+      const firstSection = document.querySelector('.date-appello-section');
+      if (firstSection) {
+        firstSection.style.backgroundColor = '#e3f2fd'; // Azzurrino/blu chiaro
+        firstSection.style.border = '2px solid #2196f3';
+        
+        const sectionTitle = firstSection.querySelector('.date-appello-title');
+        if (sectionTitle) {
+          sectionTitle.textContent = 'Appello da duplicare';
+          sectionTitle.style.color = '#1976d2';
+        }
+
+        // Disabilita tutti i controlli nella sezione da duplicare
+        const inputs = firstSection.querySelectorAll('input, select, textarea, button');
+        inputs.forEach(input => {
+          input.disabled = true;
+          input.style.opacity = '0.7';
+        });
+      }
+
+      // Mostra notifica nella sidebar
+      showDuplicationNotification();
+
+      // Attiva la modalità duplicazione nel calendario
+      if (window.calendar) {
+        window.isDuplicationMode = true;
+        
+        // Aggiunge listener per i click sulle date del calendario
+        setupCalendarDuplicationMode();
+      }
+    }
+
+    // Gestisce la conferma della duplicazione
+    function handleConfirmDuplication() {
+      // Raccoglie tutte le sezioni duplicate (esclusa la prima che è l'originale)
+      const duplicatedSections = document.querySelectorAll('.date-appello-section:not(:first-child)');
+      
+      if (duplicatedSections.length === 0) {
+        window.FormEsameControlli.showValidationError('Nessun appello duplicato da inserire. Clicca sul calendario per aggiungere nuove date.');
+        return;
+      }
+
+      // Prepara i dati per l'inserimento
+      const examDataArray = [];
+      
+      duplicatedSections.forEach(section => {
+        const examData = collectExamDataFromSection(section);
+        // Rimuovi l'ID per indicare che è un nuovo esame
+        delete examData.id;
+        examDataArray.push(examData);
+      });
+
+      // Valida i dati prima dell'inserimento
+      if (!validateDuplicatedExams(examDataArray)) {
+        return;
+      }
+
+      // Invia i dati al server
+      submitDuplicatedExams(examDataArray);
+    }
+
+    // Valida gli esami duplicati
+    function validateDuplicatedExams(examDataArray) {
+      for (let i = 0; i < examDataArray.length; i++) {
+        const examData = examDataArray[i];
+        
+        // Controlli base
+        if (!examData.data_appello) {
+          window.FormEsameControlli.showValidationError(`Appello ${i + 2}: Data mancante`);
+          return false;
+        }
+        
+        if (!examData.ora_appello || examData.ora_appello === '00:00') {
+          window.FormEsameControlli.showValidationError(`Appello ${i + 2}: Ora mancante`);
+          return false;
+        }
+        
+        if (!examData.descrizione || examData.descrizione.trim() === '') {
+          window.FormEsameControlli.showValidationError(`Appello ${i + 2}: Descrizione mancante`);
+          return false;
+        }
+      }
+      
+      return true;
+    }
+
+    // Invia gli esami duplicati al server
+    function submitDuplicatedExams(examDataArray) {
+      // Prepara i dati nel formato del form esistente
+      const formData = new FormData();
+      
+      // Campi globali
+      formData.append('docente', currentExamData.docente);
+      formData.append('anno_accademico', currentExamData.anno_accademico || new Date().getFullYear());
+      formData.append('insegnamenti[]', currentExamData.insegnamento_codice);
+
+      // Campi delle sezioni
+      examDataArray.forEach(examData => {
+        formData.append('descrizione[]', examData.descrizione);
+        formData.append('dataora[]', examData.data_appello);
+        formData.append('ora_h[]', examData.ora_appello.split(':')[0]);
+        formData.append('ora_m[]', examData.ora_appello.split(':')[1]);
+        formData.append('durata[]', examData.durata_appello || '');
+        formData.append('aula[]', examData.aula || '');
+        formData.append('inizioIscrizione[]', examData.data_inizio_iscrizione);
+        formData.append('fineIscrizione[]', examData.data_fine_iscrizione);
+        formData.append('verbalizzazione[]', examData.verbalizzazione);
+        formData.append('tipoEsame[]', examData.tipo_esame || '');
+        formData.append('note[]', examData.note_appello || '');
+        formData.append('tipo_appello_radio[]', examData.tipo_appello);
+        formData.append('mostra_nel_calendario[]', examData.mostra_nel_calendario ? 'true' : 'false');
+      });
+
+      // Invia al server
+      fetch('/api/inserisci-esame', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.status === 'success') {
+          window.showMessage(
+            `${examDataArray.length} esami duplicati inseriti con successo`,
+            'Duplicazione completata',
+            'success'
+          );
+
+          // Ricarica il calendario
+          if (window.calendar) {
+            window.calendar.refetchEvents();
+          }
+
+          // Esci dalla modalità duplicazione
+          exitDuplicationMode();
+
+          // Chiudi il form
+          if (window.EsameForm && window.EsameForm.hideForm) {
+            window.EsameForm.hideForm(true, false);
+          }
+
+          // Ricarica la pagina se siamo in mieiEsami.html
+          if (window.location.pathname.includes('mieiEsami.html')) {
+            setTimeout(() => location.reload(), 1000);
+          }
+        } else {
+          console.error('Errore dal server nella duplicazione:', data.message);
+          window.FormEsameControlli.showValidationError(data.message);
+        }
+      })
+      .catch(error => {
+        console.error('Errore nella duplicazione degli esami:', error);
+        window.FormEsameControlli.showValidationError(`Errore nella comunicazione con il server: ${error.message}`);
+      });
+    }
+
+    // Esce dalla modalità duplicazione
+    function exitDuplicationMode() {
+      // Reset flag duplicazione
+      window._duplicatingDate = null;
+      
+      // Pulisci eventi provvisori di duplicazione
+      if (window.calendar && window.provisionalEvents) {
+        const duplicationEvents = window.provisionalEvents.filter(event => 
+          event.extendedProps?.isDuplication === true
+        );
+        
+        duplicationEvents.forEach(event => {
+          const calendarEvent = window.calendar.getEventById(event.id);
+          if (calendarEvent) {
+            calendarEvent.remove();
+          }
+        });
+        
+        // Rimuovi gli eventi di duplicazione dall'array
+        window.provisionalEvents = window.provisionalEvents.filter(event => 
+          event.extendedProps?.isDuplication !== true
+        );
+      }
+      
+      // Ripristina i pulsanti originali
+      setupEditButtons(currentExamData?.id);
+
+      // Ripristina il titolo
+      const formTitle = document.querySelector('.form-header h2');
+      if (formTitle) {
+        formTitle.textContent = 'Modifica Esame';
+      }
+
+      // Ripristina lo sfondo della sezione originale
+      const firstSection = document.querySelector('.date-appello-section');
+      if (firstSection) {
+        firstSection.style.backgroundColor = '';
+        firstSection.style.border = '';
+        
+        const sectionTitle = firstSection.querySelector('.date-appello-title');
+        if (sectionTitle) {
+          sectionTitle.textContent = 'Appello 1';
+          sectionTitle.style.color = '';
+        }
+
+        // Riabilita tutti i controlli
+        const inputs = firstSection.querySelectorAll('input, select, textarea, button');
+        inputs.forEach(input => {
+          input.disabled = false;
+          input.style.opacity = '';
+        });
+      }
+
+      // Rimuovi sezioni aggiuntive create durante la duplicazione
+      const additionalSections = document.querySelectorAll('.date-appello-section:not(:first-child)');
+      additionalSections.forEach(section => {
+        section.remove();
+      });
+
+      // Reset counter e date
+      if (window.EsameAppelli) {
+        window.EsameAppelli.resetSections();
+        // Ri-aggiungi la sezione originale
+        fillFormForEdit(currentExamData);
+      }
+
+      // Nascondi notifica
+      hideDuplicationNotification();
+
+      // Disattiva modalità duplicazione nel calendario
+      if (window.calendar) {
+        window.isDuplicationMode = false;
+        removeCalendarDuplicationMode();
+      }
+    }
+
+    // Mostra la notifica di duplicazione attivata
+    function showDuplicationNotification() {
+      // Usa la sidebar per la notifica invece del floating popup
+      if (window.showMessage) {
+        window.showMessage(
+          'Clicca sul calendario le date dei nuovi appelli',
+          'Duplicazione esame attivata',
+          'info',
+          { timeout: 0 } // Notifica permanente fino a quando non si esce dalla modalità
+        );
+      }
+    }
+
+    // Nascondi la notifica di duplicazione
+    function hideDuplicationNotification() {
+      // La notifica nella sidebar si chiuderà automaticamente quando si esce dalla modalità
+      // o può essere chiusa manualmente dall'utente
+    }
+
+    // Setup modalità duplicazione nel calendario
+    function setupCalendarDuplicationMode() {
+      if (!window.calendar) return;
+
+      // Aggiungi listener per click sulle date
+      window.calendar.on('dateClick', handleCalendarDateClickForDuplication);
+    }
+
+    // Rimuovi modalità duplicazione dal calendario
+    function removeCalendarDuplicationMode() {
+      if (!window.calendar) return;
+
+      // Rimuovi listener
+      window.calendar.off('dateClick', handleCalendarDateClickForDuplication);
+    }
+
+    // Gestisce i click sulle date durante la duplicazione
+    async function handleCalendarDateClickForDuplication(info) {
+      if (!window.isDuplicationMode || !currentExamData) {
+        return;
+      }
+
+      const clickedDate = info.dateStr;
+      
+      // Previeni chiamate multiple per la stessa data
+      if (window._duplicatingDate === clickedDate) {
+        return;
+      }
+      
+      // Imposta flag temporaneo per prevenire duplicazioni
+      window._duplicatingDate = clickedDate;
+      
+      // Verifica che la data non sia nel passato
+      const today = new Date();
+      const selectedDate = new Date(clickedDate);
+      if (selectedDate < today) {
+        window._duplicatingDate = null; // Reset flag
+        window.FormEsameControlli.showValidationError('Non è possibile selezionare date nel passato');
+        return;
+      }
+
+      // Verifica che non ci sia già un esame in quella data
+      const existingEvent = window.calendar.getEvents().find(event => {
+        const eventDate = event.start;
+        return eventDate && eventDate.toISOString().split('T')[0] === clickedDate;
+      });
+
+      if (existingEvent) {
+        window._duplicatingDate = null; // Reset flag
+        window.FormEsameControlli.showValidationError('Esiste già un evento in questa data');
+        return;
+      }
+
+      // Crea una nuova sezione con i dati precompilati
+      try {
+        const newSectionId = await window.EsameAppelli.addDateSection(clickedDate, { isDuplication: true });
+        
+        if (newSectionId) {
+          // Precompila la sezione con i dati dell'esame originale
+          await precompileDuplicatedSection(newSectionId, clickedDate);
+        }
+      } catch (error) {
+        console.error('Errore nella creazione della sezione duplicata:', error);
+        window.FormEsameControlli.showValidationError('Errore nella creazione della nuova sezione');
+      } finally {
+        // Reset flag dopo un piccolo delay
+        setTimeout(() => {
+          window._duplicatingDate = null;
+        }, 100);
+      }
+    }
+
+    // Precompila una sezione duplicata con i dati dell'esame originale
+    async function precompileDuplicatedSection(sectionId, newDate) {
+      if (!currentExamData || !sectionId) {
+        return;
+      }
+
+      const section = document.getElementById(sectionId);
+      if (!section) {
+        return;
+      }
+
+      // Estrai il numero della sezione
+      const sectionCounter = sectionId.split('_')[1] || '1';
+
+      // Precompila i campi con i dati dell'esame originale
+      const fieldMappings = [
+        { field: 'descrizione', value: currentExamData.descrizione, selectorPrefix: 'descrizione' },
+        { field: 'note_appello', value: currentExamData.note_appello, selectorPrefix: 'note' },
+        { field: 'verbalizzazione', value: currentExamData.verbalizzazione, selectorPrefix: 'verbalizzazione' },
+        { field: 'tipo_esame', value: currentExamData.tipo_esame, selectorPrefix: 'tipoEsame' }
+      ];
+
+      // Compila i campi di testo e select
+      fieldMappings.forEach(({ field, value, selectorPrefix }) => {
+        if (value !== undefined && value !== null) {
+          const selector = `[id^="${selectorPrefix}_${sectionCounter}"]`;
+          const element = section.querySelector(selector);
+          if (element) element.value = value;
+        }
+      });
+
+      // Precompila l'ora (stessa dell'originale)
+      if (currentExamData.ora_appello) {
+        const [hours, minutes] = currentExamData.ora_appello.split(':');
+        const oraH = section.querySelector(`[id^="ora_h_${sectionCounter}"]`);
+        const oraM = section.querySelector(`[id^="ora_m_${sectionCounter}"]`);
+
+        if (oraH) oraH.value = hours;
+        if (oraM) oraM.value = minutes;
+
+        // Aggiorna aule dopo aver impostato l'ora
+        if (window.EsameAppelli && window.EsameAppelli.updateAuleForSection) {
+          try {
+            await window.EsameAppelli.updateAuleForSection(sectionCounter);
+            // Piccolo delay per permettere al DOM di aggiornarsi
+            await new Promise(resolve => setTimeout(resolve, 150));
+
+            // Imposta la stessa aula se disponibile
+            const aulaSelect = section.querySelector(`[id^="aula_${sectionCounter}"]`);
+            if (aulaSelect && currentExamData.aula) {
+              if (Array.from(aulaSelect.options).some(opt => opt.value === currentExamData.aula)) {
+                aulaSelect.value = currentExamData.aula;
+              }
+            }
+          } catch (error) {
+            console.error(`Errore durante l'aggiornamento delle aule per la sezione duplicata ${sectionCounter}:`, error);
+          }
+        }
+      }
+
+      // Precompila la durata (stessa dell'originale)
+      if (currentExamData.durata_appello) {
+        const durata = parseInt(currentExamData.durata_appello);
+        const ore = Math.floor(durata / 60);
+        const minuti = durata % 60;
+
+        const durataH = section.querySelector(`[id^="durata_h_${sectionCounter}"]`);
+        const durataM = section.querySelector(`[id^="durata_m_${sectionCounter}"]`);
+
+        if (durataH) durataH.value = ore.toString();
+        if (durataM) durataM.value = minuti.toString().padStart(2, '0');
+        
+        // Aggiorna il campo hidden durata
+        if (window.EsameAppelli && window.EsameAppelli.combineDurataForSection) {
+          window.EsameAppelli.combineDurataForSection(sectionCounter);
+        }
+      }
+
+      // Precompila checkbox e radio button (stessi dell'originale)
+      if (currentExamData.hasOwnProperty('mostra_nel_calendario')) {
+        const checkbox = section.querySelector(`[id^="mostra_nel_calendario_${sectionCounter}"]`);
+        if (checkbox) checkbox.checked = !!currentExamData.mostra_nel_calendario;
+      }
+
+      if (currentExamData.tipo_appello) {
+        const radioId = `tipoAppello${currentExamData.tipo_appello}_${sectionCounter}`;
+        const radio = document.getElementById(radioId);
+        
+        if (radio) {
+          radio.checked = true;
+          // Trigger change per aggiornare la verbalizzazione
+          const event = new Event('change', { bubbles: true });
+          radio.dispatchEvent(event);
+          
+          // Re-imposta la verbalizzazione dopo il cambio
+          setTimeout(() => {
+            const verbalizzazioneSelect = section.querySelector(`[id^="verbalizzazione_${sectionCounter}"]`);
+            if (verbalizzazioneSelect && currentExamData.verbalizzazione) {
+              verbalizzazioneSelect.value = currentExamData.verbalizzazione;
+            }
+          }, 50);
+        }
+      }
+
+      // Calcola automaticamente le date di iscrizione per la nuova data
+      const newDateObj = new Date(newDate);
+      const inizioIscrizione = new Date(newDateObj);
+      inizioIscrizione.setDate(newDateObj.getDate() - 30);
+      const fineIscrizione = new Date(newDateObj);
+      fineIscrizione.setDate(newDateObj.getDate() - 1);
+
+      const formatDate = d => `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+
+      const inizioIscrizioneField = section.querySelector(`[id^="inizioIscrizione_${sectionCounter}"]`);
+      const fineIscrizioneField = section.querySelector(`[id^="fineIscrizione_${sectionCounter}"]`);
+
+      if (inizioIscrizioneField) inizioIscrizioneField.value = formatDate(inizioIscrizione);
+      if (fineIscrizioneField) fineIscrizioneField.value = formatDate(fineIscrizione);
+
+      // Aggiungi indicatore visivo per le sezioni duplicate
+      section.style.border = '2px solid #4caf50';
+      section.style.backgroundColor = '#f1f8e9';
+      
+      const sectionTitle = section.querySelector('.date-appello-title');
+      if (sectionTitle) {
+        sectionTitle.style.color = '#388e3c';
+        
+        // Calcola il numero corretto per l'appello duplicato al momento della creazione
+        const allSectionsUpdated = document.querySelectorAll('.date-appello-section');
+        const currentSectionIndex = Array.from(allSectionsUpdated).indexOf(section);
+        const duplicateNumber = currentSectionIndex + 1; // +1 per numerazione 1-based
+        
+        sectionTitle.textContent = `Appello ${duplicateNumber} (Duplicato)`;
+      }
     }
 
     // Gestisce l'eliminazione dell'esame

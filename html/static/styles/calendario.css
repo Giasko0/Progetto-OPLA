@@ -219,6 +219,10 @@
   background-color: var(--color-error);
 }
 
+.form-button.success {
+  background-color: var(--color-success);
+}
+
 .form-actions {
   display: flex;
   justify-content: center;

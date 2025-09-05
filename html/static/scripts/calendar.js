@@ -239,6 +239,11 @@ document.addEventListener("DOMContentLoaded", async function () {
           },
 
           dateClick: function (info) {
+            // Se siamo in modalità duplicazione, ignora questo listener
+            if (window.isDuplicationMode) {
+              return;
+            }
+            
             const selDateFormatted = formatDateForInput(info.date);
             
             // Ottieni date provvisorie visibili
@@ -335,9 +340,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             if (arg.event.extendedProps?.isProvisional) {
               const dataAppello = arg.event.start?.toLocaleDateString('it-IT') || '';
+              const isDuplication = arg.event.extendedProps?.isDuplication || false;
+              const titleText = isDuplication ? 'Nuovo esame (duplicato)' : 'Nuovo esame';
+              
               return {
                 html: `<div class="fc-event-time fc-sticky">${dataAppello}</div>
-                       <div class="fc-event-title">${cognomeDocente} - Nuovo esame</div>`
+                       <div class="fc-event-title">${cognomeDocente} - ${titleText}</div>`
               };
             }
 
