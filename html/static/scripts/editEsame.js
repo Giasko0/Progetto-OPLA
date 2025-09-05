@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const [hours, minutes] = examData.ora_appello.split(':');
         const oraH = section.querySelector(`[id^="ora_h_${sectionCounter}"]`);
         const oraM = section.querySelector(`[id^="ora_m_${sectionCounter}"]`);
-        
+
         if (oraH) oraH.value = hours;
         if (oraM) oraM.value = minutes;
 
@@ -131,8 +131,8 @@ document.addEventListener('DOMContentLoaded', function() {
           try {
             await window.EsameAppelli.updateAuleForSection(sectionCounter);
             // Piccolo delay per permettere al DOM di aggiornarsi dopo populateAulaSelect
-            await new Promise(resolve => setTimeout(resolve, 150)); 
-            
+            await new Promise(resolve => setTimeout(resolve, 150));
+
             const aulaSelect = section.querySelector(`[id^="aula_${sectionCounter}"]`);
             if (aulaSelect && examData.aula) {
               if (Array.from(aulaSelect.options).some(opt => opt.value === examData.aula)) {
@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 newOption.value = examData.aula;
                 newOption.textContent = examData.aula + " (salvata)";
                 aulaSelect.appendChild(newOption);
-                aulaSelect.value = examData.aula; 
+                aulaSelect.value = examData.aula;
               }
             }
           } catch (error) {
@@ -157,10 +157,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const durata = parseInt(examData.durata_appello);
         const ore = Math.floor(durata / 60);
         const minuti = durata % 60;
-        
+
         const durataH = section.querySelector(`[id^="durata_h_${sectionCounter}"]`);
         const durataM = section.querySelector(`[id^="durata_m_${sectionCounter}"]`);
-        
+
         if (durataH) durataH.value = ore.toString();
         if (durataM) durataM.value = minuti.toString().padStart(2, '0');
         // Aggiorna il campo hidden durata
@@ -249,24 +249,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gestisce la modifica standard
     function handleModifySubmit(e) {
       e.preventDefault();
-      
+
       if (!window.FormEsameControlli.validateFormForEdit()) return; // Usa validazione per modifica
-      
+
       submitModifiedExam(false);
     }
 
     // Gestisce la modifica con bypass
     function handleModifyWithBypass(e) {
       e.preventDefault();
-      
+
       window.FormEsameControlli.isUserAdmin().then(isAdmin => {
         if (!isAdmin) {
           window.FormEsameControlli.showValidationError("Solo gli amministratori possono usare questa funzione.");
           return;
         }
-        
+
         if (!window.FormEsameControlli.validateFormForEditWithBypass()) return; // Usa validazione bypass per modifica
-        
+
         submitModifiedExam(true);
       });
     }
@@ -289,8 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
       examDataFromForm.id = currentExamData.id;
       examDataFromForm.bypass_checks = bypassChecks;
 
-      console.log('Invio richiesta modifica esame, dati:', examDataFromForm);
-      
       fetch('/api/update-esame', {
         method: 'POST',
         headers: {
@@ -299,32 +297,28 @@ document.addEventListener('DOMContentLoaded', function() {
         body: JSON.stringify(examDataFromForm)
       })
       .then(response => {
-        console.log('Status risposta:', response.status);
-        console.log('Headers risposta:', response.headers);
-        
         if (!response.ok) {
           console.error('Errore nella modifica:', response.status, response.statusText);
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         return response.json();
       })
       .then(data => {
-        console.log('Dati risposta modifica:', data);
-        
+
         if (data.success) {
           window.showMessage(data.message, "Successo", "success");
-          
+
           // Ricarica il calendario se disponibile
           if (window.calendar) {
             window.calendar.refetchEvents();
           }
-          
+
           // Chiudi il form
           if (window.EsameForm && window.EsameForm.hideForm) {
             window.EsameForm.hideForm(true, false);
           }
-          
+
           // Ricarica la pagina se siamo in mieiEsami.html
           if (window.location.pathname.includes('mieiEsami.html')) {
             setTimeout(() => location.reload(), 1000);
@@ -380,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Se l'insegnamento è un array di codici:
         // insegnamento_codice: window.InsegnamentiManager ? window.InsegnamentiManager.getSelectedInsegnamenti()[0] : currentExamData.insegnamento_codice,
         // Se è un singolo codice:
-        insegnamento_codice: window.InsegnamentiManager && window.InsegnamentiManager.getSelectedInsegnamenti().length > 0 
+        insegnamento_codice: window.InsegnamentiManager && window.InsegnamentiManager.getSelectedInsegnamenti().length > 0
                             ? window.InsegnamentiManager.getSelectedInsegnamenti()[0].codice // Assumendo che getSelectedInsegnamenti restituisca oggetti {codice, titolo}
                             : currentExamData.insegnamento_codice,
 
@@ -406,8 +400,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleDeleteExam(examId) {
       if (!confirm('Sei sicuro di voler eliminare questo esame?')) return;
 
-      console.log('Eliminazione esame con ID:', examId);
-
       fetch('/api/delete-esame', {
         method: 'POST',
         headers: {
@@ -416,27 +408,23 @@ document.addEventListener('DOMContentLoaded', function() {
         body: JSON.stringify({ id: examId })
       })
       .then(response => {
-        console.log('Status risposta eliminazione:', response.status);
-        console.log('Headers risposta:', response.headers);
-        
         if (!response.ok) {
           console.error('Errore HTTP nell\'eliminazione:', response.status, response.statusText);
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         return response.json();
       })
       .then(data => {
-        console.log('Dati risposta eliminazione:', data);
-        
+
         if (data.success) {
           window.showMessage(data.message, "Successo", "success");
-          
+
           // Chiudi il form
           if (window.EsameForm && window.EsameForm.hideForm) {
             window.EsameForm.hideForm(true, false);
           }
-          
+
           // Ricarica la pagina se siamo in mieiEsami.html
           if (window.location.pathname.includes('mieiEsami.html')) {
             setTimeout(() => location.reload(), 1000);
