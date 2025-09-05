@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="two-column-layout">
             <div class="column">
               <div class="form-element">
-                <label for="mostra_nel_calendario_COUNTER_PLACEHOLDER">Apertura appelli:</label>
+                <label for="mostra_nel_calendario_COUNTER_PLACEHOLDER">Appello ufficiale:</label>
                 <input type="checkbox" id="mostra_nel_calendario_COUNTER_PLACEHOLDER" name="mostra_nel_calendario[]" class="form-checkbox" checked>
                 <span class="tooltip">
                   <span class="material-symbols-outlined">help</span>
@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const dateInput = document.getElementById(`dataora_${i}`);
           const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${i}`);
           
-          // Valida solo le sezioni che hanno il checkbox "Apertura appelli" attivo e una data valida
+          // Valida solo le sezioni che hanno il checkbox "Appello ufficiale" attivo e una data valida
           if (dateInput && dateInput.value && isValidDateFormat(dateInput.value) && showInCalendarCheckbox && showInCalendarCheckbox.checked) {
               dateInput.classList.remove('form-input-error'); // Rimuovi errore prima di ri-validare
               validateDateConstraints(dateInput.value, i);
@@ -479,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!newDate || !isValidDateFormat(newDate)) return true;
       
       try {
-          // Raccoglie solo le date delle sezioni con "Apertura appelli" attivo
+          // Raccoglie solo le date delle sezioni con "Appello ufficiale" attivo
           const visibleSectionDates = [];
           const allSections = document.querySelectorAll('.date-appello-section');
 
@@ -768,7 +768,7 @@ document.addEventListener('DOMContentLoaded', function() {
         existingButton.remove();
       }
       
-      // Aggiungi event listener per i checkbox "Apertura appelli" esistenti
+      // Aggiungi event listener per i checkbox "Appello ufficiale" esistenti
       for (let i = 1; i <= 4; i++) {
           const showInCalendarCheckbox = document.getElementById(`mostra_nel_calendario_${i}`);
           
@@ -881,7 +881,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    // Funzione per ottenere solo le date con "Apertura appelli" attivo
+    // Funzione per ottenere solo le date con "Appello ufficiale" attivo
     function getVisibleSectionDates() {
       const visibleDates = [];
       const allSections = document.querySelectorAll('.date-appello-section');
@@ -943,7 +943,7 @@ document.addEventListener('DOMContentLoaded', function() {
       };
     }
 
-    // Funzione per validare il numero di esami con "Apertura appelli" per insegnamento
+    // Funzione per validare il numero di esami con "Appello ufficiale" per insegnamento
     async function validateTargetEsami(insegnamenti, nuoviEsamiApertura) {
       if (!insegnamenti || insegnamenti.length === 0 || nuoviEsamiApertura === 0) {
         return { isValid: true };
@@ -968,7 +968,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const response = await fetch(`/api/get-esami?${params.toString()}`);
           const esami = await response.json();
 
-          // Conta esami esistenti con "Apertura appelli" per questo insegnamento
+          // Conta esami esistenti con "Appello ufficiale" per questo insegnamento
           const esamiApertura = esami.filter(esame => 
             esame.extendedProps?.mostra_nel_calendario !== false &&
             esame.extendedProps?.tipo_appello !== 'PP'
@@ -979,7 +979,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (totale > 8) {
             return {
               isValid: false,
-              message: `Superato il limite massimo di 8 esami con "Apertura appelli" per l'insegnamento selezionato. Attualmente: ${esamiApertura}, tentativo di aggiungere: ${nuoviEsamiApertura}, totale: ${totale}`
+              message: `Superato il limite massimo di 8 esami con "Appello ufficiale" per l'insegnamento selezionato. Attualmente: ${esamiApertura}, tentativo di aggiungere: ${nuoviEsamiApertura}, totale: ${totale}`
             };
           }
         }
@@ -995,7 +995,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function validateAllConstraints() {
       const allSections = document.querySelectorAll('.date-appello-section');
       
-      // Conta nuovi esami con "Apertura appelli"
+      // Conta nuovi esami con "Appello ufficiale"
       let nuoviEsamiApertura = 0;
       allSections.forEach(section => {
         const sectionId = section.id;
@@ -1010,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
 
-      // Valida target esami se ci sono esami con apertura appelli
+      // Valida target esami se ci sono esami con "Appello ufficiale"
       if (nuoviEsamiApertura > 0) {
         const insegnamenti = window.InsegnamentiManager?.getSelectedInsegnamenti() || [];
         const targetValidation = await validateTargetEsami(insegnamenti, nuoviEsamiApertura);

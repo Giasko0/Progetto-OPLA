@@ -383,7 +383,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     return False, f'Insegnamento {insegnamento} non trovato'
                 insegnamento_id, titolo_insegnamento = result
 
-                # CONTROLLO TARGET ESAMI: Verifica numero massimo esami con "Apertura appelli"
+                # CONTROLLO TARGET ESAMI: Verifica numero massimo esami con "Appello ufficiale"
                 # Conta esami esistenti per questo insegnamento con mostra_nel_calendario = True
                 where_clause_esami = """
                     WHERE insegnamento = %s AND anno_accademico = %s 
@@ -402,7 +402,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 
                 esami_esistenti = cursor.fetchone()[0]
                 
-                # Conta quanti nuovi esami con "Apertura appelli" si stanno inserendo per questo insegnamento
+                # Conta quanti nuovi esami con "Appello ufficiale" si stanno inserendo per questo insegnamento
                 nuovi_esami_apertura = sum(1 for s in sezioni_appelli 
                                          if s.get('mostra_nel_calendario', False))
                 
@@ -411,7 +411,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 if totale_esami > target_esami:
                     cursor.close()
                     release_connection(conn)
-                    return False, f'Superato il limite massimo di {target_esami} esami con "Apertura appelli" per l\'insegnamento {titolo_insegnamento}. Attualmente: {esami_esistenti}, tentativo di aggiungere: {nuovi_esami_apertura}, totale: {totale_esami}'
+                    return False, f'Superato il limite massimo di {target_esami} esami con "Appello ufficiale" per l\'insegnamento {titolo_insegnamento}. Attualmente: {esami_esistenti}, tentativo di aggiungere: {nuovi_esami_apertura}, totale: {totale_esami}'
             for insegnamento in insegnamenti:
                 # Ottieni info insegnamento
                 cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))

@@ -213,7 +213,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (!validationResult.isValid && !isAdmin) {
               const messages = {
                 isSameDayConflict: 'Non è possibile inserire due esami nello stesso giorno.',
-                isProvisionalConflict: 'Non è possibile inserire esami a meno di 14 giorni di distanza da altri eventi con proprietà "Apertura appelli".',
+                isProvisionalConflict: 'Non è possibile inserire esami a meno di 14 giorni di distanza da altri eventi con proprietà "Appello ufficiale".',
                 default: validationResult.message
               };
               

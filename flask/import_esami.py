@@ -67,7 +67,7 @@ def get_exam_template():
             "Insegnamento (Descrizione)", 
             "Codice Insegnamento", # Colonna tecnica nascosta
             "Codice CdS", # Colonna tecnica nascosta
-            "Apertura Appelli",
+            "Appello ufficiale",
             "Data (DD-MM-YYYY)", 
             "Ora (HH:MM)", 
             "Durata (minuti)",
@@ -115,7 +115,7 @@ def get_exam_template():
                 ws.cell(row_idx, 3, codice_ins)  # Codice insegnamento (nascosto)
                 ws.cell(row_idx, 4, cds_codice)  # Codice CdS (nascosto)
                 
-                # Apertura Appelli (precompilato con "Sì")
+                # Appello ufficiale (precompilato con "Sì")
                 cell = ws.cell(row_idx, 5, "Sì")
                 cell.font = Font(name="Arial")
                 cell.alignment = Alignment(horizontal="left")
@@ -149,7 +149,7 @@ def get_exam_template():
         if num_rows_to_add > 0:
             last_row = num_rows_to_add + 1
             
-            # Validazione Apertura Appelli
+            # Validazione Appello ufficiale
             apertura_values = "Sì,No"
             dv_apertura = DataValidation(type="list", formula1=f'"{apertura_values}"')
             dv_apertura.add(f"E2:E{last_row}")
@@ -186,7 +186,7 @@ def get_exam_template():
             "4. Salvare il file e caricarlo nel sistema",
             "",
             "SUGGERIMENTI GENERALI:",
-            "- Gli esami con 'Apertura Appelli = No' non contano per il minimo annuale",
+            "- Gli esami con 'Appello ufficiale = No' non contano per il minimo annuale",
             "- Il formato data è quello italiano (DD-MM-YYYY)",
             "- Se le date di iscrizione sono vuote, verranno calcolate automaticamente",
             "- Per aggiungere più di un appello per lo stesso insegnamento, duplicare la riga e modificare i campi necessari",
@@ -204,7 +204,7 @@ def get_exam_template():
             "   - Precompilato automaticamente",
             "   - Non modificare questo campo",
             "",
-            "- APERTURA APPELLI (obbligatorio)",
+            "- APPELLO UFFICIALE (obbligatorio)",
             "   - Sì: l'esame sarà visibile nel calendario pubblico e conta per il numero di esami annuali",
             "   - No: l'esame sarà privato e non conta per il numero di esami annuali",
             "   - Precompilato con 'Sì'",
@@ -413,7 +413,7 @@ def import_exams_from_file():
                 tipo_esame = tipo_esame_map.get(tipo_esame_friendly, "S") 
                 tipo_appello = tipo_appello_map.get(verbalizzazione_friendly, "PF")
                 
-                # Apertura appelli
+                # Appello ufficiale
                 mostra_calendario = str(apertura_appelli).lower() in ['sì', 'si', 'yes', 'true', '1']
                 
                 # Calcola date iscrizione se mancanti (gestisce formato italiano)
