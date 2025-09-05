@@ -337,10 +337,11 @@ def controlla_vincoli(dati_esame, aula_originale=None):
             sessioni_anticipate = cursor.fetchall()
             for inizio, fine in sessioni_anticipate:
                 if inizio and fine and inizio <= data_esame.date() <= fine:
-                    if semestre == 2:
+                    # Blocca solo se è secondo semestre e ha la spunta "Appello ufficiale"
+                    if semestre == 2 and mostra_nel_calendario:
                         cursor.close()
                         release_connection(conn)
-                        return False, f"Non è possibile inserire esami nella sessione anticipata per l'insegnamento '{titolo_insegnamento}' di secondo semestre."
+                        return False, f"Non è possibile inserire esami con 'Appello ufficiale' nella sessione anticipata per l'insegnamento '{titolo_insegnamento}'."
 
         # Controllo weekend
         if data_esame.weekday() >= 5:
