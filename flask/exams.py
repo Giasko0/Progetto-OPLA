@@ -368,6 +368,66 @@ def controlla_vincoli(dati_esame, aula_originale=None):
             release_connection(conn)
             return False, f'Non è possibile inserire esami nel weekend: {data_appello}'
         
+        # Controllo vincoli per insegnamento (solo se mostra nel calendario)
+        if mostra_nel_calendario:
+            for insegnamento in insegnamenti:
+                # Ottieni ID insegnamento
+                cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+                result = cursor.fetchone()
+                if not result:
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Insegnamento {insegnamento} non trovato'
+                insegnamento_id, titolo_insegnamento = result
+                
+                # Verifica esistenza per l'anno accademico
+                cursor.execute("""
+                    SELECT 1 FROM insegnamenti_cds 
+                    WHERE insegnamento = %s AND anno_accademico = %s LIMIT 1
+                """, (insegnamento_id, anno_accademico))
+                
+                if not cursor.fetchone():
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Insegnamento {titolo_insegnamento} non trovato per l\'anno accademico {anno_accademico}'
+                
+                # Controllo esame stesso giorno
+                cursor.execute("""
+                    SELECT data_appello FROM esami 
+                    WHERE insegnamento = %s AND anno_accademico = %s 
+                    AND mostra_nel_calendario = true
+                    AND data_appello = %s::date
+                """ + (" AND id != %s" if exam_id_to_exclude else ""),
+                [insegnamento_id, anno_accademico, data_appello] + 
+                ([exam_id_to_exclude] if exam_id_to_exclude else []))
+                
+                same_day_exams = cursor.fetchall()
+                
+                if same_day_exams:
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Esiste già un esame lo stesso giorno ({data_appello}) per l\'insegnamento {titolo_insegnamento}'
+                
+                # Controllo vincolo 14 giorni
+                cursor.execute("""
+                    SELECT data_appello FROM esami 
+                    WHERE insegnamento = %s AND anno_accademico = %s 
+                    AND mostra_nel_calendario = true
+                    AND data_appello != %s::date
+                    AND data_appello BETWEEN (%s::date - INTERVAL '13 days')
+                    AND (%s::date + INTERVAL '13 days')
+                """ + (" AND id != %s" if exam_id_to_exclude else ""),
+                [insegnamento_id, anno_accademico, data_appello, data_appello, data_appello] + 
+                ([exam_id_to_exclude] if exam_id_to_exclude else []))
+                
+                conflicting_dates = cursor.fetchall()
+                
+                if conflicting_dates:
+                    conflicting_date = conflicting_dates[0][0]
+                    cursor.close()
+                    release_connection(conn)
+                    return False, f'Vincolo 14 giorni violato per {titolo_insegnamento}: esiste già un esame il {conflicting_date}'
+        
         # Controllo conflitti aula (salta se studio docente, stessa aula originale, o aula non specificata)
         if aula and aula != "Studio docente DMI" and aula != aula_originale:
             where_clause = "WHERE aula = %s AND data_appello = %s AND periodo = %s"
@@ -426,47 +486,6 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     cursor.close()
                     release_connection(conn)
                     return False, f'Superato il limite massimo di {target_esami} esami con "Appello ufficiale" per l\'insegnamento {titolo_insegnamento}. Attualmente: {esami_esistenti}, tentativo di aggiungere: {nuovi_esami_apertura}, totale: {totale_esami}'
-            for insegnamento in insegnamenti:
-                # Ottieni info insegnamento
-                cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
-                result = cursor.fetchone()
-                if not result:
-                    cursor.close()
-                    release_connection(conn)
-                    return False, f'Insegnamento {insegnamento} non trovato'
-                
-                insegnamento_id, titolo_insegnamento = result
-                
-                # Verifica esistenza per l'anno accademico
-                cursor.execute("""
-                    SELECT 1 FROM insegnamenti_cds 
-                    WHERE insegnamento = %s AND anno_accademico = %s LIMIT 1
-                """, (insegnamento_id, anno_accademico))
-                
-                if not cursor.fetchone():
-                    cursor.close()
-                    release_connection(conn)
-                    return False, f'Insegnamento {titolo_insegnamento} non trovato per l\'anno accademico {anno_accademico}'
-                
-                # Controllo vincolo 14 giorni
-                cursor.execute("""
-                    SELECT data_appello FROM esami 
-                    WHERE insegnamento = %s AND anno_accademico = %s 
-                    AND mostra_nel_calendario = true
-                    AND data_appello != %s::date
-                    AND data_appello BETWEEN (%s::date - INTERVAL '13 days')
-                    AND (%s::date + INTERVAL '13 days')
-                """ + (" AND id != %s" if exam_id_to_exclude else ""),
-                [insegnamento_id, anno_accademico, data_appello, data_appello, data_appello] + 
-                ([exam_id_to_exclude] if exam_id_to_exclude else []))
-                
-                conflicting_dates = cursor.fetchall()
-                
-                if conflicting_dates:
-                    conflicting_date = conflicting_dates[0][0]
-                    cursor.close()
-                    release_connection(conn)
-                    return False, f'Vincolo 14 giorni violato per {titolo_insegnamento}: esiste già un esame il {conflicting_date}'
                 
                 # Controllo conflitto orario con materie dello stesso CDS/anno/semestre
                 ora_appello = sezione.get('ora_appello')

@@ -216,7 +216,11 @@ def get_esami():
         exams = []
         for row in cursor.fetchall():
             esame_del_docente = is_admin_user or row['insegnamento'] in insegnamenti_docente_codes
-            aula_completa = f"{row['aula']} ({row['edificio']})" if row['edificio'] and row['aula'] else (row['aula'] or 'N/A')
+            # Eccezione per "Studio docente DMI": non mostra l'edificio tra parentesi
+            if row['aula'] == 'Studio docente DMI':
+                aula_completa = row['aula']
+            else:
+                aula_completa = f"{row['aula']} ({row['edificio']})" if row['edificio'] and row['aula'] else (row['aula'] or 'N/A')
             
             exams.append({
                 'id': str(row['id']),

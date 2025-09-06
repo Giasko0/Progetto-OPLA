@@ -134,12 +134,16 @@ def get_exam_template():
                 cell.fill = PatternFill(fill_type=None)  # Sfondo trasparente
                 
                 # Imposta formati specifici per tipo di dato
-                if col == 4 or col == 8 or col == 9:  # Colonne Data (formato italiano)
+                if col == 6:  # Colonna Data (F) - formato data
                     cell.number_format = 'DD-MM-YYYY'
-                elif col == 5:  # Colonna Ora
+                elif col == 7:  # Colonna Ora (G) - formato ora
                     cell.number_format = 'HH:MM'
-                elif col == 6:  # Colonna Durata
-                    cell.number_format = '0'  # Numero intero
+                elif col == 8:  # Colonna Durata (H) - formato numero
+                    cell.number_format = '0'
+                elif col == 9:  # Colonna Aula (I) - formato generale/testo
+                    cell.number_format = '@'  # Formato testo
+                elif col == 10 or col == 11:  # Date iscrizione - formato data
+                    cell.number_format = 'DD-MM-YYYY'
         
         # Nascondi colonne tecniche
         ws.column_dimensions['C'].hidden = True  # Codice insegnamento
