@@ -80,45 +80,44 @@ function processDataForDisplay(cdsData, esamiData, username) {
     });
   });
 
-  // Processa gli esami del docente
+  // Processa gli esami per tutti i docenti degli insegnamenti autorizzati
   esamiData.forEach(esame => {
-    // Considera solo gli esami del docente corrente che sono suoi insegnamenti
-    if (esame.extendedProps.insegnamentoDocente && esame.extendedProps.docente === username) {
-      const dataEsame = new Date(esame.start);
-      const sessione = determinaSessioneEsame(dataEsame);
+    // Considera tutti gli esami che appartengono agli insegnamenti del docente
+    // (sia del docente stesso che di altri docenti)
+    const dataEsame = new Date(esame.start);
+    const sessione = determinaSessioneEsame(dataEsame);
+    
+    // Determina se l'esame è ufficiale
+    const isUfficiale = esame.extendedProps.mostra_nel_calendario === true;
+    
+    // Formato compatibile con il codice esistente
+    const esameFormatted = {
+      id: esame.id,
+      docente: esame.extendedProps.docente,
+      docenteNome: esame.extendedProps.docenteNome,
+      insegnamento: esame.title,
+      aula: esame.aula || "Non definita",
+      dataora: esame.start,
+      cds: esame.extendedProps.nome_cds,
+      codice_cds: esame.extendedProps.codice_cds,
+      durata_appello: esame.extendedProps.durata_appello,
+      tipo_appello: esame.extendedProps.tipo_appello,
+      mostra_nel_calendario: esame.extendedProps.mostra_nel_calendario
+    };
+    
+    esamiProcessed.push(esameFormatted);
+    
+    // Crea la chiave combinata per trovare l'insegnamento corretto
+    const insegnamentoKey = `${esame.title}_${esame.extendedProps.codice_cds}`;
+    
+    // Conta gli esami per sessione se appartiene a un insegnamento del docente
+    if (sessione && insegnamenti[insegnamentoKey]) {
+      // Conta sempre nel totale
+      insegnamenti[insegnamentoKey][sessione].totali++;
       
-      // Determina se l'esame è ufficiale
-      const isUfficiale = esame.extendedProps.mostra_nel_calendario === true;
-      
-      // Formato compatibile con il codice esistente
-      const esameFormatted = {
-        id: esame.id,
-        docente: esame.extendedProps.docente,
-        docenteNome: esame.extendedProps.docenteNome,
-        insegnamento: esame.title,
-        aula: esame.aula || "Non definita",
-        dataora: esame.start,
-        cds: esame.extendedProps.nome_cds,
-        codice_cds: esame.extendedProps.codice_cds,
-        durata_appello: esame.extendedProps.durata_appello,
-        tipo_appello: esame.extendedProps.tipo_appello,
-        mostra_nel_calendario: esame.extendedProps.mostra_nel_calendario
-      };
-      
-      esamiProcessed.push(esameFormatted);
-      
-      // Crea la chiave combinata per trovare l'insegnamento corretto
-      const insegnamentoKey = `${esame.title}_${esame.extendedProps.codice_cds}`;
-      
-      // Conta gli esami per sessione
-      if (sessione && insegnamenti[insegnamentoKey]) {
-        // Conta sempre nel totale
-        insegnamenti[insegnamentoKey][sessione].totali++;
-        
-        // Conta negli ufficiali solo se è un esame ufficiale
-        if (isUfficiale) {
-          insegnamenti[insegnamentoKey][sessione].ufficiali++;
-        }
+      // Conta negli ufficiali solo se è un esame ufficiale
+      if (isUfficiale) {
+        insegnamenti[insegnamentoKey][sessione].ufficiali++;
       }
     }
   });
@@ -331,7 +330,7 @@ function createExamsTable(tableId, exams, noExamsMessage = "Inserisci degli appe
 
 // Funzione per visualizzare le tabelle degli esami (ora semplificata)
 function displayTabelleEsami(data, insegnamentoKey, container) {
-  // Estrai il titolo dall'insegnamento per filtrare gli esami
+  // Filtra tutti gli esami per questo insegnamento/CdS (di qualunque docente)
   const insegnamentoData = data.insegnamenti[insegnamentoKey];
   const esamiInsegnamento = data.esami.filter(esame => 
     esame.insegnamento === insegnamentoData.titolo && 
@@ -448,14 +447,14 @@ function displayAllExams(data, container, targetEsami, sessioniInfo) {
   if (data.esami.length === 0) {
     const noExamsMsg = document.createElement("p");
     noExamsMsg.style.textAlign = "center";
-    noExamsMsg.textContent = "Inserisci degli appelli d'esame per visualizzarli qui!";
+    noExamsMsg.textContent = "Non ci sono appelli programmati per i tuoi insegnamenti.";
     container.appendChild(noExamsMsg);
     return;
   }
 
   // Tabella di tutti gli esami usando la funzione generica
   const esamiOrdinati = [...data.esami].sort((a, b) => new Date(a.dataora) - new Date(b.dataora));
-  const tableElement = createExamsTable("tabella-tutti-appelli", esamiOrdinati);
+  const tableElement = createExamsTable("tabella-tutti-appelli", esamiOrdinati, "Non ci sono appelli programmati per i tuoi insegnamenti.");
   container.appendChild(tableElement);
 }
 

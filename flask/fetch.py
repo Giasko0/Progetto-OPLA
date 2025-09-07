@@ -153,37 +153,47 @@ def get_esami():
                 """, (insegnamenti_list, anno))
                 insegnamenti_autorizzati = [row[0] for row in cursor.fetchall()]
         else:
-            # Non admin: solo insegnamenti del docente
+            # Non admin: ottieni insegnamenti del docente e codocenti
             insegnamenti_docente = ottieni_insegnamenti_docente(docente, anno)
             if not insegnamenti_docente:
                 return jsonify([])
             
             insegnamenti_autorizzati = list(insegnamenti_docente.keys())
             
-            # Se specificati insegnamenti, aggiungi quelli correlati
+            # Se specificati insegnamenti, filtra solo quelli
             if insegnamenti:
                 insegnamenti_list = insegnamenti.split(',')
                 cursor.execute("""
+                    SELECT id FROM insegnamenti WHERE codice = ANY(%s)
+                """, (insegnamenti_list,))
+                insegnamenti_filtrati = [row[0] for row in cursor.fetchall()]
+                insegnamenti_autorizzati = [ins for ins in insegnamenti_autorizzati if ins in insegnamenti_filtrati]
+            
+            # Aggiungi insegnamenti correlati (stesso CDS/anno/semestre)
+            if insegnamenti_autorizzati:
+                cursor.execute("""
                     SELECT DISTINCT i2.id
-                    FROM insegnamenti i1
-                    JOIN insegnamenti_cds ic1 ON i1.id = ic1.insegnamento
+                    FROM insegnamenti_cds ic1
                     JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
                         AND ic1.anno_corso = ic2.anno_corso 
                         AND ic1.semestre = ic2.semestre
                         AND ic1.anno_accademico = ic2.anno_accademico
                     JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
-                    WHERE i1.codice = ANY(%s) AND ic1.anno_accademico = %s
-                """, (insegnamenti_list, anno))
+                    WHERE ic1.insegnamento = ANY(%s) AND ic1.anno_accademico = %s
+                """, (insegnamenti_autorizzati, anno))
                 insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
                 insegnamenti_autorizzati.extend(insegnamenti_correlati)
+                insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))  # Rimuovi duplicati
         
-        # Query principale - distingui tra esami del docente e degli altri
+        # Query principale - mostra tutti gli esami degli insegnamenti autorizzati
         if not insegnamenti_autorizzati:
             where_clause = "WHERE 1=0"
+            params = ()
         else:
-            # Un docente vede sempre tutti i suoi esami, mentre per gli altri vale la flag mostra_nel_calendario
-            where_clause = f"""WHERE e.insegnamento = ANY(%s) AND 
-                              (e.docente = '{docente}' OR e.mostra_nel_calendario = true)"""
+            # Mostra tutti gli esami ufficiali + tutti gli esami del docente (anche non ufficiali)
+            where_clause = """WHERE e.insegnamento = ANY(%s) AND 
+                              (e.mostra_nel_calendario = true OR e.docente = %s)"""
+            params = (insegnamenti_autorizzati, docente)
         
         query = f"""
             SELECT e.id, e.descrizione, e.docente, 
@@ -204,7 +214,7 @@ def get_esami():
             ORDER BY e.data_appello, e.ora_appello
         """
         
-        cursor.execute(query, (insegnamenti_autorizzati,) if insegnamenti_autorizzati else ())
+        cursor.execute(query, params)
         
         # Prepara i codici degli insegnamenti del docente per identificare i suoi esami
         insegnamenti_docente_codes = []
@@ -215,7 +225,9 @@ def get_esami():
         # Costruisci la risposta
         exams = []
         for row in cursor.fetchall():
-            esame_del_docente = is_admin_user or row['insegnamento'] in insegnamenti_docente_codes
+            esame_del_docente = (is_admin_user or 
+                               row['insegnamento'] in insegnamenti_docente_codes or 
+                               row['docente'] == docente)
             # Eccezione per "Studio docente DMI": non mostra l'edificio tra parentesi
             if row['aula'] == 'Studio docente DMI':
                 aula_completa = row['aula']
@@ -436,12 +448,12 @@ def check_esami_minimi():
         for insegnamento in insegnamenti:
             ins_id, ins_titolo, cds_code, nome_corso, semestre = insegnamento
             
-            # 3. Conta esami totali per questo insegnamento (conta tutti gli esami visibili nel calendario)
+            # 3. Conta TUTTI gli esami per questo insegnamento (di qualunque docente) che sono ufficiali
             cursor.execute("""
                 SELECT COUNT(*) FROM esami 
-                WHERE insegnamento = %s AND docente = %s AND anno_accademico = %s 
+                WHERE insegnamento = %s AND anno_accademico = %s 
                       AND mostra_nel_calendario = true
-            """, (ins_id, docente, anno))
+            """, (ins_id, anno))
             
             esami_totali = cursor.fetchone()[0]
             
@@ -469,13 +481,13 @@ def check_esami_minimi():
                     minimo_richiesto = max(esami_primo or 0, esami_secondo or 0)
                 
                 if minimo_richiesto > 0:
-                    # 6. Conta esami in questa sessione
+                    # 6. Conta TUTTI gli esami in questa sessione (di qualunque docente) che sono ufficiali
                     cursor.execute("""
                         SELECT COUNT(*) FROM esami 
-                        WHERE insegnamento = %s AND docente = %s AND anno_accademico = %s
+                        WHERE insegnamento = %s AND anno_accademico = %s
                               AND data_appello >= %s AND data_appello <= %s
                               AND mostra_nel_calendario = true
-                    """, (ins_id, docente, anno, inizio, fine))
+                    """, (ins_id, anno, inizio, fine))
                     
                     esami_presenti = cursor.fetchone()[0]
                     
