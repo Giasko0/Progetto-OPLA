@@ -43,8 +43,7 @@ async function fetchAndDisplayEsami() {
     const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.user_data.username);
     displayEsamiData(processedData, targetEsamiData.target_esami_default, targetEsamiData.sessioni);
   } catch (error) {
-    console.error("Errore:", error);
-    contenitoreEsami.innerHTML = `<div class="error-message">Si è verificato un errore nel caricamento degli esami: ${error.message}</div>`;
+    contenitoreEsami.innerHTML = `<div class="error-message">${error.message}</div>`;
   }
 }
 
@@ -447,14 +446,14 @@ function displayAllExams(data, container, targetEsami, sessioniInfo) {
   if (data.esami.length === 0) {
     const noExamsMsg = document.createElement("p");
     noExamsMsg.style.textAlign = "center";
-    noExamsMsg.textContent = "Non ci sono appelli programmati per i tuoi insegnamenti.";
+    noExamsMsg.textContent = "Inserisci degli appelli d'esame per visualizzarli qui!";
     container.appendChild(noExamsMsg);
     return;
   }
 
   // Tabella di tutti gli esami usando la funzione generica
   const esamiOrdinati = [...data.esami].sort((a, b) => new Date(a.dataora) - new Date(b.dataora));
-  const tableElement = createExamsTable("tabella-tutti-appelli", esamiOrdinati, "Non ci sono appelli programmati per i tuoi insegnamenti.");
+  const tableElement = createExamsTable("tabella-tutti-appelli", esamiOrdinati, "Inserisci degli appelli d'esame per visualizzarli qui!");
   container.appendChild(tableElement);
 }
 
@@ -512,7 +511,8 @@ async function getTargetEsamiESessioni(docente, anno) {
   const params = new URLSearchParams({ docente, anno });
   const response = await fetch(`/api/get-target-esami-sessioni?${params}`);
   if (!response.ok) {
-    throw new Error(`Errore nel recupero dei dati: ${response.status} ${response.statusText}`);
+    const errorData = await response.json();
+    throw new Error(errorData.message || `Errore nel recupero dei dati: ${response.status} ${response.statusText}`);
   }
   return await response.json();
 }

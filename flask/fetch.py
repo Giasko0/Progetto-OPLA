@@ -554,7 +554,7 @@ def ottieni_target_esami_e_sessioni(docente, anno_accademico):
         
         target_result = cursor.fetchone()
         if not target_result or target_result[0] is None:
-            raise Exception(f"Configurazione globale non trovata per l'anno {anno_accademico}")
+            raise Exception(f"Programmazione Didattica non disponibile per l'anno {anno_accademico}/{anno_accademico + 1}")
         target_esami = target_result[0]
         
         # Ottieni i CdS del docente

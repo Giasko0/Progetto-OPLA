@@ -457,35 +457,35 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     return False, f'Insegnamento {insegnamento} non trovato'
                 insegnamento_id, titolo_insegnamento = result
 
-                # CONTROLLO TARGET ESAMI: Verifica numero massimo esami con "Appello ufficiale"
+                # CONTROLLO TARGET ESAMI: Verifica numero massimo esami con "Appello ufficiale" - DISABILITATO
                 # Conta esami esistenti per questo insegnamento con mostra_nel_calendario = True
-                where_clause_esami = """
-                    WHERE insegnamento = %s AND anno_accademico = %s 
-                    AND mostra_nel_calendario = TRUE AND tipo_appello != 'PP'
-                """
-                params_esami = [insegnamento_id, anno_accademico]
+                #where_clause_esami = """
+                #    WHERE insegnamento = %s AND anno_accademico = %s 
+                #    AND mostra_nel_calendario = TRUE AND tipo_appello != 'PP'
+                #"""
+                #params_esami = [insegnamento_id, anno_accademico]
                 
-                # Escludi l'esame corrente se in modifica
-                if exam_id_to_exclude:
-                    where_clause_esami += " AND id != %s"
-                    params_esami.append(exam_id_to_exclude)
+                ## Escludi l'esame corrente se in modifica
+                #if exam_id_to_exclude:
+                #    where_clause_esami += " AND id != %s"
+                #    params_esami.append(exam_id_to_exclude)
                 
-                cursor.execute(f"""
-                    SELECT COUNT(*) FROM esami {where_clause_esami}
-                """, params_esami)
+                #cursor.execute(f"""
+                #    SELECT COUNT(*) FROM esami {where_clause_esami}
+                #""", params_esami)
                 
-                esami_esistenti = cursor.fetchone()[0]
+                #esami_esistenti = cursor.fetchone()[0]
                 
                 # Conta quanti nuovi esami con "Appello ufficiale" si stanno inserendo per questo insegnamento
-                nuovi_esami_apertura = sum(1 for s in sezioni_appelli 
-                                         if s.get('mostra_nel_calendario', False))
+                #nuovi_esami_apertura = sum(1 for s in sezioni_appelli 
+                #                         if s.get('mostra_nel_calendario', False))
                 
-                totale_esami = esami_esistenti + nuovi_esami_apertura
+                #totale_esami = esami_esistenti + nuovi_esami_apertura
                 
-                if totale_esami > target_esami:
-                    cursor.close()
-                    release_connection(conn)
-                    return False, f'Superato il limite massimo di {target_esami} esami con "Appello ufficiale" per l\'insegnamento {titolo_insegnamento}. Attualmente: {esami_esistenti}, tentativo di aggiungere: {nuovi_esami_apertura}, totale: {totale_esami}'
+                #if totale_esami > target_esami:
+                #    cursor.close()
+                #    release_connection(conn)
+                #    return False, f'Superato il limite massimo di {target_esami} esami con "Appello ufficiale" per l\'insegnamento {titolo_insegnamento}. Attualmente: {esami_esistenti}, tentativo di aggiungere: {nuovi_esami_apertura}, totale: {totale_esami}'
                 
                 # Controllo conflitto giorno con materie dello stesso CdS/anno/semestre
                 # Non deve essere possibile inserire due esami nello stesso giorno per lo stesso CdS/anno/semestre

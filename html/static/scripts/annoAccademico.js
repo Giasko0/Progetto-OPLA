@@ -135,10 +135,10 @@ class AnnoAccademicoManager {
       const annoAccademicoCorrente = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1; // Agosto = mese 7
       
       // Filtra gli anni per nascondere quelli successivi a quello corrente
-      const anniFiltrati = anni.filter(anno => anno <= annoAccademicoCorrente);
+      // const anniFiltrati = anni.filter(anno => anno <= annoAccademicoCorrente);
       
       select.innerHTML = '<option value="" disabled>Seleziona anno</option>';
-      anniFiltrati.forEach(anno => {
+      anni.forEach(anno => {
         const option = document.createElement('option');
         option.value = String(anno);
         option.textContent = `${anno}/${anno + 1}`;
@@ -150,10 +150,10 @@ class AnnoAccademicoManager {
       if (!selectedYear) {
         const now = new Date();
         let annoCorrente = now.getMonth() + 1 >= 9 ? now.getFullYear() : now.getFullYear() - 1;
-        if (anniFiltrati.includes(annoCorrente)) {
+        if (anni.includes(annoCorrente)) {
           selectedYear = annoCorrente;
-        } else if (anniFiltrati.length > 0) {
-          selectedYear = anniFiltrati[anniFiltrati.length - 1];
+        } else if (anni.length > 0) {
+          selectedYear = anni[anni.length - 1];
         }
         if (selectedYear) {
           this.setSelectedAcademicYear(selectedYear);
