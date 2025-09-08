@@ -349,7 +349,7 @@ def upload_ugov():
         Importati:
         - {len(cds_data)} corsi di studio
         - {len(insegnamenti_data)} insegnamenti
-        - {len(insegnamenti_cds_data)} assegnazioni insegnamento-CDS
+        - {len(insegnamenti_cds_data)} assegnazioni insegnamento-CdS
         - {len(utenti_data)} docenti
         - {len(insegnamento_docente_data)} assegnazioni docente-insegnamento
         """
@@ -433,7 +433,7 @@ def download_esse3():
     headers = [
       'Tipo appello',
       'Anno',
-      'CDS',
+      'CdS',
       'AD',
       'Des. Appello',
       'Data Appello (gg/mm/yyyy)',

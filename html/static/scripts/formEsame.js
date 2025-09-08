@@ -409,7 +409,7 @@ const EsameForm = (function() {
   function handleBypassChecksSubmit() {
     window.FormEsameControlli?.isUserAdmin().then(isAdmin => {
       if (!isAdmin) {
-        window.FormEsameControlli?.showValidationError("Solo gli amministratori possono utilizzare questa funzione");
+        window.showMessage("Solo gli amministratori possono utilizzare questa funzione", "Accesso negato", "error");
         return;
       }
       

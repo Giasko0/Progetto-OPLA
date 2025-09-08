@@ -21,11 +21,11 @@ document.addEventListener('DOMContentLoaded', function() {
             await fillFormForEdit(data.esame); // Await per la compilazione asincrona
             return data.esame;
           } else {
-            console.error('Errore nel caricamento dell\'esame:', data.message);
-            if (window.FormEsameControlli && window.FormEsameControlli.showValidationError) {
-              window.FormEsameControlli.showValidationError(data.message || 'Errore nel caricamento dell\'esame');
+            const errorMessage = data.message || 'Esame non trovato o accesso negato';
+            if (window.showMessage) {
+              window.showMessage(errorMessage, "Errore caricamento esame", "error");
             }
-            throw new Error(data.message || 'Errore nel caricamento dell\'esame');
+            throw new Error(errorMessage);
           }
         });
     }
@@ -47,12 +47,12 @@ document.addEventListener('DOMContentLoaded', function() {
             await fillSectionWithExamData(sectionId, examData); // Attendere il popolamento della sezione
           } else {
             console.error("Errore: impossibile creare la sezione per la modifica.");
-            if (window.FormEsameControlli) window.FormEsameControlli.showValidationError("Impossibile preparare il form per la modifica.");
+            window.showMessage("Impossibile preparare il form per la modifica", "Errore inizializzazione form", "error");
             return;
           }
         } catch (error) {
           console.error("Errore durante l'aggiunta della sezione per la modifica:", error);
-          if (window.FormEsameControlli) window.FormEsameControlli.showValidationError("Errore nella preparazione del form.");
+          window.showMessage(`Errore nella preparazione del form: ${error.message}`, "Errore inizializzazione form", "error");
           return;
         }
       }
@@ -280,9 +280,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleModifyWithBypass(e) {
       e.preventDefault();
 
-      window.FormEsameControlli.isUserAdmin().then(isAdmin => {
+            window.FormEsameControlli.isUserAdmin().then(isAdmin => {
         if (!isAdmin) {
-          window.FormEsameControlli.showValidationError("Solo gli amministratori possono usare questa funzione.");
+          window.showMessage("Solo gli amministratori possono utilizzare questa funzione", "Accesso negato", "error");
           return;
         }
 
@@ -295,14 +295,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Invia i dati dell'esame modificato
     function submitModifiedExam(bypassChecks = false) {
       if (!currentExamData) {
-        window.FormEsameControlli.showValidationError("Dati dell'esame non disponibili per la modifica.");
+        window.showMessage("Dati dell'esame non disponibili per la modifica", "Errore dati esame", "error");
         return;
       }
 
       // Raccoglie i dati dalla prima sezione
       const firstSection = document.querySelector('.date-appello-section');
       if (!firstSection) {
-        window.FormEsameControlli.showValidationError("Nessuna sezione di appello trovata per la modifica.");
+        window.showMessage("Nessuna sezione di appello trovata per la modifica", "Errore form", "error");
         return; // Aggiunto return
       }
 
@@ -319,8 +319,13 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .then(response => {
         if (!response.ok) {
-          console.error('Errore nella modifica:', response.status, response.statusText);
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          return response.json().then(errorData => {
+            const errorMessage = errorData.message || `Errore HTTP ${response.status}: ${response.statusText}`;
+            throw new Error(errorMessage);
+          }).catch(parseError => {
+            // Se la risposta non è JSON, usa il messaggio di stato HTTP
+            throw new Error(`Errore HTTP ${response.status}: ${response.statusText}`);
+          });
         }
 
         return response.json();
@@ -345,14 +350,15 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => location.reload(), 1000);
           }
         } else {
-          console.error('Errore dal server nella modifica:', data.message);
-          window.FormEsameControlli.showValidationError(data.message);
+          const errorMessage = data.message || 'Errore sconosciuto durante la modifica dell\'esame';
+          console.error('Errore dal server nella modifica:', errorMessage);
+          window.showMessage(errorMessage, "Errore modifica esame", "error");
         }
       })
       .catch(error => {
         console.error('Errore completo nella modifica:', error);
         console.error('Stack trace:', error.stack);
-        window.FormEsameControlli.showValidationError(`Errore nella comunicazione con il server: ${error.message}`);
+        window.showMessage(error.message, "Errore modifica esame", "error");
       });
     }
 
@@ -420,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gestisce la duplicazione dell'esame
     function handleDuplicateExam(examId) {
       if (!currentExamData) {
-        window.FormEsameControlli.showValidationError("Dati dell'esame non disponibili per la duplicazione.");
+        window.showMessage("Dati dell'esame non disponibili per la duplicazione", "Errore duplicazione esame", "error");
         return;
       }
 
@@ -494,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const duplicatedSections = document.querySelectorAll('.date-appello-section:not(:first-child)');
       
       if (duplicatedSections.length === 0) {
-        window.FormEsameControlli.showValidationError('Nessun appello duplicato da inserire. Clicca sul calendario per aggiungere nuove date.');
+        window.showMessage('Nessun appello duplicato da inserire. Clicca sul calendario per aggiungere nuove date.', "Nessun appello duplicato", "warning");
         return;
       }
 
@@ -524,17 +530,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Controlli base
         if (!examData.data_appello) {
-          window.FormEsameControlli.showValidationError(`Appello ${i + 2}: Data mancante`);
+          window.showMessage(`Appello ${i + 2}: Data mancante`, "Errore validazione duplicazione", "error");
           return false;
         }
         
         if (!examData.ora_appello || examData.ora_appello === '00:00') {
-          window.FormEsameControlli.showValidationError(`Appello ${i + 2}: Ora mancante`);
+          window.showMessage(`Appello ${i + 2}: Ora mancante`, "Errore validazione duplicazione", "error");
           return false;
         }
         
         if (!examData.descrizione || examData.descrizione.trim() === '') {
-          window.FormEsameControlli.showValidationError(`Appello ${i + 2}: Descrizione mancante`);
+          window.showMessage(`Appello ${i + 2}: Descrizione mancante`, "Errore validazione duplicazione", "error");
           return false;
         }
       }
@@ -574,11 +580,16 @@ document.addEventListener('DOMContentLoaded', function() {
         method: 'POST',
         body: formData
       })
-      .then(response => {
+      .then(async response => {
+        const data = await response.json();
+        
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          // Se il server ha restituito un messaggio di errore, usalo
+          const errorMessage = data.message || `Errore HTTP ${response.status}: ${response.statusText}`;
+          throw new Error(errorMessage);
         }
-        return response.json();
+        
+        return data;
       })
       .then(data => {
         if (data.status === 'success') {
@@ -606,13 +617,14 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => location.reload(), 1000);
           }
         } else {
-          console.error('Errore dal server nella duplicazione:', data.message);
-          window.FormEsameControlli.showValidationError(data.message);
+          const errorMessage = data.message || 'Errore sconosciuto durante la duplicazione dell\'esame';
+          console.error('Errore dal server nella duplicazione:', errorMessage);
+          window.showMessage(errorMessage, "Errore duplicazione esame", "error");
         }
       })
       .catch(error => {
         console.error('Errore nella duplicazione degli esami:', error);
-        window.FormEsameControlli.showValidationError(`Errore nella comunicazione con il server: ${error.message}`);
+        window.showMessage(error.message, "Errore duplicazione esami", "error");
       });
     }
 
@@ -748,7 +760,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const selectedDate = new Date(clickedDate);
       if (selectedDate < today) {
         window._duplicatingDate = null; // Reset flag
-        window.FormEsameControlli.showValidationError('Non è possibile selezionare date nel passato');
+        window.showMessage('Non è possibile selezionare date nel passato', "Data non valida", "error");
         return;
       }
 
@@ -760,7 +772,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (existingEvent) {
         window._duplicatingDate = null; // Reset flag
-        window.FormEsameControlli.showValidationError('Esiste già un evento in questa data');
+        window.showMessage('Esiste già un evento in questa data', "Data non disponibile", "error");
         return;
       }
 
@@ -774,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       } catch (error) {
         console.error('Errore nella creazione della sezione duplicata:', error);
-        window.FormEsameControlli.showValidationError('Errore nella creazione della nuova sezione');
+        window.showMessage(`Errore nella creazione della nuova sezione: ${error.message}`, "Errore duplicazione", "error");
       } finally {
         // Reset flag dopo un piccolo delay
         setTimeout(() => {
@@ -932,8 +944,13 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .then(response => {
         if (!response.ok) {
-          console.error('Errore HTTP nell\'eliminazione:', response.status, response.statusText);
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          return response.json().then(errorData => {
+            const errorMessage = errorData.message || `Errore HTTP ${response.status}: ${response.statusText}`;
+            throw new Error(errorMessage);
+          }).catch(parseError => {
+            // Se la risposta non è JSON, usa il messaggio di stato HTTP
+            throw new Error(`Errore HTTP ${response.status}: ${response.statusText}`);
+          });
         }
 
         return response.json();
@@ -955,14 +972,15 @@ document.addEventListener('DOMContentLoaded', function() {
             window.calendar.refetchEvents();
           }
         } else {
-          console.error('Errore dal server nell\'eliminazione:', data.message);
-          window.FormEsameControlli.showValidationError(data.message);
+          const errorMessage = data.message || 'Errore sconosciuto durante l\'eliminazione dell\'esame';
+          console.error('Errore dal server nell\'eliminazione:', errorMessage);
+          window.showMessage(errorMessage, "Errore eliminazione esame", "error");
         }
       })
       .catch(error => {
         console.error('Errore completo nell\'eliminazione:', error);
         console.error('Stack trace:', error.stack);
-        window.FormEsameControlli.showValidationError(`Errore nella comunicazione con il server: ${error.message}`);
+        window.showMessage(error.message, "Errore eliminazione esame", "error");
       });
     }
 
@@ -974,10 +992,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return examData; // Restituisce i dati per coerenza o utilizzo futuro
       } catch (error) {
         console.error('Errore dettagliato durante la modifica dell\'esame:', error);
-        // Non mostrare l'errore qui se loadExamForEdit lo fa già
-        // if (window.FormEsameControlli && window.FormEsameControlli.showValidationError) {
-        //   window.FormEsameControlli.showValidationError(`Errore fatale nell'apertura del modulo di modifica: ${error.message}`);
-        // }
         throw error; // Rilancia per essere gestito da chi chiama editExam
       }
     }

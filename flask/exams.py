@@ -487,13 +487,8 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     release_connection(conn)
                     return False, f'Superato il limite massimo di {target_esami} esami con "Appello ufficiale" per l\'insegnamento {titolo_insegnamento}. Attualmente: {esami_esistenti}, tentativo di aggiungere: {nuovi_esami_apertura}, totale: {totale_esami}'
                 
-                # Controllo conflitto orario con materie dello stesso CDS/anno/semestre
-                ora_appello = sezione.get('ora_appello')
-                if not ora_appello:
-                    cursor.close()
-                    release_connection(conn)
-                    return False, f'Ora appello mancante per la validazione dei vincoli'
-                
+                # Controllo conflitto giorno con materie dello stesso CdS/anno/semestre
+                # Non deve essere possibile inserire due esami nello stesso giorno per lo stesso CdS/anno/semestre
                 cursor.execute("""
                     SELECT DISTINCT i.titolo, e.ora_appello
                     FROM esami e
@@ -501,7 +496,6 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     JOIN insegnamenti_cds ic1 ON e.insegnamento = ic1.insegnamento AND e.anno_accademico = ic1.anno_accademico
                     JOIN insegnamenti_cds ic2 ON ic2.insegnamento = %s AND ic2.anno_accademico = %s
                     WHERE e.data_appello = %s
-                    AND e.ora_appello = %s
                     AND e.mostra_nel_calendario = true
                     AND e.insegnamento != %s
                     AND ic1.cds = ic2.cds
@@ -509,7 +503,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     AND ic1.semestre = ic2.semestre
                     AND e.anno_accademico = %s
                 """ + (" AND e.id != %s" if exam_id_to_exclude else ""),
-                [insegnamento_id, anno_accademico, data_appello, ora_appello, 
+                [insegnamento_id, anno_accademico, data_appello, 
                  insegnamento_id, anno_accademico] + 
                 ([exam_id_to_exclude] if exam_id_to_exclude else []))
                 
@@ -519,7 +513,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     conflicting_title, conflicting_time = conflicting_exams[0]
                     cursor.close()
                     release_connection(conn)
-                    return False, f'Conflitto orario: {conflicting_title} ha già un esame il {data_appello} alle {conflicting_time} per lo stesso CDS/anno/semestre di {titolo_insegnamento}'
+                    return False, f'Conflitto giorno: {conflicting_title} ha già un esame il {data_appello} alle {conflicting_time} per lo stesso CdS/anno/semestre di {titolo_insegnamento}'
     
     cursor.close()
     release_connection(conn)
@@ -554,7 +548,7 @@ def inserisci_esami(dati_esame):
                 
             insegnamento_id, titolo_insegnamento = result
             
-            # Ottieni info CDS
+            # Ottieni info CdS
             cursor.execute("""
                 SELECT cds, curriculum_codice FROM insegnamenti_cds 
                 WHERE insegnamento = %s AND anno_accademico = %s LIMIT 1

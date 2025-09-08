@@ -97,7 +97,7 @@ def save_cds_dates():
             # Se ancora non c'è un nome (es. nuovo CdS in una selezione multipla), usa un placeholder
             current_nome_corso = f"Corso {codice_cds}"
 
-        # Upsert per il record CDS (INSERT o UPDATE)
+        # Upsert per il record CdS (INSERT o UPDATE)
         if exists:
           cursor.execute("""
             UPDATE cds SET 
@@ -120,7 +120,7 @@ def save_cds_dates():
             codice_cds, anno_accademico, current_nome_corso, curriculum_codice, curriculum_nome
           ))
         
-        # Elimina tutte le sessioni esistenti per questo CDS e anno accademico
+        # Elimina tutte le sessioni esistenti per questo CdS e anno accademico
         cursor.execute("""
           DELETE FROM sessioni 
           WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s
@@ -143,7 +143,7 @@ def save_cds_dates():
           try:
             anno_successivo = anno_accademico + 1
             
-            # Verifichiamo se esiste un record CDS per l'anno successivo
+            # Verifichiamo se esiste un record CdS per l'anno successivo
             cursor.execute(
               "SELECT COUNT(*) FROM cds WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s",
               (codice_cds, anno_successivo, curriculum_codice)

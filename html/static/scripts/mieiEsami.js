@@ -271,7 +271,7 @@ function createExamsTable(tableId, exams, noExamsMessage = "Inserisci degli appe
   const headers = [
     { text: "Appare in calendario", hideOnMobile: true },
     { text: "Tipo prova", hideOnMobile: true },
-    { text: "CDS", hideOnMobile: true },
+    { text: "CdS", hideOnMobile: true },
     { text: "Insegnamento", hideOnMobile: false },
     { text: "Docente", hideOnMobile: true },
     { text: "Data", hideOnMobile: false },

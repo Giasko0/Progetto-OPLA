@@ -63,13 +63,6 @@ const FormEsameControlli = (function() {
     return { isValid: true };
   }
 
-  // Gestione messaggi di errore
-  function showValidationError(message) {
-    if (window.showMessage) {
-      window.showMessage(message, "Errore di validazione", "warning");
-    }
-  }
-
   // Configurazione validatori e regole
   const formValidationRules = getCommonValidationRules();
 
@@ -105,7 +98,7 @@ const FormEsameControlli = (function() {
     // Controlla errori di validazione delle date
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
-      showValidationError("Correggi gli errori nelle date prima di inviare il form");
+      window.showMessage("Correggi gli errori nelle date prima di inviare il form", "Errore validazione", "error");
       errorFields[0].focus();
       return false;
     }
@@ -113,7 +106,7 @@ const FormEsameControlli = (function() {
     // Verifica sezioni valide
     const dateSections = document.querySelectorAll('.date-appello-section');
     if (dateSections.length === 0) {
-      showValidationError("Aggiungi almeno una sezione di appello");
+      window.showMessage("Aggiungi almeno una sezione di appello", "Errore validazione", "error");
       return false;
     }
 
@@ -185,7 +178,7 @@ const FormEsameControlli = (function() {
 
     for (const { field, message } of requiredFields) {
       if (typeof fields[field] === "undefined" || !fields[field] || (typeof fields[field] === "string" && fields[field].trim() === "")) {
-        showValidationError(`Appello ${sectionNumber}: ${message}`);
+        window.showMessage(`Appello ${sectionNumber}: ${message}`, "Errore validazione", "error");
         return false;
       }
     }
@@ -198,7 +191,7 @@ const FormEsameControlli = (function() {
 
     for (const [field, result] of Object.entries(validationResults)) {
       if (!result.isValid) {
-        showValidationError(`Appello ${sectionNumber}: ${result.message}`);
+        window.showMessage(`Appello ${sectionNumber}: ${result.message}`, "Errore validazione", "error");
         return false;
       }
     }
@@ -210,20 +203,20 @@ const FormEsameControlli = (function() {
     
     // Solo se la durata è specificata, deve essere valida
     if (durataTotale > 0 && (durataTotale < 30 || durataTotale > 720)) {
-      showValidationError(`Appello ${sectionNumber}: La durata, se specificata, deve essere tra 30 minuti e 12 ore`);
+      window.showMessage(`Appello ${sectionNumber}: La durata, se specificata, deve essere tra 30 minuti e 12 ore`, "Errore validazione", "error");
       return false;
     }
 
     // Validazione ora specifica (8-18) come nel backend
     const oraH = parseInt(fields.ora_h);
     if (oraH < 8 || oraH > 18) {
-      showValidationError(`Appello ${sectionNumber}: L'ora deve essere compresa tra le 08:00 e le 18:00`);
+      window.showMessage(`Appello ${sectionNumber}: L'ora deve essere compresa tra le 08:00 e le 18:00`, "Errore validazione", "error");
       return false;
     }
 
     // La data deve essere in una sessione valida (solo se non è prova parziale non ufficiale)
     if (!isDateInSession(fields.dataora, section)) {
-      showValidationError(`Appello ${sectionNumber}: La data non è all'interno di una sessione valida.`);
+      window.showMessage(`Appello ${sectionNumber}: La data non è all'interno di una sessione valida.`, "Errore validazione", "error");
       return false;
     }
 
@@ -241,7 +234,7 @@ const FormEsameControlli = (function() {
     }
     
     if (!insegnamentiSelected.length) {
-      showValidationError("Seleziona almeno un insegnamento");
+      window.showMessage("Seleziona almeno un insegnamento", "Errore validazione", "error");
       return false;
     }
 
@@ -252,14 +245,14 @@ const FormEsameControlli = (function() {
   function validateFormWithBypass() {
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
-      showValidationError("Correggi gli errori nelle date prima di inviare il form, anche con bypass");
+      window.showMessage("Correggi gli errori nelle date prima di inviare il form, anche con bypass", "Errore validazione", "error");
       errorFields[0].focus();
       return false;
     }
 
     const dateSections = document.querySelectorAll('.date-appello-section');
     if (dateSections.length === 0) {
-      showValidationError("Aggiungi almeno una sezione di appello");
+      window.showMessage("Aggiungi almeno una sezione di appello", "Errore validazione", "error");
       return false;
     }
 
@@ -275,14 +268,14 @@ const FormEsameControlli = (function() {
       
       // Campi obbligatori sempre necessari
       if (!dataora || !ora_h || !ora_m || !aula) {
-        showValidationError(`Appello ${sectionNumber}: Compila almeno i campi obbligatori (data, ora, aula)`);
+        window.showMessage(`Appello ${sectionNumber}: Compila almeno i campi obbligatori (data, ora, aula)`, "Errore validazione", "error");
         return false;
       }
       
       // Weekend sempre bloccato anche con bypass
       const bypassValidationResult = validateFormField('giorno_settimana', dataora, formValidationRules);
       if (!bypassValidationResult.isValid) {
-        showValidationError(`Appello ${sectionNumber}: ${bypassValidationResult.message}`);
+        window.showMessage(`Appello ${sectionNumber}: ${bypassValidationResult.message}`, "Errore validazione", "error");
         return false;
       }
     }
@@ -294,14 +287,14 @@ const FormEsameControlli = (function() {
   function validateFormForEdit() {
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
-      showValidationError("Correggi gli errori nelle date prima di modificare l'esame");
+      window.showMessage("Correggi gli errori nelle date prima di modificare l'esame", "Errore validazione", "error");
       errorFields[0].focus();
       return false;
     }
 
     const firstSection = document.querySelector('.date-appello-section');
     if (!firstSection) {
-      showValidationError("Nessuna sezione di appello trovata");
+      window.showMessage("Nessuna sezione di appello trovata", "Errore validazione", "error");
       return false;
     }
 
@@ -312,14 +305,14 @@ const FormEsameControlli = (function() {
   function validateFormForEditWithBypass() {
     const errorFields = document.querySelectorAll('.form-input-error');
     if (errorFields.length > 0) {
-      showValidationError("Correggi gli errori nelle date prima di modificare, anche con bypass");
+      window.showMessage("Correggi gli errori nelle date prima di modificare, anche con bypass", "Errore validazione", "error");
       errorFields[0].focus();
       return false;
     }
 
     const firstSection = document.querySelector('.date-appello-section');
     if (!firstSection) {
-      showValidationError("Nessuna sezione di appello trovata");
+      window.showMessage("Nessuna sezione di appello trovata", "Errore validazione", "error");
       return false;
     }
 
@@ -329,14 +322,14 @@ const FormEsameControlli = (function() {
     const aula = firstSection.querySelector('[id^="aula_"]').value;
 
     if (!dataora || !ora_h || !ora_m || !aula) {
-      showValidationError("Compila almeno i campi obbligatori");
+      window.showMessage("Compila almeno i campi obbligatori", "Errore validazione", "error");
       return false;
     }
 
     // Weekend sempre bloccato anche con bypass
     const editBypassValidationResult = validateFormField('giorno_settimana', dataora, formValidationRules);
     if (!editBypassValidationResult.isValid) {
-      showValidationError(editBypassValidationResult.message);
+      window.showMessage(editBypassValidationResult.message, "Errore validazione", "error");
       return false;
     }
 
@@ -355,8 +348,7 @@ const FormEsameControlli = (function() {
     validateFormForEditWithBypass,
     validateFormField,
     validators,
-    getCommonValidationRules,
-    showValidationError
+    getCommonValidationRules
   };
 }());
 
