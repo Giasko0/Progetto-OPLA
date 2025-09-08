@@ -310,10 +310,6 @@ function mostraErrore(message) {
     `;
 }
 
-function mostraSuccesso(message) {
-    showMessage('success', message);
-}
-
 function showMessage(type, message) {
     const messageDiv = document.getElementById('responseMessages');
     if (!messageDiv) return;

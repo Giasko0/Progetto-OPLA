@@ -29,7 +29,7 @@ const ExamFileImporter = {
   validateUserAccess() {
     const username = window.currentUsername;
     if (!username) {
-      window.showMessage("Devi effettuare il login per utilizzare questa funzione", "Attenzione", "error");
+      window.showMessage("Devi effettuare il login per utilizzare questa funzione", "Attenzione", "warning");
       return false;
     }
     return true;
@@ -310,7 +310,7 @@ const ExamFileImporter = {
     const anno = window.AnnoAccademicoManager?.getSelectedAcademicYear();
     
     if (!username) {
-      window.showMessage("Devi effettuare il login per scaricare il template", "Attenzione", "error");
+      window.showMessage("Devi effettuare il login per scaricare il template", "Attenzione", "warning");
       return;
     }
 
@@ -330,7 +330,7 @@ const ExamFileImporter = {
       const blob = await response.blob();
       this.downloadBlob(blob, `template_esami_${username}.xlsx`);
       
-      window.showMessage("Download del template completato", "Successo", "notification");
+      window.showMessage("Download del template completato", "Successo", "success");
     } catch (error) {
       console.error('Errore nel download del template:', error);
       window.showMessage("Errore nel download del template. Verifica la connessione e riprova.", "Errore", "error");
@@ -441,7 +441,7 @@ const ExamFileImporter = {
     progressBar.style.width = '100%';
     
     if (data.success) {
-      window.showMessage(data.message, "Importazione Completata", "success");
+            window.showMessage(data.message, "Importazione Completata", "success");
       
       // Ricarica gli eventi del calendario se disponibile
       if (window.forceCalendarRefresh) {

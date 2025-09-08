@@ -488,7 +488,7 @@ const FormEsameData = (function() {
     .then(data => {
       if (data.status === 'success') {
         window.FormEsameAutosave?.clearSavedData();
-        window.showMessage(data.message, "Successo", "notification");
+        window.showMessage(data.message, "Successo", "success");
         window.calendar?.refetchEvents();
         window.EsameForm?.hideForm(true, true);
       } else {

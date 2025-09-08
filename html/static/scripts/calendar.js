@@ -286,7 +286,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const messageKey = validationResult.isSameDayConflict ? 'isSameDayConflict' : 
                                  validationResult.isProvisionalConflict ? 'isProvisionalConflict' : 'default';
                 
-                window.showMessage?.(messages[messageKey], 'Attenzione', 'notification');
+                window.showMessage?.(messages[messageKey], 'Attenzione', 'warning');
                 return;
               }
             }

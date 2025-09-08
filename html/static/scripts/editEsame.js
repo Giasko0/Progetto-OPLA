@@ -760,7 +760,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const selectedDate = new Date(clickedDate);
       if (selectedDate < today) {
         window._duplicatingDate = null; // Reset flag
-        window.showMessage('Non è possibile selezionare date nel passato', "Data non valida", "error");
+        window.showMessage('Non è possibile selezionare date nel passato', "Data non valida", "warning");
         return;
       }
 
@@ -772,7 +772,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (existingEvent) {
         window._duplicatingDate = null; // Reset flag
-        window.showMessage('Esiste già un evento in questa data', "Data non disponibile", "error");
+        window.showMessage('Esiste già un evento in questa data', "Data non disponibile", "warning");
         return;
       }
 
