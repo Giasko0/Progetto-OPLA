@@ -670,9 +670,11 @@ def get_esame_by_id():
     
     cursor.execute("""
     SELECT e.*, i.titolo AS insegnamento_titolo, i.codice AS insegnamento_codice,
-           c.nome_corso AS cds_nome
+           c.nome_corso AS cds_nome, e.cds AS cds_codice, 
+           CONCAT(u.nome, ' ', u.cognome) AS docente_nome_completo
     FROM esami e
     JOIN insegnamenti i ON e.insegnamento = i.id
+    JOIN utenti u ON e.docente = u.username
     JOIN cds c ON e.cds = c.codice AND e.anno_accademico = c.anno_accademico 
                AND e.curriculum_codice = c.curriculum_codice
     WHERE e.id = %s
@@ -688,18 +690,26 @@ def get_esame_by_id():
     columns = [desc[0] for desc in cursor.description]
     esame_dict = dict(zip(columns, esame))
 
-    # Controllo permessi
-    if not check_user_permissions(esame_dict['docente'], username, is_admin):
-        cursor.close()
-        release_connection(conn)
-        return jsonify({'success': False, 'message': 'Non hai i permessi per modificare questo esame'}), 403
-
-    # Controllo modificabilità
-    can_modify = check_exam_modifiable(esame_dict['data_appello'])
+    # Controllo permessi - ora distinguiamo tra modifica e sola lettura
+    has_edit_permissions = check_user_permissions(esame_dict['docente'], username, is_admin)
+    
+    # Controllo modificabilità (solo se ha i permessi)
+    can_modify = has_edit_permissions and check_exam_modifiable(esame_dict['data_appello'])
+    
+    # Imposta le modalità
     esame_dict['can_modify'] = can_modify
-    esame_dict['message'] = "" if can_modify else "L'esame non può essere modificato (meno di 7 giorni)"
-    esame_dict['is_edit_mode'] = True
+    esame_dict['has_edit_permissions'] = has_edit_permissions
+    esame_dict['is_read_only'] = not has_edit_permissions
+    esame_dict['is_edit_mode'] = has_edit_permissions
     esame_dict['edit_id'] = exam_id
+    
+    # Messaggi informativi
+    if not has_edit_permissions:
+        esame_dict['message'] = "Visualizzazione in sola lettura - Non hai i permessi per modificare questo esame"
+    elif not can_modify:
+        esame_dict['message'] = "L'esame non può essere modificato (meno di 7 giorni)"
+    else:
+        esame_dict['message'] = ""
 
     # Serializza per JSON
     for key, value in esame_dict.items():

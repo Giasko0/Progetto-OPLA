@@ -158,32 +158,33 @@ def get_esami():
             if not insegnamenti_docente:
                 return jsonify([])
             
-            insegnamenti_autorizzati = list(insegnamenti_docente.keys())
-            
-            # Se specificati insegnamenti, filtra solo quelli
             if insegnamenti:
+                # Se specificati insegnamenti, filtra solo quelli e aggiungi correlati
                 insegnamenti_list = insegnamenti.split(',')
                 cursor.execute("""
                     SELECT id FROM insegnamenti WHERE codice = ANY(%s)
                 """, (insegnamenti_list,))
                 insegnamenti_filtrati = [row[0] for row in cursor.fetchall()]
-                insegnamenti_autorizzati = [ins for ins in insegnamenti_autorizzati if ins in insegnamenti_filtrati]
-            
-            # Aggiungi insegnamenti correlati (stesso CDS/anno/semestre)
-            if insegnamenti_autorizzati:
-                cursor.execute("""
-                    SELECT DISTINCT i2.id
-                    FROM insegnamenti_cds ic1
-                    JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
-                        AND ic1.anno_corso = ic2.anno_corso 
-                        AND ic1.semestre = ic2.semestre
-                        AND ic1.anno_accademico = ic2.anno_accademico
-                    JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
-                    WHERE ic1.insegnamento = ANY(%s) AND ic1.anno_accademico = %s
-                """, (insegnamenti_autorizzati, anno))
-                insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
-                insegnamenti_autorizzati.extend(insegnamenti_correlati)
-                insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))  # Rimuovi duplicati
+                insegnamenti_autorizzati = [ins for ins in list(insegnamenti_docente.keys()) if ins in insegnamenti_filtrati]
+                
+                # Aggiungi insegnamenti correlati (stesso CdS/Anno/Semestre) degli insegnamenti selezionati
+                if insegnamenti_autorizzati:
+                    cursor.execute("""
+                        SELECT DISTINCT i2.id
+                        FROM insegnamenti_cds ic1
+                        JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
+                            AND ic1.anno_corso = ic2.anno_corso 
+                            AND ic1.semestre = ic2.semestre
+                            AND ic1.anno_accademico = ic2.anno_accademico
+                        JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
+                        WHERE ic1.insegnamento = ANY(%s) AND ic1.anno_accademico = %s
+                    """, (insegnamenti_autorizzati, anno))
+                    insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
+                    insegnamenti_autorizzati.extend(insegnamenti_correlati)
+                    insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))  # Rimuovi duplicati
+            else:
+                # Se non specificati insegnamenti, mostra solo quelli del docente (senza correlati)
+                insegnamenti_autorizzati = list(insegnamenti_docente.keys())
         
         # Query principale - mostra tutti gli esami degli insegnamenti autorizzati
         if not insegnamenti_autorizzati:

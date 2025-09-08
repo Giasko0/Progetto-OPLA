@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(async data => {
           if (data.success) {
-            currentExamData = data.esame; // Salva i dati per submitModifiedExam e fillGlobalFields
+            currentExamData = data.esame; // Salva i dati per submitModifiedExam e fillGlobalFields            
             await fillFormForEdit(data.esame); // Await per la compilazione asincrona
             return data.esame;
           } else {
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
           // Pulisci selezioni precedenti
           window.InsegnamentiManager.clearSelection();
-          // Seleziona l'insegnamento corretto
+          // Seleziona l'insegnamento corretto con tutti i dati del CdS
           window.InsegnamentiManager.selectInsegnamento(examData.insegnamento_codice, {
             semestre: examData.semestre || 1,
             anno_corso: examData.anno_corso || 1,
@@ -80,10 +80,12 @@ document.addEventListener('DOMContentLoaded', function() {
           });
           const multiSelectBox = document.getElementById("insegnamentoBox");
           if (multiSelectBox) {
-            // Sincronizza l'UI del multi-select
+            // Sincronizza l'UI del multi-select con i dati completi
             window.InsegnamentiManager.syncUI(multiSelectBox, [{
               codice: examData.insegnamento_codice,
-              titolo: examData.insegnamento_titolo // Assicurati che questo campo sia disponibile
+              titolo: examData.insegnamento_titolo,
+              cds_codice: examData.cds_codice,
+              cds_nome: examData.cds_nome
             }]);
           }
         }, 200); // Delay per assicurare che InsegnamentiManager sia pronto

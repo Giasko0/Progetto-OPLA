@@ -58,7 +58,11 @@ const EsameForm = (function() {
   // Gestione modalità modifica
   async function handleEditMode(examId) {
     try {
-      await window.EditEsame.editExam(examId);
+      const examData = await window.EditEsame.editExam(examId);
+      // Controlla se è modalità sola lettura
+      if (examData.is_read_only) {
+        setupReadOnlyMode(examData);
+      }
     } catch (error) {
       hideForm(true, true);
       throw error;
@@ -70,6 +74,9 @@ const EsameForm = (function() {
     const formTitle = formContainer.querySelector(".form-header h2");
     formTitle.textContent = "Aggiungi Esame";
     const esameForm = formContainer.querySelector("#formEsame");
+
+    // Rimuovi eventuali stili di sola lettura rimasti
+    removeReadOnlyMode();
 
     // Reset se necessario
     if (!isAlreadyOpen || !esameForm.dataset.creationInProgress) {
@@ -127,6 +134,43 @@ const EsameForm = (function() {
         element.addEventListener("click", handler);
       }
     });
+  }
+
+  // Setup modalità sola lettura
+  function setupReadOnlyMode(examData) {
+    // Modifica il titolo del form
+    const formTitle = formContainer.querySelector(".form-header h2");
+    if (formTitle) formTitle.textContent = "Visualizza Esame";
+
+    // Disabilita tutti i controlli del form
+    const allInputs = formContainer.querySelectorAll('input, select, textarea, button');
+    allInputs.forEach(input => {
+      if (input.id !== 'closeOverlay') { // Mantieni attivo solo il pulsante di chiusura
+        input.disabled = true;
+        input.style.opacity = '0.7';
+      }
+    });
+
+    // Nascondi i pulsanti di preferenze
+    const preferencesButtons = formContainer.querySelectorAll('#savePreferenceBtn, #loadPreferenceBtn');
+    preferencesButtons.forEach(btn => {
+      if (btn) btn.style.display = 'none';
+    });
+
+    // Nascondi i pulsanti di aggiunta/rimozione sezioni
+    const sectionButtons = formContainer.querySelectorAll('.add-date-btn, .remove-date-btn');
+    sectionButtons.forEach(btn => {
+      if (btn) btn.style.display = 'none';
+    });
+
+    // Rimuovi tutti i pulsanti di azione
+    const formActions = formContainer.querySelector('.form-actions');
+    if (formActions) {
+      formActions.innerHTML = '';
+    }
+
+    // Applica stile visivo per indicare la modalità sola lettura
+    formContainer.classList.add('read-only-mode');
   }
 
   // Inizializza l'interfaccia utente del form
@@ -408,7 +452,8 @@ const EsameForm = (function() {
       delete esameForm.dataset.creationInProgress;
     }
 
-    formContainer.classList.remove('active', 'form-content-area');
+    // Rimuovi la classe read-only-mode quando si chiude il form
+    formContainer.classList.remove('active', 'form-content-area', 'read-only-mode');
     setTimeout(() => formContainer.style.display = 'none', 300);
     
     document.getElementById('calendar').classList.remove('form-visible');
@@ -423,13 +468,39 @@ const EsameForm = (function() {
     }
   }
 
+  // Rimuove gli stili della modalità sola lettura
+  function removeReadOnlyMode() {
+    // Rimuovi la classe read-only-mode
+    formContainer.classList.remove('read-only-mode');
+    
+    // Riabilita tutti i controlli del form
+    const allInputs = formContainer.querySelectorAll('input, select, textarea, button');
+    allInputs.forEach(input => {
+      input.disabled = false;
+      input.style.opacity = '';
+    });
+
+    // Ripristina i pulsanti di preferenze
+    const preferencesButtons = formContainer.querySelectorAll('#savePreferenceBtn, #loadPreferenceBtn');
+    preferencesButtons.forEach(btn => {
+      if (btn) btn.style.display = '';
+    });
+
+    // Ripristina i pulsanti di aggiunta/rimozione sezioni
+    const sectionButtons = formContainer.querySelectorAll('.add-date-btn, .remove-date-btn');
+    sectionButtons.forEach(btn => {
+      if (btn) btn.style.display = '';
+    });
+  }
+
   // API pubblica
   return {
     loadForm,
     showForm,
     hideForm,
     combineTimeValues: combineTimeValuesForAllSections,
-    combineTimeValuesForAllSections
+    combineTimeValuesForAllSections,
+    removeReadOnlyMode
   };
 }());
 

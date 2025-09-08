@@ -261,7 +261,7 @@ def get_exam_template():
             "   - Esempi: 'Portare calcolatrice', 'Prova recupero', 'Sessione straordinaria'",
             "   - Massimo 500 caratteri",
             "",
-            "In caso di problemi o domande, contattare il supporto tecnico all'indirizzo opla.dmi.unipg@gmail.com.",
+            "In caso di problemi o domande, contattare il supporto tecnico all'indirizzo segr-didattica.inf.dmi@unipg.it.",
         ]
         
         for row, istruzione in enumerate(istruzioni, 1):

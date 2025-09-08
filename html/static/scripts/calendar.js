@@ -318,15 +318,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             // Gestione modifica esame esistente
             if (event.id) {
-              // Controlla prima i permessi di modifica
-              const canEdit = await checkEditPermissions(event.id, event.extendedProps?.docente);
-              
-              if (!canEdit.allowed) {
-                window.showMessage(canEdit.message, 'Accesso Negato', 'warning');
-                return;
-              }
-              
-              // Solo se ha i permessi, apri il form
+              // Apri il form
               window.EsameForm?.showForm?.({ id: event.id }, true);
             } else {
               console.error("ID dell'esame non trovato nell'evento:", event);

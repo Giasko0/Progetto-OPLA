@@ -169,6 +169,23 @@
   color: var(--color-text);
 }
 
+/* Stili per modalità sola lettura */
+.read-only-mode .form-body {
+  background-color: #f8f9fa;
+}
+
+.read-only-mode input,
+.read-only-mode select,
+.read-only-mode textarea {
+  background-color: #f5f5f5 !important;
+  cursor: not-allowed !important;
+}
+
+.read-only-mode .date-appello-section {
+  border-color: #6c757d;
+  background-color: #e9ecef;
+}
+
 .form-element {
   margin-bottom: 8px;
 }
