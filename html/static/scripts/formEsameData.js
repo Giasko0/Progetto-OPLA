@@ -484,7 +484,13 @@ const FormEsameData = (function() {
       method: 'POST',
       body: formData
     })
-    .then(response => response.json())
+    .then(async response => {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message);
+      }
+      return response.json();
+    })
     .then(data => {
       if (data.status === 'success') {
         window.FormEsameAutosave?.clearSavedData();
@@ -496,7 +502,7 @@ const FormEsameData = (function() {
       }
     })
     .catch(error => {
-      window.showMessage('Errore di rete durante l\'invio del form', "Errore", "error");
+      window.showMessage(error.message, "Errore", "error");
     });
   }
 

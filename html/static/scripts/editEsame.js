@@ -14,20 +14,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Carica i dettagli di un esame per la modifica
     async function loadExamForEdit(examId) {
       return fetch(`/api/get-esame-by-id?id=${examId}`)
-        .then(response => response.json())
-        .then(async data => {
-          if (data.success) {
-            currentExamData = data.esame; // Salva i dati per submitModifiedExam e fillGlobalFields            
-            await fillFormForEdit(data.esame); // Await per la compilazione asincrona
-            return data.esame;
-          } else {
-            const errorMessage = data.message || 'Esame non trovato o accesso negato';
-            if (window.showMessage) {
-              window.showMessage(errorMessage, "Errore caricamento esame", "error");
-            }
-            throw new Error(errorMessage);
+              .then(async response => {
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message);
+        }
+        return response.json();
+      })
+      .then(async data => {
+        if (data.success) {
+          currentExamData = data.esame;
+          await fillFormForEdit(data.esame);
+          return data.esame;
+        } else {
+          if (window.showMessage) {
+            window.showMessage(data.message, "Errore caricamento esame", "error");
           }
-        });
+          throw new Error(data.message);
+        }
+      });
     }
 
     // Compila il form con i dati dell'esame per la modifica
@@ -317,21 +322,14 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         body: JSON.stringify(examDataFromForm)
       })
-      .then(response => {
+      .then(async response => {
         if (!response.ok) {
-          return response.json().then(errorData => {
-            const errorMessage = errorData.message || `Errore HTTP ${response.status}: ${response.statusText}`;
-            throw new Error(errorMessage);
-          }).catch(parseError => {
-            // Se la risposta non è JSON, usa il messaggio di stato HTTP
-            throw new Error(`Errore HTTP ${response.status}: ${response.statusText}`);
-          });
+          const errorData = await response.json();
+          throw new Error(errorData.message);
         }
-
         return response.json();
       })
       .then(data => {
-
         if (data.success) {
           window.showMessage(data.message, "Successo", "success");
 
@@ -350,14 +348,10 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => location.reload(), 1000);
           }
         } else {
-          const errorMessage = data.message || 'Errore sconosciuto durante la modifica dell\'esame';
-          console.error('Errore dal server nella modifica:', errorMessage);
-          window.showMessage(errorMessage, "Errore modifica esame", "error");
+          window.showMessage(data.message, "Errore modifica esame", "error");
         }
       })
       .catch(error => {
-        console.error('Errore completo nella modifica:', error);
-        console.error('Stack trace:', error.stack);
         window.showMessage(error.message, "Errore modifica esame", "error");
       });
     }
@@ -581,15 +575,11 @@ document.addEventListener('DOMContentLoaded', function() {
         body: formData
       })
       .then(async response => {
-        const data = await response.json();
-        
         if (!response.ok) {
-          // Se il server ha restituito un messaggio di errore, usalo
-          const errorMessage = data.message || `Errore HTTP ${response.status}: ${response.statusText}`;
-          throw new Error(errorMessage);
+          const errorData = await response.json();
+          throw new Error(errorData.message);
         }
-        
-        return data;
+        return response.json();
       })
       .then(data => {
         if (data.status === 'success') {
@@ -617,13 +607,10 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => location.reload(), 1000);
           }
         } else {
-          const errorMessage = data.message || 'Errore sconosciuto durante la duplicazione dell\'esame';
-          console.error('Errore dal server nella duplicazione:', errorMessage);
-          window.showMessage(errorMessage, "Errore duplicazione esame", "error");
+          window.showMessage(data.message, "Errore duplicazione esame", "error");
         }
       })
       .catch(error => {
-        console.error('Errore nella duplicazione degli esami:', error);
         window.showMessage(error.message, "Errore duplicazione esami", "error");
       });
     }
@@ -942,21 +929,14 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         body: JSON.stringify({ id: examId })
       })
-      .then(response => {
+      .then(async response => {
         if (!response.ok) {
-          return response.json().then(errorData => {
-            const errorMessage = errorData.message || `Errore HTTP ${response.status}: ${response.statusText}`;
-            throw new Error(errorMessage);
-          }).catch(parseError => {
-            // Se la risposta non è JSON, usa il messaggio di stato HTTP
-            throw new Error(`Errore HTTP ${response.status}: ${response.statusText}`);
-          });
+          const errorData = await response.json();
+          throw new Error(errorData.message);
         }
-
         return response.json();
       })
       .then(data => {
-
         if (data.success) {
           window.showMessage(data.message, "Successo", "success");
 
@@ -972,14 +952,10 @@ document.addEventListener('DOMContentLoaded', function() {
             window.calendar.refetchEvents();
           }
         } else {
-          const errorMessage = data.message || 'Errore sconosciuto durante l\'eliminazione dell\'esame';
-          console.error('Errore dal server nell\'eliminazione:', errorMessage);
-          window.showMessage(errorMessage, "Errore eliminazione esame", "error");
+          window.showMessage(data.message, "Errore eliminazione esame", "error");
         }
       })
       .catch(error => {
-        console.error('Errore completo nell\'eliminazione:', error);
-        console.error('Stack trace:', error.stack);
         window.showMessage(error.message, "Errore eliminazione esame", "error");
       });
     }

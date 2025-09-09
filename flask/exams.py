@@ -615,103 +615,111 @@ def inserisci_esami(dati_esame):
 @require_auth
 def inserisci_esame():
     """API per inserire esami nel database."""
-    username = session.get('username')
-    
-    # Verifica permessi admin per bypass
-    is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
-    bypass_checks = request.form.get('bypass_checks', 'false').lower() == 'true'
-    
-    # Raccolta e validazione dati
-    dati_esame = genera_dati_esame()
-    if "status" in dati_esame and dati_esame["status"] == "error":
-        return jsonify(dati_esame), 400
-    
-    # Bypass controlli se admin
-    if is_admin and bypass_checks:
+    try:
+        username = session.get('username')
+        
+        # Verifica permessi admin per bypass
+        is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
+        bypass_checks = request.form.get('bypass_checks', 'false').lower() == 'true'
+        
+        # Raccolta e validazione dati
+        dati_esame = genera_dati_esame()
+        if "status" in dati_esame and dati_esame["status"] == "error":
+            return jsonify(dati_esame), 400
+        
+        # Bypass controlli se admin
+        if is_admin and bypass_checks:
+            esami_inseriti = inserisci_esami(dati_esame)
+            return jsonify({
+                'status': 'success',
+                'message': 'Esami inseriti con successo (controlli bypassati)',
+                'inserted': esami_inseriti
+            }), 200
+        
+        # Controlli vincoli
+        vincoli_ok, errore_vincoli = controlla_vincoli(dati_esame)
+        if not vincoli_ok:
+            return jsonify({'status': 'error', 'message': errore_vincoli}), 400
+        
+        # Inserimento
         esami_inseriti = inserisci_esami(dati_esame)
         return jsonify({
             'status': 'success',
-            'message': 'Esami inseriti con successo (controlli bypassati)',
+            'message': 'Tutti gli esami sono stati inseriti con successo',
             'inserted': esami_inseriti
         }), 200
     
-    # Controlli vincoli
-    vincoli_ok, errore_vincoli = controlla_vincoli(dati_esame)
-    if not vincoli_ok:
-        return jsonify({'status': 'error', 'message': errore_vincoli}), 400
-    
-    # Inserimento
-    esami_inseriti = inserisci_esami(dati_esame)
-    return jsonify({
-        'status': 'success',
-        'message': 'Tutti gli esami sono stati inseriti con successo',
-        'inserted': esami_inseriti
-    }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Errore durante l\'inserimento degli esami: {str(e)}'}), 500
 
 @exam_bp.route('/api/get-esame-by-id', methods=['GET'])
 @require_auth
 def get_esame_by_id():
     """Recupera i dettagli di un esame specifico per ID."""
-    exam_id = request.args.get('id')
-    if not exam_id:
-        return jsonify({'success': False, 'message': 'ID esame non fornito'}), 400
+    try:
+        exam_id = request.args.get('id')
+        if not exam_id:
+            return jsonify({'success': False, 'message': 'ID esame non fornito'}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    username = session.get('username', '')
-    is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
-    
-    cursor.execute("""
-    SELECT e.*, i.titolo AS insegnamento_titolo, i.codice AS insegnamento_codice,
-           c.nome_corso AS cds_nome, e.cds AS cds_codice, 
-           CONCAT(u.nome, ' ', u.cognome) AS docente_nome_completo
-    FROM esami e
-    JOIN insegnamenti i ON e.insegnamento = i.id
-    JOIN utenti u ON e.docente = u.username
-    JOIN cds c ON e.cds = c.codice AND e.anno_accademico = c.anno_accademico 
-               AND e.curriculum_codice = c.curriculum_codice
-    WHERE e.id = %s
-    """, (exam_id,))
-    
-    esame = cursor.fetchone()
-    if not esame:
+        username = session.get('username', '')
+        is_admin = session.get('permessi_admin', False) or get_user_admin_status(username)
+        
+        cursor.execute("""
+        SELECT e.*, i.titolo AS insegnamento_titolo, i.codice AS insegnamento_codice,
+               c.nome_corso AS cds_nome, e.cds AS cds_codice, 
+               CONCAT(u.nome, ' ', u.cognome) AS docente_nome_completo
+        FROM esami e
+        JOIN insegnamenti i ON e.insegnamento = i.id
+        JOIN utenti u ON e.docente = u.username
+        JOIN cds c ON e.cds = c.codice AND e.anno_accademico = c.anno_accademico 
+                   AND e.curriculum_codice = c.curriculum_codice
+        WHERE e.id = %s
+        """, (exam_id,))
+        
+        esame = cursor.fetchone()
+        if not esame:
+            cursor.close()
+            release_connection(conn)
+            return jsonify({'success': False, 'message': 'Esame non trovato nel database'}), 404
+
+        # Converti in dizionario
+        columns = [desc[0] for desc in cursor.description]
+        esame_dict = dict(zip(columns, esame))
+
+        # Controllo permessi - ora distinguiamo tra modifica e sola lettura
+        has_edit_permissions = check_user_permissions(esame_dict['docente'], username, is_admin)
+        
+        # Controllo modificabilità (solo se ha i permessi)
+        can_modify = has_edit_permissions and check_exam_modifiable(esame_dict['data_appello'])
+        
+        # Imposta le modalità
+        esame_dict['can_modify'] = can_modify
+        esame_dict['has_edit_permissions'] = has_edit_permissions
+        esame_dict['is_read_only'] = not has_edit_permissions
+        esame_dict['is_edit_mode'] = has_edit_permissions
+        esame_dict['edit_id'] = exam_id
+        
+        # Messaggi informativi
+        if not has_edit_permissions:
+            esame_dict['message'] = "Visualizzazione in sola lettura - Non hai i permessi per modificare questo esame"
+        elif not can_modify:
+            esame_dict['message'] = "L'esame non può essere modificato (meno di 7 giorni)"
+        else:
+            esame_dict['message'] = ""
+
+        # Serializza per JSON
+        for key, value in esame_dict.items():
+            esame_dict[key] = serialize_for_json(value)
+
         cursor.close()
         release_connection(conn)
-        return jsonify({'success': False, 'message': 'Esame non trovato'}), 404
-
-    # Converti in dizionario
-    columns = [desc[0] for desc in cursor.description]
-    esame_dict = dict(zip(columns, esame))
-
-    # Controllo permessi - ora distinguiamo tra modifica e sola lettura
-    has_edit_permissions = check_user_permissions(esame_dict['docente'], username, is_admin)
-    
-    # Controllo modificabilità (solo se ha i permessi)
-    can_modify = has_edit_permissions and check_exam_modifiable(esame_dict['data_appello'])
-    
-    # Imposta le modalità
-    esame_dict['can_modify'] = can_modify
-    esame_dict['has_edit_permissions'] = has_edit_permissions
-    esame_dict['is_read_only'] = not has_edit_permissions
-    esame_dict['is_edit_mode'] = has_edit_permissions
-    esame_dict['edit_id'] = exam_id
-    
-    # Messaggi informativi
-    if not has_edit_permissions:
-        esame_dict['message'] = "Visualizzazione in sola lettura - Non hai i permessi per modificare questo esame"
-    elif not can_modify:
-        esame_dict['message'] = "L'esame non può essere modificato (meno di 7 giorni)"
-    else:
-        esame_dict['message'] = ""
-
-    # Serializza per JSON
-    for key, value in esame_dict.items():
-        esame_dict[key] = serialize_for_json(value)
-
-    cursor.close()
-    release_connection(conn)
-    return jsonify({'success': True, 'esame': esame_dict})
+        return jsonify({'success': True, 'esame': esame_dict})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Errore durante il caricamento dell\'esame: {str(e)}'}), 500
 
 @exam_bp.route('/api/update-esame', methods=['POST'])
 @require_auth
@@ -843,7 +851,7 @@ def update_esame():
         return jsonify({'success': True, 'message': message})
         
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Errore interno del server: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Errore durante l\'aggiornamento dell\'esame: {str(e)}'}), 500
 
 @exam_bp.route('/api/delete-esame', methods=['POST'])
 @require_auth
@@ -893,4 +901,4 @@ def delete_esame():
         return jsonify({'success': True, 'message': 'Esame eliminato con successo'})
         
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Errore interno del server: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Errore durante l\'eliminazione dell\'esame: {str(e)}'}), 500
