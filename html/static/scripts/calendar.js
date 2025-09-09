@@ -131,7 +131,24 @@ document.addEventListener("DOMContentLoaded", async function () {
     window.AnnoAccademicoManager.onYearChange((newYear) => {
       if (calendar) {
         calendar.gotoDate(`${newYear}-12-01`);
+        
+        // Invalida cache insegnamenti per forzare ricaricamento
+        if (window.InsegnamentiManager) {
+          window.InsegnamentiManager.invalidateCache();
+          window.InsegnamentiManager.clearSelection();
+        }
+        
+        // Ricarica date valide e aggiorna dropdown sessioni
+        loadDateValide(currentUsername).then(newDates => {
+          dateValide = newDates;
+          updateSessioniDropdown(dropdowns.sessioni, dateValide);
+        });
+        
+        // Aggiorna calendario e controllo esami minimi
         window.forceCalendarRefresh?.();
+        if (window.checkEsamiMinimi) {
+          window.checkEsamiMinimi();
+        }
       }
     });
 
