@@ -489,6 +489,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 
                 # Controllo conflitto giorno con materie dello stesso CdS/anno/semestre
                 # Non deve essere possibile inserire due esami nello stesso giorno per lo stesso CdS/anno/semestre
+                # ESCLUSI: esami del docente autenticato, insegnamento corrente e insegnamenti per cui il docente è abilitato
                 cursor.execute("""
                     SELECT DISTINCT i.titolo, e.ora_appello
                     FROM esami e
@@ -502,9 +503,16 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     AND ic1.anno_corso = ic2.anno_corso
                     AND ic1.semestre = ic2.semestre
                     AND e.anno_accademico = %s
+                    AND e.docente != %s
+                    AND NOT EXISTS (
+                        SELECT 1 FROM insegnamento_docente id2
+                        WHERE id2.insegnamento = e.insegnamento
+                        AND id2.docente = %s
+                        AND id2.annoaccademico = %s
+                    )
                 """ + (" AND e.id != %s" if exam_id_to_exclude else ""),
                 [insegnamento_id, anno_accademico, data_appello, 
-                 insegnamento_id, anno_accademico] + 
+                 insegnamento_id, anno_accademico, docente_form, docente_form, anno_accademico] + 
                 ([exam_id_to_exclude] if exam_id_to_exclude else []))
                 
                 conflicting_exams = cursor.fetchall()
