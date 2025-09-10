@@ -169,6 +169,22 @@ const EsameForm = (function() {
       formActions.innerHTML = '';
     }
 
+    // Gestisci il campo insegnamento in modalità sola lettura
+    const multiSelectBox = document.getElementById("insegnamentoBox");
+    const dropdownElement = document.getElementById("insegnamentoDropdown");
+    
+    if (multiSelectBox) {
+      multiSelectBox.classList.add('disabled');
+      multiSelectBox.style.pointerEvents = 'none';
+      multiSelectBox.style.opacity = '0.7';
+      multiSelectBox.style.color = '#000000';
+      multiSelectBox.title = 'Campo non modificabile in modalità visualizzazione';
+    }
+    
+    if (dropdownElement) {
+      dropdownElement.style.display = 'none';
+    }
+
     // Applica stile visivo per indicare la modalità sola lettura
     formContainer.classList.add('read-only-mode');
   }
@@ -212,6 +228,12 @@ const EsameForm = (function() {
 
   // Inizializza gestione insegnamenti
   function initInsegnamenti() {
+    // Se siamo in modalità edit e l'insegnamento è già bloccato, non inizializzare InsegnamentiManager
+    const multiSelectBox = document.getElementById("insegnamentoBox");
+    if (isEditMode && multiSelectBox && multiSelectBox.classList.contains('disabled')) {
+      return; // Non inizializzare InsegnamentiManager se il campo è bloccato
+    }
+    
     const boxElement = document.getElementById("insegnamentoBox");
     const dropdownElement = document.getElementById("insegnamentoDropdown");
     const optionsElement = document.getElementById("insegnamentoOptions");
@@ -491,6 +513,25 @@ const EsameForm = (function() {
     sectionButtons.forEach(btn => {
       if (btn) btn.style.display = '';
     });
+
+    // Ripristina il campo insegnamento se era in modalità read-only
+    const multiSelectBox = document.getElementById("insegnamentoBox");
+    const dropdownElement = document.getElementById("insegnamentoDropdown");
+    
+    if (multiSelectBox && multiSelectBox.classList.contains('disabled')) {
+      multiSelectBox.classList.remove('disabled');
+      multiSelectBox.style.pointerEvents = '';
+      multiSelectBox.style.opacity = '';
+      multiSelectBox.style.color = '';
+      multiSelectBox.title = '';
+      
+      // Ripristina il placeholder iniziale
+      multiSelectBox.innerHTML = '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
+    }
+    
+    if (dropdownElement) {
+      dropdownElement.style.display = '';
+    }
   }
 
   // API pubblica

@@ -72,28 +72,39 @@ document.addEventListener('DOMContentLoaded', function() {
       const docenteField = document.getElementById('docente');
       if (docenteField && examData.docente) docenteField.value = examData.docente;
 
-      // Insegnamento
-      if (window.InsegnamentiManager && examData.insegnamento_codice) {
-        setTimeout(() => {
-          // Pulisci selezioni precedenti
-          window.InsegnamentiManager.clearSelection();
-          // Seleziona l'insegnamento corretto con tutti i dati del CdS
-          window.InsegnamentiManager.selectInsegnamento(examData.insegnamento_codice, {
-            semestre: examData.semestre || 1,
-            anno_corso: examData.anno_corso || 1,
-            cds: examData.cds_codice || ""
-          });
-          const multiSelectBox = document.getElementById("insegnamentoBox");
-          if (multiSelectBox) {
-            // Sincronizza l'UI del multi-select con i dati completi
-            window.InsegnamentiManager.syncUI(multiSelectBox, [{
-              codice: examData.insegnamento_codice,
-              titolo: examData.insegnamento_titolo,
-              cds_codice: examData.cds_codice,
-              cds_nome: examData.cds_nome
-            }]);
-          }
-        }, 200); // Delay per assicurare che InsegnamentiManager sia pronto
+      // Insegnamento - mostra l'insegnamento ma bloccalo per la modifica
+      if (examData.insegnamento_codice && examData.insegnamento_titolo) {
+        const multiSelectBox = document.getElementById("insegnamentoBox");
+        const dropdownElement = document.getElementById("insegnamentoDropdown");
+        
+        if (multiSelectBox) {
+          // Mostra l'insegnamento dell'esame in modalità sola lettura
+          const cdsText = examData.cds_nome && examData.cds_codice 
+            ? ` (${examData.cds_nome} - ${examData.cds_codice})` 
+            : '';
+          
+          multiSelectBox.innerHTML = `
+            <div class="multi-select-tag readonly-tag" style="background-color: #f0f0f0; border: 1px solid #ccc; cursor: not-allowed; color: #000000;">
+              ${examData.insegnamento_titolo}${cdsText}
+            </div>
+          `;
+          
+          // Disabilita il multi-select per impedire modifiche
+          multiSelectBox.classList.add('disabled');
+          multiSelectBox.style.pointerEvents = 'none';
+          multiSelectBox.style.opacity = '0.7';
+          
+          // Aggiungi tooltip per spiegare perché è disabilitato
+          multiSelectBox.title = "L'insegnamento non può essere modificato durante la modifica di un esame esistente";
+        }
+        
+        // Nascondi il dropdown per impedire la selezione
+        if (dropdownElement) {
+          dropdownElement.style.display = 'none';
+        }
+        
+        // NON aggiungere l'insegnamento a InsegnamentiManager per evitare interferenze
+        // L'insegnamento viene gestito direttamente nei dati del form
       }
     }
 
@@ -389,16 +400,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return {
         // Campi globali (presi da currentExamData o dal form se modificabili globalmente)
         docente: document.getElementById('docente')?.value || currentExamData.docente,
-        // L'insegnamento è più complesso da raccogliere qui, di solito non cambia in modifica esame singolo
-        // Se dovesse cambiare, andrebbe gestito tramite InsegnamentiManager.getSelectedInsegnamenti()
-        // Per ora, assumiamo che l'insegnamento non cambi o sia gestito a livello superiore.
-        // Se l'insegnamento è un array di codici:
-        // insegnamento_codice: window.InsegnamentiManager ? window.InsegnamentiManager.getSelectedInsegnamenti()[0] : currentExamData.insegnamento_codice,
-        // Se è un singolo codice:
-        insegnamento_codice: window.InsegnamentiManager && window.InsegnamentiManager.getSelectedInsegnamenti().length > 0
-                            ? window.InsegnamentiManager.getSelectedInsegnamenti()[0].codice // Assumendo che getSelectedInsegnamenti restituisca oggetti {codice, titolo}
-                            : currentExamData.insegnamento_codice,
-
+        // L'insegnamento è bloccato in modifica, quindi usa sempre quello dell'esame corrente
+        insegnamento_codice: currentExamData.insegnamento_codice,
 
         // Campi specifici della sezione
         descrizione: getFieldValue('descrizione'),
