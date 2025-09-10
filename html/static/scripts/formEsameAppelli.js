@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div class="form-element">
                 <label for="tipoEsame_COUNTER_PLACEHOLDER">Tipo esame</label>
                 <select id="tipoEsame_COUNTER_PLACEHOLDER" name="tipoEsame[]" class="form-input">
-                  <option value="" disabled selected hidden>Non definito</option>
+                  <option value="" selected>Non definito</option>
                   <option value="S">Scritto</option>
                   <option value="O">Orale</option>
                   <option value="SO">Scritto e orale</option>

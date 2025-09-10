@@ -415,7 +415,7 @@ def import_exams_from_file():
                 
                 # Conversione valori user-friendly
                 verbalizzazione = verbalizzazione_map.get(verbalizzazione_friendly, "FSS")
-                tipo_esame = tipo_esame_map.get(tipo_esame_friendly, "S") 
+                tipo_esame = tipo_esame_map.get(tipo_esame_friendly, None) 
                 tipo_appello = tipo_appello_map.get(verbalizzazione_friendly, "PF")
                 
                 # Appello ufficiale
@@ -484,7 +484,7 @@ def import_exams_from_file():
                         'note_appello': note or "",
                         'tipo_appello': tipo_appello,
                         'mostra_nel_calendario': mostra_calendario,
-                        'tipo_iscrizione': "SOC" if tipo_esame == "SO" else tipo_esame,
+                        'tipo_iscrizione': "SOC" if tipo_esame == "SO" else (tipo_esame if tipo_esame else None),
                         'definizione_appello': 'STD',
                         'gestione_prenotazione': 'STD',
                         'riservato': False,
