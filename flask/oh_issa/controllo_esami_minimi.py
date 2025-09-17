@@ -1,10 +1,6 @@
-from flask import Blueprint, request, jsonify, Response, session
+from flask import Blueprint, request, jsonify, session
 from db import get_db_connection, release_connection
 from psycopg2.extras import DictCursor
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from openpyxl.utils import get_column_letter
-from io import BytesIO
 import logging
 
 controllo_esami_minimi_bp = Blueprint('controllo_esami_minimi', __name__, url_prefix='/api/oh-issa')
@@ -79,7 +75,24 @@ def controlla_esami_minimi():
         target_result = cursor.fetchone()
         target_esami = target_result['target_esami']
         
-        # Query base per ottenere tutti gli insegnamenti dell'anno
+        # Ottieni le sessioni per l'anno accademico
+        cursor.execute("""
+            SELECT tipo_sessione, MIN(inizio) as inizio, MAX(fine) as fine
+            FROM sessioni
+            WHERE anno_accademico = %s
+            GROUP BY tipo_sessione
+            ORDER BY 
+                CASE tipo_sessione 
+                    WHEN 'anticipata' THEN 1
+                    WHEN 'estiva' THEN 2 
+                    WHEN 'autunnale' THEN 3
+                    WHEN 'invernale' THEN 4
+                END
+        """, (anno,))
+        
+        sessioni = cursor.fetchall()
+        
+        # Query base per ottenere tutti gli insegnamenti dell'anno con conteggio esami per sessione
         base_query = """
             SELECT 
                 i.id as insegnamento_id,
@@ -90,10 +103,26 @@ def controlla_esami_minimi():
                 ic.curriculum_codice,
                 ic.anno_corso,
                 ic.semestre,
-                COUNT(CASE WHEN e.mostra_nel_calendario = TRUE AND e.tipo_appello != 'PP' THEN e.id END) as numero_esami,
+                COUNT(CASE WHEN e.mostra_nel_calendario = TRUE THEN e.id END) as numero_esami,
                 u.username as docente_username,
                 u.nome as docente_nome,
                 u.cognome as docente_cognome
+        """
+        
+        # Aggiungi conteggio per ogni sessione
+        for sessione in sessioni:
+            tipo = sessione['tipo_sessione']
+            inizio = sessione['inizio']
+            fine = sessione['fine']
+            base_query += f""",
+                COUNT(CASE 
+                    WHEN e.mostra_nel_calendario = TRUE 
+                    AND e.data_appello BETWEEN %s AND %s
+                    THEN e.id 
+                END) as esami_{tipo}
+            """
+        
+        base_query += """
             FROM insegnamenti i
             JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
             JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
@@ -103,7 +132,11 @@ def controlla_esami_minimi():
             WHERE ic.anno_accademico = %s
         """
         
-        params = [anno, anno, anno]
+        # Prepara i parametri includendo le date delle sessioni
+        params = []
+        for sessione in sessioni:
+            params.extend([sessione['inizio'], sessione['fine']])
+        params.extend([anno, anno, anno])
         
         # Aggiungi filtri se specificati
         if cds_filter:
@@ -130,6 +163,11 @@ def controlla_esami_minimi():
             ins_key = f"{row['insegnamento_id']}_{row['cds_codice']}_{row['curriculum_codice']}"
             
             if ins_key not in insegnamenti_dict:
+                esami_per_sessione = {}
+                for sessione in sessioni:
+                    tipo = sessione['tipo_sessione']
+                    esami_per_sessione[tipo] = row[f'esami_{tipo}']
+                
                 insegnamenti_dict[ins_key] = {
                     'id': row['insegnamento_id'],
                     'codice': row['insegnamento_codice'],
@@ -140,6 +178,7 @@ def controlla_esami_minimi():
                     'anno_corso': row['anno_corso'],
                     'semestre': row['semestre'],
                     'numero_esami': row['numero_esami'],
+                    'esami_per_sessione': esami_per_sessione,
                     'docenti': []
                 }
             
@@ -168,6 +207,7 @@ def controlla_esami_minimi():
             'cds_filter': cds_filter,
             'docente_filter': docente_filter,
             'target_esami': target_esami,
+            'sessioni': [{'tipo': s['tipo_sessione'], 'inizio': s['inizio'].isoformat(), 'fine': s['fine'].isoformat()} for s in sessioni],
             'statistiche': {
                 'totale_insegnamenti': total,
                 'conformi': conformi,
@@ -187,186 +227,3 @@ def controlla_esami_minimi():
             cursor.close()
         if 'conn' in locals() and conn:
             release_connection(conn)
-
-@controllo_esami_minimi_bp.route('/esporta-controllo-esami-minimi')
-def esporta_controllo_esami_minimi():
-    """Esporta il report di controllo esami minimi in formato Excel"""
-    if not session.get('permessi_admin'):
-        return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
-    
-    anno = request.args.get('anno')
-    cds_filter = request.args.get('cds')
-    docente_filter = request.args.get('docente')
-    
-    if not anno:
-        return jsonify({'error': 'Anno accademico non specificato'}), 400
-    
-    try:
-        # Ottieni i dati utilizzando la stessa logica dell'endpoint di controllo
-        params = {'anno': anno}
-        if cds_filter:
-            params['cds'] = cds_filter
-        if docente_filter:
-            params['docente'] = docente_filter
-        
-        # Simula la chiamata interna
-        from flask import g
-        g.simulate_request = True
-        
-        with controllo_esami_minimi_bp.test_request_context(query_string=params):
-            # Richiama la funzione di controllo direttamente
-            response_data = controlla_esami_minimi()
-            if isinstance(response_data, tuple):
-                data = response_data[0].get_json()
-            else:
-                data = response_data.get_json()
-        
-        if 'error' in data:
-            return jsonify({'error': data['error']}), 500
-        
-        # Crea il workbook Excel
-        workbook = Workbook()
-        sheet = workbook.active
-        sheet.title = f"Controllo Esami Minimi {anno}"
-        
-        # Stili
-        header_font = Font(bold=True, size=12, name="Arial")
-        title_font = Font(bold=True, size=14, name="Arial")
-        normal_font = Font(size=10, name="Arial")
-        center_alignment = Alignment(horizontal='center', vertical='center')
-        left_alignment = Alignment(horizontal='left', vertical='center')
-        
-        thin_border = Border(
-            left=Side(style='thin'), right=Side(style='thin'),
-            top=Side(style='thin'), bottom=Side(style='thin')
-        )
-        
-        header_fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
-        conforme_fill = PatternFill(start_color="D4EDDA", end_color="D4EDDA", fill_type="solid")
-        non_conforme_fill = PatternFill(start_color="F8D7DA", end_color="F8D7DA", fill_type="solid")
-        
-        # Titolo del report
-        current_row = 1
-        title_cell = sheet.cell(row=current_row, column=1, value=f"CONTROLLO ESAMI MINIMI - A.A. {anno}/{anno+1}")
-        title_cell.font = title_font
-        title_cell.alignment = center_alignment
-        sheet.merge_cells(f'A{current_row}:G{current_row}')
-        current_row += 2
-        
-        # Informazioni filtri
-        if cds_filter or docente_filter:
-            filter_text = "Filtri applicati: "
-            if cds_filter:
-                filter_text += f"CdS: {cds_filter} "
-            if docente_filter:
-                filter_text += f"Docente: {docente_filter}"
-            
-            filter_cell = sheet.cell(row=current_row, column=1, value=filter_text)
-            filter_cell.font = normal_font
-            sheet.merge_cells(f'A{current_row}:G{current_row}')
-            current_row += 2
-        
-        # Statistiche riassuntive
-        stats = data['statistiche']
-        stats_data = [
-            ["Totale Insegnamenti:", stats['totale_insegnamenti']],
-            ["Conformi (≥8 esami):", stats['conformi']],
-            ["Non Conformi (<8 esami):", stats['non_conformi']],
-            ["Percentuale Conformi:", f"{stats['percentuale_conformi']}%"]
-        ]
-        
-        for stat_label, stat_value in stats_data:
-            sheet.cell(row=current_row, column=1, value=stat_label).font = header_font
-            sheet.cell(row=current_row, column=2, value=stat_value).font = normal_font
-            current_row += 1
-        
-        current_row += 2
-        
-        # Header della tabella
-        headers = ["CdS", "Insegnamento", "Codice", "Docenti", "Anno", "Sem.", "Esami", "Status"]
-        for col_num, header in enumerate(headers, 1):
-            cell = sheet.cell(row=current_row, column=col_num, value=header)
-            cell.font = header_font
-            cell.alignment = center_alignment
-            cell.fill = header_fill
-            cell.border = thin_border
-        
-        current_row += 1
-        
-        # Raggruppa per CdS
-        insegnamenti_per_cds = {}
-        for ins in data['insegnamenti']:
-            cds_key = f"{ins['cds_codice']} - {ins['cds_nome']}"
-            if cds_key not in insegnamenti_per_cds:
-                insegnamenti_per_cds[cds_key] = []
-            insegnamenti_per_cds[cds_key].append(ins)
-        
-        # Popola i dati
-        for cds_name in sorted(insegnamenti_per_cds.keys()):
-            insegnamenti = insegnamenti_per_cds[cds_name]
-            
-            # Ordina per numero esami (crescente) e poi per titolo
-            insegnamenti.sort(key=lambda x: (x['numero_esami'], x['titolo']))
-            
-            for ins in insegnamenti:
-                docenti_text = ", ".join([f"{d['cognome']} {d['nome']}" for d in ins['docenti']]) if ins['docenti'] else "Nessun docente"
-                is_conforme = ins['numero_esami'] >= 8
-                status_text = "✓ Conforme" if is_conforme else "⚠ Non conforme"
-                
-                row_data = [
-                    ins['cds_codice'],
-                    ins['titolo'],
-                    ins['codice'],
-                    docenti_text,
-                    ins['anno_corso'],
-                    ins['semestre'],
-                    ins['numero_esami'],
-                    status_text
-                ]
-                
-                # Applica il colore di sfondo in base alla conformità
-                fill_color = conforme_fill if is_conforme else non_conforme_fill
-                
-                for col_num, value in enumerate(row_data, 1):
-                    cell = sheet.cell(row=current_row, column=col_num, value=value)
-                    cell.font = normal_font
-                    cell.border = thin_border
-                    cell.fill = fill_color
-                    
-                    if col_num in [1, 5, 6, 7]:  # CdS, Anno, Semestre, Esami - centra
-                        cell.alignment = center_alignment
-                    else:
-                        cell.alignment = left_alignment
-                
-                current_row += 1
-        
-        # Imposta larghezza colonne
-        column_widths = [10, 50, 15, 40, 8, 8, 10, 15]
-        for col_num, width in enumerate(column_widths, 1):
-            sheet.column_dimensions[get_column_letter(col_num)].width = width
-        
-        # Genera il file
-        output = BytesIO()
-        workbook.save(output)
-        output.seek(0)
-        
-        # Nome file
-        filename = f"controllo_esami_minimi_{anno}"
-        if cds_filter:
-            filename += f"_{cds_filter}"
-        if docente_filter:
-            filename += f"_{docente_filter}"
-        filename += ".xlsx"
-        
-        return Response(
-            output.getvalue(),
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            headers={
-                'Content-Disposition': f'attachment; filename="{filename}"',
-                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            }
-        )
-        
-    except Exception as e:
-        logging.error(f"Errore durante l'esportazione controllo esami: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Errore interno del server: {str(e)}"}), 500

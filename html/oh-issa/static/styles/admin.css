@@ -1566,3 +1566,79 @@ small.form-text {
     font-size: 0.875rem;
     color: #6c757d;
 }
+
+/* Stili per le colonne delle sessioni nel controllo esami minimi */
+.sessione-header {
+  background-color: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+  text-align: center;
+  min-width: 80px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.sessione-count {
+  text-align: center;
+  font-weight: 500;
+  padding: 8px;
+  vertical-align: middle;
+}
+
+/* Miglioramenti per la tabella insegnamenti con colonne sessioni */
+.insegnamenti-table-container {
+  overflow-x: auto;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.insegnamenti-table {
+  table-layout: auto;
+  width: 100%;
+  min-width: 800px; /* Assicura spazio sufficiente per tutte le colonne */
+}
+
+.insegnamenti-table th:first-child,
+.insegnamenti-table td:first-child {
+  min-width: 200px;
+  max-width: 300px;
+}
+
+/* Responsive per le tabelle con molte colonne */
+@media (max-width: 1024px) {
+  .insegnamenti-table {
+    font-size: 0.85rem;
+  }
+  
+  .sessione-header {
+    min-width: 60px;
+    font-size: 0.9rem;
+  }
+  
+  .sessione-count {
+    padding: 6px;
+  }
+}
+
+@media (max-width: 768px) {
+  .insegnamenti-table {
+    font-size: 0.8rem;
+  }
+  
+  .insegnamenti-table th,
+  .insegnamenti-table td {
+    padding: 0.5rem;
+  }
+  
+  .sessione-header {
+    min-width: 50px;
+    font-size: 0.8rem;
+  }
+  
+  .insegnamento-info .titolo {
+    font-size: 0.9rem;
+  }
+  
+  .insegnamento-info .codice {
+    font-size: 0.75rem;
+  }
+}

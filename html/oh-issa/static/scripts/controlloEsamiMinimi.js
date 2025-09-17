@@ -170,6 +170,15 @@ function createCdsReportSection(cdsName, insegnamenti) {
     const conformi = insegnamenti.filter(ins => ins.numero_esami >= targetEsami).length;
     const nonConformi = insegnamenti.length - conformi;
     
+    // Crea header delle colonne sessioni
+    let sessionHeaders = '';
+    if (reportData.sessioni) {
+        reportData.sessioni.forEach(sessione => {
+            const tipoCapitalized = sessione.tipo.charAt(0).toUpperCase() + sessione.tipo.slice(1);
+            sessionHeaders += `<th class="sessione-header">${tipoCapitalized}</th>`;
+        });
+    }
+    
     section.innerHTML = `
         <div class="cds-header">
             <h2>${cdsName}</h2>
@@ -184,7 +193,8 @@ function createCdsReportSection(cdsName, insegnamenti) {
                     <tr>
                         <th>Insegnamento</th>
                         <th>Docenti</th>
-                        <th>Esami Inseriti</th>
+                        <th>Totale Esami</th>
+                        ${sessionHeaders}
                         <th>Status</th>
                         <th>Mancanti</th>
                     </tr>
@@ -226,6 +236,15 @@ function createInsegnamentoRow(insegnamento, targetEsami) {
     const statusText = isConforme ? '✓ Conforme' : '⚠ Non conforme';
     const mancantiText = isConforme ? '-' : (targetEsami - insegnamento.numero_esami).toString();
     
+    // Crea celle per le sessioni
+    let sessionCells = '';
+    if (reportData.sessioni && insegnamento.esami_per_sessione) {
+        reportData.sessioni.forEach(sessione => {
+            const count = insegnamento.esami_per_sessione[sessione.tipo] || 0;
+            sessionCells += `<td class="sessione-count">${count}</td>`;
+        });
+    }
+    
     row.innerHTML = `
         <td>
             <div class="insegnamento-info">
@@ -235,6 +254,7 @@ function createInsegnamentoRow(insegnamento, targetEsami) {
         </td>
         <td class="docenti">${docentiText}</td>
         <td class="numero-esami">${insegnamento.numero_esami}</td>
+        ${sessionCells}
         <td class="status ${isConforme ? 'conforme' : 'non-conforme'}">${statusText}</td>
         <td class="mancanti">${mancantiText}</td>
     `;
