@@ -28,7 +28,7 @@ def upload_ugov():
     
     # Leggi il file Excel
     workbook = xlrd.open_workbook(file_contents=file.read())
-    sheet = workbook.sheet_by_index(0)  # Assumiamo che i dati siano nel primo foglio
+    sheet = workbook.sheet_by_index(0)  # Foglio "Insegnamenti e coperture"
     
     # Dizionari per tenere traccia degli elementi già elaborati
     insegnamenti_set = set()
@@ -47,13 +47,15 @@ def upload_ugov():
       'cod_insegnamento': 15,                    # P - Cod. Insegnamento
       'des_insegnamento': 16,                    # Q - Des. Insegnamento
       'anno_corso': 28,                          # AC - Anno Corso Insegnamento
+      'cfu_insegnamento': 29,                    # AD - Peso Insegnamento
       'des_periodo_insegnamento': 39,            # AN - Des. Periodo Insegnamento
       'matricola_titolare': 55,                  # BD - Matricola Resp. Did. Insegnamento
+      'af_master_insegnamento': 60,              # BI - AF Master Insegnamento
       'des_raggruppamento_insegnamento': 63,     # BL - Des. Raggruppamento Insegnamento
       'id_unita_didattica': 65,                  # BN - Id. Unità Didattica
       'cod_unita_didattica': 66,                 # BO - Cod. Unità Didattica
       'des_unita_didattica': 67,                 # BP - Des. Unità Didattica
-      'des_periodo_unita_didattica': 80,         # CC - Des. Periodo Unità Didattica
+      'af_master_unita_didattica': 99,           # CT - AF Master Unità Didattica
       'des_raggruppamento_unita_didattica': 100, # CW - Des. Raggruppamento Unità Didattica
       'matricola_docente': 105,                  # DB - Matricola Docente
       'cognome_docente': 106,                    # DC - Cognome Docente
@@ -76,13 +78,15 @@ def upload_ugov():
         'COD. INSEGNAMENTO': 'cod_insegnamento',
         'DES. INSEGNAMENTO': 'des_insegnamento',
         'ANNO CORSO': 'anno_corso',
+        'PESO INSEGNAMENTO': 'cfu_insegnamento',
         'DES. PERIODO INSEGNAMENTO': 'des_periodo_insegnamento',
         'MATRICOLA RESP. DID. INSEGNAMENTO': 'matricola_titolare',
+        'AF MASTER INSEGNAMENTO': 'af_master_insegnamento',
         'DES. RAGGRUPPAMENTO INSEGNAMENTO': 'des_raggruppamento_insegnamento',
         'ID UNITÀ DIDATTICA': 'id_unita_didattica',
         'COD. UNITÀ DIDATTICA': 'cod_unita_didattica',
         'DES. UNITÀ DIDATTICA': 'des_unita_didattica',
-        'DES. PERIODO UNITÀ DIDATTICA': 'des_periodo_unita_didattica',
+        'AF MASTER UNITÀ DIDATTICA': 'af_master_unita_didattica',
         'DES. RAGGRUPPAMENTO UNITÀ DIDATTICA': 'des_raggruppamento_unita_didattica',
         'MATRICOLA DOCENTE': 'matricola_docente',
         'COGNOME DOCENTE': 'cognome_docente',
@@ -110,154 +114,270 @@ def upload_ugov():
       'Secondo Semestre': 2,
       'Annuale': 3
     }
-    # Valore predefinito per annuale 
     default_semestre = 3  # 3 = annuale
     
-    # Dizionario per mappare codici insegnamento ai loro ID
-    codice_to_id = {}
+    # Funzione helper per estrarre informazioni master da stringa di raggruppamento
+    def estrai_info_master(raggruppamento_str):
+        import re
+        if not raggruppamento_str:
+            return None
+        
+        # Cerca pattern completo "Mutua da: Af CODICE Cds CDS_CODE Reg ANNO Pds CURRICULUM"
+        match = re.search(r'Mutua\s+da:\s+Af\s+([A-Z0-9]+)\s+Cds\s+([A-Z0-9]+)(?:\s+Reg\s+\d+)?\s+Pds\s+([A-Z0-9]+)', raggruppamento_str, re.IGNORECASE)
+        if match:
+            return {
+                'codice': match.group(1),
+                'cds': match.group(2), 
+                'curriculum': match.group(3)
+            }
+        return None
     
-    # Prima fase: raccogliamo la mappatura codice -> id
+    # Prima fase: raccogliamo tutti i dati dal file
+    righe_dati = []
     for row_idx in range(1, sheet.nrows):
-      try:
-        cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_insegnamento'])).strip()
-        id_insegnamento_raw = sheet.cell_value(row_idx, colonna_indices['id_insegnamento'])
-        id_insegnamento = str(id_insegnamento_raw).replace('.0', '') if id_insegnamento_raw else ""
-        
-        # Mappatura codice -> id solo per gli insegnamenti principali
-        if cod_insegnamento and id_insegnamento:
-            codice_to_id[cod_insegnamento] = id_insegnamento
-            
-      except Exception as e:
-        continue
-    
-    # Fase finale: elaborazione delle righe e inserimento dei dati
-    for row_idx in range(1, sheet.nrows):
-      try:
-        # Estrai il docente prima di tutto
-        username_docente = str(sheet.cell_value(row_idx, colonna_indices['username_docente'])).strip()
-        
-        # Ignoriamo le righe senza docente
-        if not username_docente:
-          continue
-        
-        # Estrai i valori dalle colonne
-        anno_accademico = int(float(sheet.cell_value(row_idx, colonna_indices['anno_accademico'])))
-        
-        # Estrai l'anno del corso
         try:
-          anno_corso_raw = sheet.cell_value(row_idx, colonna_indices['anno_corso'])
-          anno_corso = int(float(anno_corso_raw)) if anno_corso_raw else 1
-        except:
-          anno_corso = 1  # Valore predefinito se c'è un errore
-        
-        cod_cds = str(sheet.cell_value(row_idx, colonna_indices['cod_cds'])).strip()
-        des_cds = str(sheet.cell_value(row_idx, colonna_indices['des_cds'])).strip()
-        cod_curriculum = str(sheet.cell_value(row_idx, colonna_indices['cod_curriculum'])).strip()
-        des_curriculum = str(sheet.cell_value(row_idx, colonna_indices['des_curriculum'])).strip()
-        
-        # Gestione degli ID e codici insegnamento
-        cod_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['cod_insegnamento'])).strip()
-        id_insegnamento_raw = sheet.cell_value(row_idx, colonna_indices['id_insegnamento'])
-        id_insegnamento = str(id_insegnamento_raw).replace('.0', '') if id_insegnamento_raw else ""
-        
-        # Verifica se esiste un'unità didattica (modulo)
-        id_unita_didattica_raw = sheet.cell_value(row_idx, colonna_indices['id_unita_didattica'])
-        id_unita_didattica = str(id_unita_didattica_raw).replace('.0', '') if id_unita_didattica_raw else ""
-        
-        # Verifica se è mutuato (presenza di "MUTUAT" nelle colonne BL o CW)
-        des_raggruppamento_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento_insegnamento'])).strip()
-        des_raggruppamento_unita_didattica = str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento_unita_didattica'])).strip()
-        
-        is_mutuato = ("MUTUAT" in des_raggruppamento_insegnamento.upper() or 
-                      "MUTUAT" in des_raggruppamento_unita_didattica.upper())
-        
-        # LOGICA SEMPLIFICATA:
-        # 1. Se ha id_unita_didattica (colonna BN), è un modulo -> usa sempre l'insegnamento padre
-        # 2. Se è mutuato -> ignora completamente questa riga
-        # 3. Altrimenti usa l'insegnamento normale
-        
-        if is_mutuato:
-          # Ignora completamente gli insegnamenti mutuati
-          continue
-        
-        if id_unita_didattica:
-          # È un modulo -> usa sempre l'insegnamento padre
-          if not cod_insegnamento or not id_insegnamento:
-            continue  # Non possiamo procedere senza l'insegnamento padre
-          
-          id_effettivo = id_insegnamento
-          codice_effettivo = cod_insegnamento
-        else:
-          # È un insegnamento normale
-          if not cod_insegnamento or not id_insegnamento:
-            continue  # Non possiamo procedere senza l'insegnamento
-            
-          id_effettivo = id_insegnamento
-          codice_effettivo = cod_insegnamento
-        
-        des_insegnamento = str(sheet.cell_value(row_idx, colonna_indices['des_insegnamento'])).strip()
-        descrizione_effettiva = des_insegnamento
-        
-        # Estrai periodo/semestre
-        des_periodo = ""
-        if id_unita_didattica:
-            # Per i moduli, usa il periodo dell'unità didattica
-            des_periodo_raw = sheet.cell_value(row_idx, colonna_indices['des_periodo_unita_didattica'])
-        else:
-            # Per gli insegnamenti normali, usa il periodo dell'insegnamento
-            des_periodo_raw = sheet.cell_value(row_idx, colonna_indices['des_periodo_insegnamento'])
-        des_periodo = str(des_periodo_raw).strip() if des_periodo_raw else ""
-        semestre = periodo_to_semestre.get(des_periodo, default_semestre)
-        
-        # Estrai dati docente
-        matricola_docente = str(sheet.cell_value(row_idx, colonna_indices['matricola_docente'])).strip()
-        cognome_docente = str(sheet.cell_value(row_idx, colonna_indices['cognome_docente'])).strip()
-        nome_docente = str(sheet.cell_value(row_idx, colonna_indices['nome_docente'])).strip()
-        
-        # Estrai matricola del titolare/responsabile didattico
-        matricola_titolare = sheet.cell_value(row_idx, colonna_indices['matricola_titolare']).strip()
-        if matricola_titolare == "" or matricola_titolare is None:
-          matricola_titolare = matricola_docente
-        
-        # Aggiungi CdS se non già presente
-        cds_key = (cod_cds, anno_accademico, cod_curriculum)
-        if cds_key not in cds_set:
-          cds_data.append((cod_cds, anno_accademico, des_cds, cod_curriculum, des_curriculum))
-          cds_set.add(cds_key)
-        
-        # Aggiungi insegnamento se non già presente
-        if id_effettivo not in insegnamenti_set:
-          insegnamenti_data.append((id_effettivo, codice_effettivo, descrizione_effettiva))
-          insegnamenti_set.add(id_effettivo)
-        
-        # Aggiungi insegnamento_cds se non già presente
-        insegnamenti_cds_key = (id_effettivo, anno_accademico, cod_cds, cod_curriculum)
-        if insegnamenti_cds_key not in cds_set:
-          insegnamenti_cds_data.append((
-            id_effettivo, 
-            anno_accademico, 
-            cod_cds, 
-            cod_curriculum,
-            anno_corso, 
-            semestre,
-            matricola_titolare
-          ))
-          cds_set.add(insegnamenti_cds_key)
-        
-        # Aggiungi utente se non già presente
-        if username_docente not in utenti_set:
-          utenti_data.append((username_docente, matricola_docente, nome_docente, cognome_docente, False))
-          utenti_set.add(username_docente)
-        
-        # Aggiungi insegnamento_docente
-        insegnamento_docente_key = (id_effettivo, username_docente, anno_accademico)
-        if insegnamento_docente_key not in insegnamento_docente_set:
-          insegnamento_docente_data.append((id_effettivo, username_docente, anno_accademico))
-          insegnamento_docente_set.add(insegnamento_docente_key)
-          
-      except Exception as e:
-        continue
+            # Estrai il docente
+            username_docente = str(sheet.cell_value(row_idx, colonna_indices['username_docente'])).strip()
+            if not username_docente:
+                continue
+                
+            # Estrai tutti i dati della riga
+            riga_dati = {
+                'anno_accademico': int(float(sheet.cell_value(row_idx, colonna_indices['anno_accademico']))),
+                'cod_cds': str(sheet.cell_value(row_idx, colonna_indices['cod_cds'])).strip(),
+                'des_cds': str(sheet.cell_value(row_idx, colonna_indices['des_cds'])).strip(),
+                'cod_curriculum': str(sheet.cell_value(row_idx, colonna_indices['cod_curriculum'])).strip(),
+                'des_curriculum': str(sheet.cell_value(row_idx, colonna_indices['des_curriculum'])).strip(),
+                'id_insegnamento': str(sheet.cell_value(row_idx, colonna_indices['id_insegnamento'])).replace('.0', '').strip(),
+                'cod_insegnamento': str(sheet.cell_value(row_idx, colonna_indices['cod_insegnamento'])).strip(),
+                'des_insegnamento': str(sheet.cell_value(row_idx, colonna_indices['des_insegnamento'])).strip(),
+                'id_unita_didattica': str(sheet.cell_value(row_idx, colonna_indices['id_unita_didattica'])).replace('.0', '').strip() or None,
+                'cod_unita_didattica': str(sheet.cell_value(row_idx, colonna_indices['cod_unita_didattica'])).strip() or None,
+                'des_unita_didattica': str(sheet.cell_value(row_idx, colonna_indices['des_unita_didattica'])).strip() or None,
+                'af_master_insegnamento': bool(sheet.cell_value(row_idx, colonna_indices['af_master_insegnamento'])),
+                'af_master_unita_didattica': bool(sheet.cell_value(row_idx, colonna_indices['af_master_unita_didattica'])) if colonna_indices.get('id_unita_didattica') else False,
+                'des_raggruppamento_insegnamento': str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento_insegnamento'])).strip(),
+                'des_raggruppamento_unita_didattica': str(sheet.cell_value(row_idx, colonna_indices['des_raggruppamento_unita_didattica'])).strip(),
+                'anno_corso': int(float(sheet.cell_value(row_idx, colonna_indices['anno_corso']) or 1)),
+                'cfu_insegnamento': int(float(sheet.cell_value(row_idx, colonna_indices['cfu_insegnamento']) or 0)),
+                'des_periodo_insegnamento': str(sheet.cell_value(row_idx, colonna_indices['des_periodo_insegnamento'])).strip(),
+                'matricola_titolare': str(sheet.cell_value(row_idx, colonna_indices['matricola_titolare'])).strip(),
+                'matricola_docente': str(sheet.cell_value(row_idx, colonna_indices['matricola_docente'])).strip(),
+                'cognome_docente': str(sheet.cell_value(row_idx, colonna_indices['cognome_docente'])).strip(),
+                'nome_docente': str(sheet.cell_value(row_idx, colonna_indices['nome_docente'])).strip(),
+                'username_docente': username_docente
+            }
+            righe_dati.append(riga_dati)
+        except Exception as e:
+            continue
     
+    # Crea mappature per trovare l'ID master dal codice + CdS + curriculum
+    def trova_id_master(info_master, righe_dati, anno_accademico):
+        """Trova l'ID dell'insegnamento master basandosi su codice, CdS, curriculum e anno"""
+        if not info_master:
+            return None
+            
+        # Prima cerca negli insegnamenti (colonna P)
+        for riga in righe_dati:
+            if (riga['cod_insegnamento'] == info_master['codice'] and
+                riga['cod_cds'] == info_master['cds'] and 
+                riga['cod_curriculum'] == info_master['curriculum'] and
+                riga['anno_accademico'] == anno_accademico):
+                return riga['id_insegnamento']
+        
+        # Poi cerca nei moduli (colonna BO) e restituisce l'ID del padre
+        for riga in righe_dati:
+            if (riga['cod_unita_didattica'] == info_master['codice'] and
+                riga['cod_cds'] == info_master['cds'] and 
+                riga['cod_curriculum'] == info_master['curriculum'] and
+                riga['anno_accademico'] == anno_accademico):
+                return riga['id_insegnamento']  # Restituisce l'ID del padre del modulo
+        
+        return None
+    
+    # Crea mappature codice → ID per poter trovare l'ID master dal codice
+    codice_to_id_insegnamenti = {}
+    codice_to_id_moduli = {}
+    
+    for riga in righe_dati:
+        # Mappa codici insegnamenti → ID
+        if riga['cod_insegnamento'] and riga['id_insegnamento']:
+            codice_to_id_insegnamenti[riga['cod_insegnamento']] = riga['id_insegnamento']
+        
+        # Mappa codici moduli → ID (e anche il padre)
+        if riga['cod_unita_didattica'] and riga['id_unita_didattica']:
+            codice_to_id_moduli[riga['cod_unita_didattica']] = {
+                'id_modulo': riga['id_unita_didattica'],
+                'id_padre': riga['id_insegnamento']
+            }
+    
+    # Seconda fase: applica la logica dei 6 casi
+    for riga in righe_dati:
+        try:
+            # Determina se è un modulo o un insegnamento
+            is_modulo = riga['id_unita_didattica'] is not None
+            
+            # Variabili che vengono sempre settate allo stesso valore
+            cfu_effettivi = riga['cfu_insegnamento']  # Usa sempre la colonna AD
+            periodo_effettivo = riga['des_periodo_insegnamento']  # Usa sempre il periodo dell'insegnamento
+            
+            # Flag per determinare se il docente deve inserire esami per questo insegnamento
+            # Inizializzato a False, verrà settato a True nei casi appropriati
+            inserire_esami = False
+            
+            # Logica per determinare ID e descrizione effettivi
+            if is_modulo:
+                # CASI 3-4: Gestione moduli
+                if riga['af_master_unita_didattica']:
+                    # CASO 3: Modulo è master -> carica il padre
+                    id_effettivo = riga['id_insegnamento']
+                    des_effettiva = riga['des_insegnamento']
+                    master_id = None
+                    # CASO 3: Modulo master -> il docente deve inserire esami (no mutuazione)
+                    inserire_esami = True
+                else:
+                    # CASI 4: Modulo NON è master
+                    info_master = estrai_info_master(riga['des_raggruppamento_unita_didattica'])
+                    
+                    if info_master:
+                        # Trova l'ID del master usando codice + CdS + curriculum
+                        master_id_found = trova_id_master(info_master, righe_dati, riga['anno_accademico'])
+                        
+                        if master_id_found:
+                            id_effettivo = master_id_found
+                            master_id = master_id_found  # Il master è l'insegnamento trovato
+                            # CASO 4: Modulo che mutua -> il docente NON deve inserire esami (mutuazione)
+                            inserire_esami = False
+                            
+                            # Trova i dettagli del master
+                            master_row = next((r for r in righe_dati if r['id_insegnamento'] == master_id_found), None)
+                            if master_row:
+                                des_effettiva = master_row['des_insegnamento']
+                                # Aggiungi anche l'insegnamento master alla lista
+                                if master_id_found not in insegnamenti_set:
+                                    insegnamenti_data.append((master_id_found, master_row['cod_insegnamento'], master_row['des_insegnamento']))
+                                    insegnamenti_set.add(master_id_found)
+                            else:
+                                continue
+                        else:
+                            continue
+                    else:
+                        continue
+            else:
+                # CASI 1-2: Gestione insegnamenti
+                if riga['af_master_insegnamento']:
+                    # CASO 1: Insegnamento è master -> caricalo sempre
+                    id_effettivo = riga['id_insegnamento']
+                    des_effettiva = riga['des_insegnamento']
+                    master_id = None
+                    # CASO 1: Insegnamento master -> il docente deve inserire esami (no mutuazione)
+                    inserire_esami = True
+                else:
+                    # CASO 2: Insegnamento NON è master
+                    info_master = estrai_info_master(riga['des_raggruppamento_insegnamento'])
+                    
+                    if info_master:
+                        # Trova l'ID del master usando codice + CdS + curriculum
+                        master_id_found = trova_id_master(info_master, righe_dati, riga['anno_accademico'])
+                        
+                        if master_id_found:
+                            # SOTTOCASO 2: Inserisci sia figlio che master
+                            id_effettivo = riga['id_insegnamento']
+                            des_effettiva = riga['des_insegnamento']
+                            master_id = master_id_found  # Il master è l'insegnamento trovato
+                            
+                            # CASO 2: Verifica se mutua da un modulo
+                            # Se il master è un modulo (presente in cod_unita_didattica), allora è caso speciale
+                            master_e_modulo = any(r['cod_unita_didattica'] == info_master['codice'] and
+                                                r['cod_cds'] == info_master['cds'] and
+                                                r['cod_curriculum'] == info_master['curriculum'] and
+                                                r['anno_accademico'] == riga['anno_accademico'] 
+                                                for r in righe_dati)
+                            
+                            if master_e_modulo:
+                                # CASO 2 SPECIALE: Insegnamento che mutua da un modulo -> 
+                                # il docente DEVE inserire esami (sia figlio che padre del modulo vengono caricati)
+                                inserire_esami = True
+                            else:
+                                # CASO 2 NORMALE: Insegnamento che mutua da un altro insegnamento ->
+                                # il docente NON deve inserire esami (mutuazione normale)
+                                inserire_esami = False
+                            
+                            # Assicurati che anche l'insegnamento master sia nella lista
+                            master_row = next((r for r in righe_dati if r['id_insegnamento'] == master_id_found), None)
+                            if master_row and master_id_found not in insegnamenti_set:
+                                insegnamenti_data.append((master_id_found, master_row['cod_insegnamento'], master_row['des_insegnamento']))
+                                insegnamenti_set.add(master_id_found)
+                        else:
+                            continue
+                    else:
+                        continue
+            
+            # Dati comuni
+            semestre = periodo_to_semestre.get(periodo_effettivo, default_semestre)
+            matricola_titolare = riga['matricola_titolare'] or riga['matricola_docente']
+            
+            # Aggiungi CdS se non già presente
+            cds_key = (riga['cod_cds'], riga['anno_accademico'], riga['cod_curriculum'])
+            if cds_key not in cds_set:
+                cds_data.append((riga['cod_cds'], riga['anno_accademico'], riga['des_cds'], 
+                               riga['cod_curriculum'], riga['des_curriculum']))
+                cds_set.add(cds_key)
+            
+            # Aggiungi insegnamento se non già presente
+            if id_effettivo not in insegnamenti_set:
+                cod_effettivo = next((r['cod_insegnamento'] for r in righe_dati if r['id_insegnamento'] == id_effettivo), '')
+                insegnamenti_data.append((id_effettivo, cod_effettivo, des_effettiva))
+                insegnamenti_set.add(id_effettivo)
+            
+            # Aggiungi insegnamento_cds
+            insegnamenti_cds_key = (id_effettivo, riga['anno_accademico'], riga['cod_cds'], riga['cod_curriculum'])
+            if insegnamenti_cds_key not in cds_set:
+                insegnamenti_cds_data.append((
+                    id_effettivo, 
+                    riga['anno_accademico'], 
+                    riga['cod_cds'], 
+                    riga['cod_curriculum'],
+                    riga['anno_corso'], 
+                    semestre,
+                    cfu_effettivi,
+                    master_id,
+                    matricola_titolare,
+                    inserire_esami
+                ))
+                cds_set.add(insegnamenti_cds_key)
+            
+            # Aggiungi utente se non già presente
+            if riga['username_docente'] not in utenti_set:
+                utenti_data.append((riga['username_docente'], riga['matricola_docente'], 
+                                  riga['nome_docente'], riga['cognome_docente'], False))
+                utenti_set.add(riga['username_docente'])
+            
+            # Aggiungi insegnamento_docente
+            insegnamento_docente_key = (id_effettivo, riga['username_docente'], riga['anno_accademico'])
+            if insegnamento_docente_key not in insegnamento_docente_set:
+                insegnamento_docente_data.append((id_effettivo, riga['username_docente'], riga['anno_accademico']))
+                insegnamento_docente_set.add(insegnamento_docente_key)
+                
+        except Exception as e:
+            continue
+    
+    # Terza fase: Assicurati che tutti i master ID referenziati esistano nella lista insegnamenti
+    for item in insegnamenti_cds_data:
+        master_id = item[7]  # Campo master è il 7° elemento
+        if master_id and master_id not in insegnamenti_set:
+            # Cerca il master nelle righe dati
+            master_row = next((r for r in righe_dati if r['id_insegnamento'] == master_id), None)
+            if master_row:
+                insegnamenti_data.append((master_id, master_row['cod_insegnamento'], master_row['des_insegnamento']))
+                insegnamenti_set.add(master_id)
+            else:
+                # Se non troviamo il master, imposta il campo master a NULL
+                item_list = list(item)
+                item_list[7] = None
+                idx = insegnamenti_cds_data.index(item)
+                insegnamenti_cds_data[idx] = tuple(item_list)
+
     # Inserisci dati nel database
     # 0. Configurazioni globali (inserisce l'anno accademico se non esiste)
     if cds_data:  # Solo se ci sono dati da importare
@@ -316,12 +436,15 @@ def upload_ugov():
       try:
         cursor.execute("""
           INSERT INTO insegnamenti_cds 
-          (insegnamento, anno_accademico, cds, curriculum_codice, anno_corso, semestre, titolare)
-          VALUES (%s, %s, %s, %s, %s, %s, %s)
+          (insegnamento, anno_accademico, cds, curriculum_codice, anno_corso, semestre, cfu, master, titolare, inserire_esami)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
           ON CONFLICT (insegnamento, anno_accademico, cds, curriculum_codice) DO UPDATE 
           SET anno_corso = EXCLUDED.anno_corso,
               semestre = EXCLUDED.semestre,
-              titolare = EXCLUDED.titolare
+              cfu = EXCLUDED.cfu,
+              master = EXCLUDED.master,
+              titolare = EXCLUDED.titolare,
+              inserire_esami = EXCLUDED.inserire_esami
         """, item)
       except Exception as e:
         continue

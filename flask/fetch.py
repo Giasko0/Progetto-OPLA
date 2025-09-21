@@ -353,16 +353,18 @@ def get_insegnamenti_docente():
         cursor = conn.cursor()
         
         if is_admin_user:
+            # Admin vede tutti gli insegnamenti che richiedono inserimento esami
             cursor.execute("""
                 SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum_codice, 
                        ic.semestre, ic.anno_corso
                 FROM insegnamenti i
                 JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
                 JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
-                WHERE ic.anno_accademico = %s
+                WHERE ic.anno_accademico = %s AND ic.inserire_esami = true
                 ORDER BY ic.cds, i.codice
             """, (anno,))
         else:
+            # Docente vede solo i suoi insegnamenti che richiedono inserimento esami
             cursor.execute("""
                 SELECT DISTINCT i.id, i.codice, i.titolo, ic.cds, c.nome_corso, ic.curriculum_codice, 
                        ic.semestre, ic.anno_corso
@@ -370,7 +372,7 @@ def get_insegnamenti_docente():
                 JOIN insegnamento_docente id ON i.id = id.insegnamento
                 JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
                 JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
-                WHERE ic.anno_accademico = %s AND id.annoaccademico = %s AND id.docente = %s
+                WHERE ic.anno_accademico = %s AND id.annoaccademico = %s AND id.docente = %s AND ic.inserire_esami = true
                 ORDER BY ic.cds, i.codice
             """, (anno, anno, docente))
         
@@ -422,7 +424,7 @@ def check_esami_minimi():
         target_result = cursor.fetchone()
         target_esami = target_result[0] if target_result else 8
         
-        # 2. Ottieni gli insegnamenti del docente
+        # 2. Ottieni gli insegnamenti del docente che richiedono inserimento esami
         cursor.execute("""
             SELECT DISTINCT i.id, i.titolo, ic.cds, 
                    COALESCE(c.nome_corso, 'N/D') as nome_corso, ic.semestre
@@ -431,7 +433,8 @@ def check_esami_minimi():
             JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
             LEFT JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico 
                        AND ic.curriculum_codice = c.curriculum_codice
-            WHERE id.docente = %s AND id.annoaccademico = %s AND ic.anno_accademico = %s
+            WHERE id.docente = %s AND id.annoaccademico = %s AND ic.anno_accademico = %s 
+                  AND ic.inserire_esami = true
         """, (docente, anno, anno))
         
         insegnamenti = cursor.fetchall()

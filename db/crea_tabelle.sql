@@ -96,14 +96,18 @@ CREATE TABLE insegnamenti (
 -- Tabella 'insegnamenti_cds' (specifici per un corso di studio, potrebbero variare di anno in anno)
 CREATE TABLE insegnamenti_cds (
     insegnamento TEXT,          -- ID dell'insegnamento
-    anno_accademico INT,        -- Anno accademico
     cds TEXT,                   -- Codice del corso di studio
     curriculum_codice TEXT,     -- Codice del curriculum del corso di studio
+    anno_accademico INT,        -- Anno accademico
     anno_corso INT NOT NULL,    -- Anno del corso di studio
     semestre INT NOT NULL,      -- Semestre (Insegnamento annuale = 3)
+    cfu INT,                    -- Crediti Formativi Universitari
     titolare TEXT,              -- Matricola del docente titolare/responsabile didattico
-    PRIMARY KEY (insegnamento, anno_accademico, cds, curriculum_codice),
+    inserire_esami BOOLEAN DEFAULT FALSE, -- Flag per determinare se il docente deve inserire esami per questo insegnamento
+    master TEXT,                -- ID dell'insegnamento master (per mutuazioni)
+    PRIMARY KEY (insegnamento, cds, curriculum_codice, anno_accademico),
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
+    FOREIGN KEY (master) REFERENCES insegnamenti(id) ON DELETE SET NULL,
     FOREIGN KEY (cds, anno_accademico, curriculum_codice) REFERENCES cds(codice, anno_accademico, curriculum_codice) ON DELETE CASCADE,
     FOREIGN KEY (titolare) REFERENCES utenti(matricola) ON DELETE SET NULL,
     CONSTRAINT check_semestre CHECK (semestre IN (1, 2, 3))
