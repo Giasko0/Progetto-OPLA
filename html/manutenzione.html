@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="OPLÀ - Portale in manutenzione">
+  <link rel="icon" type="image/x-icon" href="static/imgs/favicon.ico">
+  <title>OPLÀ - Manutenzione in corso</title>
+  <link rel="stylesheet" href="static/styles/common.css">
+  <link rel="stylesheet" href="static/styles/navigation.css">
+  <script src="static/scripts/footer.js"></script>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    
+    .maintenance-container {
+      background-color: var(--color-bg-light);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      margin-top: 5%;
+      padding: 60px 40px;
+      max-width: 600px;
+      width: 100%;
+    }
+    
+    .logo {
+      width: 400px;
+      height: auto;
+    }
+    
+    .maintenance-title {
+      color: var(--color-blue);
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin: 0 0 20px 0;
+    }
+    
+    .maintenance-subtitle {
+      color: var(--color-text);
+      font-size: 1.2rem;
+      line-height: 1.6;
+      margin: 0;
+    }
+    
+    .contact-info {
+      margin-top: 40px;
+      font-size: 0.9rem;
+      color: var(--color-text-light);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="maintenance-container">
+    <img src="static/imgs/logo.png" alt="OPLÀ Logo" class="logo">
+    <h1 class="maintenance-title">OPLÀ è in manutenzione</h1>
+    <p class="maintenance-subtitle">
+      Stiamo lavorando per migliorare OPLÀ.<br>
+      Invieremo un aggiornamento non appena il servizio sarà disponibile.
+    </p>
+    <div class="contact-info">
+      <p>Per assistenza contattare <a class="email-link" href="mailto:segr-didattica.inf.dmi@unipg.it">segr-didattica.inf.dmi@unipg.it</a></p>
+    </div>
+  </div>
+  
+  <footer id="footer"></footer>
+</body>
+
+</html>
