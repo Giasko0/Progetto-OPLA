@@ -220,10 +220,23 @@ const FormEsameData = (function() {
           configureNonOfficialPartialSection(emptySection);
         }
         
+        // Controlla se l'ora è già compilata e carica le aule se necessario
+        const sectionIdMatch = emptySection.id.match(/dateSection_(\d+)/);
+        const sectionNumber = sectionIdMatch ? parseInt(sectionIdMatch[1]) : 1;
+        
+        // Verifica se ora è già presente
+        const oraH = emptySection.querySelector(`[id^="ora_h_${sectionNumber}"]`);
+        const oraM = emptySection.querySelector(`[id^="ora_m_${sectionNumber}"]`);
+        
+        if (oraH?.value && window.EsameAppelli?.updateAuleForSection) {
+          // Carica le aule se l'ora è già impostata
+          setTimeout(() => {
+            window.EsameAppelli.updateAuleForSection(sectionNumber);
+          }, 100);
+        }
+        
         // Crea evento provvisorio
         if (window.EsameAppelli?.createProvisionalEventForDate) {
-          const sectionIdMatch = emptySection.id.match(/dateSection_(\d+)/);
-          const sectionNumber = sectionIdMatch ? parseInt(sectionIdMatch[1]) : 1;
           window.EsameAppelli.createProvisionalEventForDate(date, sectionNumber);
         }
         
