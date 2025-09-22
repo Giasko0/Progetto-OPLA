@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /oh-issa/
+Disallow: /login.html
 
 # Ritardo tra le richieste per non sovraccaricare il server
 Crawl-delay: 10
