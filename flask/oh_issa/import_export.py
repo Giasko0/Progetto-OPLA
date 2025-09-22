@@ -23,7 +23,7 @@ def upload_ugov():
     if file.filename == '':
       return jsonify({'status': 'error', 'message': 'Nessun file selezionato'}), 400
       
-    if not file.filename.endswith(('.xls', '.xlsx')):
+    if not file.filename.endswith('.xls'):
       return jsonify({'status': 'error', 'message': 'Formato file non supportato. Usare file Excel (.xls, .xlsx)'}), 400
     
     # Leggi il file Excel
@@ -295,9 +295,18 @@ def upload_ugov():
                                                 for r in righe_dati)
                             
                             if master_e_modulo:
-                                # CASO 2 SPECIALE: Insegnamento che mutua da un modulo -> 
-                                # il docente DEVE inserire esami (sia figlio che padre del modulo vengono caricati)
-                                inserire_esami = True
+                                # CASO 2 SPECIALE: Insegnamento che mutua da un modulo
+                                # Verifica il semestre: se è secondo semestre, NON deve inserire esami
+                                semestre_corrente = periodo_to_semestre.get(periodo_effettivo, default_semestre)
+                                
+                                if semestre_corrente == 2:  # Secondo semestre
+                                    # CASO 2 SPECIALE - SECONDO SEMESTRE: Insegnamento che mutua da un modulo nel secondo semestre ->
+                                    # il docente NON deve inserire esami (evita duplicazione con primo semestre)
+                                    inserire_esami = False
+                                else:
+                                    # CASO 2 SPECIALE - PRIMO SEMESTRE/ANNUALE: Insegnamento che mutua da un modulo ->
+                                    # il docente DEVE inserire esami (sia figlio che padre del modulo vengono caricati)
+                                    inserire_esami = True
                             else:
                                 # CASO 2 NORMALE: Insegnamento che mutua da un altro insegnamento ->
                                 # il docente NON deve inserire esami (mutuazione normale)
