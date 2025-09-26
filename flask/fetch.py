@@ -563,7 +563,7 @@ def check_esami_minimi():
             release_connection(conn)
 
 def ottieni_target_esami_e_sessioni(docente, anno_accademico):
-    """Ottiene il target di esami e i numeri per sessione per un docente"""
+    """Ottiene il numero minimo di esami per sessione per i CdS del docente"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -580,59 +580,41 @@ def ottieni_target_esami_e_sessioni(docente, anno_accademico):
             raise Exception(f"Programmazione Didattica non disponibile per l'anno {anno_accademico}/{anno_accademico + 1}")
         target_esami = target_result[0]
         
-        # Ottieni i CdS del docente
+        # Ottieni i CdS GEN del docente
         cursor.execute("""
-            SELECT DISTINCT ic.cds, ic.curriculum_codice, ic.semestre
+            SELECT DISTINCT ic.cds
             FROM insegnamento_docente id
             JOIN insegnamenti_cds ic ON id.insegnamento = ic.insegnamento
             WHERE id.docente = %s AND id.annoaccademico = %s AND ic.anno_accademico = %s
         """, (docente, anno_accademico, anno_accademico))
         
-        cds_docente = cursor.fetchall()
+        cds_list = [row[0] for row in cursor.fetchall()]
         
-        if not cds_docente:
-            raise Exception(f"Nessun CdS trovato per il docente {docente} nell'anno {anno_accademico}")
+        if not cds_list:
+            raise Exception(f"Nessun CdS GEN trovato per il docente {docente} nell'anno {anno_accademico}")
         
-        # Ottieni le sessioni per i CdS del docente e calcola l'intersezione/unione
-        sessioni_info = {}
+        # Ottieni i minimi per sessione per tutti i CdS GEN del docente
+        sessioni_per_cds = {}
         
-        for cds, curriculum, semestre in cds_docente:
+        for cds in cds_list:
             cursor.execute("""
                 SELECT tipo_sessione, esami_primo_semestre, esami_secondo_semestre
                 FROM sessioni
-                WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = %s
-            """, (cds, anno_accademico, curriculum))
+                WHERE cds = %s AND anno_accademico = %s AND curriculum_codice = 'GEN'
+            """, (cds, anno_accademico))
             
-            for tipo_sessione, primo_sem, secondo_sem in cursor.fetchall():
-                if tipo_sessione not in sessioni_info:
-                    sessioni_info[tipo_sessione] = []
-                
-                # Per insegnamenti annuali, seguono le regole del secondo semestre
-                # e non devono avere appelli in anticipata
-                if semestre == 1:
-                    max_esami = primo_sem or 0
-                elif semestre == 2 or semestre == 3:
-                    max_esami = secondo_sem or 0
-                else:
-                    max_esami = 0
-                
-                sessioni_info[tipo_sessione].append(max_esami)
-        
-        # Calcola il risultato finale (usa il massimo tra tutti i CdS per ogni sessione)
-        sessioni_result = {}
-        for tipo_sessione, valori in sessioni_info.items():
-            if valori:
-                sessioni_result[tipo_sessione] = {'max': max(valori)}
-        
-        # Verifica che tutte le sessioni richieste siano presenti
-        sessioni_richieste = ['anticipata', 'estiva', 'autunnale', 'invernale']
-        sessioni_mancanti = [s for s in sessioni_richieste if s not in sessioni_result]
-        if sessioni_mancanti:
-            raise Exception(f"Sessioni mancanti per i CdS del docente: {', '.join(sessioni_mancanti)}")
+            sessioni_data = cursor.fetchall()
+            sessioni_per_cds[cds] = {}
+            
+            for tipo_sessione, primo_sem, secondo_sem in sessioni_data:
+                sessioni_per_cds[cds][tipo_sessione] = {
+                    'primo_semestre': primo_sem or 0,
+                    'secondo_semestre': secondo_sem or 0
+                }
         
         return {
             'target_esami_default': target_esami,
-            'sessioni': sessioni_result
+            'sessioni_per_cds': sessioni_per_cds
         }
         
     except Exception as e:

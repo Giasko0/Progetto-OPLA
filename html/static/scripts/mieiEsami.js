@@ -42,7 +42,7 @@ async function fetchAndDisplayEsami() {
     ]);
 
     const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.user_data.username, dateValideData);
-    displayEsamiData(processedData, targetEsamiData.target_esami_default, targetEsamiData.sessioni);
+    displayEsamiData(processedData, targetEsamiData.target_esami_default, targetEsamiData);
   } catch (error) {
     contenitoreEsami.innerHTML = `<div class="error-message">${error.message}</div>`;
   }
@@ -145,7 +145,7 @@ function processDataForDisplay(cdsData, esamiData, username, dateValideData) {
     }
   });
 
-  return { esami: esamiProcessed, insegnamenti, insegnamentiCdsInfo };
+  return { esami: esamiProcessed, insegnamenti, insegnamentiCdsInfo, originalCdsData: cdsData };
 }
 
 // Determina la sessione in base alla data dell'esame e alle date valide dal database
@@ -368,7 +368,7 @@ function displayTabelleEsami(data, insegnamentoKey, container) {
   container.appendChild(tableElement);
 }
 
-function displaySessioniEsami(data, insegnamentoKey, container, targetEsami, sessioniInfo) {
+function displaySessioniEsami(data, insegnamentoKey, container, targetEsami, targetData) {
   const section = document.createElement("div");
   section.className = "exam-section";
 
@@ -386,11 +386,64 @@ function displaySessioniEsami(data, insegnamentoKey, container, targetEsami, ses
   const gridContainer = document.createElement("div");
   gridContainer.className = "sessions-grid";
 
+  // Ottieni il semestre dell'insegnamento per determinare i valori corretti
+  let insegnamentoSemestre = null;
+  
+  // Cerca nel dataset originale per trovare il semestre
+  for (const cds of data.originalCdsData || []) {
+    if (cds.insegnamenti) {
+      for (const ins of cds.insegnamenti) {
+        if (ins.titolo === insegnamentoData.titolo && ins.cds_codice === cdsInfo.cds_codice) {
+          insegnamentoSemestre = ins.semestre;
+          break;
+        }
+      }
+    }
+    if (insegnamentoSemestre) break;
+  }
+
+  // Determina i numeri massimi per questo specifico insegnamento
+  let sessioniMaxValues = {};
+  if (targetData.sessioni_per_cds && cdsInfo) {
+    const sessioniCds = targetData.sessioni_per_cds[cdsInfo.cds_codice];
+    
+    if (sessioniCds) {
+      Object.keys(sessioniCds).forEach(tipoSessione => {
+        const datiSessione = sessioniCds[tipoSessione];
+        let maxValue;
+        
+        if (insegnamentoSemestre === 3) { // Annuale
+          if (tipoSessione === 'anticipata') {
+            maxValue = 0; // Gli insegnamenti annuali non dovrebbero avere appelli in anticipata
+          } else {
+            maxValue = datiSessione.secondo_semestre;
+          }
+        } else if (insegnamentoSemestre === 1) {
+          maxValue = datiSessione.primo_semestre;
+        } else { // semestre 2
+          maxValue = datiSessione.secondo_semestre;
+        }
+        
+        sessioniMaxValues[tipoSessione] = maxValue || 0;
+      });
+    }
+  }
+
+  // Fallback a valori di default se non trovati i dati specifici
+  if (Object.keys(sessioniMaxValues).length === 0) {
+    sessioniMaxValues = {
+      'anticipata': 0,
+      'estiva': 0,
+      'autunnale': 0,
+      'invernale': 0
+    };
+  }
+
   const sessioniDaVisualizzare = [
-    { nome: "Sessione Anticipata", count: sessioni.Anticipata || { ufficiali: 0, totali: 0 }, max: sessioniInfo.anticipata.max },
-    { nome: "Sessione Estiva", count: sessioni.Estiva || { ufficiali: 0, totali: 0 }, max: sessioniInfo.estiva.max },
-    { nome: "Sessione Autunnale", count: sessioni.Autunnale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.autunnale.max },
-    { nome: "Sessione Invernale", count: sessioni.Invernale || { ufficiali: 0, totali: 0 }, max: sessioniInfo.invernale.max }
+    { nome: "Sessione Anticipata", count: sessioni.Anticipata || { ufficiali: 0, totali: 0 }, max: sessioniMaxValues['anticipata'] || 0 },
+    { nome: "Sessione Estiva", count: sessioni.Estiva || { ufficiali: 0, totali: 0 }, max: sessioniMaxValues['estiva'] || 0 },
+    { nome: "Sessione Autunnale", count: sessioni.Autunnale || { ufficiali: 0, totali: 0 }, max: sessioniMaxValues['autunnale'] || 0 },
+    { nome: "Sessione Invernale", count: sessioni.Invernale || { ufficiali: 0, totali: 0 }, max: sessioniMaxValues['invernale'] || 0 }
   ];
 
   sessioniDaVisualizzare.forEach((sessione) => {
@@ -429,7 +482,7 @@ function displaySessioniEsami(data, insegnamentoKey, container, targetEsami, ses
   container.appendChild(section);
 }
 
-function displayAllExams(data, container, targetEsami, sessioniInfo) {
+function displayAllExams(data, container, targetEsami, targetData) {
   // Sezione riepilogo insegnamenti
   const sessionsSection = document.createElement("div");
   sessionsSection.className = "exam-section";
