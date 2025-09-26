@@ -34,13 +34,14 @@ async function fetchAndDisplayEsami() {
       anno: selectedYear
     });
 
-    const [insegnamentiResponse, esamiData, targetEsamiData] = await Promise.all([
+    const [insegnamentiResponse, esamiData, targetEsamiData, dateValideData] = await Promise.all([
       fetch(`/api/get-insegnamenti-docente?${params}`).then(r => r.json()),
       fetch(`/api/get-esami?${params}`).then(r => r.json()),
-      getTargetEsamiESessioni(userData.user_data.username, selectedYear)
+      getTargetEsamiESessioni(userData.user_data.username, selectedYear),
+      fetch(`/api/get-date-valide?${params}`).then(r => r.json())
     ]);
 
-    const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.user_data.username);
+    const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.user_data.username, dateValideData);
     displayEsamiData(processedData, targetEsamiData.target_esami_default, targetEsamiData.sessioni);
   } catch (error) {
     contenitoreEsami.innerHTML = `<div class="error-message">${error.message}</div>`;
@@ -48,14 +49,23 @@ async function fetchAndDisplayEsami() {
 }
 
 // Processa i dati per mantenerli compatibili con il formato esistente
-function processDataForDisplay(cdsData, esamiData, username) {
+function processDataForDisplay(cdsData, esamiData, username, dateValideData) {
   const insegnamenti = {};
   const esamiProcessed = [];
   const insegnamentiCdsInfo = new Map();
   
+  // Verifica che cdsData sia un array
+  if (!Array.isArray(cdsData)) {
+    return { esami: [], insegnamenti: {}, insegnamentiCdsInfo: new Map() };
+  }
+  
   // Processa i dati CdS per creare le mappe di informazioni
-  cdsData.forEach(cds => {
-    cds.insegnamenti.forEach(ins => {
+  cdsData.forEach((cds) => {
+    if (!cds.insegnamenti || !Array.isArray(cds.insegnamenti)) {
+      return;
+    }
+    
+    cds.insegnamenti.forEach((ins) => {
       const cdsInfo = {
         cds_codice: ins.cds_codice,
         cds_nome: ins.cds_nome,
@@ -79,74 +89,91 @@ function processDataForDisplay(cdsData, esamiData, username) {
     });
   });
 
+  // Verifica che esamiData sia un array
+  if (!Array.isArray(esamiData)) {
+    return { esami: [], insegnamenti, insegnamentiCdsInfo };
+  }
+
   // Processa gli esami per tutti i docenti degli insegnamenti autorizzati
-  esamiData.forEach(esame => {
-    // Considera tutti gli esami che appartengono agli insegnamenti del docente
-    // (sia del docente stesso che di altri docenti)
-    const dataEsame = new Date(esame.start);
-    const sessione = determinaSessioneEsame(dataEsame);
-    
-    // Determina se l'esame è ufficiale
-    const isUfficiale = esame.extendedProps.mostra_nel_calendario === true;
-    
-    // Formato compatibile con il codice esistente
-    const esameFormatted = {
-      id: esame.id,
-      docente: esame.extendedProps.docente,
-      docenteNome: esame.extendedProps.docenteNome,
-      insegnamento: esame.title,
-      aula: esame.aula || "Non definita",
-      dataora: esame.start,
-      cds: esame.extendedProps.nome_cds,
-      codice_cds: esame.extendedProps.codice_cds,
-      durata_appello: esame.extendedProps.durata_appello,
-      tipo_appello: esame.extendedProps.tipo_appello,
-      mostra_nel_calendario: esame.extendedProps.mostra_nel_calendario
-    };
-    
-    esamiProcessed.push(esameFormatted);
-    
-    // Crea la chiave combinata per trovare l'insegnamento corretto
-    const insegnamentoKey = `${esame.title}_${esame.extendedProps.codice_cds}`;
-    
-    // Conta gli esami per sessione se appartiene a un insegnamento del docente
-    if (sessione && insegnamenti[insegnamentoKey]) {
-      // Conta sempre nel totale
-      insegnamenti[insegnamentoKey][sessione].totali++;
+  esamiData.forEach((esame) => {
+    try {
+      // Considera tutti gli esami che appartengono agli insegnamenti del docente
+      // (sia del docente stesso che di altri docenti)
+      const dataEsame = new Date(esame.start);
+      const sessione = determinaSessioneEsame(dataEsame, dateValideData);
       
-      // Conta negli ufficiali solo se è un esame ufficiale
-      if (isUfficiale) {
-        insegnamenti[insegnamentoKey][sessione].ufficiali++;
+      // Determina se l'esame è ufficiale
+      const isUfficiale = esame.extendedProps && esame.extendedProps.mostra_nel_calendario === true;
+      
+      // Formato compatibile con il codice esistente
+      const esameFormatted = {
+        id: esame.id,
+        docente: esame.extendedProps?.docente,
+        docenteNome: esame.extendedProps?.docenteNome,
+        insegnamento: esame.title,
+        aula: esame.aula || "Non definita",
+        dataora: esame.start,
+        cds: esame.extendedProps?.nome_cds,
+        codice_cds: esame.extendedProps?.codice_cds,
+        durata_appello: esame.extendedProps?.durata_appello,
+        tipo_appello: esame.extendedProps?.tipo_appello,
+        mostra_nel_calendario: esame.extendedProps?.mostra_nel_calendario
+      };
+      
+      esamiProcessed.push(esameFormatted);
+      
+      // Crea la chiave combinata per trovare l'insegnamento corretto
+      const insegnamentoKey = `${esame.title}_${esame.extendedProps?.codice_cds}`;
+      
+      // Conta gli esami per sessione se appartiene a un insegnamento del docente
+      if (sessione && insegnamenti[insegnamentoKey]) {
+        // Verifica che l'oggetto sessione esista
+        if (!insegnamenti[insegnamentoKey][sessione]) {
+          insegnamenti[insegnamentoKey][sessione] = { ufficiali: 0, totali: 0 };
+        }
+        
+        // Conta sempre nel totale
+        insegnamenti[insegnamentoKey][sessione].totali++;
+        
+        // Conta negli ufficiali solo se è un esame ufficiale
+        if (isUfficiale) {
+          insegnamenti[insegnamentoKey][sessione].ufficiali++;
+        }
       }
+    } catch (error) {
+      // Ignora gli esami che non possono essere processati
     }
   });
 
   return { esami: esamiProcessed, insegnamenti, insegnamentiCdsInfo };
 }
 
-// Determina la sessione in base alla data dell'esame
-function determinaSessioneEsame(dataEsame) {
-  const mese = dataEsame.getMonth() + 1;
-  const anno = dataEsame.getFullYear();
-  const selectedYear = parseInt(window.AnnoAccademicoManager.getSelectedAcademicYear());
+// Determina la sessione in base alla data dell'esame e alle date valide dal database
+function determinaSessioneEsame(dataEsame, dateValideData) {
+  // Converte la data in stringa ISO per il confronto
+  const dataEsameISO = dataEsame.toISOString().split('T')[0];
   
-  // Sessione anticipata: Dic dell'anno accademico a Mag dell'anno successivo
-  if ((mese === 12 && anno === selectedYear) || 
-      (mese >= 1 && mese <= 5 && anno === selectedYear + 1)) {
-    return 'Anticipata';
-  }
-  // Sessione estiva: Giu-Lug dell'anno successivo all'anno accademico
-  else if (mese >= 6 && mese <= 7 && anno === selectedYear + 1) {
-    return 'Estiva';
-  }
-  // Sessione autunnale: Ago-Nov dell'anno successivo all'anno accademico
-  else if (mese >= 8 && mese <= 11 && anno === selectedYear + 1) {
-    return 'Autunnale';
-  }
-  // Sessione invernale: Dic di due anni dopo l'anno accademico a Mag di tre anni dopo
-  else if ((mese === 12 && anno === selectedYear + 1) || 
-           (mese >= 1 && mese <= 5 && anno === selectedYear + 2)) {
-    return 'Invernale';
+  // Cerca in quale sessione cade la data dell'esame
+  for (const sessione of dateValideData) {
+    // Struttura dell'array delle sessioni:
+    // [0] inizioISO, [1] fineISO, [2] nomeSessioneConParte, [3] sessioneId, 
+    // [4] nomeSessioneBase, [5] parteNumero, [6] totaleParts
+    const [inizioISO, fineISO, nomeSessioneConParte, sessioneId, nomeSessioneBase, parteNumero, totaleParts] = sessione;
+    
+    if (dataEsameISO >= inizioISO && dataEsameISO <= fineISO) {
+      // Usa il nome base della sessione (quinto elemento) per mappare correttamente
+      const nomeSessioneDaUsare = nomeSessioneBase || nomeSessioneConParte;
+      
+      // Mappa i nomi delle sessioni dal database ai nomi usati nell'interfaccia
+      const sessionMapping = {
+        'Sessione Anticipata': 'Anticipata',
+        'Sessione Estiva': 'Estiva',
+        'Sessione Autunnale': 'Autunnale',
+        'Sessione Invernale': 'Invernale'
+      };
+      
+      return sessionMapping[nomeSessioneDaUsare] || nomeSessioneDaUsare;
+    }
   }
   
   return null;
@@ -416,8 +443,20 @@ function displayAllExams(data, container, targetEsami, sessioniInfo) {
 
   Object.keys(data.insegnamenti).forEach((insegnamentoKey) => {
     const sessioni = data.insegnamenti[insegnamentoKey];
-    const totaleEsamiUfficiali = Object.values(sessioni).reduce((sum, val) => sum + (val.ufficiali || 0), 0);
-    const totaleEsamiTotali = Object.values(sessioni).reduce((sum, val) => sum + (val.totali || 0), 0);
+    
+    // Calcola i totali escludendo la proprietà 'titolo'
+    let totaleEsamiUfficiali = 0;
+    let totaleEsamiTotali = 0;
+    
+    Object.keys(sessioni).forEach(key => {
+      if (key !== 'titolo' && sessioni[key] && typeof sessioni[key] === 'object') {
+        // Verifica che l'oggetto abbia le proprietà necessarie
+        if (sessioni[key].hasOwnProperty('ufficiali') && sessioni[key].hasOwnProperty('totali')) {
+          totaleEsamiUfficiali += sessioni[key].ufficiali || 0;
+          totaleEsamiTotali += sessioni[key].totali || 0;
+        }
+      }
+    });
 
     const cardElement = document.createElement("div");
     cardElement.className = `session-card ${totaleEsamiUfficiali < targetEsami ? 'warning-card' : 'success-card'}`;
@@ -525,12 +564,37 @@ function filterTableBySession(tableId, sessioneNome, tuttiEsami) {
   const tbody = table.querySelector('tbody');
   const rows = tbody.querySelectorAll('tr');
   
+  // Recupera sempre i dati delle date valide
+  const userData = window.currentUserData;
+  const selectedYear = window.AnnoAccademicoManager.getSelectedAcademicYear();
+  
+  if (!userData || !selectedYear) {
+    return;
+  }
+  
+  const params = new URLSearchParams({
+    docente: userData.user_data.username,
+    anno: selectedYear
+  });
+  
+  fetch(`/api/get-date-valide?${params}`)
+    .then(r => r.json())
+    .then(dateValideData => {
+      applySessionFilter(rows, sessioneNome, dateValideData);
+    })
+    .catch(error => {
+      // Non applicare nessun filtro in caso di errore
+    });
+}
+
+// Funzione di supporto per applicare il filtro alle righe
+function applySessionFilter(rows, sessioneNome, dateValideData) {
   rows.forEach(row => {
     const dataCell = row.cells[5]; // Colonna data (indice 5)
     if (!dataCell) return;
     
     const dataEsame = new Date(dataCell.getAttribute('data-datetime'));
-    const sessioneEsame = determinaSessioneEsame(dataEsame);
+    const sessioneEsame = determinaSessioneEsame(dataEsame, dateValideData);
     
     if (sessioneEsame === sessioneNome) {
       row.style.display = '';
@@ -586,7 +650,6 @@ async function deleteExam(examId) {
       }
     }
   } catch (error) {
-    console.error('Errore:', error);
     // Mostra messaggio di errore nella sidebar
     if (window.showMessage) {
       window.showMessage('Si è verificato un errore durante l\'eliminazione dell\'esame', 'Errore di connessione', 'error');

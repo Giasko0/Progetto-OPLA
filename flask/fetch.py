@@ -479,10 +479,10 @@ def check_esami_minimi():
                 # Calcola minimo richiesto per questo insegnamento/semestre
                 if semestre == 1:
                     minimo_richiesto = esami_primo or 0
-                elif semestre == 2:
+                elif semestre == 2 or semestre == 3: # Insegnamenti annuali seguono le regole del secondo semestre
                     minimo_richiesto = esami_secondo or 0
                 else:
-                    minimo_richiesto = max(esami_primo or 0, esami_secondo or 0)
+                    minimo_richiesto = 0
                 
                 if minimo_richiesto > 0:
                     # 6. Conta TUTTI gli esami in questa sessione (di qualunque docente) che sono ufficiali
@@ -502,6 +502,25 @@ def check_esami_minimi():
                             'esami_presenti': esami_presenti,
                             'minimo_richiesto': minimo_richiesto
                         })
+                elif semestre == 3 and tipo_sess == 'anticipata' and minimo_richiesto == 0:
+                    # Per insegnamenti annuali in anticipata, verifica che non ci siano appelli
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM esami 
+                        WHERE insegnamento = %s AND anno_accademico = %s
+                              AND data_appello >= %s AND data_appello <= %s
+                              AND mostra_nel_calendario = true
+                    """, (ins_id, anno, inizio, fine))
+                    
+                    esami_presenti = cursor.fetchone()[0]
+                    
+                    # Se ci sono appelli in anticipata per insegnamenti annuali, è un problema
+                    if esami_presenti > 0:
+                        sessioni_problematiche.append({
+                            'tipo_sessione': tipo_sess,
+                            'esami_presenti': esami_presenti,
+                            'minimo_richiesto': 0,
+                            'messaggio': 'Gli insegnamenti annuali non devono avere appelli in sessione anticipata'
+                        })
             
             # 8. Aggiungi agli insegnamenti problematici se necessario
             sotto_target = esami_totali < target_esami
@@ -515,7 +534,8 @@ def check_esami_minimi():
                     'codici_cds': f"{nome_corso} - {cds_code}",
                     'target_esami': target_esami,
                     'sotto_target': sotto_target,
-                    'sessioni_problematiche': sessioni_problematiche
+                    'sessioni_problematiche': sessioni_problematiche,
+                    'semestre': semestre
                 })
         
         if not insegnamenti_problematici:
@@ -562,7 +582,7 @@ def ottieni_target_esami_e_sessioni(docente, anno_accademico):
         
         # Ottieni i CdS del docente
         cursor.execute("""
-            SELECT DISTINCT ic.cds, ic.curriculum_codice
+            SELECT DISTINCT ic.cds, ic.curriculum_codice, ic.semestre
             FROM insegnamento_docente id
             JOIN insegnamenti_cds ic ON id.insegnamento = ic.insegnamento
             WHERE id.docente = %s AND id.annoaccademico = %s AND ic.anno_accademico = %s
@@ -576,7 +596,7 @@ def ottieni_target_esami_e_sessioni(docente, anno_accademico):
         # Ottieni le sessioni per i CdS del docente e calcola l'intersezione/unione
         sessioni_info = {}
         
-        for cds, curriculum in cds_docente:
+        for cds, curriculum, semestre in cds_docente:
             cursor.execute("""
                 SELECT tipo_sessione, esami_primo_semestre, esami_secondo_semestre
                 FROM sessioni
@@ -587,8 +607,15 @@ def ottieni_target_esami_e_sessioni(docente, anno_accademico):
                 if tipo_sessione not in sessioni_info:
                     sessioni_info[tipo_sessione] = []
                 
-                # Calcola il massimo di esami per questa sessione
-                max_esami = max(primo_sem or 0, secondo_sem or 0)
+                # Per insegnamenti annuali, seguono le regole del secondo semestre
+                # e non devono avere appelli in anticipata
+                if semestre == 1:
+                    max_esami = primo_sem or 0
+                elif semestre == 2 or semestre == 3:
+                    max_esami = secondo_sem or 0
+                else:
+                    max_esami = 0
+                
                 sessioni_info[tipo_sessione].append(max_esami)
         
         # Calcola il risultato finale (usa il massimo tra tutti i CdS per ogni sessione)
