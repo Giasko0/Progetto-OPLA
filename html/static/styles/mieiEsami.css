@@ -15,6 +15,46 @@
   color: var(--color-bg-light);
   font-weight: bold;
   cursor: pointer;
+  position: relative;
+  user-select: none;
+}
+
+.esami-th.sortable {
+  padding-right: 28px;
+}
+
+.esami-th.sortable::after {
+  content: '▲▼';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.6;
+  font-size: 0.7em;
+  transition: opacity 0.2s;
+  color: var(--color-bg-light);
+}
+
+.esami-th.sortable:hover::after {
+  opacity: 0.9;
+}
+
+.esami-th.sort-asc::after {
+  content: '▲';
+  opacity: 1;
+  color: var(--color-bg-light);
+  font-size: 0.9em;
+}
+
+.esami-th.sort-desc::after {
+  content: '▼';
+  opacity: 1;
+  color: var(--color-bg-light);
+  font-size: 0.9em;
+}
+
+.esami-th.non-sortable {
+  cursor: default;
 }
 
 .esami-th, .esami-td {

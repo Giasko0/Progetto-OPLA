@@ -261,9 +261,11 @@ function displayEsamiData(data, targetEsami, sessioniInfo) {
 function createTableStructure(tableId, headers) {
   const headerCells = headers.map((header, index) => {
     const sortType = header.text === 'Data' ? 'date' : 'text';
-    const onClick = header.sortable !== false ? `onclick="sortTable('${tableId}', ${index}${sortType === 'date' ? ", 'date'" : ''})"` : '';
+    const isSortable = header.sortable !== false;
+    const onClick = isSortable ? `onclick="sortTable('${tableId}', ${index}${sortType === 'date' ? ", 'date'" : ''})"` : '';
     const hideClass = header.hideOnMobile ? 'col-responsive-hide' : '';
-    return `<th class="esami-th ${hideClass}" ${onClick}>${header.text}</th>`;
+    const sortableClass = isSortable ? 'sortable' : 'non-sortable';
+    return `<th class="esami-th ${hideClass} ${sortableClass}" ${onClick}>${header.text}</th>`;
   }).join('');
 
   return `
@@ -557,10 +559,14 @@ function sortTable(tableId, colIndex, type = "text") {
   
   // Determina direzione ordinamento
   const currentDir = table.getAttribute("data-sort-dir");
-  const direction = (table.getAttribute("data-sort-col") === colIndex.toString() && currentDir === "asc") ? "desc" : "asc";
+  const currentCol = table.getAttribute("data-sort-col");
+  const direction = (currentCol === colIndex.toString() && currentDir === "asc") ? "desc" : "asc";
   
   table.setAttribute("data-sort-col", colIndex);
   table.setAttribute("data-sort-dir", direction);
+
+  // Aggiorna le frecce negli header
+  updateSortArrows(table, colIndex, direction);
 
   // Funzione di confronto
   const compare = (a, b) => {
@@ -581,6 +587,19 @@ function sortTable(tableId, colIndex, type = "text") {
 
   // Ordina e ricostruisci
   rows.sort(compare).forEach(row => tbody.appendChild(row));
+}
+
+// Funzione per aggiornare le frecce di ordinamento
+function updateSortArrows(table, activeColIndex, direction) {
+  const headers = table.querySelectorAll('.esami-th.sortable');
+  
+  headers.forEach((header, index) => {
+    header.classList.remove('sort-asc', 'sort-desc');
+    
+    if (index === activeColIndex) {
+      header.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+  });
 }
 
 // Funzione per formattare data e ora
