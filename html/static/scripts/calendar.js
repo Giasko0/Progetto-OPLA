@@ -215,9 +215,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                   ...event,
                   // Applica stile giallo per esami di altri docenti
                   ...(event.extendedProps?.insegnamentoDocente === false && {
-                    backgroundColor: '#FFD700',
-                    borderColor: '#FFD700',
-                    textColor: '#000000'
+                    backgroundColor: 'var(--color-warning)',
+                    borderColor: 'var(--color-warning)',
+                    textColor: '#000'
                   })
                 }));
                 

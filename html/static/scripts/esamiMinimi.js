@@ -40,7 +40,7 @@ async function checkEsamiMinimi() {
         let content = `<div style="font-size: 0.9rem; line-height: 1.4;">`;
         
         if (isMultiple) {
-          content += `<p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Clicca per espandere i dettagli:</p>`;
+          content += `<p style="margin: 0; color: var(--color-text-light); font-size: 0.85rem;">Clicca per espandere i dettagli:</p>`;
         }
         
         data.insegnamenti_sotto_minimo.forEach((ins, index) => {
@@ -48,33 +48,33 @@ async function checkEsamiMinimi() {
           
           if (isMultiple) {
             // Header collassabile per più insegnamenti
-            content += `<div class="collapse-toggle" style="cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #17a2b8; margin-top: 8px; user-select: none;">`;
-            content += `<span class="collapse-icon material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 8px; color: #6c757d;">keyboard_arrow_right</span>`;
-            content += `<strong style="color: #2c3e50; font-size: 0.9rem;">${ins.titolo}</strong>`; 
+            content += `<div class="collapse-toggle" style="cursor: pointer; padding: 8px; background: var(--color-bg-secondary); border-radius: 4px; border-left: 3px solid var(--color-blue); margin-top: 8px; user-select: none;">`;
+            content += `<span class="collapse-icon material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 8px; color: var(--color-text-light);">keyboard_arrow_right</span>`;
+            content += `<strong style="color: var(--color-text); font-size: 0.9rem;">${ins.titolo}</strong>`; 
             content += `</div>`;
             
             // Contenuto collassabile
             content += `<div class="collapse-content" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; padding: 0 12px;">`;
           } else {
             // Header fisso per singolo insegnamento
-            content += `<div style="padding: 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #17a2b8; margin-bottom: 8px;">`;
-            content += `<strong style="color: #2c3e50; font-size: 0.9rem;">${ins.titolo}</strong>`;
+            content += `<div style="padding: 8px; background: var(--color-bg-secondary); border-radius: 4px; border-left: 3px solid var(--color-blue); margin-bottom: 8px;">`;
+            content += `<strong style="color: var(--color-text); font-size: 0.9rem;">${ins.titolo}</strong>`;
             content += `</div>`;
           }
           
           content += `<div style="padding: 8px 0;">`;
-          content += `<div style="font-size: 0.8rem; color: #6c757d; margin-bottom: 6px;">${ins.codici_cds}</div>`;
+          content += `<div style="font-size: 0.8rem; color: var(--color-text-light); margin-bottom: 6px;">${ins.codici_cds}</div>`;
           
           // Se è sotto il target generale
           if (ins.sotto_target) {
-            content += `<div style="color: #e74c3c; font-size: 0.85rem; margin-bottom: 4px; padding: 4px 8px; background: #fff5f5; border-radius: 3px;">`;
+            content += `<div style="color: var(--color-error); font-size: 0.85rem; margin-bottom: 4px; padding: 4px 8px; background: var(--alert-target-bg); border-radius: 3px;">`;
             content += `📊 Target generale: ${ins.esami_inseriti}/${targetEsami} esami`;
             content += `</div>`;
           }
           
           // Se ci sono sessioni problematiche
           if (ins.sessioni_problematiche && ins.sessioni_problematiche.length > 0) {
-            content += `<div style="color: #f39c12; font-size: 0.85rem; padding: 4px 8px; background: #fffbf0; border-radius: 3px;">`;
+            content += `<div style="color: var(--color-warning); font-size: 0.85rem; padding: 4px 8px; background: var(--alert-session-bg); border-radius: 3px;">`;
             
             ins.sessioni_problematiche.forEach((sessione) => {
               const nomeSessione = sessione.tipo_sessione.charAt(0).toUpperCase() + sessione.tipo_sessione.slice(1);
@@ -82,7 +82,7 @@ async function checkEsamiMinimi() {
               // Controllo speciale per insegnamenti annuali in anticipata
               if (ins.semestre === 3 && sessione.tipo_sessione === 'anticipata' && sessione.minimo_richiesto === 0) {
                 content += `⚠️ ${nomeSessione}: ${sessione.esami_presenti} appelli presenti<br>`;
-                content += `<span style="margin-left: 12px; font-size: 0.8rem; color: #dc3545;">• Gli insegnamenti annuali non devono avere appelli in anticipata</span><br>`;
+                content += `<span style="margin-left: 12px; font-size: 0.8rem; color: var(--color-error);">• Gli insegnamenti annuali non devono avere appelli in anticipata</span><br>`;
               } else {
                 content += `⚠️ ${nomeSessione}: ${sessione.esami_presenti}/${sessione.minimo_richiesto}<br>`;
               }

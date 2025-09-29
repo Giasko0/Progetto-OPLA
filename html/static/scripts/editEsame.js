@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
             : '';
           
           multiSelectBox.innerHTML = `
-            <div class="multi-select-tag readonly-tag" style="background-color: #f0f0f0; border: 1px solid #ccc; cursor: not-allowed; color: #000000;">
+            <div class="multi-select-tag">
               ${examData.insegnamento_titolo}${cdsText}
             </div>
           `;

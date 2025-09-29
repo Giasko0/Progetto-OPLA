@@ -5,7 +5,7 @@
   --color-light-blue: #0a58ca;
   --color-error: #C12235;
   --color-success: #4CAF50;
-  --color-warning: #FFD700;
+  --color-warning: #FFA726;
   
   /* Sfondi e contenitori */
   --color-bg: #f0f0f0;
@@ -28,6 +28,10 @@
   --sidebar-width: calc(100dvw / 6);
   --radius: 8px;
   --form-margin: 15px;
+  
+  /* Sfondi specifici per alert esami minimi */
+  --alert-target-bg: #ffeaea;
+  --alert-session-bg: #fff8e1;
 }
 
 /* Dark mode variables */
@@ -37,7 +41,7 @@ html.dark {
   --color-light-blue: #adbee6;
   --color-error: #e63946;
   --color-success: #388E3C;
-  --color-warning: #FFD700;
+  --color-warning: #FFA726;
   
   /* Sfondi e contenitori */
   --color-bg: #121212;
@@ -53,6 +57,10 @@ html.dark {
   --color-text: #e0e0e0;
   --color-text-light: #888;
   --color-border: #444;
+  
+  /* Sfondi specifici per alert esami minimi in dark mode */
+  --alert-target-bg: #3a1f1f;
+  --alert-session-bg: #3a2f1a;
 }
 
 /*------------------------------------STILI GLOBALI------------------------------------*/
