@@ -186,15 +186,35 @@ def get_esami():
                     insegnamenti_autorizzati.extend(insegnamenti_correlati)
                     insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))  # Rimuovi duplicati
         
+        # Ottieni i codocenti per gli insegnamenti del docente (solo per non-admin)
+        codocenti_set = set()
+        if not is_admin_user:
+            cursor.execute("""
+                SELECT DISTINCT id2.docente
+                FROM insegnamento_docente id1
+                JOIN insegnamento_docente id2 ON id1.insegnamento = id2.insegnamento 
+                    AND id1.annoaccademico = id2.annoaccademico
+                WHERE id1.docente = %s AND id1.annoaccademico = %s AND id2.docente != %s
+            """, (docente, anno, docente))
+            codocenti_set = {row[0] for row in cursor.fetchall()}
+        
         # Query principale - mostra tutti gli esami degli insegnamenti autorizzati
         if not insegnamenti_autorizzati:
             where_clause = "WHERE 1=0"
             params = ()
         else:
-            # Mostra tutti gli esami ufficiali + tutti gli esami del docente (anche non ufficiali)
-            where_clause = """WHERE e.insegnamento = ANY(%s) AND 
-                              (e.mostra_nel_calendario = true OR e.docente = %s)"""
-            params = (insegnamenti_autorizzati, docente)
+            if is_admin_user:
+                # Admin vede tutti gli esami ufficiali + tutti gli esami del docente (anche non ufficiali)
+                where_clause = """WHERE e.insegnamento = ANY(%s) AND 
+                                  (e.mostra_nel_calendario = true OR e.docente = %s)"""
+                params = (insegnamenti_autorizzati, docente)
+            else:
+                # Non admin vede: esami ufficiali + esami del docente + esami dei codocenti (anche non ufficiali)
+                codocenti_list = list(codocenti_set)
+                codocenti_list.append(docente)  # Includi sempre il docente stesso
+                where_clause = """WHERE e.insegnamento = ANY(%s) AND 
+                                  (e.mostra_nel_calendario = true OR e.docente = ANY(%s))"""
+                params = (insegnamenti_autorizzati, codocenti_list)
         
         query = f"""
             SELECT e.id, e.descrizione, e.docente, 
@@ -226,9 +246,12 @@ def get_esami():
         # Costruisci la risposta
         exams = []
         for row in cursor.fetchall():
+            # Un esame è "del docente" se è admin, o se è nei suoi insegnamenti, o se è il suo docente, o se è di un codocente
             esame_del_docente = (is_admin_user or 
                                row['insegnamento'] in insegnamenti_docente_codes or 
-                               row['docente'] == docente)
+                               row['docente'] == docente or
+                               row['docente'] in codocenti_set)
+            
             # Eccezione per "Studio docente DMI": non mostra l'edificio tra parentesi
             if row['aula'] == 'Studio docente DMI':
                 aula_completa = row['aula']
