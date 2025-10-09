@@ -329,7 +329,7 @@ def import_exams_from_file():
         }
         
         # Processa Excel
-        wb = load_workbook(io.BytesIO(file.read()))
+        wb = load_workbook(io.BytesIO(file.read()), data_only=True)
         rows = list(wb.active.rows)[1:]  # Salta header
         
         esami = []
