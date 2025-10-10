@@ -67,52 +67,87 @@ def get_calendario_esami():
     if not cds_info:
       return jsonify({'error': 'Corso di studi non trovato'})
     
-    # Ottieni tutti gli insegnamenti per il curriculum selezionato + curriculum generale
-    # Filtra solo gli esami con mostra_nel_calendario = TRUE
+    # Ottieni tutti gli insegnamenti e le loro informazioni
     cursor.execute("""
-      SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre, ic.curriculum_codice,
-           COALESCE(e.data_appello, NULL) as data_appello
+      SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre, 
+             ic.curriculum_codice, ic.inserire_esami, ic.master
       FROM insegnamenti i
       JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-      LEFT JOIN esami e ON i.id = e.insegnamento
-                        AND e.cds = %s
-                        AND e.anno_accademico = %s
-                        AND e.curriculum_codice IN (%s, 'GEN')
-                        AND e.data_appello >= %s
-                        AND e.mostra_nel_calendario = TRUE
       WHERE ic.cds = %s AND ic.anno_accademico = %s 
         AND (ic.curriculum_codice = %s OR ic.curriculum_codice = 'GEN')
       ORDER BY ic.anno_corso, i.titolo
-    """, (cds_code, anno_accademico, curriculum, f"{anno_accademico}-01-01", 
+    """, (cds_code, anno_accademico, curriculum))
+    
+    insegnamenti_base = cursor.fetchall()
+    
+    # Ottieni gli esami diretti (per insegnamenti con inserire_esami = TRUE)
+    cursor.execute("""
+      SELECT e.insegnamento, e.data_appello
+      FROM esami e
+      JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
+      WHERE e.cds = %s AND e.anno_accademico = %s
+        AND e.curriculum_codice IN (%s, 'GEN')
+        AND e.data_appello >= %s
+        AND e.mostra_nel_calendario = TRUE
+        AND ic.cds = %s AND ic.anno_accademico = %s
+        AND (ic.curriculum_codice = %s OR ic.curriculum_codice = 'GEN')
+        AND (ic.inserire_esami = TRUE OR ic.master IS NULL)
+      ORDER BY e.data_appello
+    """, (cds_code, anno_accademico, curriculum, f"{anno_accademico}-01-01",
           cds_code, anno_accademico, curriculum))
     
-    insegnamenti_raw = cursor.fetchall()
+    esami_diretti = cursor.fetchall()
     
-    # Raggruppa gli insegnamenti per evitare duplicazioni
-    insegnamenti = []
+    # Ottieni gli esami dal master (per insegnamenti con inserire_esami = FALSE)
+    cursor.execute("""
+      SELECT ic.insegnamento, e.data_appello
+      FROM insegnamenti_cds ic
+      JOIN esami e ON ic.master = e.insegnamento
+      WHERE ic.cds = %s AND ic.anno_accademico = %s
+        AND (ic.curriculum_codice = %s OR ic.curriculum_codice = 'GEN')
+        AND ic.inserire_esami = FALSE
+        AND ic.master IS NOT NULL
+        AND e.anno_accademico = %s
+        AND e.mostra_nel_calendario = TRUE
+      ORDER BY e.data_appello
+    """, (cds_code, anno_accademico, curriculum, anno_accademico))
+    
+    esami_master = cursor.fetchall()
+    
+    # Combina gli esami in un dizionario per insegnamento
     esami_per_insegnamento = {}
     
-    for row in insegnamenti_raw:
-      id_insegnamento = row['id']
-      if id_insegnamento not in esami_per_insegnamento:
-        insegnamenti.append({
-          'id': id_insegnamento,
-          'codice': row['codice'],
-          'titolo': row['titolo'],
-          'anno_corso': row['anno_corso'],
-          'semestre': row['semestre'],
-          'curriculum_codice': row['curriculum_codice'],
-          'esami': []
-        })
-        esami_per_insegnamento[id_insegnamento] = insegnamenti[-1]['esami']
-      
-      # Aggiungi l'esame se c'è una data
-      if row['data_appello']:
-        esami_per_insegnamento[id_insegnamento].append({
-          'data_appello': row['data_appello']
-        })
+    # Aggiungi esami diretti
+    for esame in esami_diretti:
+      if esame['insegnamento'] not in esami_per_insegnamento:
+        esami_per_insegnamento[esame['insegnamento']] = []
+      esami_per_insegnamento[esame['insegnamento']].append({
+        'data_appello': esame['data_appello']
+      })
     
-    # Ottieni le sessioni di esame per questo CdS e curriculum
+    # Aggiungi esami dal master
+    for esame in esami_master:
+      if esame['insegnamento'] not in esami_per_insegnamento:
+        esami_per_insegnamento[esame['insegnamento']] = []
+      esami_per_insegnamento[esame['insegnamento']].append({
+        'data_appello': esame['data_appello']
+      })
+    
+    # Costruisci la lista finale degli insegnamenti
+    insegnamenti = []
+    for row in insegnamenti_base:
+      insegnamento_id = row['id']
+      insegnamenti.append({
+        'id': insegnamento_id,
+        'codice': row['codice'],
+        'titolo': row['titolo'],
+        'anno_corso': row['anno_corso'],
+        'semestre': row['semestre'],
+        'curriculum_codice': row['curriculum_codice'],
+        'esami': esami_per_insegnamento.get(insegnamento_id, [])
+      })
+    
+    # Query per ottenere le sessioni
     cursor.execute("""
       SELECT tipo_sessione, inizio, fine
       FROM sessioni
@@ -185,34 +220,67 @@ def esporta_calendario_esami():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=DictCursor)
         
+        # Info corso
         cursor.execute("""
-            SELECT nome_corso, curriculum_codice, curriculum_nome FROM cds
+            SELECT nome_corso, curriculum_codice, curriculum_nome 
+            FROM cds
             WHERE codice = %s AND anno_accademico = %s AND curriculum_codice = %s
         """, (cds_code, anno_accademico, curriculum))
         
         cds_info = cursor.fetchone()
         if not cds_info:
             return jsonify({'error': 'Corso di studi non trovato'}), 404
-        
+        # Ottieni insegnamenti base
         cursor.execute("""
-            SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre, ic.curriculum_codice,
-                   COALESCE(e.data_appello, NULL) as data_appello
+            SELECT i.id, i.codice, i.titolo, ic.anno_corso, ic.semestre, 
+                   ic.curriculum_codice, ic.inserire_esami, ic.master
             FROM insegnamenti i
             JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
-            LEFT JOIN esami e ON i.id = e.insegnamento
-                              AND e.cds = %s AND e.anno_accademico = %s
-                              AND e.curriculum_codice IN (%s, 'GEN')
-                              AND e.data_appello >= %s AND e.mostra_nel_calendario = TRUE
             WHERE ic.cds = %s AND ic.anno_accademico = %s 
               AND (ic.curriculum_codice = %s OR ic.curriculum_codice = 'GEN')
             ORDER BY ic.anno_corso, i.titolo
-        """, (cds_code, anno_accademico, curriculum, f"{anno_accademico}-01-01", 
+        """, (cds_code, anno_accademico, curriculum))
+        
+        insegnamenti_base = cursor.fetchall()
+
+        # Ottieni esami diretti
+        cursor.execute("""
+            SELECT e.insegnamento, e.data_appello
+            FROM esami e
+            JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento
+            WHERE e.cds = %s AND e.anno_accademico = %s
+              AND e.curriculum_codice IN (%s, 'GEN')
+              AND e.data_appello >= %s
+              AND e.mostra_nel_calendario = TRUE
+              AND ic.cds = %s AND ic.anno_accademico = %s
+              AND (ic.curriculum_codice = %s OR ic.curriculum_codice = 'GEN')
+              AND (ic.inserire_esami = TRUE OR ic.master IS NULL)
+            ORDER BY e.data_appello
+        """, (cds_code, anno_accademico, curriculum, f"{anno_accademico}-01-01",
               cds_code, anno_accademico, curriculum))
         
-        insegnamenti_raw = cursor.fetchall()
-        
+        esami_diretti = cursor.fetchall()
+
+        # Ottieni esami dal master
         cursor.execute("""
-            SELECT tipo_sessione, inizio, fine FROM sessioni
+            SELECT ic.insegnamento, e.data_appello
+            FROM insegnamenti_cds ic
+            JOIN esami e ON ic.master = e.insegnamento
+            WHERE ic.cds = %s AND ic.anno_accademico = %s
+              AND (ic.curriculum_codice = %s OR ic.curriculum_codice = 'GEN')
+              AND ic.inserire_esami = FALSE
+              AND ic.master IS NOT NULL
+              AND e.anno_accademico = %s
+              AND e.mostra_nel_calendario = TRUE
+            ORDER BY e.data_appello
+        """, (cds_code, anno_accademico, curriculum, anno_accademico))
+        
+        esami_master = cursor.fetchall()
+
+        # Query per le sessioni
+        cursor.execute("""
+            SELECT tipo_sessione, inizio, fine
+            FROM sessioni
             WHERE cds = %s AND anno_accademico = %s 
               AND (curriculum_codice = %s OR curriculum_codice = 'GEN')
             ORDER BY inizio
@@ -233,26 +301,33 @@ def esporta_calendario_esami():
             if tipo_sessione in sessioni_calendario:
                 sessioni_calendario[tipo_sessione].update(data_sessione)
         
-        insegnamenti = []
+        # Combina esami per insegnamento
         esami_per_insegnamento = {}
         
-        for row in insegnamenti_raw:
-            id_insegnamento = row['id']
-            if id_insegnamento not in esami_per_insegnamento:
-                insegnamenti.append({
-                    'id': id_insegnamento,
-                    'codice': row['codice'],
-                    'titolo': row['titolo'],
-                    'anno_corso': row['anno_corso'],
-                    'semestre': row['semestre'],
-                    'curriculum_codice': row['curriculum_codice'],
-                    'esami': []
-                })
-                esami_per_insegnamento[id_insegnamento] = insegnamenti[-1]['esami']
-            
-            if row['data_appello']:
-                esami_per_insegnamento[id_insegnamento].append({'data_appello': row['data_appello']})
+        for esame in esami_diretti:
+            if esame['insegnamento'] not in esami_per_insegnamento:
+                esami_per_insegnamento[esame['insegnamento']] = []
+            esami_per_insegnamento[esame['insegnamento']].append({'data_appello': esame['data_appello']})
         
+        for esame in esami_master:
+            if esame['insegnamento'] not in esami_per_insegnamento:
+                esami_per_insegnamento[esame['insegnamento']] = []
+            esami_per_insegnamento[esame['insegnamento']].append({'data_appello': esame['data_appello']})
+        
+        # Costruisci lista insegnamenti finale
+        insegnamenti = []
+        for row in insegnamenti_base:
+            insegnamenti.append({
+                'id': row['id'],
+                'codice': row['codice'],
+                'titolo': row['titolo'],
+                'anno_corso': row['anno_corso'],
+                'semestre': row['semestre'],
+                'curriculum_codice': row['curriculum_codice'],
+                'esami': esami_per_insegnamento.get(row['id'], [])
+            })
+        
+        # Raggruppa gli insegnamenti per anno di corso
         insegnamenti_per_anno = {}
         for ins in insegnamenti:
             anno = ins['anno_corso'] or 1
