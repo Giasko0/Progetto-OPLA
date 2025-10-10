@@ -112,8 +112,6 @@ def controlla_esami_minimi():
         # Aggiungi conteggio per ogni sessione
         for sessione in sessioni:
             tipo = sessione['tipo_sessione']
-            inizio = sessione['inizio']
-            fine = sessione['fine']
             base_query += f""",
                 COUNT(CASE 
                     WHEN e.mostra_nel_calendario = TRUE 
@@ -130,6 +128,7 @@ def controlla_esami_minimi():
             LEFT JOIN utenti u ON id.docente = u.username
             LEFT JOIN esami e ON i.id = e.insegnamento AND e.anno_accademico = %s AND e.cds = ic.cds AND e.curriculum_codice = ic.curriculum_codice
             WHERE ic.anno_accademico = %s
+            AND ic.inserire_esami = TRUE
         """
         
         # Prepara i parametri includendo le date delle sessioni
