@@ -105,12 +105,14 @@ CREATE TABLE insegnamenti_cds (
     titolare TEXT,              -- Matricola del docente titolare/responsabile didattico
     inserire_esami BOOLEAN DEFAULT FALSE, -- Flag per determinare se il docente deve inserire esami per questo insegnamento
     master TEXT,                -- ID dell'insegnamento master (per mutuazioni)
+    sovrapposizioni INT DEFAULT 0, -- Numero di sovrapposizioni attive con altri esami
     PRIMARY KEY (insegnamento, cds, curriculum_codice, anno_accademico),
     FOREIGN KEY (insegnamento) REFERENCES insegnamenti(id) ON DELETE CASCADE,
     FOREIGN KEY (master) REFERENCES insegnamenti(id) ON DELETE SET NULL,
     FOREIGN KEY (cds, anno_accademico, curriculum_codice) REFERENCES cds(codice, anno_accademico, curriculum_codice) ON DELETE CASCADE,
     FOREIGN KEY (titolare) REFERENCES utenti(matricola) ON DELETE SET NULL,
-    CONSTRAINT check_semestre CHECK (semestre IN (1, 2, 3))
+    CONSTRAINT check_semestre CHECK (semestre IN (1, 2, 3)),
+    CONSTRAINT check_sovrapposizioni CHECK (sovrapposizioni >= 0 AND sovrapposizioni <= 2)
 );
 
 -- Tabella 'insegnamento_docente' (relazione N:N tra insegnamenti e utenti)
