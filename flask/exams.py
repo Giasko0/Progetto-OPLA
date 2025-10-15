@@ -138,9 +138,34 @@ def docente_insegna_insegnamento(cursor, docente_username, insegnamento_id, anno
 def trova_esami_sovrapposti(cursor, insegnamento_id, data_appello, anno_accademico, exam_id_to_exclude=None):
     """
     Trova esami che si sovrappongono con la data specificata per lo stesso CdS/anno/semestre.
+    Considera anche gli insegnamenti annuali (semestre=3):
+    - Esami 1° sem si sovrappongono con: 1° sem + annuali
+    - Esami 2° sem si sovrappongono con: 2° sem + annuali
+    - Esami annuali si sovrappongono con: annuali + 1° sem + 2° sem
+    
     Restituisce una lista di tuple (insegnamento_id, titolo_insegnamento).
     """
-    query = """
+    # Prima ottieni il semestre dell'insegnamento corrente
+    cursor.execute("""
+        SELECT semestre FROM insegnamenti_cds 
+        WHERE insegnamento = %s AND anno_accademico = %s LIMIT 1
+    """, (insegnamento_id, anno_accademico))
+    
+    semestre_result = cursor.fetchone()
+    if not semestre_result:
+        return []
+    
+    semestre_corrente = semestre_result[0]
+    
+    # Costruisci la condizione per il semestre in base al tipo di insegnamento
+    if semestre_corrente == 3:  # Annuale
+        # Gli annuali si sovrappongono con: annuali, 1° sem e 2° sem
+        semestre_condition = "ic2.semestre IN (1, 2, 3)"
+    else:  # 1° o 2° semestre
+        # I semestrali si sovrappongono con: stesso semestre + annuali
+        semestre_condition = f"ic2.semestre IN ({semestre_corrente}, 3)"
+    
+    query = f"""
         SELECT DISTINCT e.insegnamento, i.titolo
         FROM esami e
         JOIN insegnamenti i ON e.insegnamento = i.id
@@ -151,7 +176,7 @@ def trova_esami_sovrapposti(cursor, insegnamento_id, data_appello, anno_accademi
         AND e.insegnamento != %s
         AND ic1.cds = ic2.cds
         AND ic1.anno_corso = ic2.anno_corso
-        AND ic1.semestre = ic2.semestre
+        AND ({semestre_condition})
         AND e.anno_accademico = %s
     """
     params = [insegnamento_id, anno_accademico, data_appello, insegnamento_id, anno_accademico]
@@ -573,7 +598,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     # Solo se il docente NON insegna entrambi gli insegnamenti
                     for esame_sovrapposto_id, esame_sovrapposto_titolo in esami_sovrapposti:
                         # Verifica se il docente insegna l'insegnamento sovrapposto
-                        if not docente_insegna_insegnamento(cursor, docente_form, esame_sovrapposto_id, anno_accademico):
+                        if not docente_insegna_insegnamento(cursor, docente_esame, esame_sovrapposto_id, anno_accademico):
                             sovrapposizioni_altro = get_sovrapposizioni_insegnamento(
                                 cursor, esame_sovrapposto_id, anno_accademico
                             )

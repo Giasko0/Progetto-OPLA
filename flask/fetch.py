@@ -140,18 +140,41 @@ def get_esami():
             if insegnamenti:
                 # Se specificati insegnamenti, trova quelli correlati
                 insegnamenti_list = insegnamenti.split(',')
+                
+                # Prima ottieni i semestri degli insegnamenti selezionati
                 cursor.execute("""
-                    SELECT DISTINCT i2.id
+                    SELECT DISTINCT ic1.insegnamento, ic1.semestre
                     FROM insegnamenti i1
                     JOIN insegnamenti_cds ic1 ON i1.id = ic1.insegnamento
-                    JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
-                        AND ic1.anno_corso = ic2.anno_corso 
-                        AND ic1.semestre = ic2.semestre
-                        AND ic1.anno_accademico = ic2.anno_accademico
-                    JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
                     WHERE i1.codice = ANY(%s) AND ic1.anno_accademico = %s
                 """, (insegnamenti_list, anno))
-                insegnamenti_autorizzati = [row[0] for row in cursor.fetchall()]
+                
+                insegnamenti_con_semestre = {row[0]: row[1] for row in cursor.fetchall()}
+                
+                # Per ogni insegnamento selezionato, trova quelli correlati considerando gli annuali
+                for ins_id, semestre in insegnamenti_con_semestre.items():
+                    if semestre == 3:  # Annuale
+                        # Gli annuali si correlano con: annuali, 1° sem e 2° sem
+                        semestre_condition = "ic2.semestre IN (1, 2, 3)"
+                    else:  # 1° o 2° semestre
+                        # I semestrali si correlano con: stesso semestre + annuali
+                        semestre_condition = f"ic2.semestre IN ({semestre}, 3)"
+                    
+                    cursor.execute(f"""
+                        SELECT DISTINCT i2.id
+                        FROM insegnamenti_cds ic1
+                        JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
+                            AND ic1.anno_corso = ic2.anno_corso 
+                            AND ic1.anno_accademico = ic2.anno_accademico
+                        JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
+                        WHERE ic1.insegnamento = %s 
+                        AND ic1.anno_accademico = %s
+                        AND ({semestre_condition})
+                    """, (ins_id, anno))
+                    
+                    insegnamenti_autorizzati.extend([row[0] for row in cursor.fetchall()])
+                
+                insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))  # Rimuovi duplicati
         else:
             # Non admin: ottieni insegnamenti del docente
             insegnamenti_docente = ottieni_insegnamenti_docente(docente, anno)
@@ -170,20 +193,41 @@ def get_esami():
                 insegnamenti_filtrati = [row[0] for row in cursor.fetchall()]
                 insegnamenti_selezionati_docente = [ins for ins in insegnamenti_autorizzati if ins in insegnamenti_filtrati]
                 
-                # Aggiungi insegnamenti correlati (stesso CdS/Anno/Semestre) degli insegnamenti selezionati del docente
+                # Aggiungi insegnamenti correlati (stesso CdS/Anno/Semestre considerando annuali) degli insegnamenti selezionati del docente
                 if insegnamenti_selezionati_docente:
+                    # Prima ottieni i semestri degli insegnamenti selezionati del docente
                     cursor.execute("""
-                        SELECT DISTINCT i2.id
-                        FROM insegnamenti_cds ic1
-                        JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
-                            AND ic1.anno_corso = ic2.anno_corso 
-                            AND ic1.semestre = ic2.semestre
-                            AND ic1.anno_accademico = ic2.anno_accademico
-                        JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
-                        WHERE ic1.insegnamento = ANY(%s) AND ic1.anno_accademico = %s
+                        SELECT DISTINCT insegnamento, semestre
+                        FROM insegnamenti_cds
+                        WHERE insegnamento = ANY(%s) AND anno_accademico = %s
                     """, (insegnamenti_selezionati_docente, anno))
-                    insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
-                    insegnamenti_autorizzati.extend(insegnamenti_correlati)
+                    
+                    insegnamenti_sel_con_semestre = {row[0]: row[1] for row in cursor.fetchall()}
+                    
+                    # Per ogni insegnamento selezionato, trova quelli correlati
+                    for ins_id, semestre in insegnamenti_sel_con_semestre.items():
+                        if semestre == 3:  # Annuale
+                            # Gli annuali si correlano con: annuali, 1° sem e 2° sem
+                            semestre_condition = "ic2.semestre IN (1, 2, 3)"
+                        else:  # 1° o 2° semestre
+                            # I semestrali si correlano con: stesso semestre + annuali
+                            semestre_condition = f"ic2.semestre IN ({semestre}, 3)"
+                        
+                        cursor.execute(f"""
+                            SELECT DISTINCT i2.id
+                            FROM insegnamenti_cds ic1
+                            JOIN insegnamenti_cds ic2 ON ic1.cds = ic2.cds 
+                                AND ic1.anno_corso = ic2.anno_corso 
+                                AND ic1.anno_accademico = ic2.anno_accademico
+                            JOIN insegnamenti i2 ON ic2.insegnamento = i2.id
+                            WHERE ic1.insegnamento = %s 
+                            AND ic1.anno_accademico = %s
+                            AND ({semestre_condition})
+                        """, (ins_id, anno))
+                        
+                        insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
+                        insegnamenti_autorizzati.extend(insegnamenti_correlati)
+                    
                     insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))  # Rimuovi duplicati
         
         # Ottieni i codocenti per gli insegnamenti del docente (solo per non-admin)
