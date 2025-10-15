@@ -264,11 +264,10 @@ const FormEsameControlli = (function() {
       const dataora = section.querySelector(`[id^="dataora_"]`)?.value;
       const ora_h = section.querySelector(`[id^="ora_h_"]`)?.value;
       const ora_m = section.querySelector(`[id^="ora_m_"]`)?.value;
-      const aula = section.querySelector(`[id^="aula_"]`)?.value;
       
       // Campi obbligatori sempre necessari
-      if (!dataora || !ora_h || !ora_m || !aula) {
-        window.showMessage(`Appello ${sectionNumber}: Compila almeno i campi obbligatori (data, ora, aula)`, "Errore validazione", "error");
+      if (!dataora || !ora_h || !ora_m) {
+        window.showMessage(`Appello ${sectionNumber}: Compila almeno data e ora`, "Errore validazione", "error");
         return false;
       }
       
@@ -319,10 +318,9 @@ const FormEsameControlli = (function() {
     const dataora = firstSection.querySelector('[id^="dataora_"]').value;
     const ora_h = firstSection.querySelector('[id^="ora_h_"]').value;
     const ora_m = firstSection.querySelector('[id^="ora_m_"]').value;
-    const aula = firstSection.querySelector('[id^="aula_"]').value;
 
-    if (!dataora || !ora_h || !ora_m || !aula) {
-      window.showMessage("Compila almeno i campi obbligatori", "Errore validazione", "error");
+    if (!dataora || !ora_h || !ora_m) {
+      window.showMessage("Compila almeno data e ora", "Errore validazione", "error");
       return false;
     }
 

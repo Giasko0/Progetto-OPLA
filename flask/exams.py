@@ -445,7 +445,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 periodo_str = "pomeriggio" if periodo == 1 else "mattina"
                 return False, f'Conflitto aula: {aula} già occupata il {data_appello} nel periodo {periodo_str}'
         
-        # Controllo vincoli per insegnamento (solo se mostra nel calendario)
+        # Controllo vincoli per insegnamento (solo se mostra nel calendario (appello ufficiale))
         if mostra_nel_calendario:
             for insegnamento in insegnamenti:
                 # Ottieni ID insegnamento
