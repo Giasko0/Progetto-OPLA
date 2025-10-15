@@ -220,7 +220,7 @@ export function setupDropdownClickListeners(calendar, dropdowns, currentUsername
     }
 
     // Aggiorna InsegnamentiManager se disponibile
-    if (window.InsegnamentiManager && e.target.type !== "checkbox") {
+    if (window.InsegnamentiManager) {
       const { codice, semestre, annoCorso, cds } = item.dataset;
       const semestreParsed = parseInt(semestre) || null;
       const annoCorsoParsed = parseInt(annoCorso) || null;
