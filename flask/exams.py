@@ -135,9 +135,9 @@ def docente_insegna_insegnamento(cursor, docente_username, insegnamento_id, anno
     """, (docente_username, insegnamento_id, anno_accademico))
     return cursor.fetchone() is not None
 
-def trova_esami_sovrapposti(cursor, insegnamento_id, data_appello, anno_accademico, exam_id_to_exclude=None):
+def trova_esami_sovrapposti(cursor, insegnamento_id, data_appello, anno_accademico, exam_id_to_exclude=None, periodo=None):
     """
-    Trova esami che si sovrappongono con la data specificata per lo stesso CdS/anno/semestre.
+    Trova esami che si sovrappongono con la data e periodo specificati per lo stesso CdS/anno/semestre.
     Considera anche gli insegnamenti annuali (semestre=3):
     - Esami 1° sem si sovrappongono con: 1° sem + annuali
     - Esami 2° sem si sovrappongono con: 2° sem + annuali
@@ -165,6 +165,13 @@ def trova_esami_sovrapposti(cursor, insegnamento_id, data_appello, anno_accademi
         # I semestrali si sovrappongono con: stesso semestre + annuali
         semestre_condition = f"ic2.semestre IN ({semestre_corrente}, 3)"
     
+    # Costruisci la condizione per il periodo (solo se specificato)
+    periodo_condition = ""
+    periodo_params = []
+    if periodo is not None:
+        periodo_condition = "AND e.periodo = %s"
+        periodo_params = [periodo]
+    
     query = f"""
         SELECT DISTINCT e.insegnamento, i.titolo
         FROM esami e
@@ -178,8 +185,9 @@ def trova_esami_sovrapposti(cursor, insegnamento_id, data_appello, anno_accademi
         AND ic1.anno_corso = ic2.anno_corso
         AND ({semestre_condition})
         AND e.anno_accademico = %s
+        {periodo_condition}
     """
-    params = [insegnamento_id, anno_accademico, data_appello, insegnamento_id, anno_accademico]
+    params = [insegnamento_id, anno_accademico, data_appello, insegnamento_id, anno_accademico] + periodo_params
     
     if exam_id_to_exclude:
         query += " AND e.id != %s"
@@ -241,7 +249,7 @@ def genera_dati_esame():
             'ora_appello': f"{ore_h[i]}:{ore_m[i]}",
             'durata_appello': durata_appello,
             'aula': aule[i] if i < len(aule) and aule[i] else None,
-            'periodo': 1 if ora_int >= 14 else 0,
+            'periodo': 1 if ora_int >= 13 else 0,
             'verbalizzazione': verbalizzazione_map.get(verbalizzazioni[i] if i < len(verbalizzazioni) else 'FSS', 'FSS'),
             'tipo_esame': tipi_esame[i] if i < len(tipi_esame) else None,
             'note_appello': note_appelli[i] if i < len(note_appelli) else '',
@@ -579,7 +587,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                 # Trova esami sovrapposti nello stesso giorno per lo stesso CdS/anno/semestre
                 esami_sovrapposti = trova_esami_sovrapposti(
                     cursor, insegnamento_id, data_appello, anno_accademico, 
-                    exam_id_to_exclude=exam_id_to_exclude
+                    exam_id_to_exclude=exam_id_to_exclude, periodo=periodo
                 )
                 
                 if esami_sovrapposti:
@@ -592,7 +600,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     if sovrapposizioni_correnti >= 2:
                         cursor.close()
                         release_connection(conn)
-                        return False, f'L\'insegnamento {titolo_insegnamento} ha già raggiunto il limite massimo di 2 sovrapposizioni'
+                        return False, f'Impossibile programmare l\'esame, questo insegnamento ha già raggiunto il limite di sovrapposizioni consentite.'
                     
                     # Controlla le sovrapposizioni di tutti gli esami sovrapposti
                     # Solo se il docente NON insegna entrambi gli insegnamenti
@@ -606,7 +614,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                             if sovrapposizioni_altro >= 2:
                                 cursor.close()
                                 release_connection(conn)
-                                return False, f'L\'insegnamento {esame_sovrapposto_titolo} ha già raggiunto il limite massimo di 2 sovrapposizioni. Non è possibile sovrapporre con {titolo_insegnamento} il giorno {data_appello}'
+                                return False, f'Impossibile programmare l\'esame, conflitto con un altro esame già programmato il giorno {data_appello}.'
     
     cursor.close()
     release_connection(conn)
@@ -698,7 +706,8 @@ def inserisci_esami(dati_esame):
             # GESTIONE SOVRAPPOSIZIONI: Se mostra nel calendario, aggiorna i contatori
             if sezione['mostra_nel_calendario']:
                 esami_sovrapposti = trova_esami_sovrapposti(
-                    cursor, insegnamento_id, sezione['data_appello'], anno_accademico
+                    cursor, insegnamento_id, sezione['data_appello'], anno_accademico,
+                    periodo=sezione['periodo']
                 )
                 
                 if esami_sovrapposti:
@@ -1278,6 +1287,7 @@ def ricalcola_sovrapposizioni_global():
                         AND e2.anno_accademico = ic2.anno_accademico
                     WHERE e2.data_appello = %s
                     AND e2.mostra_nel_calendario = true
+                    AND e2.periodo = %s
                     AND ic2.cds = %s
                     AND ic2.anno_corso = %s
                     AND e2.anno_accademico = %s
@@ -1285,8 +1295,21 @@ def ricalcola_sovrapposizioni_global():
                     AND e2.insegnamento != %s
                 """
                 
+                # Aggiungi il periodo alla query
+                cursor.execute("""
+                    SELECT e.periodo FROM esami e
+                    WHERE e.id IN (
+                        SELECT id FROM esami 
+                        WHERE insegnamento = %s AND data_appello = %s
+                    )
+                    LIMIT 1
+                """, (insegnamento_id, data_appello))
+                
+                periodo_result = cursor.fetchone()
+                periodo = periodo_result[0] if periodo_result else None
+                
                 cursor.execute(query, (
-                    data_appello, cds, anno_corso, anno_accademico, insegnamento_id
+                    data_appello, periodo, cds, anno_corso, anno_accademico, insegnamento_id
                 ))
                 
                 esami_sovrapposti = cursor.fetchall()
@@ -1297,7 +1320,6 @@ def ricalcola_sovrapposizioni_global():
                         sovrapposti_per_giorno[chiave_giorno] = {}
                         report['giorni_con_sovrapposizioni'] += 1
                     
-                    # Aggiungi l'insegnamento corrente e quelli sovrapposti al dizionario
                     sovrapposti_per_giorno[chiave_giorno][insegnamento_id] = docente
                     for ins_sovrapposto, doc_sovrapposto in esami_sovrapposti:
                         sovrapposti_per_giorno[chiave_giorno][ins_sovrapposto] = doc_sovrapposto

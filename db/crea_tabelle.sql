@@ -154,7 +154,7 @@ CREATE TABLE esami (
     data_fine_iscrizione DATE NOT NULL,   -- Data di chiusura iscrizioni
     ora_appello TIME NOT NULL,            -- Ora di inizio dell'esame
     durata_appello INT,                   -- Durata dell'esame (in minuti)
-    periodo INT NOT NULL,                 -- Periodo dell'esame (1 per mattina o 2 per pomeriggio)
+    periodo INT NOT NULL,                 -- Periodo dell'esame (0 per mattina o 1 per pomeriggio)
     verbalizzazione TEXT NOT NULL,        -- Modalità di verbalizzazione (Firme...)
     definizione_appello TEXT,             -- Boh (STD)
     gestione_prenotazione TEXT,           -- Boh (STD)
