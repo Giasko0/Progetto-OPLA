@@ -43,13 +43,25 @@
         <legend>Import U-GOV</legend>
         <p>Carica un file Excel esportato da U-GOV contenente l'elenco dei docenti e degli insegnamenti</p>
         <div class="file-upload">
-          <input type="file" id="fileInput" name="file" accept=".xls,.xlsx" style="display: none;">
+          <input type="file" id="fileInput" name="file" accept=".xls" style="display: none;">
           <button id="uploadFileButton" type="button" class="btn primary">Seleziona e Carica File</button>
           <span id="selectedFileName">Nessun file selezionato</span>
         </div>
       </fieldset>
     </section>
-    
+
+    <section class="upload-section">
+      <fieldset>
+        <legend>Anteprima/Report U-GOV</legend>
+        <p>Genera un report testuale con la panoramica degli insegnamenti (normali, mutuati e moduli) senza importare nel database.</p>
+        <div class="file-upload">
+          <input type="file" id="fileInputPreview" name="filePreview" accept=".xls" style="display: none;">
+          <button id="previewFileButton" type="button" class="btn primary">Genera Report</button>
+          <span id="selectedPreviewFileName">Nessun file selezionato</span>
+        </div>
+      </fieldset>
+    </section>
+
     <h2>Export Dati</h2>
 
     <section class="upload-section">

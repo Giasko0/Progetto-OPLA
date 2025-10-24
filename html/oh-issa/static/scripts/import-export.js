@@ -62,6 +62,53 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
   });
+
+  // Gestione anteprima U-GOV
+  document.getElementById('previewFileButton').addEventListener('click', function() {
+    document.getElementById('fileInputPreview').click();
+  });
+
+  document.getElementById('fileInputPreview').addEventListener('change', function(e) {
+    const input = this;
+    const fileName = input.files[0] ? input.files[0].name : 'Nessun file selezionato';
+    document.getElementById('selectedPreviewFileName').textContent = fileName;
+
+    if (!input.files.length) return;
+
+    showMessage('info', 'Generazione report in corso...');
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+
+    fetch('/api/oh-issa/preview-ugov', {
+      method: 'POST',
+      body: formData
+    })
+      .then(async response => {
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          const msg = data && data.message ? data.message : `Errore HTTP ${response.status}`;
+          throw new Error(msg);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        // Scarica il file .txt
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const now = new Date();
+        const ts = now.toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
+        a.href = url;
+        a.download = `opla_preview_${ts}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        showMessage('success', 'Report generato con successo');
+      })
+      .catch(err => {
+        showMessage('error', `Errore nella generazione del report: ${err.message}`);
+      });
+  });
 });
 
 function initializeAnnoSelector() {
