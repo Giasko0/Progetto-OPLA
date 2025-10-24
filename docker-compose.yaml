@@ -30,12 +30,12 @@ services:
         source: ./db/data
         target: /var/lib/postgresql/data
 
-  opla-pgadmin:
+  opla-adminer:
     build:
       context: ./misc
-      dockerfile: Dockerfile.pgadmin
+      dockerfile: Dockerfile.adminer
     ports:
-      - "4400:80"
+      - "4400:8080"
     depends_on:
       - opla-db
 

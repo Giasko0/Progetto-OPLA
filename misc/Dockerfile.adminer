@@ -1,0 +1,5 @@
+FROM adminer:latest
+
+ENV ADMINER_DEFAULT_SERVER=opla-db
+
+EXPOSE 8080

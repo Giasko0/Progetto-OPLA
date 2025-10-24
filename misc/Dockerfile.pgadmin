@@ -1,6 +1,0 @@
-FROM dpage/pgadmin4:latest
-
-ENV PGADMIN_DEFAULT_EMAIL=psqluser@nonloso.com
-ENV PGADMIN_DEFAULT_PASSWORD=passpgadmin
-
-EXPOSE 80
