@@ -94,12 +94,15 @@ def _should_import_row(sheet, row_idx, idx):
     cod_taf_raw = _cell(sheet, row_idx, idx.get('cod_taf_insegnamento', 18), None)
     cod_taf = str(cod_taf_raw).strip().upper() if cod_taf_raw else ''
     if cod_taf in ('', 'A', 'B', 'C'):
-        return True
+        return True, None
     if cod_taf == 'F':
         id_ambito_raw = _cell(sheet, row_idx, idx.get('id_ambito_insegnamento', 20), '')
-        id_ambito = str(id_ambito_raw).strip()
-        return id_ambito == '70285'
-    return False
+        id_ambito = str(int(float(id_ambito_raw))).strip()
+        if id_ambito == '70285':
+            return True, None
+        else:
+            return False, f"Cod. TAF = 'F' ma Id. Ambito ≠ 70285 (valore: '{id_ambito}')"
+    return False, f"Cod. TAF non valido per importazione (valore: '{cod_taf}')"
 
 def _parse_row(sheet, row_idx, idx):
     return {
@@ -114,8 +117,8 @@ def _parse_row(sheet, row_idx, idx):
         'id_unita_didattica': (str(_cell(sheet, row_idx, idx.get('id_unita_didattica', -1), '')).replace('.0', '').strip() or None),
         'cod_unita_didattica': (str(_cell(sheet, row_idx, idx.get('cod_unita_didattica', -1), '')).strip() or None),
         'des_unita_didattica': (str(_cell(sheet, row_idx, idx.get('des_unita_didattica', -1), '')).strip() or None),
-        'af_master_insegnamento': bool(_cell(sheet, row_idx, idx.get('af_master_insegnamento', -1), 0)),
-        'af_master_unita_didattica': bool(_cell(sheet, row_idx, idx.get('af_master_unita_didattica', -1), 0)) if idx.get('af_master_unita_didattica') is not None else False,
+        'af_master_insegnamento': bool(_cell(sheet, row_idx, idx.get('af_master_insegnamento', -1), 1)),
+        'af_master_unita_didattica': bool(_cell(sheet, row_idx, idx.get('af_master_unita_didattica', -1), 1)),
         'des_raggruppamento_insegnamento': str(_cell(sheet, row_idx, idx.get('des_raggruppamento_insegnamento', -1), '')).strip(),
         'des_raggruppamento_unita_didattica': str(_cell(sheet, row_idx, idx.get('des_raggruppamento_unita_didattica', -1), '')).strip(),
         'anno_corso': int(float(_cell(sheet, row_idx, idx['anno_corso'], 1))),
@@ -239,9 +242,10 @@ def upload_ugov():
 
     for row_idx in range(1, sheet.nrows):
         try:
-            if not _should_import_row(sheet, row_idx, colonna_indices):
-                righe_saltate += 1
-                continue
+            should_import, _ = _should_import_row(sheet, row_idx, colonna_indices)
+            if not should_import:
+              righe_saltate += 1
+              continue
             riga_dati = _parse_row(sheet, row_idx, colonna_indices)
             righe_dati.append(riga_dati)
         except Exception:
@@ -1104,15 +1108,33 @@ def preview_ugov():
         
         righe_dati = []
         righe_saltate = 0
+        righe_saltate_motivi = []
         for row_idx in range(1, sheet.nrows):
             try:
-                if not _should_import_row(sheet, row_idx, colonna_indices):
+                should_import, motivo = _should_import_row(sheet, row_idx, colonna_indices)
+                if not should_import:
                     righe_saltate += 1
+                    righe_saltate_motivi.append({
+                        "row": row_idx+1,
+                        "reason": motivo or "Non rispetta la logica di import (_should_import_row)"
+                    })
                     continue
-                riga = _parse_row(sheet, row_idx, colonna_indices)
-                righe_dati.append(riga)
-            except Exception:
+                try:
+                    riga = _parse_row(sheet, row_idx, colonna_indices)
+                    righe_dati.append(riga)
+                except Exception as e:
+                    righe_saltate += 1
+                    righe_saltate_motivi.append({
+                        "row": row_idx+1,
+                        "reason": f"Errore parsing: {str(e)}"
+                    })
+                    continue
+            except Exception as e:
                 righe_saltate += 1
+                righe_saltate_motivi.append({
+                    "row": row_idx+1,
+                    "reason": f"Errore generico: {str(e)}"
+                })
                 continue
 
         # Indici veloci
@@ -1299,6 +1321,16 @@ def preview_ugov():
         lines.append("=" * 80)
         lines.append(f"Righe processate: {len(righe_dati)}")
         lines.append(f"Righe saltate: {righe_saltate}")
+        lines.append("")
+
+        # Sezione motivi righe saltate
+        lines.append("DETTAGLIO RIGHE SALTATE")
+        lines.append("-" * 80)
+        if not righe_saltate_motivi:
+            lines.append("  Nessuna riga saltata.")
+        else:
+            for info in righe_saltate_motivi:
+                lines.append(f"  Riga {info['row']}: {info['reason']}")
         lines.append("")
 
         # Sezione 1: Insegnamenti normali
