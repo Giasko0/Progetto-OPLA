@@ -268,7 +268,7 @@ function visualizzaCalendario(data) {
                         return dataEsame >= inizioSessione && dataEsame <= fineSessione;
                     });
                     
-                    // Se ci sono esami, mostra le date complete
+                    // Se ci sono esami, mostra le date in colonna
                     if (esamiSessione.length > 0) {
                         // Ordina cronologicamente prima di formattare
                         esamiSessione.sort((a, b) => new Date(a.data_appello) - new Date(b.data_appello));
@@ -281,7 +281,7 @@ function visualizzaCalendario(data) {
                             return `${giorno}/${mese}/${anno}`;
                         });
                         
-                        tdEsami.textContent = dateEsami.join(' - ');
+                        tdEsami.innerHTML = dateEsami.join('<br>');
                     }
                     
                     row.appendChild(tdEsami);

@@ -360,7 +360,7 @@ def esporta_calendario_esami():
             
             num_colonne_sessioni = sum(1 for tipo in ordine_sessioni 
                                      if tipo in sessioni_dict and sessioni_calendario[tipo]['inizio'])
-            total_columns = 1 + num_colonne_sessioni + 1
+            total_columns = 1 + num_colonne_sessioni
             
             year_cell = sheet.cell(row=current_row, column=1, value=f"{anno_corso}° Anno")
             year_cell.font = year_header_font
@@ -389,12 +389,6 @@ def esporta_calendario_esami():
                     session_cell.border = thin_border
                     current_col += 1
             
-            comm_header_cell = sheet.cell(row=current_row, column=current_col, value='COMMISSIONE')
-            comm_header_cell.font = header_font
-            comm_header_cell.alignment = center_alignment
-            comm_header_cell.fill = header_fill
-            comm_header_cell.border = thin_border
-            
             current_row += 1
             
             col_positions = [1]
@@ -403,7 +397,6 @@ def esporta_calendario_esami():
                 if tipo_sessione in sessioni_dict and sessioni_calendario[tipo_sessione]['inizio']:
                     col_positions.append(data_col)
                     data_col += 1
-            col_positions.append(data_col)
             
             for insegnamento in insegnamenti_per_anno[anno_corso]:
                 name_cell = sheet.cell(row=current_row, column=1, value=insegnamento['titolo'])
@@ -424,7 +417,7 @@ def esporta_calendario_esami():
                         if esami_sessione:
                             esami_sessione.sort(key=lambda x: x['data_appello'])
                             date_formattate = [esame['data_appello'].strftime('%d/%m/%Y') for esame in esami_sessione]
-                            date_complete = '\n'.join(date_formattate) if len(date_formattate) > 3 else ' - '.join(date_formattate)
+                            date_complete = '\n'.join(date_formattate)
                             
                             if col_index < len(col_positions):
                                 date_cell = sheet.cell(row=current_row, column=col_positions[col_index], value=date_complete)
@@ -436,10 +429,6 @@ def esporta_calendario_esami():
                                 empty_cell.alignment = center_alignment
                                 empty_cell.border = thin_border
                 
-                if len(col_positions) > col_index + 1:
-                    comm_cell = sheet.cell(row=current_row, column=col_positions[-1], value="")
-                    comm_cell.border = thin_border
-                
                 current_row += 1
             
             current_row += 1
@@ -447,8 +436,6 @@ def esporta_calendario_esami():
         sheet.column_dimensions['A'].width = 60
         for col_num in range(2, data_col):
             sheet.column_dimensions[get_column_letter(col_num)].width = 40
-        if data_col <= 26:
-            sheet.column_dimensions[get_column_letter(data_col)].width = 35
         
         for row_num in range(1, current_row):
             sheet.row_dimensions[row_num].height = 45
