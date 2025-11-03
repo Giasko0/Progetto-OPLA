@@ -40,21 +40,11 @@ def get_user_admin_status(username):
     release_connection(conn)
     return bool(result and result[0])
 
-def get_titolare_per_insegnamento(insegnamento_codice, anno_accademico, docente_fallback):
-    """Ottiene il docente titolare per un singolo insegnamento."""
+def get_titolare_per_insegnamento(insegnamento_id, anno_accademico, docente_fallback):
+    """Ottiene il docente titolare per un singolo insegnamento dato l'id."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    
     try:
-        # Ottieni l'ID dell'insegnamento
-        cursor.execute("SELECT id FROM insegnamenti WHERE codice = %s", (insegnamento_codice,))
-        insegnamento_result = cursor.fetchone()
-        
-        if not insegnamento_result:
-            return docente_fallback  # Fallback se insegnamento non trovato
-        
-        insegnamento_id = insegnamento_result[0]
-        
         # Trova il docente titolare
         cursor.execute("""
             SELECT u.username 
@@ -63,14 +53,11 @@ def get_titolare_per_insegnamento(insegnamento_codice, anno_accademico, docente_
             WHERE ic.insegnamento = %s AND ic.anno_accademico = %s
             LIMIT 1
         """, (insegnamento_id, anno_accademico))
-        
         titolare_result = cursor.fetchone()
-        
         if titolare_result:
             return titolare_result[0]
         else:
             return docente_fallback  # Se non c'è titolare, usa fallback
-            
     finally:
         cursor.close()
         release_connection(conn)
@@ -326,10 +313,9 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         
         # CONTROLLO SESSIONI: Verifica che la data sia all'interno di una sessione valida
         # ECCEZIONE: Permetti prove parziali non ufficiali fuori dalle sessioni
-        for insegnamento_codice in insegnamenti:
-            # Determina il docente per questo specifico insegnamento
+        for insegnamento_id in insegnamenti:
             docente_esame = docente_form if not is_admin else get_titolare_per_insegnamento(
-                insegnamento_codice, anno_accademico, docente_form
+                insegnamento_id, anno_accademico, docente_form
             )
             
             # Controlla se è una prova parziale non ufficiale (PP + mostra_nel_calendario = False)
@@ -342,7 +328,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
             if not is_prova_parziale_non_ufficiale and not is_date_in_session(data_esame.date(), docente_esame, anno_accademico):
                 cursor.close()
                 release_connection(conn)
-                return False, f'La data {data_appello} non è all\'interno di una sessione valida per l\'insegnamento {insegnamento_codice}'
+                return False, f'La data {data_appello} non è all\'interno di una sessione valida per l\'insegnamento {insegnamento_id}'
         
         # Controllo weekend
         if data_esame.weekday() >= 5:
@@ -387,12 +373,12 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         # Per ogni insegnamento, controlla se la data cade in sessione anticipata e se è secondo semestre
         for insegnamento in insegnamenti:
             # Ottieni ID insegnamento
-            cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+            cursor.execute("SELECT id, titolo FROM insegnamenti WHERE id = %s", (insegnamento,))
             result = cursor.fetchone()
             if not result:
                 cursor.close()
                 release_connection(conn)
-                return False, f'Insegnamento {insegnamento} non trovato'
+                return False, f'Insegnamento {insegnamento_id} non trovato'
             insegnamento_id, titolo_insegnamento = result
 
             # CONTROLLO SESSIONI AGGIUNTIVO: Verifica che la data sia nelle sessioni specifiche dell'insegnamento
@@ -468,7 +454,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         if mostra_nel_calendario:
             for insegnamento in insegnamenti:
                 # Ottieni ID insegnamento
-                cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+                cursor.execute("SELECT id, titolo FROM insegnamenti WHERE id = %s", (insegnamento,))
                 result = cursor.fetchone()
                 if not result:
                     cursor.close()
@@ -545,7 +531,7 @@ def controlla_vincoli(dati_esame, aula_originale=None):
         if mostra_nel_calendario:
             for insegnamento in insegnamenti:
                 # Ottieni ID insegnamento
-                cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento,))
+                cursor.execute("SELECT id, titolo FROM insegnamenti WHERE id = %s", (insegnamento,))
                 result = cursor.fetchone()
                 if not result:
                     cursor.close()
@@ -642,7 +628,7 @@ def inserisci_esami(dati_esame):
             )
             
             # Ottieni ID insegnamento
-            cursor.execute("SELECT id, titolo FROM insegnamenti WHERE codice = %s", (insegnamento_codice,))
+            cursor.execute("SELECT id, titolo FROM insegnamenti WHERE id = %s", (insegnamento_codice,))
             result = cursor.fetchone()
             if not result:
                 continue
@@ -885,9 +871,7 @@ def update_esame():
             return jsonify({'success': False, 'message': 'Non hai i permessi per modificare questo esame'}), 403
 
         if not bypass_checks:
-            cursor.execute("SELECT codice FROM insegnamenti WHERE id = %s", (esame_dict['insegnamento'],))
-            insegnamento_result = cursor.fetchone()
-
+            insegnamento_id = esame_dict['insegnamento']
             nuova_data_obj = datetime.strptime(data.get('data_appello'), '%Y-%m-%d')
             docente_per_sessioni = esame_dict['docente'] if is_admin else username
             
@@ -903,7 +887,7 @@ def update_esame():
 
             dati_controllo = {
                 'exam_id': exam_id,
-                'insegnamenti': [insegnamento_result[0]],
+                'insegnamenti': [insegnamento_id],
                 'docente': username,
                 'sezioni_appelli': [{
                     'data_appello': data.get('data_appello'),

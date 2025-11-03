@@ -64,21 +64,17 @@ function processDataForDisplay(cdsData, esamiData, username, dateValideData) {
     if (!cds.insegnamenti || !Array.isArray(cds.insegnamenti)) {
       return;
     }
-    
     cds.insegnamenti.forEach((ins) => {
       const cdsInfo = {
         cds_codice: ins.cds_codice,
         cds_nome: ins.cds_nome,
         cds_info: `${ins.cds_nome} - ${ins.cds_codice}`
       };
-      
-      // Crea chiave unica per insegnamento + CdS
-      const insegnamentoKey = `${ins.titolo}_${ins.cds_codice}`;
+      const insegnamentoKey = `${ins.id}`;
       insegnamentiCdsInfo.set(insegnamentoKey, cdsInfo);
-      
-      // Inizializza il conteggio esami per ogni combinazione insegnamento+CdS
       if (!insegnamenti[insegnamentoKey]) {
         insegnamenti[insegnamentoKey] = {
+          id: ins.id,
           'Anticipata': { ufficiali: 0, totali: 0 },
           'Estiva': { ufficiali: 0, totali: 0 }, 
           'Autunnale': { ufficiali: 0, totali: 0 },
@@ -97,20 +93,16 @@ function processDataForDisplay(cdsData, esamiData, username, dateValideData) {
   // Processa gli esami per tutti i docenti degli insegnamenti autorizzati
   esamiData.forEach((esame) => {
     try {
-      // Considera tutti gli esami che appartengono agli insegnamenti del docente
-      // (sia del docente stesso che di altri docenti)
       const dataEsame = new Date(esame.start);
       const sessione = determinaSessioneEsame(dataEsame, dateValideData);
-      
-      // Determina se l'esame è ufficiale
       const isUfficiale = esame.extendedProps && esame.extendedProps.mostra_nel_calendario === true;
-      
       // Formato compatibile con il codice esistente
       const esameFormatted = {
         id: esame.id,
         docente: esame.extendedProps?.docente,
         docenteNome: esame.extendedProps?.docenteNome,
-        insegnamento: esame.title,
+        insegnamento: esame.extendedProps?.insegnamento, // id
+        insegnamentoTitolo: esame.title,
         aula: esame.aula || "Non definita",
         dataora: esame.start,
         cds: esame.extendedProps?.nome_cds,
@@ -119,23 +111,14 @@ function processDataForDisplay(cdsData, esamiData, username, dateValideData) {
         tipo_appello: esame.extendedProps?.tipo_appello,
         mostra_nel_calendario: esame.extendedProps?.mostra_nel_calendario
       };
-      
       esamiProcessed.push(esameFormatted);
-      
-      // Crea la chiave combinata per trovare l'insegnamento corretto
-      const insegnamentoKey = `${esame.title}_${esame.extendedProps?.codice_cds}`;
-      
-      // Conta gli esami per sessione se appartiene a un insegnamento del docente
+      // Chiave solo id
+      const insegnamentoKey = `${esame.extendedProps?.insegnamento}`;
       if (sessione && insegnamenti[insegnamentoKey]) {
-        // Verifica che l'oggetto sessione esista
         if (!insegnamenti[insegnamentoKey][sessione]) {
           insegnamenti[insegnamentoKey][sessione] = { ufficiali: 0, totali: 0 };
         }
-        
-        // Conta sempre nel totale
         insegnamenti[insegnamentoKey][sessione].totali++;
-        
-        // Conta negli ufficiali solo se è un esame ufficiale
         if (isUfficiale) {
           insegnamenti[insegnamentoKey][sessione].ufficiali++;
         }
@@ -313,12 +296,11 @@ function createExamsTable(tableId, exams, noExamsMessage = "Inserisci degli appe
   exams.forEach(esame => {
     const row = document.createElement("tr");
     row.className = "esami-tr";
-    
     const cellsData = [
       esame.mostra_nel_calendario ? "Sì" : "No",
       esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale",
       esame.cds,
-      esame.insegnamento,
+      esame.insegnamentoTitolo,
       esame.docenteNome,
       formatDateTime(esame.dataora),
       esame.aula
@@ -358,11 +340,10 @@ function createExamsTable(tableId, exams, noExamsMessage = "Inserisci degli appe
 
 // Funzione per visualizzare le tabelle degli esami (ora semplificata)
 function displayTabelleEsami(data, insegnamentoKey, container) {
-  // Filtra tutti gli esami per questo insegnamento/CdS (di qualunque docente)
+  // Filtra tutti gli esami per questo insegnamento (di qualunque docente)
   const insegnamentoData = data.insegnamenti[insegnamentoKey];
   const esamiInsegnamento = data.esami.filter(esame => 
-    esame.insegnamento === insegnamentoData.titolo && 
-    esame.codice_cds === data.insegnamentiCdsInfo.get(insegnamentoKey).cds_codice
+    esame.insegnamento == insegnamentoData.id
   );
 
   const tableId = `tabella-${insegnamentoKey.replace(/\s+/g, "-")}`;
@@ -395,7 +376,7 @@ function displaySessioniEsami(data, insegnamentoKey, container, targetEsami, tar
   for (const cds of data.originalCdsData || []) {
     if (cds.insegnamenti) {
       for (const ins of cds.insegnamenti) {
-        if (ins.titolo === insegnamentoData.titolo && ins.cds_codice === cdsInfo.cds_codice) {
+        if (ins.id === data.insegnamenti[insegnamentoKey].id) {
           insegnamentoSemestre = ins.semestre;
           break;
         }

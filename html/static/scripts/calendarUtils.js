@@ -26,7 +26,7 @@ export function populateInsegnamentiDropdown(
       }
       
       // Evita duplicati
-      if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.codice === ins.codice)) {
+      if (!insegnamentiPerCds[cdsKey].insegnamenti.some(i => i.id === ins.id)) {
         insegnamentiPerCds[cdsKey].insegnamenti.push(ins);
       }
     });
@@ -51,13 +51,13 @@ export function populateInsegnamentiDropdown(
 
       // Ordina insegnamenti per titolo
       cds.insegnamenti.sort((a, b) => a.titolo.localeCompare(b.titolo)).forEach((ins) => {
-        const isSelected = window.InsegnamentiManager?.isSelected(ins.codice) || false;
+        const isSelected = window.InsegnamentiManager?.isSelected(ins.id) || false;
         dropdownHTML += `
-          <div class="dropdown-item dropdown-item-indented" data-codice="${ins.codice}"
+          <div class="dropdown-item dropdown-item-indented" data-id="${ins.id}"
                data-semestre="${ins.semestre || ""}" data-anno-corso="${ins.anno_corso || ""}"
                data-cds="${cdsCodice || ''}">
-            <input type="checkbox" id="ins-${ins.codice}" value="${ins.codice}" ${isSelected ? "checked" : ""}>
-            <label for="ins-${ins.codice}">${ins.titolo}</label>
+            <input type="checkbox" id="ins-${ins.id}" value="${ins.id}" ${isSelected ? "checked" : ""}>
+            <label for="ins-${ins.id}">${ins.titolo}</label>
           </div>`;
       });
     });
@@ -221,18 +221,21 @@ export function setupDropdownClickListeners(calendar, dropdowns, currentUsername
 
     // Aggiorna InsegnamentiManager se disponibile
     if (window.InsegnamentiManager) {
-      const { codice, semestre, annoCorso, cds } = item.dataset;
+      const id = item.dataset.id;
+      const semestre = item.dataset.semestre;
+      const annoCorso = item.dataset.annoCorso;
+      const cds = item.dataset.cds;
       const semestreParsed = parseInt(semestre) || null;
       const annoCorsoParsed = parseInt(annoCorso) || null;
 
       if (checkbox.checked) {
-        window.InsegnamentiManager.selectInsegnamento(codice, { 
+        window.InsegnamentiManager.selectInsegnamento(id, { 
           semestre: semestreParsed, 
           anno_corso: annoCorsoParsed, 
           cds 
         });
       } else {
-        window.InsegnamentiManager.deselectInsegnamento(codice);
+        window.InsegnamentiManager.deselectInsegnamento(id);
       }
     }
   });

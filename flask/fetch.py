@@ -3,7 +3,6 @@ from db import get_db_connection, release_connection
 from datetime import datetime
 from auth import get_user_data
 from psycopg2.extras import DictCursor
-import requests
 from utils.sessions import (ottieni_intersezione_sessioni_docente, ottieni_sessioni_da_insegnamenti, ottieni_vacanze, escludi_vacanze_da_sessioni)
 
 fetch_bp = Blueprint('fetch', __name__)
@@ -122,6 +121,7 @@ def get_esami():
             return jsonify({'status': 'error', 'message': 'Utente non autenticato'}), 401
         
         is_admin_user = user_data['user_data']['permessi_admin']
+        current_user = user_data['user_data']['username']
         docente = request.args.get('docente')
         insegnamenti = request.args.get('insegnamenti')
         anno = int(request.args.get('anno'))
@@ -132,30 +132,32 @@ def get_esami():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=DictCursor)
         
+        # Ottieni gli insegnamenti del docente autenticato per identificare le codocenze
+        insegnamenti_docente_autenticato = set()
+        if not is_admin_user:
+            cursor.execute("""
+                SELECT DISTINCT insegnamento
+                FROM insegnamento_docente
+                WHERE docente = %s AND annoaccademico = %s
+            """, (current_user, anno))
+            insegnamenti_docente_autenticato = {row[0] for row in cursor.fetchall()}
+        
         # Costruisci la lista degli insegnamenti autorizzati
         insegnamenti_autorizzati = []
-        insegnamenti_selezionati = []  # Solo gli insegnamenti effettivamente selezionati
+        insegnamenti_selezionati = []
         
         if is_admin_user:
             # Admin può vedere tutti gli esami
             if insegnamenti:
                 # Se specificati insegnamenti, trova quelli correlati
-                insegnamenti_list = insegnamenti.split(',')
-                
-                # Memorizza gli ID degli insegnamenti selezionati
-                cursor.execute("""
-                    SELECT id FROM insegnamenti WHERE codice = ANY(%s)
-                """, (insegnamenti_list,))
-                insegnamenti_selezionati = [row[0] for row in cursor.fetchall()]
+                insegnamenti_selezionati = insegnamenti.split(',')
                 
                 # Prima ottieni i semestri degli insegnamenti selezionati
                 cursor.execute("""
                     SELECT DISTINCT ic1.insegnamento, ic1.semestre
-                    FROM insegnamenti i1
-                    JOIN insegnamenti_cds ic1 ON i1.id = ic1.insegnamento
-                    WHERE i1.codice = ANY(%s) AND ic1.anno_accademico = %s
-                """, (insegnamenti_list, anno))
-                
+                    FROM insegnamenti_cds ic1
+                    WHERE ic1.insegnamento = ANY(%s) AND ic1.anno_accademico = %s
+                """, (insegnamenti_selezionati, anno))
                 insegnamenti_con_semestre = {row[0]: row[1] for row in cursor.fetchall()}
                 
                 # Per ogni insegnamento selezionato, trova quelli correlati considerando gli annuali
@@ -180,8 +182,10 @@ def get_esami():
                     """, (ins_id, anno))
                     
                     insegnamenti_autorizzati.extend([row[0] for row in cursor.fetchall()])
-                
-                insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))  # Rimuovi duplicati
+                insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))
+            else:
+                insegnamenti_autorizzati = []
+                insegnamenti_selezionati = []
         else:
             # Non admin: ottieni insegnamenti del docente
             insegnamenti_docente = ottieni_insegnamenti_docente(docente, anno)
@@ -195,20 +199,13 @@ def get_esami():
             
             if insegnamenti:
                 # Se specificati insegnamenti, aggiungi quelli correlati ai selezionati
-                insegnamenti_list = insegnamenti.split(',')
-                cursor.execute("""
-                    SELECT id FROM insegnamenti WHERE codice = ANY(%s)
-                """, (insegnamenti_list,))
-                insegnamenti_filtrati = [row[0] for row in cursor.fetchall()]
-                insegnamenti_sel_docente = [ins for ins in insegnamenti_autorizzati if ins in insegnamenti_filtrati]
-                
-                if insegnamenti_sel_docente:
+                insegnamenti_selezionati = [ins for ins in insegnamenti_autorizzati if ins in insegnamenti.split(',')]
+                if insegnamenti_selezionati:
                     cursor.execute("""
                         SELECT DISTINCT insegnamento, semestre
                         FROM insegnamenti_cds
                         WHERE insegnamento = ANY(%s) AND anno_accademico = %s
-                    """, (insegnamenti_sel_docente, anno))
-                    
+                    """, (insegnamenti_selezionati, anno))
                     insegnamenti_sel_con_semestre = {row[0]: row[1] for row in cursor.fetchall()}
                     
                     # Per ogni insegnamento selezionato, trova quelli correlati
@@ -234,9 +231,7 @@ def get_esami():
                         
                         insegnamenti_correlati = [row[0] for row in cursor.fetchall()]
                         insegnamenti_autorizzati.extend(insegnamenti_correlati)
-                    
-                    insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))  # Rimuovi duplicati
-        
+                    insegnamenti_autorizzati = list(set(insegnamenti_autorizzati))
         # Ottieni i codocenti per gli insegnamenti del docente (solo per non-admin)
         codocenti_set = set()
         if not is_admin_user:
@@ -291,13 +286,23 @@ def get_esami():
         # Costruisci la risposta con logica semplificata
         exams = []
         for row in cursor.fetchall():
-            # LOGICA SEMPLIFICATA:
-            # - Admin: solo esami degli insegnamenti selezionati sono "suoi" (blu)
-            # - Non-admin: solo esami dei suoi insegnamenti sono "suoi" (blu)
+            # Determina se l'esame è del docente autenticato o di un suo codocente
+            esame_del_docente = False
+            
             if is_admin_user:
-                esame_del_docente = row['insegnamento_id'] in insegnamenti_selezionati
+                # Admin: solo esami degli insegnamenti SELEZIONATI sono blu
+                # Se non ci sono insegnamenti selezionati, nessun esame è blu
+                if insegnamenti_selezionati:
+                    esame_del_docente = row['insegnamento_id'] in insegnamenti_selezionati
+                else:
+                    esame_del_docente = False
             else:
-                esame_del_docente = row['insegnamento_id'] in insegnamenti_selezionati
+                # Non-admin: esami suoi + esami dei codocenti dello stesso insegnamento
+                if row['docente'] == current_user:
+                    esame_del_docente = True
+                elif row['insegnamento_id'] in insegnamenti_docente_autenticato:
+                    # L'esame appartiene a un insegnamento in cui il docente è coinvolto
+                    esame_del_docente = True
             
             # Eccezione per "Studio docente DMI": non mostra l'edificio tra parentesi
             if row['aula'] == 'Studio docente DMI':
@@ -317,8 +322,8 @@ def get_esami():
                     'docenteNome': row['docente_nome'],
                     'docenteNomeSolo': row['docente_nome_solo'],
                     'docenteCognome': row['docente_cognome'],
-                    'insegnamento': row['insegnamento'],
-                    'insegnamentoDocente': esame_del_docente,
+                    'insegnamento': row['insegnamento_id'],
+                    'esameDelDocente': esame_del_docente,
                     'tipo_appello': row['tipo_appello'],
                     'durata_appello': row['durata_appello'],
                     'periodo': row['periodo'],

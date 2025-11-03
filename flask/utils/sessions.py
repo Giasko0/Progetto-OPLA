@@ -136,7 +136,7 @@ def ottieni_sessioni_da_insegnamenti(insegnamenti_list, year):
             SELECT DISTINCT ic.cds 
             FROM insegnamenti_cds ic
             JOIN insegnamenti i ON ic.insegnamento = i.id
-            WHERE i.codice IN ({placeholders}) AND ic.anno_accademico = %s
+            WHERE i.id IN ({placeholders}) AND ic.anno_accademico = %s
         """, insegnamenti_list + [year])
         
         cds_list = [row[0] for row in cursor.fetchall()]

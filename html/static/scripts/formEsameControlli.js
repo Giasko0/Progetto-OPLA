@@ -196,25 +196,21 @@ const FormEsameControlli = (function() {
       }
     }
 
-    // Validazione durata (opzionale)
     const durataH = parseInt(fields.durata_h) || 0;
     const durataM = parseInt(fields.durata_m) || 0;
     const durataTotale = (durataH * 60) + durataM;
     
-    // Solo se la durata è specificata, deve essere valida
     if (durataTotale > 0 && (durataTotale < 30 || durataTotale > 720)) {
       window.showMessage(`Appello ${sectionNumber}: La durata, se specificata, deve essere tra 30 minuti e 12 ore`, "Errore validazione", "error");
       return false;
     }
 
-    // Validazione ora specifica (8-18) come nel backend
     const oraH = parseInt(fields.ora_h);
     if (oraH < 8 || oraH > 18) {
       window.showMessage(`Appello ${sectionNumber}: L'ora deve essere compresa tra le 08:00 e le 18:00`, "Errore validazione", "error");
       return false;
     }
 
-    // La data deve essere in una sessione valida (solo se non è prova parziale non ufficiale)
     if (!isDateInSession(fields.dataora, section)) {
       window.showMessage(`Appello ${sectionNumber}: La data non è all'interno di una sessione valida.`, "Errore validazione", "error");
       return false;
@@ -223,7 +219,6 @@ const FormEsameControlli = (function() {
     return true;
   }
 
-  // Validazione insegnamenti semplificata
   function validateInsegnamenti() {
     let insegnamentiSelected = [];
     if (window.InsegnamentiManager?.getSelectedInsegnamenti) {

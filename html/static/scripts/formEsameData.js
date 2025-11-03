@@ -395,7 +395,7 @@ const FormEsameData = (function() {
     const annoAccademico = window.AnnoAccademicoManager?.getSelectedAcademicYear();
     formData.append('anno_accademico', annoAccademico);
     
-    // Insegnamenti
+    // Insegnamenti selezionati
     const insegnamentiSelected = window.InsegnamentiManager?.getSelectedInsegnamenti() || [];
     
     if (!insegnamentiSelected.length) {
@@ -403,8 +403,8 @@ const FormEsameData = (function() {
       return;
     }
     
-    insegnamentiSelected.forEach(codice => {
-      formData.append('insegnamenti[]', codice);
+    insegnamentiSelected.forEach(id => {
+      formData.append('insegnamenti[]', id);
     });
     
     // Raccogli dati sezioni

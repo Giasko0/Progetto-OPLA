@@ -211,15 +211,19 @@ document.addEventListener("DOMContentLoaded", async function () {
             fetch(`/api/get-esami?${params.toString()}`)
               .then(response => response.ok ? response.json() : Promise.reject(`HTTP ${response.status}`))
               .then(events => {
-                const validEvents = (events || []).filter(ev => ev?.start).map(event => ({
-                  ...event,
-                  // Applica stile giallo per esami di altri docenti
-                  ...(event.extendedProps?.insegnamentoDocente === false && {
-                    backgroundColor: 'var(--color-warning)',
-                    borderColor: 'var(--color-warning)',
-                    textColor: '#000'
-                  })
-                }));
+                const validEvents = (events || []).filter(ev => ev?.start).map(event => {
+                  const esameDelDocente = event.extendedProps?.esameDelDocente;
+                  
+                  return {
+                    ...event,
+                    // Applica stile giallo per esami non del docente
+                    ...(!esameDelDocente && {
+                      backgroundColor: 'var(--color-warning)',
+                      borderColor: 'var(--color-warning)',
+                      textColor: '#000'
+                    })
+                  };
+                });
                 
                 eventsCache = validEvents;
                 lastFetchTime = Date.now();

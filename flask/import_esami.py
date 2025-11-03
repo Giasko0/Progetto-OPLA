@@ -28,7 +28,7 @@ def get_exam_template():
         
         # Query per insegnamenti del docente con nomi CdS
         query = """
-            SELECT DISTINCT i.codice, i.titolo, c.nome_corso, c.codice as cds_codice
+            SELECT DISTINCT i.id, i.titolo, c.nome_corso, c.codice as cds_codice
             FROM insegnamenti i
             JOIN insegnamento_docente id ON i.id = id.insegnamento
             JOIN insegnamenti_cds ic ON i.id = ic.insegnamento
@@ -98,7 +98,7 @@ def get_exam_template():
             ins_data = insegnamenti[row_idx - 2] if row_idx - 2 < len(insegnamenti) else None
             
             if ins_data:
-                codice_ins, titolo_ins, nome_cds, cds_codice = ins_data
+                id_ins, titolo_ins, nome_cds, cds_codice = ins_data
                 
                 # CdS Nome con codice tra parentesi (precompilato)
                 cds_display = f"{nome_cds} ({cds_codice})"
@@ -112,7 +112,7 @@ def get_exam_template():
                 cell.alignment = Alignment(horizontal="left")
                 
                 # Colonne nascoste (codici tecnici) subito dopo Insegnamento
-                ws.cell(row_idx, 3, codice_ins)  # Codice insegnamento (nascosto)
+                ws.cell(row_idx, 3, id_ins)  # ID insegnamento (nascosto)
                 ws.cell(row_idx, 4, cds_codice)  # Codice CdS (nascosto)
                 
                 # Appello ufficiale (precompilato con "Sì")
@@ -146,7 +146,7 @@ def get_exam_template():
                     cell.number_format = 'DD-MM-YYYY'
         
         # Nascondi colonne tecniche
-        ws.column_dimensions['C'].hidden = True  # Codice insegnamento
+        ws.column_dimensions['C'].hidden = True  # ID insegnamento
         ws.column_dimensions['D'].hidden = True  # Codice CdS
         
         # Aggiungi validazioni per facilitare la compilazione
@@ -347,7 +347,7 @@ def import_exams_from_file():
                 insegnamento_nome = values[1] 
                 
                 # Valori nascosti per elaborazione (ora subito dopo l'insegnamento)
-                codice_insegnamento = values[2] if len(values) > 2 else None
+                id_insegnamento = values[2] if len(values) > 2 else None
                 codice_cds = values[3] if len(values) > 3 else None
                 
                 apertura_appelli = values[4]
@@ -448,12 +448,12 @@ def import_exams_from_file():
                     except:
                         fine_iscr = str(fine_iscr)
                 
-                # Usa codice insegnamento se disponibile, altrimenti cerca per nome
-                if not codice_insegnamento:
+                # Usa id insegnamento se disponibile, altrimenti cerca per nome
+                if not id_insegnamento:
                     # Fallback: cerca insegnamento per nome (meno affidabile)
                     conn = get_db_connection()
                     cursor = conn.cursor()
-                    cursor.execute("SELECT codice FROM insegnamenti WHERE titolo LIKE %s LIMIT 1", 
+                    cursor.execute("SELECT id FROM insegnamenti WHERE titolo LIKE %s LIMIT 1", 
                                  (f"%{insegnamento_nome}%",))
                     result = cursor.fetchone()
                     cursor.close()
@@ -462,10 +462,10 @@ def import_exams_from_file():
                     if not result:
                         errori.append(f"Riga {i}: insegnamento '{insegnamento_nome}' non trovato")
                         continue
-                    codice_insegnamento = result[0]
+                    id_insegnamento = result[0]
                 
                 esame = {
-                    'insegnamenti': [codice_insegnamento],
+                    'insegnamenti': [id_insegnamento],
                     'docente': username,
                     'anno_accademico': int(anno),
                     'sezioni_appelli': [{
@@ -526,7 +526,7 @@ def import_exams_from_file():
                 try:
                     conn_temp = get_db_connection()
                     cursor_temp = conn_temp.cursor()
-                    cursor_temp.execute("SELECT titolo FROM insegnamenti WHERE codice = %s", (esame['insegnamenti'][0],))
+                    cursor_temp.execute("SELECT titolo FROM insegnamenti WHERE id = %s", (esame['insegnamenti'][0],))
                     result = cursor_temp.fetchone()
                     titolo = result[0] if result else esame['insegnamenti'][0]
                     cursor_temp.close()

@@ -12,21 +12,22 @@ const InsegnamentiManager = (function () {
   let requestInProgress = null;
 
   // GESTIONE SELEZIONE INSEGNAMENTI
-  function selectInsegnamento(codice, metadata) {
-    selectedInsegnamenti.set(codice, { codice, ...metadata });
+  function selectInsegnamento(id, metadata) {
+    selectedInsegnamenti.set(id, { id, ...metadata });
     notifyChange();
   }
 
-  function deselectInsegnamento(codice) {
-    selectedInsegnamenti.delete(codice);
+  function deselectInsegnamento(id) {
+    selectedInsegnamenti.delete(id);
     notifyChange();
   }
 
-  function isSelected(codice) {
-    return selectedInsegnamenti.has(codice);
+  function isSelected(id) {
+    return selectedInsegnamenti.has(id);
   }
 
   function getSelectedInsegnamenti() {
+    // Restituisce gli ID degli insegnamenti selezionati
     return Array.from(selectedInsegnamenti.keys());
   }
 
@@ -97,8 +98,8 @@ const InsegnamentiManager = (function () {
       }
       
       if (filter) {
-        const filteredCodes = Array.isArray(filter) ? filter : [filter];
-        risultati = risultati.filter(ins => filteredCodes.includes(ins.codice));
+        const filteredIds = Array.isArray(filter) ? filter : [filter];
+        risultati = risultati.filter(ins => filteredIds.includes(ins.id));
       }
 
       if (callback) callback(risultati);
@@ -136,8 +137,8 @@ const InsegnamentiManager = (function () {
         
         if (cds) risultati = risultati.filter(ins => ins.cds_codice === cds);
         if (filter) {
-          const filteredCodes = Array.isArray(filter) ? filter : [filter];
-          risultati = risultati.filter(ins => filteredCodes.includes(ins.codice));
+          const filteredIds = Array.isArray(filter) ? filter : [filter];
+          risultati = risultati.filter(ins => filteredIds.includes(ins.id));
         }
 
         if (callback) callback(risultati);
@@ -160,6 +161,7 @@ const InsegnamentiManager = (function () {
       if (cds.insegnamenti && Array.isArray(cds.insegnamenti)) {
         cds.insegnamenti.forEach(ins => {
           flattened.push({
+            id: ins.id,
             codice: ins.codice,
             titolo: ins.titolo,
             semestre: ins.semestre,
@@ -217,7 +219,7 @@ const InsegnamentiManager = (function () {
     // Se ci sono insegnamenti da mostrare
     if (insegnamenti && insegnamenti.length > 0) {
       // Filtra insegnamenti per mostrare solo quelli selezionati
-      const insegnamentiSelezionati = insegnamenti.filter(ins => isSelected(ins.codice));
+      const insegnamentiSelezionati = insegnamenti.filter(ins => isSelected(ins.id));
       
       // Se non ci sono insegnamenti selezionati, mostra placeholder
       if (insegnamentiSelezionati.length === 0) {
@@ -230,7 +232,7 @@ const InsegnamentiManager = (function () {
       insegnamentiSelezionati.forEach((ins) => {
         const tag = document.createElement("div");
         tag.className = "multi-select-tag";
-        tag.dataset.value = ins.codice;
+        tag.dataset.value = ins.id;
         
         // Includi "nome CdS - codice CdS"
         const cdsText =` (${ins.cds_nome} - ${ins.cds_codice})`;
@@ -243,12 +245,12 @@ const InsegnamentiManager = (function () {
           .addEventListener("click", (e) => {
             e.stopPropagation();
             tag.remove();
-            deselectInsegnamento(ins.codice);
+            deselectInsegnamento(ins.id);
 
             // Rimuovi evidenziazione dall'opzione corrispondente nel dropdown
             const dropdown = container.parentNode?.querySelector('.multi-select-dropdown');
             if (dropdown) {
-              const option = dropdown.querySelector(`[data-value="${ins.codice}"]`);
+              const option = dropdown.querySelector(`[data-value="${ins.id}"]`);
               if (option) {
                 option.classList.remove("selected");
               }
@@ -368,7 +370,7 @@ const InsegnamentiManager = (function () {
       insegnamenti.forEach((ins) => {
         const option = document.createElement("div");
         option.className = "multi-select-option";
-        option.dataset.value = ins.codice;
+        option.dataset.value = ins.id;
         option.dataset.cds = ins.cds_codice || "";
         option.dataset.semestre = ins.semestre || "1";
         option.dataset.annoCorso = ins.anno_corso || "1";
@@ -377,7 +379,7 @@ const InsegnamentiManager = (function () {
         const cdsText =` (${ins.cds_nome} - ${ins.cds_codice})`;
         option.textContent = `${ins.titolo}${cdsText}`;
         
-        if (isSelected(ins.codice)) {
+        if (isSelected(ins.id)) {
           option.classList.add("selected");
         }
         
@@ -389,11 +391,11 @@ const InsegnamentiManager = (function () {
           if (isCurrentlySelected) {
             // Deseleziona
             option.classList.remove("selected");
-            deselectInsegnamento(ins.codice);
+            deselectInsegnamento(ins.id);
           } else {
             // Seleziona
             option.classList.add("selected");
-            selectInsegnamento(ins.codice, {
+            selectInsegnamento(ins.id, {
               semestre: parseInt(option.dataset.semestre) || 1,
               anno_corso: parseInt(option.dataset.annoCorso) || 1,
               cds: option.dataset.cds || "",
@@ -426,9 +428,9 @@ const InsegnamentiManager = (function () {
     if (docente) params.append("docente", docente);
     if (selectedCds) params.append("cds", selectedCds);
 
-    const codici = getSelectedInsegnamenti();
-    if (codici.length > 0) {
-      params.append("insegnamenti", codici.join(","));
+    const ids = getSelectedInsegnamenti();
+    if (ids.length > 0) {
+      params.append("insegnamenti", ids.join(","));
     } else if (docente) {
       params.append("solo_docente", "true");
     }
