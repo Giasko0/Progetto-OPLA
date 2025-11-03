@@ -16,6 +16,9 @@ document.addEventListener("DOMContentLoaded", async function () {
   window.updatePageTitle();
 });
 
+// Variabile globale per memorizzare le date valide
+let globalDateValideData = null;
+
 // Carica gli esami dell'utente e li visualizza
 async function fetchAndDisplayEsami() {
   const contenitoreEsami = document.getElementById("contenitoreEsami");
@@ -40,6 +43,9 @@ async function fetchAndDisplayEsami() {
       getTargetEsamiESessioni(userData.user_data.username, selectedYear),
       fetch(`/api/get-date-valide?${params}`).then(r => r.json())
     ]);
+
+    // Memorizza le date valide globalmente
+    globalDateValideData = dateValideData;
 
     const processedData = processDataForDisplay(insegnamentiResponse.cds, esamiData, userData.user_data.username, dateValideData);
     displayEsamiData(processedData, targetEsamiData.target_esami_default, targetEsamiData);
@@ -296,6 +302,10 @@ function createExamsTable(tableId, exams, noExamsMessage = "Inserisci degli appe
   exams.forEach(esame => {
     const row = document.createElement("tr");
     row.className = "esami-tr";
+    // Aggiungi attributi data per il filtro
+    row.setAttribute("data-insegnamento-id", esame.insegnamento);
+    row.setAttribute("data-datetime", esame.dataora);
+    
     const cellsData = [
       esame.mostra_nel_calendario ? "Sì" : "No",
       esame.tipo_appello === "PP" ? "Prova parziale" : "Prova finale",
@@ -443,6 +453,7 @@ function displaySessioniEsami(data, insegnamentoKey, container, targetEsami, tar
     card.addEventListener('click', () => {
       const tableId = `tabella-${insegnamentoKey.replace(/\s+/g, "-")}`;
       const sessioneNome = sessione.nome.replace('Sessione ', '');
+      const insegnamentoId = data.insegnamenti[insegnamentoKey].id;
       
       // Verifica se la card è già attiva (filtro già applicato)
       if (card.classList.contains('active')) {
@@ -450,8 +461,8 @@ function displaySessioniEsami(data, insegnamentoKey, container, targetEsami, tar
         resetTableFilter(tableId);
         gridContainer.querySelectorAll('.session-card').forEach(c => c.classList.remove('active'));
       } else {
-        // Altrimenti applica il filtro
-        filterTableBySession(tableId, sessioneNome, data.esami);
+        // Altrimenti applica il filtro per insegnamento e sessione
+        filterTableBySessionAndTeaching(tableId, sessioneNome, insegnamentoId, data.esami);
         // Aggiorna lo stato visivo delle card
         gridContainer.querySelectorAll('.session-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
@@ -607,6 +618,40 @@ async function getTargetEsamiESessioni(docente, anno) {
     throw new Error(errorData.message || `Errore nel recupero dei dati: ${response.status} ${response.statusText}`);
   }
   return await response.json();
+}
+
+// Funzione per filtrare la tabella per sessione e insegnamento
+function filterTableBySessionAndTeaching(tableId, sessioneNome, insegnamentoId, tuttiEsami) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  
+  const tbody = table.querySelector('tbody');
+  const rows = tbody.querySelectorAll('tr');
+  
+  // Usa i dati delle date valide già caricati
+  if (!globalDateValideData) return;
+  
+  applySessionAndTeachingFilter(rows, sessioneNome, insegnamentoId, globalDateValideData, tuttiEsami);
+}
+
+// Funzione di supporto per applicare il filtro alle righe per sessione e insegnamento
+function applySessionAndTeachingFilter(rows, sessioneNome, insegnamentoId, dateValideData, tuttiEsami) {
+  rows.forEach(row => {
+    const insegnamentoIdRiga = row.getAttribute('data-insegnamento-id');
+    const dataEsameStr = row.getAttribute('data-datetime');
+    
+    if (!insegnamentoIdRiga || !dataEsameStr) return;
+    
+    const dataEsame = new Date(dataEsameStr);
+    const sessioneEsame = determinaSessioneEsame(dataEsame, dateValideData);
+    
+    // Mostra solo se corrisponde sia la sessione che l'insegnamento
+    if (sessioneEsame === sessioneNome && insegnamentoIdRiga == insegnamentoId) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
 }
 
 // Funzione per filtrare la tabella per sessione

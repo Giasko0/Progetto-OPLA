@@ -125,6 +125,10 @@
   transform: translateY(-2px);
 }
 
+.session-card.active {
+  border: 1px solid var(--color-blue);  
+}
+
 .session-card.static:hover {
   transform: none;
   cursor: default;
