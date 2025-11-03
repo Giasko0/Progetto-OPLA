@@ -28,17 +28,14 @@
     <div class="content-inner">
       <div class="header-controls">
         <h1 class="titolo">I miei esami</h1>
-        <div id="annoAccademicoContainer">
-          <!-- Il dropdown dell'anno accademico verrà generato qui da annoAccademico.js -->
-        </div>
-      </div>
-
-      <div class="tabs-container">
-        <div class="tabs-header" id="tabsHeader">
-          <select id="insegnamentoSelect" class="insegnamento-dropdown" style="display: none;">
+        <div id="insegnamentoSelectContainer" class="insegnamento-select-container">
+          <select id="insegnamentoSelect" class="insegnamento-dropdown">
             <option value="">Tutti gli appelli</option>
             <!-- Le opzioni degli insegnamenti verranno generate qui -->
           </select>
+        </div>
+        <div id="annoAccademicoContainer">
+          <!-- Il dropdown dell'anno accademico verrà generato qui da annoAccademico.js -->
         </div>
       </div>
 

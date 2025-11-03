@@ -96,9 +96,7 @@
   }
 
   .header-controls #annoAccademicoContainer {
-    position: static;
-    transform: none;
-    width: 100%;
+    display: none;
   }
 
   .header-controls .anno-accademico-container {
@@ -144,9 +142,6 @@
   }
 
   /* --------------- Miei Esami --------------- */
-  .insegnamento-dropdown {
-    width: 50%;
-  }
 
   .tab-content {
     width: 100%;

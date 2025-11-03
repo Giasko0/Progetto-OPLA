@@ -116,26 +116,44 @@ body {
 
 /*---------------------------------------------HEADER CONTROLS---------------------------------------------*/
 .header-controls {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
   align-items: center;
   width: 100%;
   margin: 20px 0;
   position: relative;
 }
 
+/* Quando ci sono 3 elementi (titolo, select insegnamento, anno accademico) */
+.header-controls:has(.insegnamento-select-container) {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .header-controls .titolo {
   margin: 0;
   text-align: left;
-  width: 50%;
+  grid-column: 1;
+}
+
+/* Container per il select insegnamenti - centrato quando presente */
+.insegnamento-select-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  grid-column: 2;
 }
 
 .header-controls #annoAccademicoContainer {
-  display: inline-flex;
-  align-items: center;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  margin: 0;
+  justify-self: end;
+  grid-column: -2 / -1;
+  margin-right: 1em;
+}
+
+/* Quando ci sono 3 elementi, anno accademico va in colonna 3 */
+.header-controls:has(.insegnamento-select-container) #annoAccademicoContainer {
+  grid-column: 3;
 }
 
 .anno-accademico-container label {
