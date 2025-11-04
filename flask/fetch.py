@@ -666,7 +666,7 @@ def ottieni_target_esami_e_sessioni(docente, anno_accademico):
         cds_list = [row[0] for row in cursor.fetchall()]
         
         if not cds_list:
-            raise Exception(f"Nessun CdS GEN trovato per il docente {docente} nell'anno {anno_accademico}")
+            raise Exception(f"Il docente non ha corsi attivi per l'anno {anno_accademico}")
         
         # Ottieni i minimi per sessione per tutti i CdS GEN del docente
         sessioni_per_cds = {}
