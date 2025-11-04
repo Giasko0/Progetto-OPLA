@@ -3,6 +3,7 @@ const EsameForm = (function() {
   let formContainer = null;
   let currentUsername = null;
   let isEditMode = false;
+  let currentFormMode = null; // Traccia la modalità corrente: 'insert', 'edit', 'read-only'
 
   // Carica il form HTML dinamicamente
   async function loadForm() {
@@ -29,6 +30,18 @@ const EsameForm = (function() {
     await loadForm();
     
     const isAlreadyOpen = formContainer.style.display === 'block';
+    const newFormMode = isEdit ? 'edit' : 'insert';
+    
+    // Controlla se la modalità è cambiata
+    const modeChanged = currentFormMode !== null && currentFormMode !== newFormMode;
+    
+    if (isAlreadyOpen && modeChanged) {
+      // Reinizializza il form se la modalità è cambiata
+      reinitializeForm();
+    }
+    
+    // Aggiorna la modalità corrente
+    currentFormMode = newFormMode;
     
     // Mostra form
     formContainer.style.display = 'block';
@@ -55,6 +68,82 @@ const EsameForm = (function() {
     return true;
   }
 
+  // Nuova funzione per reinizializzare il form
+  function reinitializeForm() {
+    // Reset completo del form
+    const esameForm = formContainer.querySelector("#formEsame");
+    if (esameForm) {
+      esameForm.reset();
+      delete esameForm.dataset.creationInProgress;
+    }
+
+    // IMPORTANTE: Pulisci gli eventi provvisori PRIMA di resettare le sezioni
+    window.clearCalendarProvisionalEvents?.();
+
+    // Pulisci le sezioni
+    window.EsameAppelli?.resetSections();
+
+    // Pulisci gli insegnamenti
+    window.InsegnamentiManager?.cleanup();
+    const dropdownElement = document.getElementById("insegnamentoDropdown");
+    if (dropdownElement) {
+      dropdownElement.style.display = '';
+    }
+
+    // Rimuovi stili di sola lettura se presenti
+    removeReadOnlyMode();
+
+    // Ripristina titolo
+    const formTitle = formContainer.querySelector(".form-header h2");
+    if (formTitle) formTitle.textContent = "Aggiungi Esame";
+
+    // Mostra pulsanti preferenze
+    const preferencesButtons = formContainer.querySelectorAll('#savePreferenceBtn, #loadPreferenceBtn');
+    preferencesButtons.forEach(btn => {
+      if (btn) btn.style.display = '';
+    });
+
+    // Svuota e mostra area pulsanti azione
+    const formActions = formContainer.querySelector('.form-actions');
+    if (formActions) {
+      formActions.innerHTML = '';
+      formActions.style.display = '';
+    }
+
+    // Mostra pulsanti aggiunta/rimozione sezioni
+    const sectionButtons = formContainer.querySelectorAll('.add-date-btn, .remove-date-btn');
+    sectionButtons.forEach(btn => {
+      if (btn) btn.style.display = '';
+    });
+
+    // Ripristina il campo insegnamento
+    const multiSelectBox = document.getElementById("insegnamentoBox");
+    if (multiSelectBox) {
+      multiSelectBox.classList.remove('disabled');
+      multiSelectBox.style.pointerEvents = '';
+      multiSelectBox.style.opacity = '';
+      multiSelectBox.style.color = '';
+      multiSelectBox.title = '';
+      multiSelectBox.innerHTML = '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
+    }
+
+    // Reset della modalità corrente
+    currentFormMode = null;
+    isEditMode = false;
+    
+    // IMPORTANTE: Forza la reinizializzazione dell'UI dopo un breve delay
+    setTimeout(() => {
+      // Reinizializza le sezioni per modalità inserimento
+      window.EsameAppelli?.initializeDateSections();
+      
+      // Aggiungi una sezione vuota se non ce ne sono
+      const existingSections = document.querySelectorAll('.date-appello-section');
+      if (existingSections.length === 0) {
+        window.EsameAppelli?.addDateSection('');
+      }
+    }, 50);
+  }
+
   // Gestione modalità modifica
   async function handleEditMode(examId) {
     try {
@@ -69,38 +158,56 @@ const EsameForm = (function() {
     }
   }
 
-  // Gestione modalità creazione
+  // Gestione modalità creazione (aggiornata)
   async function handleCreationMode(data, isAlreadyOpen) {
     const formTitle = formContainer.querySelector(".form-header h2");
-    formTitle.textContent = "Aggiungi Esame";
+    if (formTitle) formTitle.textContent = "Aggiungi Esame";
     const esameForm = formContainer.querySelector("#formEsame");
 
     // Rimuovi eventuali stili di sola lettura rimasti
     removeReadOnlyMode();
 
-    // Reset se necessario
-    if (!isAlreadyOpen || !esameForm.dataset.creationInProgress) {
-      esameForm.reset();
+    // Mostra pulsanti preferenze
+    const preferencesButtons = formContainer.querySelectorAll('#savePreferenceBtn, #loadPreferenceBtn');
+    preferencesButtons.forEach(btn => {
+      if (btn) btn.style.display = '';
+    });
+
+    // Mostra pulsanti aggiunta/rimozione sezioni
+    const sectionButtons = formContainer.querySelectorAll('.add-date-btn, .remove-date-btn');
+    sectionButtons.forEach(btn => {
+      if (btn) btn.style.display = '';
+    });
+
+    // Mostra e svuota area azioni
+    const formActions = formContainer.querySelector('.form-actions');
+    if (formActions) {
+      formActions.style.display = '';
+      formActions.innerHTML = '';
+    }
+
+    // Reset form
+    esameForm.reset();
+    
+    // IMPORTANTE: Non chiamare resetSections qui se è già stato fatto in reinitializeForm
+    // Controlla se ci sono già sezioni inizializzate
+    const existingSections = document.querySelectorAll('.date-appello-section');
+    if (existingSections.length === 0) {
       window.EsameAppelli.resetSections();
       initUI(data);
-      loadUserPreferences();
-      
-      setTimeout(() => {
-        if (!window.FormEsameAutosave?.loadSavedData()) {
-          setDefaultCheckboxes();
-        }
-      }, 150);
-      
-      esameForm.dataset.creationInProgress = "true";
-    } else {
-      // Reset per nuovo esame
-      esameForm.reset();
-      window.EsameAppelli.resetSections();
-      initUI(data);
-      loadUserPreferences();
-      setTimeout(() => window.FormEsameAutosave?.loadSavedData(), 150);
     }
     
+    loadUserPreferences();
+    
+    setTimeout(() => {
+      if (!window.FormEsameAutosave?.loadSavedData()) {
+        setDefaultCheckboxes();
+      }
+    }, 150);
+    
+    esameForm.dataset.creationInProgress = "true";
+    
+    // IMPORTANTE: Setup pulsanti dopo il reset
     await setupButtons(false, null);
     setupEventListeners();
   }
@@ -119,20 +226,25 @@ const EsameForm = (function() {
 
   // Setup listener comuni
   function setupCommonListeners() {
-    const listeners = [
-      { id: "closeOverlay", handler: hideForm },
-      // Salvataggio immediato della preferenza (insert) senza input nome
-      { id: "savePreferenceBtn", handler: window.EsamePreferenze?.saveCurrentPreference },
-      { id: "loadPreferenceBtn", handler: window.EsamePreferenze?.togglePreferencesMenu },
-    ];
+    // Usa il container del form per trovare i pulsanti (più sicuro dopo reinizializzazione)
+    const saveBtn = formContainer.querySelector("#savePreferenceBtn");
+    const loadBtn = formContainer.querySelector("#loadPreferenceBtn");
+    const closeBtn = formContainer.querySelector("#closeOverlay");
 
-    listeners.forEach(({ id, handler }) => {
-      const element = document.getElementById(id);
-      if (element && handler) {
-        element.removeEventListener("click", handler);
-        element.addEventListener("click", handler);
-      }
-    });
+    if (closeBtn) {
+      closeBtn.removeEventListener("click", hideForm);
+      closeBtn.addEventListener("click", hideForm);
+    }
+
+    if (saveBtn && window.EsamePreferenze?.saveCurrentPreference) {
+      saveBtn.removeEventListener("click", window.EsamePreferenze.saveCurrentPreference);
+      saveBtn.addEventListener("click", window.EsamePreferenze.saveCurrentPreference);
+    }
+
+    if (loadBtn && window.EsamePreferenze?.togglePreferencesMenu) {
+      loadBtn.removeEventListener("click", window.EsamePreferenze.togglePreferencesMenu);
+      loadBtn.addEventListener("click", window.EsamePreferenze.togglePreferencesMenu);
+    }
   }
 
   // Setup modalità sola lettura
@@ -259,38 +371,28 @@ const EsameForm = (function() {
   
   // Configura event listeners
   function setupEventListeners() {
-    const eventListeners = [
-      { id: "formEsame", event: "submit", handler: handleFormSubmit }
-    ];
+    // Aggiorna la ricerca degli elementi al momento dell'uso (possono essere stati creati dinamicamente)
+    const esameForm = formContainer.querySelector('#formEsame');
+    if (esameForm) {
+      esameForm.removeEventListener('submit', handleFormSubmit);
+      esameForm.addEventListener('submit', handleFormSubmit);
+    }
 
-    eventListeners.forEach(({ id, event, handler }) => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.removeEventListener(event, handler);
-        element.addEventListener(event, handler);
-      }
-    });
-
-    // Radio buttons tipo appello
-    document.querySelectorAll('input[name="tipo_appello_radio"]').forEach(radio => {
+    // Radio buttons tipo appello - usa query dentro il form
+    formContainer.querySelectorAll('input[name^="tipo_appello_radio"]').forEach(radio => {
       radio.removeEventListener("change", aggiornaVerbalizzazione);
       radio.addEventListener("change", aggiornaVerbalizzazione);
     });
 
-    // Pulsante bypass per admin
-    setupBypassButton();
-  }
+    // Pulsante bypass per admin (potrebbe essere creato dinamicamente)
+    const bypassBtn = formContainer.querySelector('#bypassChecksBtn');
+    if (bypassBtn) {
+      bypassBtn.removeEventListener("click", handleBypassChecksSubmit);
+      bypassBtn.addEventListener("click", handleBypassChecksSubmit);
+    }
 
-  // Setup pulsante bypass
-  function setupBypassButton() {
-    window.FormEsameControlli?.isUserAdmin().then(isAdmin => {
-      const bypassChecksBtn = document.getElementById("bypassChecksBtn");
-      if (bypassChecksBtn && isAdmin) {
-        bypassChecksBtn.style.display = "block";
-        bypassChecksBtn.removeEventListener("click", handleBypassChecksSubmit);
-        bypassChecksBtn.addEventListener("click", handleBypassChecksSubmit);
-      }
-    });
+    // Pulsanti preferenze (assicurati siano collegati)
+    setupCommonListeners();
   }
 
   // Aggiorna verbalizzazione in base al tipo appello
@@ -358,15 +460,31 @@ const EsameForm = (function() {
 
   // Configura pulsanti del form
   async function setupButtons(isEdit, examId) {
-    const formActions = document.querySelector('.form-actions');
+    // Cerca .form-actions all'interno del formContainer (non globalmente)
+    let formActions = formContainer.querySelector('.form-actions');
+
+    // Se non esiste, crealo (safeguard)
+    if (!formActions) {
+      const esameForm = formContainer.querySelector('#formEsame') || formContainer;
+      formActions = document.createElement('div');
+      formActions.className = 'form-actions';
+      esameForm.appendChild(formActions);
+    }
+
+    // Svuota prima di ricreare
     formActions.innerHTML = '';
+    formActions.style.display = '';
+
     const isAdmin = await window.FormEsameControlli?.isUserAdmin();
 
     const buttons = isEdit ? getEditButtons(examId, isAdmin) : getCreationButtons(isAdmin);
-    
+
     buttons.forEach(button => {
       formActions.appendChild(button);
     });
+
+    // Dopo aver aggiunto i pulsanti, (ri)collego eventuali listener che dipendono dai pulsanti
+    setupEventListeners();
   }
 
   // Helper per pulsanti modifica
@@ -462,7 +580,7 @@ const EsameForm = (function() {
     window.formJustClosed = true;
     setTimeout(() => {
       window.formJustClosed = false;
-    }, 1000); // Reset del flag dopo 1 secondo
+    }, 1000);
     
     if (clearAutosave) {
       window.FormEsameAutosave?.clearSavedData();
@@ -479,6 +597,9 @@ const EsameForm = (function() {
     
     document.getElementById('calendar').classList.remove('form-visible');
     
+    // Reset della modalità corrente
+    currentFormMode = null;
+    
     if (cleanupProvisional) {
       // Cleanup completo
       document.getElementById('insegnamentoDropdown').style.display = 'none';
@@ -493,7 +614,7 @@ const EsameForm = (function() {
   function removeReadOnlyMode() {
     // Rimuovi la classe read-only-mode
     formContainer.classList.remove('read-only-mode');
-    
+
     // Riabilita tutti i controlli del form
     const allInputs = formContainer.querySelectorAll('input, select, textarea, button');
     allInputs.forEach(input => {
@@ -516,31 +637,35 @@ const EsameForm = (function() {
     // Ripristina il campo insegnamento se era in modalità read-only
     const multiSelectBox = document.getElementById("insegnamentoBox");
     const dropdownElement = document.getElementById("insegnamentoDropdown");
-    
+
     if (multiSelectBox && multiSelectBox.classList.contains('disabled')) {
       multiSelectBox.classList.remove('disabled');
       multiSelectBox.style.pointerEvents = '';
       multiSelectBox.style.opacity = '';
       multiSelectBox.style.color = '';
       multiSelectBox.title = '';
-      
-      // Ripristina il placeholder iniziale
       multiSelectBox.innerHTML = '<span class="multi-select-placeholder">Seleziona gli insegnamenti</span>';
     }
-    
+
     if (dropdownElement) {
       dropdownElement.style.display = '';
     }
+
+    // Mostra area azioni
+    const formActions = formContainer.querySelector('.form-actions');
+    if (formActions) formActions.style.display = '';
   }
 
-  // API pubblica
+  // API pubblica (aggiornata)
   return {
     loadForm,
     showForm,
     hideForm,
     combineTimeValues: combineTimeValuesForAllSections,
     combineTimeValuesForAllSections,
-    removeReadOnlyMode
+    removeReadOnlyMode,
+    reinitializeForm,
+    getMode: () => currentFormMode
   };
 }());
 

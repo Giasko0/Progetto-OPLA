@@ -269,32 +269,47 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (window.isDuplicationMode) {
               return;
             }
-            
+
             const selDateFormatted = formatDateForInput(info.date);
-            
-            // Ottieni date provvisorie visibili
-            const visibleProvisionalDates = window.EsameAppelli?.getVisibleSectionDates?.() || [];
+
+            // Stato form
+            const formContainer = document.getElementById('form-container');
+            const isFormOpen = formContainer?.style.display === 'block';
+            const currentFormMode = window.EsameForm?.getMode?.();
+            const willSwitchToInsert = isFormOpen && currentFormMode && currentFormMode !== 'insert';
+
+            // Calcola le date provvisorie solo se NON stiamo cambiando modalità (evita falsi conflitti 14gg)
+            const visibleProvisionalDates = willSwitchToInsert
+              ? []
+              : (window.EsameAppelli?.getVisibleSectionDates?.() || []);
+
             const validationResult = isDateValid(info.date, dateValide, visibleProvisionalDates);
 
             // Gestione date disabilitate per utenti non admin
             if (!validationResult.isValid && !isAdmin) {
               // Controlla se è un conflitto con sessioni (non con altri eventi)
               if (!validationResult.isSameDayConflict && !validationResult.isProvisionalConflict) {
-                // Data fuori dalle sessioni - mostra popup di conferma
                 const confirmMessage = "Si sta inserendo un esame fuori dalle sessioni, è possibile inserire solo prove parziali non ufficiali (queste date non appariranno nel calendario).";
                 
                 if (confirm(confirmMessage)) {
                   // Apri form con modalità prova parziale non ufficiale
-                  const formContainer = document.getElementById('form-container');
-                  const isFormOpen = formContainer?.style.display === 'block';
-                  
-                  if (isFormOpen) {
+                  if (willSwitchToInsert) {
+                    window.EsameForm?.showForm({ date: selDateFormatted, isNonOfficialPartial: true }, false)
+                      .then(() => {
+                        setTimeout(() => {
+                          window.FormEsameData?.handleDateSelection?.(selDateFormatted, { isNonOfficialPartial: true });
+                        }, 200);
+                      })
+                      .catch(err => console.error('Errore apertura form:', err));
+                  } else if (isFormOpen) {
                     window.FormEsameData?.handleDateSelection?.(selDateFormatted, { isNonOfficialPartial: true });
                   } else {
-                    window.EsameForm?.showForm({ date: selDateFormatted, isNonOfficialPartial: true })
+                    window.EsameForm?.showForm({ date: selDateFormatted, isNonOfficialPartial: true }, false)
                       .then(formOpened => {
                         if (formOpened) {
-                          setTimeout(() => window.FormEsameData?.handleDateSelection?.(selDateFormatted, { isNonOfficialPartial: true }), 100);
+                          setTimeout(() => {
+                            window.FormEsameData?.handleDateSelection?.(selDateFormatted, { isNonOfficialPartial: true });
+                          }, 100);
                         }
                       })
                       .catch(error => console.error('Errore apertura form:', error));
@@ -302,25 +317,31 @@ document.addEventListener("DOMContentLoaded", async function () {
                 }
                 return;
               } else {
-                // Altri tipi di conflitto - mostra messaggio di errore
                 const messages = {
                   isSameDayConflict: 'Non è possibile inserire due esami nello stesso giorno.',
                   isProvisionalConflict: 'Non è possibile inserire esami a meno di 14 giorni di distanza da altri eventi con proprietà "Appello ufficiale".',
                   default: validationResult.message
                 };
-                
                 const messageKey = validationResult.isSameDayConflict ? 'isSameDayConflict' : 
-                                 validationResult.isProvisionalConflict ? 'isProvisionalConflict' : 'default';
-                
+                                   validationResult.isProvisionalConflict ? 'isProvisionalConflict' : 'default';
                 window.showMessage?.(messages[messageKey], 'Attenzione', 'warning');
                 return;
               }
             }
-            
-            // Gestione apertura form ottimizzata per date valide
-            const formContainer = document.getElementById('form-container');
-            const isFormOpen = formContainer?.style.display === 'block';
-            
+
+            // Gestione apertura/applicazione data
+            if (willSwitchToInsert) {
+              // Passa a modalità inserisci (ricrea pulsanti e preferenze) e poi applica la data
+              window.EsameForm?.showForm({ date: selDateFormatted }, false)
+                .then(() => {
+                  setTimeout(() => {
+                    window.FormEsameData?.handleDateSelection?.(selDateFormatted);
+                  }, 200);
+                })
+                .catch(error => console.error('Errore apertura form:', error));
+              return;
+            }
+
             if (isFormOpen) {
               window.FormEsameData?.handleDateSelection?.(selDateFormatted);
             } else {
@@ -344,7 +365,17 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             // Gestione modifica esame esistente
             if (event.id) {
-              // Apri il form
+              const formContainer = document.getElementById('form-container');
+              const isFormOpen = formContainer?.style.display === 'block';
+              
+              // Se il form è già aperto, reinizializzalo e attendi
+              if (isFormOpen && window.EsameForm?.reinitializeForm) {
+                window.EsameForm.reinitializeForm();
+                
+                // Attendi che la reinizializzazione sia completa
+                await new Promise(resolve => setTimeout(resolve, 200));
+              }
+              
               window.EsameForm?.showForm?.({ id: event.id }, true);
             } else {
               console.error("ID dell'esame non trovato nell'evento:", event);
