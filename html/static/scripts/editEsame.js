@@ -553,7 +553,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Campi globali
       formData.append('docente', currentExamData.docente);
       formData.append('anno_accademico', currentExamData.anno_accademico || new Date().getFullYear());
-      formData.append('insegnamenti[]', currentExamData.insegnamento_codice);
+      formData.append('insegnamenti[]', currentExamData.insegnamento);
 
       // Campi delle sezioni
       examDataArray.forEach(examData => {
