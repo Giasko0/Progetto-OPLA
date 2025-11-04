@@ -183,7 +183,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
           views: {
             multiMonthList: { type: 'multiMonth', buttonText: 'Lista', multiMonthMaxColumns: 1 },
-            multiMonthGrid: { type: 'multiMonth', buttonText: 'Griglia', multiMonthMaxColumns: 3 },
+            multiMonthGrid: { 
+              type: 'multiMonth', 
+              buttonText: 'Griglia', 
+              multiMonthMaxColumns: 4, 
+              multiMonthMinWidth: 500 
+            },
             listaEventi: { type: 'listYear', duration: { years: 2 }, buttonText: 'Eventi' }
           },
 
@@ -352,13 +357,11 @@ document.addEventListener("DOMContentLoaded", async function () {
             const cognomeDocente = arg.event.extendedProps?.docenteCognome || (userData?.user_data?.cognome || 'Docente');
 
             if (arg.event.extendedProps?.isProvisional) {
-              const dataAppello = arg.event.start?.toLocaleDateString('it-IT') || '';
               const isDuplication = arg.event.extendedProps?.isDuplication || false;
               const titleText = isDuplication ? 'Nuovo esame (duplicato)' : 'Nuovo esame';
               
               return {
-                html: `<div class="fc-event-time fc-sticky">${dataAppello}</div>
-                       <div class="fc-event-title">${cognomeDocente} - ${titleText}</div>`
+                html: `<div class="fc-event-title">${cognomeDocente} - ${titleText}</div>`
               };
             }
 
@@ -369,8 +372,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             }) || '';
 
             return {
-              html: `<div class="fc-event-time fc-sticky">${timeString}</div>
-                     <div class="fc-event-title">${cognomeDocente} - ${titoloInsegnamento}</div>`
+              html: `<div class="fc-event-title"><p style="display: inline; font-weight: 700">${timeString}</p> ${cognomeDocente} - ${titoloInsegnamento}</div>`
             };
           },
 
@@ -381,7 +383,34 @@ document.addEventListener("DOMContentLoaded", async function () {
               return validation.isValid ? [] : ["fc-day-disabled"];
             }
             return [];
-          }
+          },
+
+          eventDidMount: function(info) {
+            // Tooltip: mostra gli stessi dettagli dell'evento
+            const event = info.event;
+            const titoloInsegnamento = event.title || 'Insegnamento';
+            const cognomeDocente = event.extendedProps?.docenteCognome || (userData?.user_data?.cognome || 'Docente');
+            let tooltip = '';
+
+            if (event.extendedProps?.isProvisional) {
+              const dataAppello = event.start?.toLocaleDateString('it-IT') || '';
+              const isDuplication = event.extendedProps?.isDuplication || false;
+              const titleText = isDuplication ? 'Nuovo esame (duplicato)' : 'Nuovo esame';
+              tooltip = `${dataAppello}\n${cognomeDocente} - ${titleText}`;
+            } else {
+              const timeString = event.start?.toLocaleTimeString('it-IT', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              }) || '';
+              tooltip = `${timeString}\n${cognomeDocente} - ${titoloInsegnamento}`;
+            }
+
+            // Imposta il tooltip nativo
+            if (info.el) {
+              info.el.title = tooltip;
+            }
+          },
         };
 
         calendar = new FullCalendar.Calendar(calendarEl, calendarConfig);
@@ -389,6 +418,26 @@ document.addEventListener("DOMContentLoaded", async function () {
         setupGlobalClickListeners(dropdowns);
         calendar.render();
         window.calendar = calendar;
+
+        // Ricalcola il layout quando la finestra viene ridimensionata
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            if (calendar) {
+              calendar.updateSize();
+            }
+          }, 500);
+        });
+
+        // Ricalcola il layout quando cambia la vista (dopo il rendering)
+        calendar.on('datesSet', () => {
+          setTimeout(() => {
+            if (calendar) {
+              calendar.updateSize();
+            }
+          }, 500);
+        });
 
         // Gestione cambio insegnamenti con debounce
         if (window.InsegnamentiManager) {

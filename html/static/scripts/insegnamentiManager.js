@@ -294,6 +294,9 @@ const InsegnamentiManager = (function () {
     });
   }
   
+  // Mantieni riferimenti a tutte le UI multi-select attive per sincronizzazione
+  const multiSelectUIs = [];
+
   // Inizializza UI con multi-select e dropdown
   function initUI(
     containerSelector,
@@ -316,6 +319,14 @@ const InsegnamentiManager = (function () {
     // Pulisci vecchi event listeners
     const newContainer = container.cloneNode(true);
     container.parentNode?.replaceChild(newContainer, container);
+
+    // Salva riferimenti per sincronizzazione
+    multiSelectUIs.push({
+      container: newContainer,
+      dropdown,
+      optionsContainer,
+      username
+    });
 
     // Click sul container mostra/nasconde dropdown
     newContainer.addEventListener("click", (e) => {
@@ -377,35 +388,54 @@ const InsegnamentiManager = (function () {
         
         // Includi "nome CdS - codice CdS"
         const cdsText =` (${ins.cds_nome} - ${ins.cds_codice})`;
-        option.textContent = `${ins.titolo}${cdsText}`;
-        
+
+        // Crea checkbox
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "multi-select-option-checkbox";
+        checkbox.checked = isSelected(ins.id);
+        checkbox.tabIndex = -1; // Non tabbare, la riga è già cliccabile
+
+        // Testo insegnamento
+        const label = document.createElement("span");
+        label.textContent = `${ins.titolo}${cdsText}`;
+
+        // Struttura: testo a sinistra, checkbox a destra
+        option.appendChild(label);
+        option.appendChild(checkbox);
+
         if (isSelected(ins.id)) {
           option.classList.add("selected");
         }
-        
+
+        // Click sulla riga o sul checkbox
         option.addEventListener("click", (e) => {
           e.stopPropagation();
-          
           const isCurrentlySelected = option.classList.contains("selected");
-          
           if (isCurrentlySelected) {
-            // Deseleziona
             option.classList.remove("selected");
+            checkbox.checked = false;
             deselectInsegnamento(ins.id);
           } else {
-            // Seleziona
             option.classList.add("selected");
+            checkbox.checked = true;
             selectInsegnamento(ins.id, {
               semestre: parseInt(option.dataset.semestre) || 1,
               anno_corso: parseInt(option.dataset.annoCorso) || 1,
               cds: option.dataset.cds || "",
             });
           }
-          
           // Aggiorna UI direttamente senza ricaricare dati dal server
           syncUI(newContainer);
         });
-        
+
+        // Click diretto sul checkbox (non propaga)
+        checkbox.addEventListener("click", (e) => {
+          e.stopPropagation();
+          // Simula il click sulla riga
+          option.click();
+        });
+
         optionsContainer.appendChild(option);
       });
       
@@ -418,6 +448,30 @@ const InsegnamentiManager = (function () {
         syncUI(newContainer);
       }
     });
+
+    // Sincronizza tutte le UI quando cambia la selezione
+    if (!initUI._syncRegistered) {
+      onChange(() => {
+        multiSelectUIs.forEach(ui => {
+          // Ricarica solo le opzioni, non serve ricaricare dal server
+          syncUI(ui.container);
+          // Aggiorna lo stato dei checkbox nel dropdown
+          const options = ui.optionsContainer.querySelectorAll('.multi-select-option');
+          options.forEach(option => {
+            const checkbox = option.querySelector('.multi-select-option-checkbox');
+            if (checkbox) {
+              checkbox.checked = isSelected(option.dataset.value);
+              if (isSelected(option.dataset.value)) {
+                option.classList.add("selected");
+              } else {
+                option.classList.remove("selected");
+              }
+            }
+          });
+        });
+      });
+      initUI._syncRegistered = true;
+    }
 
     return { container: newContainer, dropdown, optionsContainer };
   }
@@ -451,6 +505,9 @@ const InsegnamentiManager = (function () {
     document.querySelectorAll(".multi-select-box").forEach((box) => {
       box.classList.remove("active");
     });
+
+    // Svuota anche la lista delle UI per evitare duplicazioni
+    multiSelectUIs.length = 0;
   }
 
   // API pubblica
