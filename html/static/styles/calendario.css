@@ -441,34 +441,6 @@
   vertical-align: middle;
 }
 
-.preferences-form {
-  padding: 10px;
-  background-color: var(--color-bg-light);
-  display: flex;
-  gap: 5px;
-}
-
-.preferences-form input {
-  flex-grow: 1;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  margin: 0;
-}
-
-.preferences-form button {
-  width: 5rem;
-  padding: 5px 10px;
-  border: none;
-  border-radius: var(--radius);
-  background-color: var(--color-blue);
-  color: white;
-  cursor: pointer;
-}
-
-.preferences-form button:last-child {
-  background-color: var(--color-bg-secondary);
-}
-
 /*---------------------------------------------MULTI-SELECT---------------------------------------------*/
 .multi-select-container {
   width: 100%;

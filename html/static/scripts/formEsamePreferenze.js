@@ -226,9 +226,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function mostraMenu() {
       const menu = document.getElementById("preferencesMenu");
-      const form = document.getElementById("savePreferenceForm");
       if (menu) menu.style.display = "block";
-      if (form) form.style.display = "none";
     }
 
     function nascondiMenu() {
@@ -236,47 +234,27 @@ document.addEventListener('DOMContentLoaded', function() {
       if (menu) menu.style.display = "none";
     }
 
-    function mostraFormSalvataggio() {
-      const menu = document.getElementById("preferencesMenu");
-      const form = document.getElementById("savePreferenceForm");
-      const input = document.getElementById("preferenceNameInput");
-      
-      if (form) form.style.display = "flex";
-      if (menu) menu.style.display = "none";
-      if (input) {
-        input.value = '';
-        input.focus();
-      }
-    }
-
-    function nascondiFormSalvataggio() {
-      const form = document.getElementById("savePreferenceForm");
-      if (form) form.style.display = "none";
-    }
-
-    async function salvaNuovaPreferenza() {
-      const input = document.getElementById("preferenceNameInput");
-      const name = input?.value?.trim();
-      
-      if (!name) {
-        alert('Inserisci un nome per la preferenza');
-        return;
-      }
-      
+    // Prompt per il nome preferenza e salvataggio
+    async function salvaPreferenzaPrompt() {
       const preferences = raccogliDatiPrimaSezione();
       if (!preferences) {
         alert('Nessun dato da salvare');
         return;
       }
-      
+      let name = prompt("Inserisci il nome per la preferenza:", "");
+      if (!name || !name.trim()) {
+        alert('Nome preferenza non valido');
+        return;
+      }
+      name = name.trim();
       try {
         await salvaPreferenza(name, preferences);
-        nascondiFormSalvataggio();
-        caricaEMostraPreferenze();
+        await caricaEMostraPreferenze();
         if (window.showMessage) {
           window.showMessage(`Preferenza "${name}" salvata`, "Successo", "success");
         }
       } catch (error) {
+        console.error('Errore salvataggio preferenza:', error);
         alert('Errore salvataggio preferenza');
       }
     }
@@ -290,12 +268,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const isVisible = menu?.style.display === "block";
         if (isVisible) nascondiMenu(); else { caricaEMostraPreferenze(); mostraMenu(); }
       },
-      toggleSavePreferenceForm: () => {
-        const form = document.getElementById("savePreferenceForm");
-        const isVisible = form?.style.display === "flex";
-        if (isVisible) nascondiFormSalvataggio(); else mostraFormSalvataggio();
-      },
-      handleSavePreference: salvaNuovaPreferenza,
+      saveCurrentPreference: salvaPreferenzaPrompt,
       applyPreferenceToSection: applicaASezione // Per nuove sezioni
     };
   }());

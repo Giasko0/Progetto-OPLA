@@ -121,10 +121,9 @@ const EsameForm = (function() {
   function setupCommonListeners() {
     const listeners = [
       { id: "closeOverlay", handler: hideForm },
-      { id: "savePreferenceBtn", handler: window.EsamePreferenze?.toggleSavePreferenceForm },
+      // Salvataggio immediato della preferenza (insert) senza input nome
+      { id: "savePreferenceBtn", handler: window.EsamePreferenze?.saveCurrentPreference },
       { id: "loadPreferenceBtn", handler: window.EsamePreferenze?.togglePreferencesMenu },
-      { id: "confirmSavePreference", handler: window.EsamePreferenze?.handleSavePreference },
-      { id: "cancelSavePreference", handler: window.EsamePreferenze?.toggleSavePreferenceForm }
     ];
 
     listeners.forEach(({ id, handler }) => {
