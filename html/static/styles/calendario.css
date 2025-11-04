@@ -327,10 +327,6 @@
   transition: transform 0.2s ease-in-out;
 }
 
-.radio-group input[type="radio"]:checked + label::before {
-  border-color: var(--color-light-blue);
-}
-
 .radio-group input[type="radio"]:checked + label::after {
   transform: translateY(-50%) scale(1); /* Mostra il pallino interno quando selezionato */
 }
@@ -371,7 +367,7 @@
   margin: 0;
 }
 
-.add-date-btn, .remove-date-btn {
+.add-date-btn {
   background: none;
   border: none;
   color: var(--color-text);
@@ -424,31 +420,20 @@
 }
 
 .preference-item {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 4px 4px 4px 10px;
   display: flex;
   align-items: center;
-  cursor: pointer;
+  cursor: default;
 }
 
-.preference-item:hover {
-  background-color: var(--color-bg);
+/* Border solo alle preferenze tranne l'ultima */
+.preference-item:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
 }
 
 .preference-item span {
   flex-grow: 1;
   vertical-align: middle;
-}
-
-.preference-item .delete-btn {
-  color: var(--color-error);
-  cursor: pointer;
-  visibility: hidden;
-  flex-grow: 0;
-}
-
-.preference-item:hover .delete-btn {
-  visibility: visible;
 }
 
 .preferences-form {
@@ -809,4 +794,33 @@
   margin-top: 0;
   margin-bottom: 10px;
   font-size: 1.1rem;
+}
+
+/* Pulsante eliminazione appello e preferenza - stile unificato */
+.remove-date-btn,
+.preference-item .delete-btn,
+.preference-item .apply-btn {
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--color-text);
+  padding: 4px;
+  display: flex;
+  flex-grow: 0;
+  cursor: pointer;
+  align-items: center;
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+.remove-date-btn:hover,
+.preference-item .delete-btn:hover,
+.preference-item .apply-btn:hover {
+  background: var(--color-bg-secondary);
+}
+
+.preference-item .apply-btn .material-symbols-outlined {
+  color: #111 !important;
+  font-size: 1.5em;
+  pointer-events: none;
 }

@@ -17,9 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
       appellobTemplate = `
         <div class="date-appello-header">
           <h4 class="date-appello-title">Appello COUNTER_PLACEHOLDER</h4>
-          <button type="button" class="remove-date-btn" onclick="removeDateSection('SECTION_ID_PLACEHOLDER')">
+          <button type="button" class="remove-date-btn" onclick="removeDateSection('SECTION_ID_PLACEHOLDER')" title="Rimuovi appello">
             <span class="material-symbols-outlined">delete</span>
-            Rimuovi
           </button>
         </div>
         <div class="date-appello-fields">

@@ -684,9 +684,6 @@ document.addEventListener('DOMContentLoaded', function() {
         fillFormForEdit(currentExamData);
       }
 
-      // Nascondi notifica
-      hideDuplicationNotification();
-
       // Disattiva modalità duplicazione nel calendario
       if (window.calendar) {
         window.isDuplicationMode = false;
@@ -696,7 +693,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Mostra la notifica di duplicazione attivata
     function showDuplicationNotification() {
-      // Usa la sidebar per la notifica invece del floating popup
       if (window.showMessage) {
         window.showMessage(
           'Clicca sul calendario le date dei nuovi appelli',
@@ -705,12 +701,6 @@ document.addEventListener('DOMContentLoaded', function() {
           { timeout: 0 } // Notifica permanente fino a quando non si esce dalla modalità
         );
       }
-    }
-
-    // Nascondi la notifica di duplicazione
-    function hideDuplicationNotification() {
-      // La notifica nella sidebar si chiuderà automaticamente quando si esce dalla modalità
-      // o può essere chiusa manualmente dall'utente
     }
 
     // Setup modalità duplicazione nel calendario

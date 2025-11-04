@@ -100,7 +100,6 @@ async function checkEsamiMinimi() {
         
         content += `</div>`;
 
-        // Mostra l'avviso nella sidebar
         window.showMessage(content, "Avviso appelli minimi", "info", { html: true });
       }
     }

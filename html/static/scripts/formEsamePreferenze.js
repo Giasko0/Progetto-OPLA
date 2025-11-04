@@ -185,23 +185,31 @@ document.addEventListener('DOMContentLoaded', function() {
         : userPreferences.map(pref => `
             <div class="preference-item" data-pref='${JSON.stringify(pref.preferences)}'>
               <span>${pref.name}</span>
-              <span class="delete-btn" data-id="${pref.id}">
+              <span class="apply-btn" title="Applica preferenza">
+                <span class="material-symbols-outlined">check</span>
+              </span>
+              <span class="delete-btn" data-id="${pref.id}" title="Rimuovi preferenza">
                 <span class="material-symbols-outlined">delete</span>
               </span>
             </div>
           `).join('');
       
       // Event listeners
-      menu.querySelectorAll('.preference-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-          if (e.target.closest('.delete-btn')) return;
+      menu.querySelectorAll('.preference-item .apply-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const item = btn.closest('.preference-item');
           const prefs = JSON.parse(item.dataset.pref);
           applicaATutteLeSezioni(prefs);
           nascondiMenu();
+          if (window.showMessage) {
+            const prefName = item.querySelector('span')?.textContent || "Preferenza";
+            window.showMessage(`Preferenza "${prefName}" applicata`, "Preferenza applicata", "success");
+          }
         });
       });
       
-      menu.querySelectorAll('.delete-btn').forEach(btn => {
+      menu.querySelectorAll('.preference-item .delete-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           if (confirm('Eliminare questa preferenza?')) {

@@ -172,7 +172,7 @@ document.addEventListener("DOMContentLoaded", function () {
         break;
       case "error":
       case "warning":
-        defaultTimeout = 60000; // 60 secondi per rosso e arancione
+        defaultTimeout = 30000; // 30 secondi per rosso e arancione
         break;
       case "info":
         defaultTimeout = 0; // Nessuna scadenza per info
@@ -187,32 +187,40 @@ document.addEventListener("DOMContentLoaded", function () {
     const settings = { ...defaultOptions, ...options };
 
     // Determina il container e la classe in base al tipo
-    let containerId, itemClass, isNotification, borderColor;
+    let containerId, itemClass, isNotification, borderColor, pulseColor, pulseColorRgb;
 
     switch (type) {
       case "error":
-        containerId = "alertsContainer";
+        containerId = "notificationsContainer";
         itemClass = "alert-item";
         isNotification = false;
         borderColor = "var(--color-error)";
+        pulseColor = getComputedStyle(document.documentElement).getPropertyValue('--color-error');
+        pulseColorRgb = "193,34,53";
         break;
       case "warning":
-        containerId = "alertsContainer";
+        containerId = "notificationsContainer";
         itemClass = "alert-item";
         isNotification = false;
         borderColor = "var(--color-warning)";
+        pulseColor = getComputedStyle(document.documentElement).getPropertyValue('--color-warning');
+        pulseColorRgb = "255,167,38";
         break;
       case "success":
         containerId = "notificationsContainer";
         itemClass = "notification-item";
         isNotification = true;
         borderColor = "var(--color-success)";
+        pulseColor = getComputedStyle(document.documentElement).getPropertyValue('--color-success');
+        pulseColorRgb = "76,175,80";
         break;
       case "info":
         containerId = "alertsContainer";
         itemClass = "alert-item";
         isNotification = false;
         borderColor = "var(--color-info)";
+        pulseColor = getComputedStyle(document.documentElement).getPropertyValue('--color-info');
+        pulseColorRgb = "39,52,139";
         break;
       case "notification":
       default:
@@ -220,6 +228,8 @@ document.addEventListener("DOMContentLoaded", function () {
         itemClass = "notification-item";
         isNotification = true;
         borderColor = "var(--color-blue)";
+        pulseColor = getComputedStyle(document.documentElement).getPropertyValue('--color-blue');
+        pulseColorRgb = "39,52,139";
         break;
     }
 
@@ -231,6 +241,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const item = document.createElement("div");
     item.className = itemClass;
     item.style.borderLeftColor = borderColor;
+    item.style.setProperty('--color-pulse', pulseColor);
+    item.style.setProperty('--color-pulse-rgb', pulseColorRgb);
 
     // Crea contenuto
     let content = "";
@@ -241,7 +253,21 @@ document.addEventListener("DOMContentLoaded", function () {
     }-close material-symbols-outlined" aria-label="Chiudi">close</span>`;
     item.innerHTML = content;
 
-    container.appendChild(item);
+    // Inserisci in alto (nuovi messaggi in cima)
+    if (container.firstChild) {
+      container.insertBefore(item, container.firstChild);
+    } else {
+      container.appendChild(item);
+    }
+
+    // Applica animazione pulse-once
+    item.classList.add("pulse-once");
+    item.addEventListener("animationend", function handler(e) {
+      if (e.animationName === "pulseBg") {
+        item.classList.remove("pulse-once");
+        item.removeEventListener("animationend", handler);
+      }
+    });
 
     // Aggiorna conteggio
     if (isNotification) {
@@ -249,9 +275,23 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       alertCount++;
     }
+
+    // Limite massimo 10 tra notification-item e alert-item nel notificationsContainer
+    if (containerId === "notificationsContainer") {
+      const allItems = container.querySelectorAll(".notification-item, .alert-item");
+      if (allItems.length > 10) {
+        const last = allItems[allItems.length - 1];
+        if (last) {
+          // Determina se è una notifica o alert per aggiornare il conteggio
+          const isNotif = last.classList.contains("notification-item");
+          removeItem(last, isNotif);
+        }
+      }
+    }
+
     updateBadge();
 
-    // Apri la sidebar automaticamente solo se non siamo in modalità mobile
+    // Apri sidebar su desktop
     // e se il form esame non è stato appena chiuso
     if (!isMobileView() && !window.formJustClosed) {
       openSidebar();
@@ -262,12 +302,10 @@ document.addEventListener("DOMContentLoaded", function () {
       const progressBar = document.createElement("div");
       progressBar.className = "notification-progress";
       progressBar.style.backgroundColor = borderColor;
-      progressBar.style.animation = `shrinkWidth ${
-        settings.timeout / 1000
-      }s linear forwards`;
+      progressBar.style.animation = `shrinkWidth ${settings.timeout / 1000}s linear forwards`;
+      
       item.appendChild(progressBar);
 
-      // Rimuovi dopo timeout
       setTimeout(() => {
         if (item.parentNode) {
           item.classList.add("fading");

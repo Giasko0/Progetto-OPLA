@@ -733,14 +733,12 @@ async function deleteExam(examId) {
     const result = await response.json();
 
     if (result.success) {
-      // Mostra messaggio di successo nella sidebar
       if (window.showMessage) {
         window.showMessage('Esame eliminato con successo', 'Eliminazione completata', 'success');
       }
       // Ricarica i dati
       fetchAndDisplayEsami();
     } else {
-      // Mostra messaggio di errore nella sidebar
       if (window.showMessage) {
         window.showMessage('Errore nell\'eliminazione dell\'esame: ' + result.message, 'Errore eliminazione', 'error');
       } else {
@@ -748,7 +746,6 @@ async function deleteExam(examId) {
       }
     }
   } catch (error) {
-    // Mostra messaggio di errore nella sidebar
     if (window.showMessage) {
       window.showMessage('Si è verificato un errore durante l\'eliminazione dell\'esame', 'Errore di connessione', 'error');
     } else {

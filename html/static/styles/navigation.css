@@ -241,6 +241,7 @@
   background-color: var(--color-bg-light);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   position: relative;
+  overflow: hidden;
 }
 
 .alert-item:hover, .notification-item:hover {
@@ -254,7 +255,6 @@
 
 .notification-item {
   border-left: 3px solid var(--color-blue);
-  animation: fadeIn 0.3s ease-in;
   position: relative;
   overflow: hidden;
 }
@@ -263,16 +263,52 @@
   animation: fadeOutRight 0.5s ease-out forwards;
 }
 
+/* Animazione per il effetto "pulse" */
+.pulse-once {
+  animation: pulseBg 0.3s ease-in-out, pulseZoom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(100%); }
+}
+
+@keyframes pulseBg {
+  0%   { background-color: var(--color-bg-light); }
+  15%  { background-color: color-mix(in srgb, var(--color-pulse) 20%, white); }
+  85%  { background-color: color-mix(in srgb, var(--color-pulse) 20%, white); }
+  100% { background-color: var(--color-bg-light); }
+}
+
+@keyframes pulseZoom {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.025); }
+  50%  { transform: scale(1.05); }
+  80%  { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shrinkWidth {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
 /* Barra di avanzamento per notifiche temporanee */
 .notification-progress {
   position: absolute;
   bottom: 0;
   left: 0;
-  height: 3px;
+  height: 4px;
   width: 100%;
   background-color: var(--color-blue);
   opacity: 0.7;
-  transform-origin: left center;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .alert-close, .notification-close {
@@ -293,22 +329,6 @@
 .alert-close:hover, .notification-close:hover {
   color: var(--color-text);
   background-color: var(--color-bg);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes fadeOutRight {
-  from { opacity: 1; transform: translateX(0); }
-  to { opacity: 0; transform: translateX(100%); }
-}
-
-/* Animazione per la barra di progresso delle notifiche */
-@keyframes shrinkWidth {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
 }
 
 /*---------------------------------------------FOOTER---------------------------------------------*/
