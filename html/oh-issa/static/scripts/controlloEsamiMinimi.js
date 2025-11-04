@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnControllaEsami = document.getElementById('btnControllaEsami');
     const searchInput = document.getElementById('searchInsegnamento');
     const filterRadios = document.querySelectorAll('input[name="filterType"]');
+    const hideNoDocentiCheckbox = document.getElementById('hideNoDocenti');
     
     // Variabili per i dati
     let reportData = null;
@@ -16,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     btnControllaEsami.addEventListener('click', controllaEsamiMinimi);
     searchInput.addEventListener('input', applyFilters);
     filterRadios.forEach(radio => radio.addEventListener('change', applyFilters));
+    hideNoDocentiCheckbox.addEventListener('change', applyFilters);
 });
 
 // Carica gli anni accademici
@@ -283,6 +285,7 @@ function applyFilters() {
     
     const searchQuery = document.getElementById('searchInsegnamento').value.toLowerCase();
     const filterType = document.querySelector('input[name="filterType"]:checked').value;
+    const hideNoDocenti = document.getElementById('hideNoDocenti').checked;
     const targetEsami = reportData.target_esami;
     
     let filtered = reportData.insegnamenti.filter(ins => {
@@ -299,7 +302,10 @@ function applyFilters() {
             matchesType = ins.numero_esami < targetEsami;
         }
         
-        return matchesSearch && matchesType;
+        // Filtro insegnamenti senza docenti
+        const matchesDocenti = !hideNoDocenti || (ins.docenti && ins.docenti.length > 0);
+        
+        return matchesSearch && matchesType && matchesDocenti;
     });
     
     filteredData = { ...reportData, insegnamenti: filtered };
