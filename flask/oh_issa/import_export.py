@@ -843,6 +843,10 @@ def download_ea():
        aula_codice, aula_nome, insegnamento_id, insegnamento_titolo, anno_accademico,
        docente, docente_nome, docente_cognome, docente_matricola, note_appello) = esame
       
+      # NEW: salta esami senza aula o con aula "STDOCENTE"
+      if not aula_codice or str(aula_codice).strip() == "" or str(aula_codice).strip().upper() == "STDOCENTE":
+        continue
+
       # Chiave per raggruppamento
       chiave = (docente, data_appello, ora_appello)
       

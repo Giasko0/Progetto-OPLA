@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="column">
               <div class="form-element">
-                <label for="durata_h_COUNTER_PLACEHOLDER">Durata*</label>
+                <label for="durata_h_COUNTER_PLACEHOLDER">Durata</label>
                 <div class="time-select-container">
                   <select id="durata_h_COUNTER_PLACEHOLDER" name="durata_h[]" class="form-input">
                     <option value="" selected>Ore</option>
@@ -809,8 +809,8 @@ document.addEventListener('DOMContentLoaded', function() {
       newAulaSelect.addEventListener('change', function() {
         updateEventAula(data, this.value);
         
-        // Auto-compila durata a 2 ore se viene selezionata un'aula e la durata è vuota
-        if (this.value && this.value !== '') {
+        // Auto-compila durata a 2 ore solo se NON è "Studio docente DMI" e la durata è vuota
+        if (this.value && this.value !== '' && this.value !== 'Studio docente DMI') {
           const sectionCounterMatch = this.id.match(/_(\d+)$/);
           const sectionCounter = sectionCounterMatch ? sectionCounterMatch[1] : '1';
           

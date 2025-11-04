@@ -200,6 +200,9 @@ const FormEsameControlli = (function() {
     const durataM = parseInt(fields.durata_m) || 0;
     const durataTotale = (durataH * 60) + durataM;
     
+    // La durata è opzionale per "Studio docente DMI", ma se specificata deve essere valida
+    const isStudioDocente = fields.aula === 'Studio docente DMI';
+    
     if (durataTotale > 0 && (durataTotale < 30 || durataTotale > 720)) {
       window.showMessage(`Appello ${sectionNumber}: La durata, se specificata, deve essere tra 30 minuti e 12 ore`, "Errore validazione", "error");
       return false;
