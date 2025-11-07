@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <li><a href="/oh-issa/controlloEsamiMinimi.html">Controllo Esami Minimi</a></li>
           </ul>
         </li>
+        <li><a href="/oh-issa/strumenti.html">Strumenti</a></li>
         <li id="loginLogoutItem" class="nav-right">
           <!-- Il link di login/logout verrà aggiunto qui dinamicamente -->
         </li>
