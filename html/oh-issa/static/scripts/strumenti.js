@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
       btn.textContent = "Ricalcolo in corso...";
       resultDiv.textContent = "";
       try {
-        const response = await fetch('/api/ricalcola-sovrapposizioni', { method: 'GET' });
+        const response = await fetch('/api/oh-issa/ricalcola-sovrapposizioni', { method: 'GET' });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
           resultDiv.innerHTML = `<span style="color:green;">${data.message}</span>`;

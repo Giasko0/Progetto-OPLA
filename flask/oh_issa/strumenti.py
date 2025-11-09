@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, session
 from db import get_db_connection, release_connection
 from auth import require_auth
 
-strumenti_bp = Blueprint('strumenti_bp', __name__)
+strumenti_bp = Blueprint('strumenti', __name__, url_prefix='/api/oh-issa')
 
 def ricalcola_sovrapposizioni_global():
     conn = get_db_connection()
@@ -112,7 +112,7 @@ def ricalcola_sovrapposizioni_global():
         cursor.close()
         release_connection(conn)
 
-@strumenti_bp.route('/api/ricalcola-sovrapposizioni', methods=['GET'])
+@strumenti_bp.route('/ricalcola-sovrapposizioni', methods=['GET'])
 @require_auth
 def ricalcola_sovrapposizioni():
     try:

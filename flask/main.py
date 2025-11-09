@@ -21,6 +21,7 @@ from oh_issa.gestione_insegnamenti import gestione_insegnamenti_bp
 from oh_issa.gestione_date import gestione_date_bp
 from oh_issa.controllo_esami_minimi import controllo_esami_minimi_bp
 from oh_issa.calendario_esami import calendario_esami_bp
+from oh_issa.strumenti import strumenti_bp
 
 app = Flask(__name__)
 
@@ -58,6 +59,7 @@ app.register_blueprint(gestione_insegnamenti_bp)
 app.register_blueprint(gestione_date_bp)
 app.register_blueprint(controllo_esami_minimi_bp)
 app.register_blueprint(calendario_esami_bp)
+app.register_blueprint(strumenti_bp)
 
 # ===== Main =====
 if __name__ == '__main__':
