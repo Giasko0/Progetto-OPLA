@@ -350,6 +350,8 @@ def esporta_calendario_esami():
         )
         year_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
         header_fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+        first_semester_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+        blue_fill = PatternFill(start_color="BDD7EE", end_color="BDD7EE", fill_type="solid")
         
         current_row = 1
         ordine_sessioni = ['anticipata', 'estiva', 'autunnale', 'invernale']
@@ -403,32 +405,79 @@ def esporta_calendario_esami():
                 name_cell.alignment = left_alignment
                 name_cell.font = insegnamento_font
                 name_cell.border = thin_border
-                
+
+                if insegnamento.get('semestre') == 1:
+                    name_cell.fill = first_semester_fill
+
                 col_index = 0
                 for tipo_sessione in ordine_sessioni:
                     if tipo_sessione in sessioni_dict and sessioni_calendario[tipo_sessione]['inizio']:
                         col_index += 1
-                        
+
+                        # Esami normali (mostra_nel_calendario = TRUE)
                         esami_sessione = [
                             esame for esame in insegnamento['esami']
                             if sessioni_calendario[tipo_sessione]['inizio'] <= esame['data_appello'] <= sessioni_calendario[tipo_sessione]['fine']
                         ]
-                        
+
+                        # Esami annuali e sessione anticipata: cerca anche quelli con mostra_nel_calendario = FALSE
+                        esami_nascosti = []
+                        if (
+                            insegnamento.get('semestre') == 3 and tipo_sessione == 'anticipata'
+                        ):
+                            cursor.execute("""
+                                SELECT e.data_appello
+                                FROM esami e
+                                WHERE e.insegnamento = %s
+                                  AND e.cds = %s
+                                  AND e.anno_accademico = %s
+                                  AND (e.curriculum_codice = %s OR e.curriculum_codice = 'GEN')
+                                  AND e.data_appello >= %s
+                                  AND e.data_appello BETWEEN %s AND %s
+                                  AND e.mostra_nel_calendario = FALSE
+                            """, (
+                                insegnamento['id'],
+                                cds_code,
+                                anno_accademico,
+                                insegnamento['curriculum_codice'],
+                                f"{anno_accademico}-01-01",
+                                sessioni_calendario[tipo_sessione]['inizio'],
+                                sessioni_calendario[tipo_sessione]['fine']
+                            ))
+                            esami_nascosti = [row['data_appello'] for row in cursor.fetchall()]
+
                         if esami_sessione:
                             esami_sessione.sort(key=lambda x: x['data_appello'])
                             date_formattate = [esame['data_appello'].strftime('%d/%m/%Y') for esame in esami_sessione]
                             date_complete = '\n'.join(date_formattate)
-                            
                             if col_index < len(col_positions):
                                 date_cell = sheet.cell(row=current_row, column=col_positions[col_index], value=date_complete)
                                 date_cell.alignment = center_wrap_alignment
                                 date_cell.border = thin_border
+                                if insegnamento.get('semestre') == 1:
+                                    date_cell.fill = first_semester_fill
                         else:
                             if col_index < len(col_positions):
                                 empty_cell = sheet.cell(row=current_row, column=col_positions[col_index], value="--")
                                 empty_cell.alignment = center_alignment
                                 empty_cell.border = thin_border
-                
+                                if insegnamento.get('semestre') == 1:
+                                    empty_cell.fill = first_semester_fill
+
+                        # Se ci sono esami nascosti, stampali in blu (aggiungi alle date normali, sotto)
+                        if esami_nascosti and col_index < len(col_positions):
+                            cell = sheet.cell(row=current_row, column=col_positions[col_index])
+                            # Se la cella contiene già date normali, aggiungi le blu sotto
+                            value = cell.value if cell.value and cell.value != "--" else ""
+                            blu_dates = [d.strftime('%d/%m/%Y') for d in sorted(esami_nascosti)]
+                            if value:
+                                value += "\n"
+                            value += "\n".join(blu_dates)
+                            cell.value = value
+                            cell.fill = blue_fill
+                            cell.alignment = center_wrap_alignment
+                            cell.border = thin_border
+
                 current_row += 1
             
             current_row += 1
