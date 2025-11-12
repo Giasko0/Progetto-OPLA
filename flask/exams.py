@@ -502,6 +502,7 @@ def inserisci_esami(dati_esame):
                  tipo_iscrizione, periodo, durata_appello, cds, anno_accademico, 
                  curriculum_codice, mostra_nel_calendario)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
             """, (
                 docente_esame, insegnamento_id, sezione['aula'], sezione['data_appello'],
                 sezione['ora_appello'], sezione['inizio_iscrizione'], sezione['fine_iscrizione'],
@@ -512,12 +513,351 @@ def inserisci_esami(dati_esame):
                 curriculum_codice, sezione['mostra_nel_calendario']
             ))
             
+            exam_id = cursor.fetchone()[0]
+            
+            # Aggiorna sovrapposizioni se esame ufficiale
+            if sezione['mostra_nel_calendario']:
+                aggiorna_sovrapposizioni_dopo_inserimento(
+                    insegnamento_id, cds, anno_accademico,
+                    sezione['data_appello'], sezione['periodo'], conn
+                )
+            
             esami_inseriti.append(f"{titolo_insegnamento} - {sezione['data_appello']} (Docente: {docente_esame})")
     
     conn.commit()
     cursor.close()
     release_connection(conn)
     return esami_inseriti
+
+# ================== Funzioni per la gestione delle sovrapposizioni ==================
+
+def semestri_compatibili(semestre1, semestre2):
+    """Verifica se due semestri sono compatibili per le sovrapposizioni."""
+    # Semestre 3 (annuale) è compatibile con tutti
+    if semestre1 == 3 or semestre2 == 3:
+        return True
+    # Semestri uguali sono compatibili
+    return semestre1 == semestre2
+
+def hanno_docenti_comuni(insegnamento1_id, insegnamento2_id, anno_accademico, conn):
+    """Verifica se due insegnamenti hanno docenti in comune."""
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT COUNT(*) FROM (
+                SELECT docente FROM insegnamento_docente 
+                WHERE insegnamento = %s AND annoaccademico = %s
+                INTERSECT
+                SELECT docente FROM insegnamento_docente 
+                WHERE insegnamento = %s AND annoaccademico = %s
+            ) AS comuni
+        """, (insegnamento1_id, anno_accademico, insegnamento2_id, anno_accademico))
+        
+        count = cursor.fetchone()[0]
+        return count > 0
+    finally:
+        cursor.close()
+
+def conta_sovrapposizioni_per_data(insegnamento_id, cds, anno_accademico, data_appello, periodo, conn, exclude_exam_id=None):
+    """
+    Conta se la data specifica è una sovrapposizione per l'insegnamento.
+    Ritorna True se esiste almeno un altro esame compatibile in quella data/periodo.
+    """
+    cursor = conn.cursor()
+    try:
+        # Ottieni il semestre dell'insegnamento
+        cursor.execute("""
+            SELECT semestre FROM insegnamenti_cds 
+            WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+            LIMIT 1
+        """, (insegnamento_id, cds, anno_accademico))
+        
+        result = cursor.fetchone()
+        if not result:
+            return False
+        
+        semestre_ins = result[0]
+        
+        # Trova tutti gli esami ufficiali nella stessa data/periodo/cds
+        query = """
+            SELECT DISTINCT e.insegnamento, ic.semestre
+            FROM esami e
+            JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
+                AND e.cds = ic.cds 
+                AND e.anno_accademico = ic.anno_accademico
+            WHERE e.cds = %s 
+                AND e.anno_accademico = %s
+                AND e.data_appello = %s
+                AND e.periodo = %s
+                AND e.mostra_nel_calendario = true
+                AND e.insegnamento != %s
+        """
+        params = [cds, anno_accademico, data_appello, periodo, insegnamento_id]
+        
+        if exclude_exam_id:
+            query += " AND e.id != %s"
+            params.append(exclude_exam_id)
+        
+        cursor.execute(query, params)
+        altri_esami = cursor.fetchall()
+        
+        # Verifica se esiste almeno un esame compatibile senza docenti comuni
+        for altro_ins_id, altro_semestre in altri_esami:
+            # Verifica compatibilità semestre
+            if not semestri_compatibili(semestre_ins, altro_semestre):
+                continue
+            
+            # Verifica nessun docente comune
+            if hanno_docenti_comuni(insegnamento_id, altro_ins_id, anno_accademico, conn):
+                continue
+            
+            # Trovata una sovrapposizione valida
+            return True
+        
+        return False
+    finally:
+        cursor.close()
+
+def calcola_sovrapposizioni_insegnamento(insegnamento_id, cds, anno_accademico, conn, exclude_exam_id=None):
+    """
+    Calcola il numero totale di date in sovrapposizione per un insegnamento.
+    """
+    cursor = conn.cursor()
+    try:
+        # Trova tutti gli esami ufficiali dell'insegnamento
+        query = """
+            SELECT DISTINCT data_appello, periodo
+            FROM esami
+            WHERE insegnamento = %s 
+                AND cds = %s
+                AND anno_accademico = %s
+                AND mostra_nel_calendario = true
+        """
+        params = [insegnamento_id, cds, anno_accademico]
+        
+        if exclude_exam_id:
+            query += " AND id != %s"
+            params.append(exclude_exam_id)
+        
+        cursor.execute(query, params)
+        date_esami = cursor.fetchall()
+        
+        # Conta quante date hanno sovrapposizioni
+        sovrapposizioni = 0
+        for data_appello, periodo in date_esami:
+            if conta_sovrapposizioni_per_data(insegnamento_id, cds, anno_accademico, 
+                                              data_appello, periodo, conn, exclude_exam_id):
+                sovrapposizioni += 1
+        
+        return sovrapposizioni
+    finally:
+        cursor.close()
+
+def aggiorna_sovrapposizioni_dopo_inserimento(insegnamento_id, cds, anno_accademico, 
+                                               data_appello, periodo, conn):
+    """
+    Aggiorna i contatori di sovrapposizione dopo l'inserimento di un nuovo esame.
+    """
+    cursor = conn.cursor()
+    try:
+        # Ottieni il semestre dell'insegnamento inserito
+        cursor.execute("""
+            SELECT semestre FROM insegnamenti_cds 
+            WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+            LIMIT 1
+        """, (insegnamento_id, cds, anno_accademico))
+        
+        result = cursor.fetchone()
+        if not result:
+            return
+        
+        semestre_ins = result[0]
+        
+        # Trova tutti gli insegnamenti che potrebbero essere affetti
+        cursor.execute("""
+            SELECT DISTINCT e.insegnamento, ic.semestre
+            FROM esami e
+            JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
+                AND e.cds = ic.cds 
+                AND e.anno_accademico = ic.anno_accademico
+            WHERE e.cds = %s 
+                AND e.anno_accademico = %s
+                AND e.data_appello = %s
+                AND e.periodo = %s
+                AND e.mostra_nel_calendario = true
+        """, (cds, anno_accademico, data_appello, periodo))
+        
+        insegnamenti_affetti = cursor.fetchall()
+        
+        # Aggiorna il contatore per ogni insegnamento compatibile
+        for altro_ins_id, altro_semestre in insegnamenti_affetti:
+            # Verifica compatibilità semestre
+            if not semestri_compatibili(semestre_ins, altro_semestre):
+                continue
+            
+            # Verifica nessun docente comune
+            if hanno_docenti_comuni(insegnamento_id, altro_ins_id, anno_accademico, conn):
+                continue
+            
+            # Ricalcola le sovrapposizioni per questo insegnamento
+            nuove_sovrapposizioni = calcola_sovrapposizioni_insegnamento(
+                altro_ins_id, cds, anno_accademico, conn
+            )
+            
+            cursor.execute("""
+                UPDATE insegnamenti_cds 
+                SET sovrapposizioni = %s
+                WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+            """, (nuove_sovrapposizioni, altro_ins_id, cds, anno_accademico))
+        
+        # Aggiorna anche l'insegnamento appena inserito
+        nuove_sovrapposizioni = calcola_sovrapposizioni_insegnamento(
+            insegnamento_id, cds, anno_accademico, conn
+        )
+        
+        cursor.execute("""
+            UPDATE insegnamenti_cds 
+            SET sovrapposizioni = %s
+            WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+        """, (nuove_sovrapposizioni, insegnamento_id, cds, anno_accademico))
+        
+    finally:
+        cursor.close()
+
+def aggiorna_sovrapposizioni_dopo_modifica(exam_id, vecchia_data, vecchio_periodo, 
+                                            nuova_data, nuovo_periodo, 
+                                            vecchio_mostra, nuovo_mostra, conn):
+    """
+    Aggiorna i contatori dopo la modifica di un esame.
+    """
+    cursor = conn.cursor()
+    try:
+        # Ottieni info esame
+        cursor.execute("""
+            SELECT insegnamento, cds, anno_accademico 
+            FROM esami WHERE id = %s
+        """, (exam_id,))
+        
+        result = cursor.fetchone()
+        if not result:
+            return
+        
+        insegnamento_id, cds, anno_accademico = result
+        
+        # Se l'esame cambia da non ufficiale a ufficiale o viceversa
+        if vecchio_mostra != nuovo_mostra:
+            if nuovo_mostra:  # Diventa ufficiale
+                aggiorna_sovrapposizioni_dopo_inserimento(
+                    insegnamento_id, cds, anno_accademico, 
+                    nuova_data, nuovo_periodo, conn
+                )
+            else:  # Diventa non ufficiale
+                aggiorna_sovrapposizioni_dopo_eliminazione(
+                    exam_id, vecchia_data, vecchio_periodo, conn
+                )
+            return
+        
+        # Se l'esame non è ufficiale, non fare nulla
+        if not nuovo_mostra:
+            return
+        
+        # Se data o periodo cambiano, rimuovi dalle vecchie sovrapposizioni
+        if vecchia_data != nuova_data or vecchio_periodo != nuovo_periodo:
+            # Ricalcola per la vecchia data
+            cursor.execute("""
+                SELECT DISTINCT e.insegnamento
+                FROM esami e
+                WHERE e.cds = %s 
+                    AND e.anno_accademico = %s
+                    AND e.data_appello = %s
+                    AND e.periodo = %s
+                    AND e.mostra_nel_calendario = true
+                    AND e.id != %s
+            """, (cds, anno_accademico, vecchia_data, vecchio_periodo, exam_id))
+            
+            insegnamenti_vecchia_data = [row[0] for row in cursor.fetchall()]
+            
+            for altro_ins_id in insegnamenti_vecchia_data:
+                nuove_sovrapposizioni = calcola_sovrapposizioni_insegnamento(
+                    altro_ins_id, cds, anno_accademico, conn, exclude_exam_id=exam_id
+                )
+                
+                cursor.execute("""
+                    UPDATE insegnamenti_cds 
+                    SET sovrapposizioni = %s
+                    WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+                """, (nuove_sovrapposizioni, altro_ins_id, cds, anno_accademico))
+            
+            # Aggiungi alle nuove sovrapposizioni
+            aggiorna_sovrapposizioni_dopo_inserimento(
+                insegnamento_id, cds, anno_accademico, 
+                nuova_data, nuovo_periodo, conn
+            )
+        
+    finally:
+        cursor.close()
+
+def aggiorna_sovrapposizioni_dopo_eliminazione(exam_id, data_appello, periodo, conn):
+    """
+    Aggiorna i contatori dopo l'eliminazione di un esame.
+    """
+    cursor = conn.cursor()
+    try:
+        # Ottieni info esame prima dell'eliminazione
+        cursor.execute("""
+            SELECT insegnamento, cds, anno_accademico, mostra_nel_calendario
+            FROM esami WHERE id = %s
+        """, (exam_id,))
+        
+        result = cursor.fetchone()
+        if not result:
+            return
+        
+        insegnamento_id, cds, anno_accademico, mostra_nel_calendario = result
+        
+        # Se non è ufficiale, non fare nulla
+        if not mostra_nel_calendario:
+            return
+        
+        # Trova tutti gli insegnamenti affetti
+        cursor.execute("""
+            SELECT DISTINCT e.insegnamento
+            FROM esami e
+            WHERE e.cds = %s 
+                AND e.anno_accademico = %s
+                AND e.data_appello = %s
+                AND e.periodo = %s
+                AND e.mostra_nel_calendario = true
+                AND e.id != %s
+        """, (cds, anno_accademico, data_appello, periodo, exam_id))
+        
+        insegnamenti_affetti = [row[0] for row in cursor.fetchall()]
+        
+        # Ricalcola per ogni insegnamento affetto
+        for altro_ins_id in insegnamenti_affetti:
+            nuove_sovrapposizioni = calcola_sovrapposizioni_insegnamento(
+                altro_ins_id, cds, anno_accademico, conn, exclude_exam_id=exam_id
+            )
+            
+            cursor.execute("""
+                UPDATE insegnamenti_cds 
+                SET sovrapposizioni = %s
+                WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+            """, (nuove_sovrapposizioni, altro_ins_id, cds, anno_accademico))
+        
+        # Ricalcola anche per l'insegnamento dell'esame eliminato
+        nuove_sovrapposizioni = calcola_sovrapposizioni_insegnamento(
+            insegnamento_id, cds, anno_accademico, conn, exclude_exam_id=exam_id
+        )
+        
+        cursor.execute("""
+            UPDATE insegnamenti_cds 
+            SET sovrapposizioni = %s
+            WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+        """, (nuove_sovrapposizioni, insegnamento_id, cds, anno_accademico))
+        
+    finally:
+        cursor.close()
 
 # ================== Endpoints API ==================
 
@@ -730,8 +1070,14 @@ def update_esame():
             data.get('mostra_nel_calendario', True), exam_id
         ))
         
-        conn.commit()
+        # Aggiorna sovrapposizioni
+        aggiorna_sovrapposizioni_dopo_modifica(
+            exam_id, vecchia_data, vecchio_periodo,
+            nuova_data, nuovo_periodo,
+            vecchio_mostra_calendario, nuovo_mostra_calendario, conn
+        )
         
+        conn.commit()
         cursor.close()
         release_connection(conn)
         
@@ -777,6 +1123,15 @@ def delete_esame():
             cursor.close()
             release_connection(conn)
             return jsonify({'success': False, 'message': 'Non hai i permessi per eliminare questo esame'}), 403
+
+
+        # Salva info prima dell'eliminazione per aggiornare sovrapposizioni
+        data_appello = esame_dict['data_appello']
+        periodo = esame_dict['periodo']
+        
+        # Aggiorna sovrapposizioni prima dell'eliminazione
+        aggiorna_sovrapposizioni_dopo_eliminazione(exam_id, data_appello, periodo, conn)
+        
         # Eliminazione esame
         cursor.execute("DELETE FROM esami WHERE id = %s", (exam_id,))
         conn.commit()

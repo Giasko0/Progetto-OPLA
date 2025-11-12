@@ -4,109 +4,181 @@ from auth import require_auth
 
 strumenti_bp = Blueprint('strumenti', __name__, url_prefix='/api/oh-issa')
 
+def semestri_compatibili(semestre1, semestre2):
+    """Verifica se due semestri sono compatibili per le sovrapposizioni."""
+    # Semestre 3 (annuale) è compatibile con tutti
+    if semestre1 == 3 or semestre2 == 3:
+        return True
+    # Semestri uguali sono compatibili
+    return semestre1 == semestre2
+
+def hanno_docenti_comuni(insegnamento1_id, insegnamento2_id, anno_accademico, cursor):
+    """Verifica se due insegnamenti hanno docenti in comune."""
+    cursor.execute("""
+        SELECT COUNT(*) FROM (
+            SELECT docente FROM insegnamento_docente 
+            WHERE insegnamento = %s AND annoaccademico = %s
+            INTERSECT
+            SELECT docente FROM insegnamento_docente 
+            WHERE insegnamento = %s AND annoaccademico = %s
+        ) AS comuni
+    """, (insegnamento1_id, anno_accademico, insegnamento2_id, anno_accademico))
+    
+    count = cursor.fetchone()[0]
+    return count > 0
+
+def conta_sovrapposizioni_per_insegnamento(insegnamento_id, cds, anno_accademico, cursor):
+    """
+    Conta il numero di date in sovrapposizione per un insegnamento.
+    """
+    # Ottieni il semestre dell'insegnamento
+    cursor.execute("""
+        SELECT semestre FROM insegnamenti_cds 
+        WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+        LIMIT 1
+    """, (insegnamento_id, cds, anno_accademico))
+    
+    result = cursor.fetchone()
+    if not result:
+        return 0
+    
+    semestre_ins = result[0]
+    
+    # Trova tutti gli esami ufficiali dell'insegnamento
+    cursor.execute("""
+        SELECT DISTINCT data_appello, periodo
+        FROM esami
+        WHERE insegnamento = %s 
+            AND cds = %s
+            AND anno_accademico = %s
+            AND mostra_nel_calendario = true
+    """, (insegnamento_id, cds, anno_accademico))
+    
+    date_esami = cursor.fetchall()
+    
+    # Conta quante date hanno sovrapposizioni
+    sovrapposizioni = 0
+    
+    for data_appello, periodo in date_esami:
+        # Trova tutti gli esami ufficiali nella stessa data/periodo/cds
+        cursor.execute("""
+            SELECT DISTINCT e.insegnamento, ic.semestre
+            FROM esami e
+            JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
+                AND e.cds = ic.cds 
+                AND e.anno_accademico = ic.anno_accademico
+            WHERE e.cds = %s 
+                AND e.anno_accademico = %s
+                AND e.data_appello = %s
+                AND e.periodo = %s
+                AND e.mostra_nel_calendario = true
+                AND e.insegnamento != %s
+        """, (cds, anno_accademico, data_appello, periodo, insegnamento_id))
+        
+        altri_esami = cursor.fetchall()
+        
+        # Verifica se esiste almeno un esame compatibile senza docenti comuni
+        ha_sovrapposizione = False
+        for altro_ins_id, altro_semestre in altri_esami:
+            # Verifica compatibilità semestre
+            if not semestri_compatibili(semestre_ins, altro_semestre):
+                continue
+            
+            # Verifica nessun docente comune
+            if hanno_docenti_comuni(insegnamento_id, altro_ins_id, anno_accademico, cursor):
+                continue
+            
+            # Trovata una sovrapposizione valida per questa data
+            ha_sovrapposizione = True
+            break
+        
+        if ha_sovrapposizione:
+            sovrapposizioni += 1
+    
+    return sovrapposizioni
+
 def ricalcola_sovrapposizioni_global():
+    """
+    Ricalcola tutte le sovrapposizioni usando la stessa logica di exams.py
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
+    
     try:
+        # Reset tutti i contatori
         cursor.execute("UPDATE insegnamenti_cds SET sovrapposizioni = 0")
+        
+        # Ottieni tutti gli insegnamenti attivi
         cursor.execute("""
-            SELECT DISTINCT e.id, e.insegnamento, e.data_appello, e.anno_accademico, e.docente
-            FROM esami e
-            WHERE e.mostra_nel_calendario = true
-            ORDER BY e.data_appello, e.insegnamento
+            SELECT DISTINCT insegnamento, cds, anno_accademico
+            FROM insegnamenti_cds
+            ORDER BY anno_accademico, cds, insegnamento
         """)
-        esami_ufficiali = cursor.fetchall()
-        sovrapposti_per_giorno = {}
+        
+        insegnamenti = cursor.fetchall()
+        
         report = {
-            'total_esami_processati': len(esami_ufficiali),
-            'giorni_con_sovrapposizioni': 0,
-            'coppie_sovrapposte': [],
-            'dettagli_errori': []
+            'total_insegnamenti_processati': len(insegnamenti),
+            'insegnamenti_con_sovrapposizioni': 0,
+            'dettagli': [],
+            'errori': []
         }
-        for esame_id, insegnamento_id, data_appello, anno_accademico, docente in esami_ufficiali:
+        
+        # Calcola sovrapposizioni per ogni insegnamento
+        for insegnamento_id, cds, anno_accademico in insegnamenti:
             try:
-                cursor.execute("""
-                    SELECT ic.semestre, ic.cds, ic.anno_corso
-                    FROM insegnamenti_cds ic
-                    WHERE ic.insegnamento = %s AND ic.anno_accademico = %s
-                    LIMIT 1
-                """, (insegnamento_id, anno_accademico))
-                insegnamento_info = cursor.fetchone()
-                if not insegnamento_info:
-                    continue
-                semestre_corrente, cds, anno_corso = insegnamento_info
-                chiave_giorno = (str(data_appello), cds, anno_corso, anno_accademico)
-                if semestre_corrente == 3:
-                    semestre_condition = "ic2.semestre IN (1, 2, 3)"
-                else:
-                    semestre_condition = f"ic2.semestre IN ({semestre_corrente}, 3)"
-                cursor.execute("""
-                    SELECT e.periodo FROM esami e
-                    WHERE e.id IN (
-                        SELECT id FROM esami 
-                        WHERE insegnamento = %s AND data_appello = %s
-                    )
-                    LIMIT 1
-                """, (insegnamento_id, data_appello))
-                periodo_result = cursor.fetchone()
-                periodo = periodo_result[0] if periodo_result else None
-                query = f"""
-                    SELECT DISTINCT e2.insegnamento, e2.docente
-                    FROM esami e2
-                    JOIN insegnamenti_cds ic2 ON e2.insegnamento = ic2.insegnamento 
-                        AND e2.anno_accademico = ic2.anno_accademico
-                    WHERE e2.data_appello = %s
-                    AND e2.mostra_nel_calendario = true
-                    AND e2.periodo = %s
-                    AND ic2.cds = %s
-                    AND ic2.anno_corso = %s
-                    AND e2.anno_accademico = %s
-                    AND ({semestre_condition})
-                    AND e2.insegnamento != %s
-                """
-                cursor.execute(query, (
-                    data_appello, periodo, cds, anno_corso, anno_accademico, insegnamento_id
-                ))
-                esami_sovrapposti = cursor.fetchall()
-                if esami_sovrapposti:
-                    if chiave_giorno not in sovrapposti_per_giorno:
-                        sovrapposti_per_giorno[chiave_giorno] = {}
-                        report['giorni_con_sovrapposizioni'] += 1
-                    sovrapposti_per_giorno[chiave_giorno][insegnamento_id] = docente
-                    for ins_sovrapposto, doc_sovrapposto in esami_sovrapposti:
-                        sovrapposti_per_giorno[chiave_giorno][ins_sovrapposto] = doc_sovrapposto
-            except Exception as e:
-                report['dettagli_errori'].append(f"Errore processing esame {esame_id}: {str(e)}")
-        for chiave_giorno, insegnamenti_docenti in sovrapposti_per_giorno.items():
-            data_appello, cds, anno_corso, anno_accademico = chiave_giorno
-            for insegnamento_id, docente in insegnamenti_docenti.items():
-                num_sovrapposizioni = sum(
-                    1 for ins_id, doc in insegnamenti_docenti.items()
-                    if ins_id != insegnamento_id and doc != docente
+                num_sovrapposizioni = conta_sovrapposizioni_per_insegnamento(
+                    insegnamento_id, cds, anno_accademico, cursor
                 )
+                
                 if num_sovrapposizioni > 0:
+                    # Aggiorna il contatore
                     cursor.execute("""
                         UPDATE insegnamenti_cds
                         SET sovrapposizioni = %s
-                        WHERE insegnamento = %s AND anno_accademico = %s
-                    """, (num_sovrapposizioni, insegnamento_id, anno_accademico))
-                    report['coppie_sovrapposte'].append({
-                        'data': data_appello,
-                        'cds': cds,
-                        'anno_corso': anno_corso,
+                        WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+                    """, (num_sovrapposizioni, insegnamento_id, cds, anno_accademico))
+                    
+                    report['insegnamenti_con_sovrapposizioni'] += 1
+                    
+                    # Ottieni titolo insegnamento per il report
+                    cursor.execute("""
+                        SELECT titolo FROM insegnamenti WHERE id = %s
+                    """, (insegnamento_id,))
+                    titolo = cursor.fetchone()
+                    
+                    report['dettagli'].append({
                         'insegnamento_id': insegnamento_id,
+                        'titolo': titolo[0] if titolo else insegnamento_id,
+                        'cds': cds,
+                        'anno_accademico': anno_accademico,
                         'numero_sovrapposizioni': num_sovrapposizioni
                     })
+                    
+            except Exception as e:
+                report['errori'].append({
+                    'insegnamento_id': insegnamento_id,
+                    'cds': cds,
+                    'anno_accademico': anno_accademico,
+                    'errore': str(e)
+                })
+        
         conn.commit()
+        
         report['status'] = 'success'
-        report['message'] = f"Ricalcolo completato: {report['giorni_con_sovrapposizioni']} giorni con sovrapposizioni, {len(report['coppie_sovrapposte'])} registri aggiornati"
+        report['message'] = (
+            f"Ricalcolo completato: {report['insegnamenti_con_sovrapposizioni']} "
+            f"insegnamenti con sovrapposizioni su {report['total_insegnamenti_processati']} totali"
+        )
+        
         return report
+        
     except Exception as e:
         conn.rollback()
         return {
             'status': 'error',
             'message': f'Errore durante il ricalcolo delle sovrapposizioni: {str(e)}',
-            'dettagli_errori': [str(e)]
+            'errori': [str(e)]
         }
     finally:
         cursor.close()
