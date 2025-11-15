@@ -7,6 +7,8 @@ from openpyxl.utils import get_column_letter
 from io import BytesIO
 from datetime import datetime
 import logging
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
 
 calendario_esami_bp = Blueprint('calendario_esami', __name__, url_prefix='/api/oh-issa')
 
@@ -146,6 +148,10 @@ def get_calendario_esami():
         'curriculum_codice': row['curriculum_codice'],
         'esami': esami_per_insegnamento.get(insegnamento_id, [])
       })
+    
+    # Ordina insegnamenti per semestre (3, 1, 2) e poi alfabeticamente
+    semestre_order = {3: 0, 1: 1, 2: 2}
+    insegnamenti.sort(key=lambda x: (semestre_order.get(x['semestre'], 999), x['titolo']))
     
     # Query per ottenere le sessioni
     cursor.execute("""
@@ -327,6 +333,10 @@ def esporta_calendario_esami():
                 'esami': esami_per_insegnamento.get(row['id'], [])
             })
         
+        # Ordina insegnamenti per semestre (3, 1, 2) e poi alfabeticamente
+        semestre_order = {3: 0, 1: 1, 2: 2}
+        insegnamenti.sort(key=lambda x: (semestre_order.get(x['semestre'], 999), x['titolo']))
+        
         # Raggruppa gli insegnamenti per anno di corso
         insegnamenti_per_anno = {}
         for ins in insegnamenti:
@@ -340,9 +350,11 @@ def esporta_calendario_esami():
         header_font = Font(bold=True, size=14, name="Arial")
         year_header_font = Font(bold=True, size=16, color="FFFFFF", name="Arial")
         insegnamento_font = Font(bold=False, size=12, name="Arial")
+        blue_font = Font(bold=False, size=12, color="0000FF", name="Arial")
         center_alignment = Alignment(horizontal='center', vertical='center')
         left_alignment = Alignment(horizontal='left', vertical='center')
         center_wrap_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        left_wrap_alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
         
         thin_border = Border(
             left=Side(style='thin'), right=Side(style='thin'),
@@ -350,8 +362,8 @@ def esporta_calendario_esami():
         )
         year_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
         header_fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
-        first_semester_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
-        blue_fill = PatternFill(start_color="BDD7EE", end_color="BDD7EE", fill_type="solid")
+        # Sfondo bianco per insegnamenti e date
+        white_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
         
         current_row = 1
         ordine_sessioni = ['anticipata', 'estiva', 'autunnale', 'invernale']
@@ -401,29 +413,42 @@ def esporta_calendario_esami():
                     data_col += 1
             
             for insegnamento in insegnamenti_per_anno[anno_corso]:
-                name_cell = sheet.cell(row=current_row, column=1, value=insegnamento['titolo'])
-                name_cell.alignment = left_alignment
-                name_cell.font = insegnamento_font
+                semestre = insegnamento.get('semestre')
+                if semestre == 1:
+                    semestre_str = "Primo semestre"
+                elif semestre == 2:
+                    semestre_str = "Secondo semestre"
+                elif semestre == 3:
+                    semestre_str = "Annuale"
+                else:
+                    semestre_str = ""
+                
+                name_cell = sheet.cell(row=current_row, column=1)
+                
+                if semestre_str:
+                    # Crea RichText con titolo e semestre in stili diversi
+                    rt = CellRichText(
+                        TextBlock(InlineFont(sz=12, color="000000", rFont="Arial"), insegnamento['titolo']),
+                        TextBlock(InlineFont(sz=10, color="808080", rFont="Arial"), f"\n{semestre_str}")
+                    )
+                    name_cell.value = rt
+                else:
+                    name_cell.value = insegnamento['titolo']
+                
+                name_cell.alignment = left_wrap_alignment
                 name_cell.border = thin_border
-
-                if insegnamento.get('semestre') == 1:
-                    name_cell.fill = first_semester_fill
-
+                name_cell.fill = white_fill
                 col_index = 0
                 for tipo_sessione in ordine_sessioni:
                     if tipo_sessione in sessioni_dict and sessioni_calendario[tipo_sessione]['inizio']:
                         col_index += 1
-
-                        # Esami normali (mostra_nel_calendario = TRUE)
                         esami_sessione = [
                             esame for esame in insegnamento['esami']
                             if sessioni_calendario[tipo_sessione]['inizio'] <= esame['data_appello'] <= sessioni_calendario[tipo_sessione]['fine']
                         ]
-
-                        # Esami annuali e sessione anticipata: cerca anche quelli con mostra_nel_calendario = FALSE
                         esami_nascosti = []
                         if (
-                            insegnamento.get('semestre') == 3 and tipo_sessione == 'anticipata'
+                            semestre == 3 and tipo_sessione == 'anticipata'
                         ):
                             cursor.execute("""
                                 SELECT e.data_appello
@@ -445,39 +470,31 @@ def esporta_calendario_esami():
                                 sessioni_calendario[tipo_sessione]['fine']
                             ))
                             esami_nascosti = [row['data_appello'] for row in cursor.fetchall()]
-
-                        if esami_sessione:
-                            esami_sessione.sort(key=lambda x: x['data_appello'])
-                            date_formattate = [esame['data_appello'].strftime('%d/%m/%Y') for esame in esami_sessione]
-                            date_complete = '\n'.join(date_formattate)
-                            if col_index < len(col_positions):
-                                date_cell = sheet.cell(row=current_row, column=col_positions[col_index], value=date_complete)
-                                date_cell.alignment = center_wrap_alignment
-                                date_cell.border = thin_border
-                                if insegnamento.get('semestre') == 1:
-                                    date_cell.fill = first_semester_fill
+                        cell_value = ""
+                        cell_font = insegnamento_font
+                        if esami_sessione or (semestre == 3 and tipo_sessione == 'anticipata' and esami_nascosti):
+                            date_list = []
+                            # Tutti gli esami dell'anticipata annuali in blu
+                            if semestre == 3 and tipo_sessione == 'anticipata':
+                                # Unisci sia ufficiali che non ufficiali
+                                tutte_date = [e['data_appello'] for e in esami_sessione] + esami_nascosti
+                                tutte_date = sorted(set(tutte_date))
+                                date_list = [d.strftime('%d/%m/%Y') for d in tutte_date]
+                                cell_value = '\n'.join(date_list)
+                                cell_font = blue_font
+                            else:
+                                if esami_sessione:
+                                    esami_sessione.sort(key=lambda x: x['data_appello'])
+                                    date_list = [esame['data_appello'].strftime('%d/%m/%Y') for esame in esami_sessione]
+                                    cell_value = '\n'.join(date_list)
                         else:
-                            if col_index < len(col_positions):
-                                empty_cell = sheet.cell(row=current_row, column=col_positions[col_index], value="--")
-                                empty_cell.alignment = center_alignment
-                                empty_cell.border = thin_border
-                                if insegnamento.get('semestre') == 1:
-                                    empty_cell.fill = first_semester_fill
-
-                        # Se ci sono esami nascosti, stampali in blu (aggiungi alle date normali, sotto)
-                        if esami_nascosti and col_index < len(col_positions):
-                            cell = sheet.cell(row=current_row, column=col_positions[col_index])
-                            # Se la cella contiene già date normali, aggiungi le blu sotto
-                            value = cell.value if cell.value and cell.value != "--" else ""
-                            blu_dates = [d.strftime('%d/%m/%Y') for d in sorted(esami_nascosti)]
-                            if value:
-                                value += "\n"
-                            value += "\n".join(blu_dates)
-                            cell.value = value
-                            cell.fill = blue_fill
-                            cell.alignment = center_wrap_alignment
-                            cell.border = thin_border
-
+                            cell_value = "--"
+                        if col_index < len(col_positions):
+                            date_cell = sheet.cell(row=current_row, column=col_positions[col_index], value=cell_value)
+                            date_cell.alignment = center_wrap_alignment
+                            date_cell.border = thin_border
+                            date_cell.fill = white_fill
+                            date_cell.font = cell_font
                 current_row += 1
             
             current_row += 1

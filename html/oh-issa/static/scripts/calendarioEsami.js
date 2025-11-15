@@ -195,10 +195,32 @@ function visualizzaCalendario(data) {
         insegnamentiPerAnno[anno].push(insegnamento);
     });
     
+    // Ordina insegnamenti per semestre (3, 1, 2) e poi alfabeticamente
+    const semestre_order = {3: 0, 1: 1, 2: 2};
+    Object.keys(insegnamentiPerAnno).forEach(anno => {
+        insegnamentiPerAnno[anno].sort((a, b) => {
+            const semestreA = semestre_order[a.semestre] !== undefined ? semestre_order[a.semestre] : 999;
+            const semestreB = semestre_order[b.semestre] !== undefined ? semestre_order[b.semestre] : 999;
+            if (semestreA !== semestreB) {
+                return semestreA - semestreB;
+            }
+            return a.titolo.localeCompare(b.titolo);
+        });
+    });
+    
     // Se non ci sono sessioni, mostra un messaggio
     if (!data.sessioni || Object.keys(data.sessioni).length === 0) {
         calendarioContainer.innerHTML = '<p class="alert alert-warning text-center">Nessuna sessione di esame definita per questo corso di studi</p>';
         return;
+    }
+    
+    // Aggiungi la descrizione del corso con curriculum
+    if (data.nome_corso) {
+        const corsoInfo = document.createElement('div');
+        corsoInfo.className = 'corso-info';
+        const titoloCurriculum = data.curriculum ? ` - ${data.curriculum}` : '';
+        corsoInfo.innerHTML = `<h2>Calendario esami: ${data.nome_corso}${titoloCurriculum}</h2>`;
+        calendarioContainer.appendChild(corsoInfo);
     }
     
     // Per ogni anno di corso, crea una tabella separata
@@ -250,15 +272,39 @@ function visualizzaCalendario(data) {
         insegnamentiPerAnno[anno].forEach(insegnamento => {
             const row = document.createElement('tr');
             
-            // Cella per il nome dell'insegnamento
+            // Cella per il nome dell'insegnamento con semestre
             const tdNome = document.createElement('td');
-            tdNome.textContent = insegnamento.titolo;
+            const nomeSpan = document.createElement('span');
+            nomeSpan.textContent = insegnamento.titolo;
+            tdNome.appendChild(nomeSpan);
+            
+            // Aggiungi il semestre su nuova riga se presente
+            const semestre = insegnamento.semestre;
+            if (semestre) {
+                let semestreStr = '';
+                if (semestre === 1) semestreStr = 'Primo semestre';
+                else if (semestre === 2) semestreStr = 'Secondo semestre';
+                else if (semestre === 3) semestreStr = 'Annuale';
+                
+                if (semestreStr) {
+                    const br = document.createElement('br');
+                    tdNome.appendChild(br);
+                    const semestreSpan = document.createElement('span');
+                    semestreSpan.textContent = semestreStr;
+                    semestreSpan.style.fontSize = '0.9em';
+                    semestreSpan.style.color = '#808080';
+                    semestreSpan.style.fontWeight = 'normal';
+                    tdNome.appendChild(semestreSpan);
+                }
+            }
+            
             row.appendChild(tdNome);
             
             // Per ogni sessione, verifica se ci sono esami
             ordineSessioni.forEach(tipoSessione => {
                 if (data.sessioni[tipoSessione] && data.sessioni[tipoSessione].inizio) {
                     const tdEsami = document.createElement('td');
+                    tdEsami.style.textAlign = 'center';
                     
                     // Filtra gli esami di questo insegnamento per questa sessione
                     const esamiSessione = (insegnamento.esami || []).filter(esame => {
@@ -268,20 +314,40 @@ function visualizzaCalendario(data) {
                         return dataEsame >= inizioSessione && dataEsame <= fineSessione;
                     });
                     
-                    // Se ci sono esami, mostra le date in colonna
+                    // Se ci sono esami, mostra le date
                     if (esamiSessione.length > 0) {
-                        // Ordina cronologicamente prima di formattare
+                        // Ordina cronologicamente
                         esamiSessione.sort((a, b) => new Date(a.data_appello) - new Date(b.data_appello));
+                        
+                        // Per anticipata annuali: data blu, altrimenti nero
+                        const isAnnualeAnticipata = semestre === 3 && tipoSessione === 'anticipata';
                         
                         const dateEsami = esamiSessione.map(esame => {
                             const data = new Date(esame.data_appello);
                             const giorno = data.getDate().toString().padStart(2, '0');
                             const mese = (data.getMonth() + 1).toString().padStart(2, '0');
                             const anno = data.getFullYear();
-                            return `${giorno}/${mese}/${anno}`;
+                            const dateStr = `${giorno}/${mese}/${anno}`;
+                            
+                            if (isAnnualeAnticipata) {
+                                const span = document.createElement('span');
+                                span.textContent = dateStr;
+                                span.style.color = '#0000FF';
+                                return span;
+                            }
+                            return dateStr;
                         });
                         
-                        tdEsami.innerHTML = dateEsami.join('<br>');
+                        dateEsami.forEach((elem, idx) => {
+                            if (idx > 0) {
+                                tdEsami.appendChild(document.createElement('br'));
+                            }
+                            if (typeof elem === 'string') {
+                                tdEsami.appendChild(document.createTextNode(elem));
+                            } else {
+                                tdEsami.appendChild(elem);
+                            }
+                        });
                     }
                     
                     row.appendChild(tdEsami);
@@ -295,15 +361,6 @@ function visualizzaCalendario(data) {
         annoDiv.appendChild(table);
         calendarioContainer.appendChild(annoDiv);
     });
-    
-    // Aggiungi la descrizione del corso con curriculum
-    if (data.nome_corso) {
-        const corsoInfo = document.createElement('div');
-        corsoInfo.className = 'corso-info';
-        const titoloCurriculum = data.curriculum ? ` - ${data.curriculum}` : '';
-        corsoInfo.innerHTML = `<h2>Calendario esami: ${data.nome_corso}${titoloCurriculum}</h2>`;
-        calendarioContainer.prepend(corsoInfo);
-    }
 }
 
 // Esporta il calendario in formato XLSX
