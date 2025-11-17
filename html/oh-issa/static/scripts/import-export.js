@@ -10,7 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
       showMessage('error', 'Seleziona prima un anno accademico');
       return;
     }
-    window.location.href = `/api/oh-issa/download-file-esse3?anno=${selectedAnno}`;
+    const anticipata = document.getElementById('anticipataExportToggle').checked;
+    window.location.href = `/api/oh-issa/download-file-esse3?anno=${selectedAnno}&anticipata=${anticipata}`;
   });
 
   const downloadEasyAcademyButton = document.getElementById('downloadEasyAcademyButton');

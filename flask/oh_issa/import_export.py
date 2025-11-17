@@ -575,54 +575,55 @@ def upload_ugov():
 def download_esse3():
   if not session.get('permessi_admin'):
     return jsonify({'status': 'error', 'message': 'Accesso non autorizzato'}), 401
-    
+
   anno = request.args.get('anno')
+  anticipata = request.args.get('anticipata', 'true').lower() == 'true'
   if not anno:
     return jsonify({'error': 'Anno accademico non specificato'}), 400
-    
+
   try:
     anno = int(anno)
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    # Query base
+    query = """
       SELECT 
-        e.tipo_appello,           -- Tipo appello
-        e.anno_accademico,        -- Anno
-        e.cds,                    -- CDS
-        i.codice,                 -- AD (codice insegnamento, non ID)
-        e.descrizione,            -- Des. Appello
-        e.data_appello,           -- Data Appello
-        e.data_inizio_iscrizione, -- Data inizio iscrizione
-        e.data_fine_iscrizione,   -- Data fine iscrizione
-        e.ora_appello,            -- Ora appello
-        e.verbalizzazione,        -- Verbalizzazione
-        e.definizione_appello,    -- Def. App.
-        e.gestione_prenotazione,  -- Gest. Pren.
-        e.riservato,              -- Riservato
-        e.tipo_iscrizione,        -- Tipo Iscr.
-        e.tipo_esame,             -- Tipo Esa.
-        a.edificio,               -- Edificio
-        a.codice_esse3,           -- Codice Aula ESSE3
-        ut.matricola,             -- Matricola Titolare
-        a.sede,                   -- Sede
-        e.condizione_sql,         -- Condizione SQL
-        e.partizionamento,        -- Partizionamento
-        e.partizione,             -- Partizione
-        e.note_appello,           -- Note Appello
-        e.posti,                  -- Posti
-        e.codice_turno            -- Codice Turno
+        e.tipo_appello, e.anno_accademico, e.cds, i.codice, e.descrizione,
+        e.data_appello, e.data_inizio_iscrizione, e.data_fine_iscrizione,
+        e.ora_appello, e.verbalizzazione, e.definizione_appello,
+        e.gestione_prenotazione, e.riservato, e.tipo_iscrizione,
+        e.tipo_esame, a.edificio, a.codice_esse3, ut.matricola, a.sede,
+        e.condizione_sql, e.partizionamento, e.partizione,
+        e.note_appello, e.posti, e.codice_turno
       FROM esami e
       JOIN insegnamenti i ON e.insegnamento = i.id
       JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
                                 AND e.anno_accademico = ic.anno_accademico
                                 AND e.cds = ic.cds
                                 AND e.curriculum_codice = ic.curriculum_codice
-      LEFT JOIN utenti ut ON ic.titolare = ut.matricola  -- Matricola del titolare
+      LEFT JOIN utenti ut ON ic.titolare = ut.matricola
       LEFT JOIN aule a ON e.aula = a.nome
       WHERE e.anno_accademico = %s
-      ORDER BY e.data_appello, e.insegnamento
-    """, (anno,))
+    """
+
+    params = [anno]
+
+    # Se l'opzione NON è checkata, aggiungi la clausola per escludere gli esami della sessione anticipata
+    if not anticipata:
+      query += """
+        AND NOT EXISTS (
+          SELECT 1 FROM sessioni s
+          WHERE s.anno_accademico = e.anno_accademico
+            AND s.tipo_sessione = 'anticipata'
+            AND e.data_appello >= s.inizio
+            AND e.data_appello <= s.fine
+        )
+      """
+
+    query += " ORDER BY e.data_appello, e.insegnamento"
+
+    cursor.execute(query, params)
     esami = cursor.fetchall()
 
     # Crea il file Excel in memoria
