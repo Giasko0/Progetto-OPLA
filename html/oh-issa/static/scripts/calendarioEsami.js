@@ -316,38 +316,51 @@ function visualizzaCalendario(data) {
                     
                     // Se ci sono esami, mostra le date
                     if (esamiSessione.length > 0) {
-                        // Ordina cronologicamente
-                        esamiSessione.sort((a, b) => new Date(a.data_appello) - new Date(b.data_appello));
+                        // Separa esami ufficiali e non ufficiali
+                        const esamiUfficiali = esamiSessione.filter(e => e.mostra_nel_calendario);
+                        const esamiNonUfficiali = esamiSessione.filter(e => !e.mostra_nel_calendario);
                         
-                        // Per anticipata annuali: data blu, altrimenti nero
+                        // Per annuali nella sessione anticipata: mostra tutti gli esami in blu
                         const isAnnualeAnticipata = semestre === 3 && tipoSessione === 'anticipata';
                         
-                        const dateEsami = esamiSessione.map(esame => {
-                            const data = new Date(esame.data_appello);
-                            const giorno = data.getDate().toString().padStart(2, '0');
-                            const mese = (data.getMonth() + 1).toString().padStart(2, '0');
-                            const anno = data.getFullYear();
-                            const dateStr = `${giorno}/${mese}/${anno}`;
-                            
-                            if (isAnnualeAnticipata) {
-                                const span = document.createElement('span');
-                                span.textContent = dateStr;
-                                span.style.color = '#0000FF';
-                                return span;
-                            }
-                            return dateStr;
-                        });
+                        let esamiDaMostrare = [];
+                        let usaBlu = false;
                         
-                        dateEsami.forEach((elem, idx) => {
-                            if (idx > 0) {
-                                tdEsami.appendChild(document.createElement('br'));
-                            }
-                            if (typeof elem === 'string') {
-                                tdEsami.appendChild(document.createTextNode(elem));
-                            } else {
-                                tdEsami.appendChild(elem);
-                            }
-                        });
+                        if (isAnnualeAnticipata) {
+                            // Mostra tutti gli esami (ufficiali e non ufficiali) in blu
+                            esamiDaMostrare = esamiSessione;
+                            usaBlu = true;
+                        } else {
+                            // Per altre sessioni mostra solo esami ufficiali
+                            esamiDaMostrare = esamiUfficiali;
+                            usaBlu = false;
+                        }
+                        
+                        if (esamiDaMostrare.length > 0) {
+                            // Ordina cronologicamente
+                            esamiDaMostrare.sort((a, b) => new Date(a.data_appello) - new Date(b.data_appello));
+                            
+                            esamiDaMostrare.forEach((esame, idx) => {
+                                if (idx > 0) {
+                                    tdEsami.appendChild(document.createElement('br'));
+                                }
+                                
+                                const data = new Date(esame.data_appello);
+                                const giorno = data.getDate().toString().padStart(2, '0');
+                                const mese = (data.getMonth() + 1).toString().padStart(2, '0');
+                                const anno = data.getFullYear();
+                                const dateStr = `${giorno}/${mese}/${anno}`;
+                                
+                                if (usaBlu) {
+                                    const span = document.createElement('span');
+                                    span.textContent = dateStr;
+                                    span.style.color = '#0000FF';
+                                    tdEsami.appendChild(span);
+                                } else {
+                                    tdEsami.appendChild(document.createTextNode(dateStr));
+                                }
+                            });
+                        }
                     }
                     
                     row.appendChild(tdEsami);
