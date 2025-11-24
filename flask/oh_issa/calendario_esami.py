@@ -394,7 +394,7 @@ def esporta_calendario_esami():
         header_font = Font(bold=True, size=14, name="Arial")
         year_header_font = Font(bold=True, size=16, color="FFFFFF", name="Arial")
         insegnamento_font = Font(bold=False, size=12, name="Arial")
-        blue_font = Font(bold=False, size=12, color="0000FF", name="Arial")
+        blue_font = Font(bold=False, size=12, color="00BFFF", name="Arial")
         center_alignment = Alignment(horizontal='center', vertical='center')
         left_alignment = Alignment(horizontal='left', vertical='center')
         center_wrap_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
