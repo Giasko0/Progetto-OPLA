@@ -186,7 +186,7 @@ def controlla_esami_minimi():
                     esami_per_sessione[tipo] = row[f'esami_{tipo}']
                 
                 # Calcola target e requisiti specifici
-                cds_key = (row['cds_codice'], row['curriculum_codice'])
+                cds_key = (row['cds_codice'], 'GEN')
                 semestre = row['semestre']
                 session_reqs = {}
                 
@@ -195,7 +195,7 @@ def controlla_esami_minimi():
                         req = 0
                         if semestre == 1: req = mins[1]
                         elif semestre == 2: req = mins[2]
-                        elif semestre == 3: req = max(mins[1], mins[2])
+                        elif semestre == 3: req = mins[2] # Annuali seguono le regole del 2° semestre
                         
                         session_reqs[tipo] = req
                 
