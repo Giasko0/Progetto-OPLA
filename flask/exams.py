@@ -395,16 +395,20 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     return False, f'Insegnamento {insegnamento} non trovato'
                 insegnamento_id, titolo_insegnamento = result
                 
-                # Verifica esistenza per l'anno accademico
+                # Verifica esistenza per l'anno accademico e ottieni info CdS
                 cursor.execute("""
-                    SELECT 1 FROM insegnamenti_cds 
+                    SELECT cds, curriculum_codice, semestre, sovrapposizioni 
+                    FROM insegnamenti_cds 
                     WHERE insegnamento = %s AND anno_accademico = %s LIMIT 1
                 """, (insegnamento_id, anno_accademico))
                 
-                if not cursor.fetchone():
+                cds_info = cursor.fetchone()
+                if not cds_info:
                     cursor.close()
                     release_connection(conn)
                     return False, f'Insegnamento {titolo_insegnamento} non trovato per l\'anno accademico {anno_accademico}'
+                
+                cds_codice, curriculum_codice, semestre_ins, current_sovrapposizioni = cds_info
                 
                 # Controllo esame stesso giorno
                 cursor.execute("""
@@ -442,6 +446,76 @@ def controlla_vincoli(dati_esame, aula_originale=None):
                     cursor.close()
                     release_connection(conn)
                     return False, f'Vincolo 14 giorni violato per {titolo_insegnamento}: esiste già un esame il {conflicting_date}'
+
+                # --- CONTROLLO SOVRAPPOSIZIONI ---
+                # Verifica se l'inserimento crea conflitti
+                conflitto_trovato = conta_sovrapposizioni_per_data(
+                    insegnamento_id, cds_codice, anno_accademico, 
+                    data_appello, periodo, conn, exclude_exam_id=exam_id_to_exclude
+                )
+                
+                if conflitto_trovato:
+                    # 1. Verifica impatto su QUESTO insegnamento
+                    # Controlla se questa data era già contata come sovrapposizione (cioè se avevo già altri esami in questa data che confliggevano)
+                    cursor.execute("""
+                        SELECT id FROM esami 
+                        WHERE insegnamento = %s AND cds = %s AND anno_accademico = %s
+                        AND data_appello = %s AND periodo = %s AND mostra_nel_calendario = true
+                    """ + (" AND id != %s" if exam_id_to_exclude else ""), 
+                    [insegnamento_id, cds_codice, anno_accademico, data_appello, periodo] + 
+                    ([exam_id_to_exclude] if exam_id_to_exclude else []))
+                    
+                    altri_esami_miei = cursor.fetchall()
+                    
+                    # Se ho altri esami in questa data, e 'conflitto_trovato' è true, allora anche loro confliggono.
+                    # Quindi la data è già contata. Se NON ho altri esami, è una nuova data.
+                    is_nuova_data_sovrapposizione = len(altri_esami_miei) == 0
+                    
+                    if is_nuova_data_sovrapposizione:
+                        if current_sovrapposizioni >= 2:
+                            cursor.close()
+                            release_connection(conn)
+                            return False, f"Impossibile inserire esame per '{titolo_insegnamento}': raggiunto il limite massimo di sovrapposizioni (2)."
+
+                    # 2. Verifica impatto su ALTRI insegnamenti
+                    # Trova gli insegnamenti con cui vado in conflitto
+                    cursor.execute("""
+                        SELECT DISTINCT ic.insegnamento, ic.sovrapposizioni, ic.semestre, i.titolo
+                        FROM esami e
+                        JOIN insegnamenti_cds ic ON e.insegnamento = ic.insegnamento 
+                            AND e.cds = ic.cds 
+                            AND e.anno_accademico = ic.anno_accademico
+                        JOIN insegnamenti i ON ic.insegnamento = i.id
+                        WHERE e.cds = %s 
+                            AND e.anno_accademico = %s
+                            AND e.data_appello = %s
+                            AND e.periodo = %s
+                            AND e.mostra_nel_calendario = true
+                            AND e.insegnamento != %s
+                    """, (cds_codice, anno_accademico, data_appello, periodo, insegnamento_id))
+                    
+                    potenziali_conflitti = cursor.fetchall()
+                    
+                    for altro_ins_id, altro_sovrapposizioni, altro_semestre, altro_titolo in potenziali_conflitti:
+                        # Verifica compatibilità
+                        if not semestri_compatibili(semestre_ins, altro_semestre):
+                            continue
+                        if hanno_docenti_comuni(insegnamento_id, altro_ins_id, anno_accademico, conn):
+                            continue
+                            
+                        # Verifica se per l'altro insegnamento questa è una NUOVA data di sovrapposizione
+                        # Controlla se aveva già conflitti con terzi (escludendo me)
+                        aveva_gia_conflitti_con_terzi = conta_sovrapposizioni_per_data(
+                            altro_ins_id, cds_codice, anno_accademico,
+                            data_appello, periodo, conn, exclude_exam_id=exam_id_to_exclude
+                        )
+                        
+                        if not aveva_gia_conflitti_con_terzi:
+                            # Io sono l'unico a creargli conflitto in questa data
+                            if altro_sovrapposizioni >= 2:
+                                cursor.close()
+                                release_connection(conn)
+                                return False, f"Impossibile inserire esame: l'insegnamento '{altro_titolo}' ha raggiunto il limite massimo di sovrapposizioni (2)."
         
         # Controllo conflitti aula (salta se studio docente, stessa aula originale, o aula non specificata)
         if aula and aula != "Studio docente DMI" and aula != aula_originale:
