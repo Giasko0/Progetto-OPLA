@@ -167,11 +167,6 @@ function createCdsReportSection(cdsName, insegnamenti) {
     const section = document.createElement('div');
     section.className = 'cds-report-section';
     
-    // Ottieni il target dal server
-    const targetEsami = reportData.target_esami;
-    const conformi = insegnamenti.filter(ins => ins.numero_esami >= targetEsami).length;
-    const nonConformi = insegnamenti.length - conformi;
-    
     // Crea header delle colonne sessioni
     let sessionHeaders = '';
     if (reportData.sessioni) {
@@ -184,10 +179,6 @@ function createCdsReportSection(cdsName, insegnamenti) {
     section.innerHTML = `
         <div class="cds-header">
             <h2>${cdsName}</h2>
-            <div class="cds-summary">
-                <span class="conformi">✓ ${conformi} conformi</span>
-                <span class="non-conformi">⚠ ${nonConformi} non conformi</span>
-            </div>
         </div>
         <div class="insegnamenti-table-container">
             <table class="insegnamenti-table">
@@ -198,7 +189,6 @@ function createCdsReportSection(cdsName, insegnamenti) {
                         <th>Totale Esami</th>
                         ${sessionHeaders}
                         <th>Status</th>
-                        <th>Mancanti</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-${cdsName.replace(/\s+/g, '_')}">
@@ -209,16 +199,22 @@ function createCdsReportSection(cdsName, insegnamenti) {
     
     const tbody = section.querySelector('tbody');
     
-    // Ordina per numero esami (crescente) e poi per titolo
+    // Ordina per semestre (3 -> 1 -> 2) e poi alfabeticamente
     insegnamenti.sort((a, b) => {
-        if (a.numero_esami !== b.numero_esami) {
-            return a.numero_esami - b.numero_esami;
+        // Priorità: Annuale (3) -> 0, Semestre 1 -> 1, Semestre 2 -> 2
+        const getPriority = (s) => s === 3 ? 0 : s;
+        
+        const pA = getPriority(a.semestre);
+        const pB = getPriority(b.semestre);
+        
+        if (pA !== pB) {
+            return pA - pB;
         }
         return a.titolo.localeCompare(b.titolo);
     });
     
     insegnamenti.forEach(ins => {
-        const row = createInsegnamentoRow(ins, targetEsami);
+        const row = createInsegnamentoRow(ins);
         tbody.appendChild(row);
     });
     
@@ -226,24 +222,56 @@ function createCdsReportSection(cdsName, insegnamenti) {
 }
 
 // Crea riga per insegnamento
-function createInsegnamentoRow(insegnamento, targetEsami) {
+function createInsegnamentoRow(insegnamento) {
     const row = document.createElement('tr');
-    const isConforme = insegnamento.numero_esami >= targetEsami;
-    row.className = isConforme ? 'conforme' : 'non-conforme';
+    const targetEsami = insegnamento.target_esami;
+    const isConformeTotale = insegnamento.numero_esami >= targetEsami;
+    
+    // Controllo requisiti specifici per sessione
+    let sessioniNonConformi = false;
+    
+    if (reportData.sessioni && insegnamento.esami_per_sessione && insegnamento.session_requirements) {
+        reportData.sessioni.forEach(sessione => {
+            const count = insegnamento.esami_per_sessione[sessione.tipo] || 0;
+            const minRequired = insegnamento.session_requirements[sessione.tipo] || 0;
+            
+            if (count < minRequired) {
+                sessioniNonConformi = true;
+            }
+        });
+    }
+
+    // Se non conforme per totale è rosso (priorità), se non conforme per sessione è giallo
+    if (!isConformeTotale) {
+        row.className = 'non-conforme';
+    } else if (sessioniNonConformi) {
+        row.className = 'warning-sessione'; // Classe per il giallo
+        row.style.backgroundColor = '#fff3cd'; // Giallo chiaro bootstrap style
+    } else {
+        row.className = 'conforme';
+    }
     
     const docentiText = insegnamento.docenti.length > 0 
         ? insegnamento.docenti.map(d => `${d.cognome} ${d.nome}`).join(', ')
         : 'Nessun docente assegnato';
     
-    const statusText = isConforme ? '✓ Conforme' : '⚠ Non conforme';
-    const mancantiText = isConforme ? '-' : (targetEsami - insegnamento.numero_esami).toString();
+    const statusText = !isConformeTotale ? '⚠ Non conforme (Totale)' : (sessioniNonConformi ? '⚠ Sessioni incomplete' : '✓ Conforme');
     
+    // Formattazione semestre
+    const semText = insegnamento.semestre === 3 ? '(Ann)' : `(Sem. ${insegnamento.semestre})`;
+
     // Crea celle per le sessioni
     let sessionCells = '';
     if (reportData.sessioni && insegnamento.esami_per_sessione) {
         reportData.sessioni.forEach(sessione => {
             const count = insegnamento.esami_per_sessione[sessione.tipo] || 0;
-            sessionCells += `<td class="sessione-count">${count}</td>`;
+            const minRequired = insegnamento.session_requirements ? (insegnamento.session_requirements[sessione.tipo] || 0) : 0;
+            
+            const isSessionLow = count < minRequired;
+            const cellStyle = isSessionLow ? 'style="color: #856404; font-weight: bold;"' : '';
+            const title = `Minimo richiesto: ${minRequired}`;
+            
+            sessionCells += `<td class="sessione-count" ${cellStyle} title="${title}">${count} <span style="font-size:0.8em; color:#999">/ ${minRequired}</span></td>`;
         });
     }
     
@@ -251,14 +279,13 @@ function createInsegnamentoRow(insegnamento, targetEsami) {
         <td>
             <div class="insegnamento-info">
                 <span class="titolo">${insegnamento.titolo}</span>
-                <span class="codice">${insegnamento.codice}</span>
+                <span class="codice">${insegnamento.codice} ${semText}</span>
             </div>
         </td>
         <td class="docenti">${docentiText}</td>
-        <td class="numero-esami">${insegnamento.numero_esami}</td>
+        <td class="numero-esami">${insegnamento.numero_esami} <span style="font-size:0.8em; color:#999">/ ${targetEsami}</span></td>
         ${sessionCells}
-        <td class="status ${isConforme ? 'conforme' : 'non-conforme'}">${statusText}</td>
-        <td class="mancanti">${mancantiText}</td>
+        <td class="status">${statusText}</td>
     `;
     
     return row;
@@ -266,17 +293,25 @@ function createInsegnamentoRow(insegnamento, targetEsami) {
 
 // Aggiorna statistiche
 function updateStatistiche(data) {
-    const targetEsami = data.target_esami;
-    const conformi = data.insegnamenti.filter(ins => ins.numero_esami >= targetEsami).length;
+    const conformi = data.insegnamenti.filter(ins => {
+        const isConformeTotale = ins.numero_esami >= ins.target_esami;
+        let hasSessionWarning = false;
+        
+        if (data.sessioni && ins.esami_per_sessione && ins.session_requirements) {
+            data.sessioni.forEach(sessione => {
+                const count = ins.esami_per_sessione[sessione.tipo] || 0;
+                const minRequired = ins.session_requirements[sessione.tipo] || 0;
+                if (count < minRequired) hasSessionWarning = true;
+            });
+        }
+        return isConformeTotale && !hasSessionWarning;
+    }).length;
+    
     const nonConformi = data.insegnamenti.length - conformi;
     
     document.getElementById('totalInsegnamenti').textContent = data.insegnamenti.length;
     document.getElementById('insegnamentiConformi').textContent = conformi;
     document.getElementById('insegnamentiNonConformi').textContent = nonConformi;
-    
-    // Aggiorna le etichette con il valore del target dinamico
-    document.getElementById('targetEsamiLabel').textContent = targetEsami;
-    document.getElementById('targetEsamiLabel2').textContent = targetEsami;
 }
 
 // Applica filtri
@@ -286,7 +321,6 @@ function applyFilters() {
     const searchQuery = document.getElementById('searchInsegnamento').value.toLowerCase();
     const filterType = document.querySelector('input[name="filterType"]:checked').value;
     const hideNoDocenti = document.getElementById('hideNoDocenti').checked;
-    const targetEsami = reportData.target_esami;
     
     let filtered = reportData.insegnamenti.filter(ins => {
         // Filtro di ricerca
@@ -294,12 +328,26 @@ function applyFilters() {
             ins.titolo.toLowerCase().includes(searchQuery) ||
             ins.codice.toLowerCase().includes(searchQuery);
         
+        // Calcola conformità completa (totale + sessioni)
+        const isConformeTotale = ins.numero_esami >= ins.target_esami;
+        let hasSessionWarning = false;
+        
+        if (reportData.sessioni && ins.esami_per_sessione && ins.session_requirements) {
+            reportData.sessioni.forEach(sessione => {
+                const count = ins.esami_per_sessione[sessione.tipo] || 0;
+                const minRequired = ins.session_requirements[sessione.tipo] || 0;
+                if (count < minRequired) hasSessionWarning = true;
+            });
+        }
+        
+        const isFullyConforme = isConformeTotale && !hasSessionWarning;
+        
         // Filtro tipo
         let matchesType = true;
         if (filterType === 'conformi') {
-            matchesType = ins.numero_esami >= targetEsami;
+            matchesType = isFullyConforme;
         } else if (filterType === 'non-conformi') {
-            matchesType = ins.numero_esami < targetEsami;
+            matchesType = !isFullyConforme;
         }
         
         // Filtro insegnamenti senza docenti

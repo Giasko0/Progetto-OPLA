@@ -91,6 +91,24 @@ def controlla_esami_minimi():
         """, (anno,))
         
         sessioni = cursor.fetchall()
+
+        # Ottieni le regole specifiche per CdS/Curriculum
+        cursor.execute("""
+            SELECT cds, curriculum_codice, tipo_sessione, 
+                   COALESCE(esami_primo_semestre, 0) as min_1, 
+                   COALESCE(esami_secondo_semestre, 0) as min_2
+            FROM sessioni
+            WHERE anno_accademico = %s
+        """, (anno,))
+        rules_rows = cursor.fetchall()
+        
+        # Mappa: (cds, curriculum) -> { tipo_sessione: { 1: min1, 2: min2 } }
+        rules_map = {}
+        for r in rules_rows:
+            key = (r['cds'], r['curriculum_codice'])
+            if key not in rules_map:
+                rules_map[key] = {}
+            rules_map[key][r['tipo_sessione']] = { 1: r['min_1'], 2: r['min_2'] }
         
         # Query base per ottenere tutti gli insegnamenti dell'anno con conteggio esami per sessione
         base_query = """
@@ -167,6 +185,20 @@ def controlla_esami_minimi():
                     tipo = sessione['tipo_sessione']
                     esami_per_sessione[tipo] = row[f'esami_{tipo}']
                 
+                # Calcola target e requisiti specifici
+                cds_key = (row['cds_codice'], row['curriculum_codice'])
+                semestre = row['semestre']
+                session_reqs = {}
+                
+                if cds_key in rules_map:
+                    for tipo, mins in rules_map[cds_key].items():
+                        req = 0
+                        if semestre == 1: req = mins[1]
+                        elif semestre == 2: req = mins[2]
+                        elif semestre == 3: req = max(mins[1], mins[2])
+                        
+                        session_reqs[tipo] = req
+                
                 insegnamenti_dict[ins_key] = {
                     'id': row['insegnamento_id'],
                     'codice': row['insegnamento_codice'],
@@ -178,6 +210,8 @@ def controlla_esami_minimi():
                     'semestre': row['semestre'],
                     'numero_esami': row['numero_esami'],
                     'esami_per_sessione': esami_per_sessione,
+                    'target_esami': target_esami,
+                    'session_requirements': session_reqs,
                     'docenti': []
                 }
             
@@ -198,15 +232,19 @@ def controlla_esami_minimi():
         
         # Statistiche
         total = len(insegnamenti)
-        conformi = len([ins for ins in insegnamenti if ins['numero_esami'] >= target_esami])
+        conformi = len([ins for ins in insegnamenti if ins['numero_esami'] >= ins['target_esami']])
         non_conformi = total - conformi
         
         result = {
             'anno_accademico': anno,
             'cds_filter': cds_filter,
             'docente_filter': docente_filter,
-            'target_esami': target_esami,
-            'sessioni': [{'tipo': s['tipo_sessione'], 'inizio': s['inizio'].isoformat(), 'fine': s['fine'].isoformat()} for s in sessioni],
+            'target_esami_default': target_esami,
+            'sessioni': [{
+                'tipo': s['tipo_sessione'], 
+                'inizio': s['inizio'].isoformat(), 
+                'fine': s['fine'].isoformat()
+            } for s in sessioni],
             'statistiche': {
                 'totale_insegnamenti': total,
                 'conformi': conformi,
