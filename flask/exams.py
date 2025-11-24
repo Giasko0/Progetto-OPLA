@@ -81,6 +81,21 @@ def is_date_in_session(data_appello, docente, anno_accademico):
         return False
 
 
+def check_cds_blocked(cds_codice, anno_accademico):
+    """Verifica se un CdS è bloccato per un determinato anno accademico."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT 1 FROM cds 
+            WHERE codice = %s AND anno_accademico = %s AND bloccato = TRUE 
+            LIMIT 1
+        """, (cds_codice, anno_accademico))
+        return cursor.fetchone() is not None
+    finally:
+        cursor.close()
+        release_connection(conn)
+
 # ================== Funzioni per la gestione dei dati degli esami ==================
 
 def genera_dati_esame():
@@ -199,6 +214,26 @@ def controlla_vincoli(dati_esame, aula_originale=None):
     docente_form = dati_esame.get('docente')
     exam_id_to_exclude = dati_esame.get('exam_id')
     
+    # CONTROLLO CDS BLOCCATO (Nuovo)
+    # Verifica se uno degli insegnamenti appartiene a un CdS bloccato
+    for insegnamento_id in insegnamenti:
+        cursor.execute("""
+            SELECT DISTINCT c.codice, c.nome_corso 
+            FROM insegnamenti_cds ic
+            JOIN cds c ON ic.cds = c.codice AND ic.anno_accademico = c.anno_accademico AND ic.curriculum_codice = c.curriculum_codice
+            WHERE ic.insegnamento = %s AND ic.anno_accademico = %s
+        """, (insegnamento_id, anno_accademico))
+        
+        cds_found = cursor.fetchall()
+        for cds_codice, cds_nome in cds_found:
+            # Nota: usiamo una query separata o controlliamo il flag bloccato direttamente qui se fosse nella join
+            # Per coerenza usiamo la funzione helper o una query diretta
+            cursor.execute("SELECT 1 FROM cds WHERE codice = %s AND anno_accademico = %s AND bloccato = TRUE LIMIT 1", (cds_codice, anno_accademico))
+            if cursor.fetchone():
+                cursor.close()
+                release_connection(conn)
+                return False, f"Impossibile inserire esami: Il CdS '{cds_nome}' ({cds_codice}) è bloccato per l'anno {anno_accademico}."
+
     # Determina se è admin
     is_admin = get_user_admin_status(docente_form)
     
@@ -1006,6 +1041,12 @@ def update_esame():
             release_connection(conn)
             return jsonify({'success': False, 'message': 'Non hai i permessi per modificare questo esame'}), 403
 
+        # CONTROLLO CDS BLOCCATO
+        if check_cds_blocked(esame_dict['cds'], esame_dict['anno_accademico']):
+            cursor.close()
+            release_connection(conn)
+            return jsonify({'success': False, 'message': 'Impossibile modificare: Il CdS di questo esame è bloccato.'}), 403
+
         if not bypass_checks:
             insegnamento_id = esame_dict['insegnamento']
             nuova_data_obj = datetime.strptime(data.get('data_appello'), '%Y-%m-%d')
@@ -1124,6 +1165,11 @@ def delete_esame():
             release_connection(conn)
             return jsonify({'success': False, 'message': 'Non hai i permessi per eliminare questo esame'}), 403
 
+        # CONTROLLO CDS BLOCCATO
+        if check_cds_blocked(esame_dict['cds'], esame_dict['anno_accademico']):
+            cursor.close()
+            release_connection(conn)
+            return jsonify({'success': False, 'message': 'Impossibile eliminare: Il CdS di questo esame è bloccato.'}), 403
 
         # Salva info prima dell'eliminazione per aggiornare sovrapposizioni
         data_appello = esame_dict['data_appello']

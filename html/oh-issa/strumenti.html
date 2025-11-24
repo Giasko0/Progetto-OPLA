@@ -14,10 +14,46 @@
   <div id="navbar"></div>
   <main>
     <h1>Strumenti</h1>
-    <section class="info-section">
-      <p>Clicca il pulsante sottostante per ricalcolare le sovrapposizioni degli esami nel database.</p>
-      <button id="ricalcolaSovrapposizioniBtn" class="btn primary">Ricalcola Sovrapposizioni Esami</button>
-      <div id="ricalcolaResult" style="margin-top: 1em;"></div>
+
+    <section class="upload-section">
+      <fieldset>
+        <legend>Ricalcolo Sovrapposizioni Esami</legend>
+        <p>Clicca il pulsante sottostante per ricalcolare le sovrapposizioni degli esami nel database.</p>
+        <button id="ricalcolaSovrapposizioniBtn" class="btn primary">Ricalcola Sovrapposizioni Esami</button>
+        <div id="ricalcolaResult" style="margin-top: 1em;"></div>
+      </fieldset>
+    </section>
+
+    <section class="upload-section">
+      <fieldset>
+        <legend>Blocco Corsi di Studio (CdS)</legend>
+        <p>Gestisci i permessi di modifica per i Corsi di Studio. Un CdS bloccato non permette l'inserimento, la modifica o l'eliminazione di esami.</p>
+        <div class="actions-bar">
+          <div class="actions-group">
+            <label for="annoFilter">Filtra per Anno:</label>
+            <select id="annoFilter" class="search-input" style="width: auto;">
+              <option value="">Tutti</option>
+              <!-- Popolato via JS -->
+            </select>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="users-table" id="cdsTable">
+            <thead>
+              <tr>
+                <th>Anno</th>
+                <th>Codice</th>
+                <th>Nome Corso</th>
+                <th class="centered">Stato</th>
+                <th class="centered">Azione</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Popolato via JS -->
+            </tbody>
+          </table>
+        </div>
+      </fieldset>
     </section>
   </main>
   <footer id="footer"></footer>

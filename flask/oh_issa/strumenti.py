@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, session
+from flask import Blueprint, jsonify, session, request
 from db import get_db_connection, release_connection
 from auth import require_auth
 
@@ -202,3 +202,86 @@ def ricalcola_sovrapposizioni():
             'status': 'error',
             'message': f'Errore durante il ricalcolo: {str(e)}'
         }), 500
+
+@strumenti_bp.route('/get-cds-status', methods=['GET'])
+@require_auth
+def get_cds_status():
+    """Restituisce la lista dei CdS con il loro stato di blocco."""
+    try:
+        username = session.get('username', '')
+        is_admin = session.get('permessi_admin', False)
+        if not is_admin:
+            return jsonify({'status': 'error', 'message': 'Accesso negato'}), 403
+
+        anno_accademico = request.args.get('anno_accademico')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT DISTINCT codice, nome_corso, anno_accademico, bloccato 
+            FROM cds 
+        """
+        params = []
+        
+        if anno_accademico:
+            query += " WHERE anno_accademico = %s"
+            params.append(anno_accademico)
+            
+        query += " ORDER BY anno_accademico DESC, nome_corso ASC"
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
+        cds_list = []
+        for row in rows:
+            cds_list.append({
+                'codice': row[0],
+                'nome_corso': row[1],
+                'anno_accademico': row[2],
+                'bloccato': bool(row[3])
+            })
+            
+        cursor.close()
+        release_connection(conn)
+        
+        return jsonify({'status': 'success', 'data': cds_list})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@strumenti_bp.route('/toggle-cds-block', methods=['POST'])
+@require_auth
+def toggle_cds_block():
+    """Attiva o disattiva il blocco per un CdS."""
+    try:
+        username = session.get('username', '')
+        is_admin = session.get('permessi_admin', False)
+        if not is_admin:
+            return jsonify({'status': 'error', 'message': 'Accesso negato'}), 403
+            
+        data = request.get_json()
+        codice = data.get('codice')
+        anno_accademico = data.get('anno_accademico')
+        bloccato = data.get('bloccato')
+        
+        if not codice or not anno_accademico or bloccato is None:
+            return jsonify({'status': 'error', 'message': 'Dati mancanti'}), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Aggiorna tutti i curricula per quel codice e anno
+        cursor.execute("""
+            UPDATE cds 
+            SET bloccato = %s 
+            WHERE codice = %s AND anno_accademico = %s
+        """, (bloccato, codice, anno_accademico))
+        
+        conn.commit()
+        cursor.close()
+        release_connection(conn)
+        
+        status_text = "bloccato" if bloccato else "sbloccato"
+        return jsonify({'status': 'success', 'message': f'CdS {codice} {status_text} con successo'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500

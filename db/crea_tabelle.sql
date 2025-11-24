@@ -38,6 +38,7 @@ CREATE TABLE cds (
     nome_corso TEXT NOT NULL,            -- Nome del corso di studio (INFORMATICA)
     curriculum_codice TEXT NOT NULL,     -- Codice del curriculum (GEN, E01, etc.)
     curriculum_nome TEXT NOT NULL,       -- Nome del curriculum (CORSO GENERICO, CYBERSECURITY, etc.)
+    bloccato BOOLEAN DEFAULT FALSE,      -- Indica se l'inserimento/modifica esami è bloccato per questo CdS
     PRIMARY KEY (codice, anno_accademico, curriculum_codice),
     CONSTRAINT check_anno_accademico CHECK (anno_accademico >= 1900 AND anno_accademico <= 2100)
 );
