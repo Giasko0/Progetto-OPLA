@@ -621,7 +621,7 @@ def download_esse3():
         )
       """
 
-    query += " ORDER BY e.data_appello, e.insegnamento"
+    query += " ORDER BY ut.matricola, i.codice, e.data_appello"
 
     cursor.execute(query, params)
     esami = cursor.fetchall()
